@@ -287,7 +287,7 @@
         function syncAlgorithmButtons(targetMode) {
             targetMode = (targetMode || 'canon').toLowerCase();
             algorithmToggle.querySelectorAll('.toggle').forEach(btn => btn.classList.remove('active'));
-            const match = algorithmToggle.querySelector('[data-algorithm\"' + targetMode + '\"]');
+            const match = algorithmToggle.querySelector('[data-algorithm="' + targetMode + '"]');
             if (match) {
                 match.classList.add('active');
             }
