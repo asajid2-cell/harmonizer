@@ -694,3 +694,67 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     }
 }
 
+/* OAuth Authentication Styles */
+.auth-status {
+    font-family: "Manrope", system-ui, sans-serif;
+}
+
+.auth-button {
+    background: rgba(232, 180, 184, 0.15);
+    border: 1px solid rgba(232, 180, 184, 0.3);
+    color: var(--color-text);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.auth-button:hover {
+    background: rgba(232, 180, 184, 0.25);
+    border-color: rgba(232, 180, 184, 0.5);
+    transform: translateY(-1px);
+}
+
+#user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#user-email {
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+/* Advanced Settings Button Enhancements */
+.advanced-button-container {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.advanced-musicality-button {
+    flex: 1;
+    min-width: 150px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.advanced-musicality-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(199, 54, 95, 0.4);
+}
+
+.advanced-musicality-button:active {
+    transform: translateY(0);
+}
+
+.advanced-reset-button {
+    flex: 1;
+    min-width: 150px;
+}
+

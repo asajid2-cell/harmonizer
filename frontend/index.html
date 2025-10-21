@@ -19,6 +19,16 @@
 
     <div class="page-shell">
         <a href="/" class="back-button hidden" id="back-button" aria-label="Back to song select"><span aria-hidden="true">&#8592;</span><span class="back-button-label">Back</span></a>
+
+        <!-- OAuth Sign-In Status -->
+        <div class="auth-status" id="auth-status" style="position: fixed; top: 20px; left: 20px; z-index: 1000;">
+            <button id="google-signin-button" class="auth-button" style="display: none;">Sign in with Google</button>
+            <div id="user-info" style="display: none;">
+                <span id="user-email" style="margin-right: 10px;"></span>
+                <button id="logout-button" class="auth-button">Sign out</button>
+            </div>
+        </div>
+
         <header class="hero">
             <div class="hero-meta">
                 <div class="badge">Harmonizer Lab</div>
@@ -519,11 +529,11 @@
                 title: 'Overlay Behaviour',
                 description: 'Set spacing, dwell, and texture for the live Autocanonizer voices.',
                 fields: [
-                    { key: 'minOffsetBeats', label: 'Minimum Offset', min: 1, max: 96, step: 1, format: (v) => `${v} beats`, description: 'Earliest beat separation between overlay voices.' },
-                    { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 128, step: 1, format: (v) => `${v} beats`, description: 'Largest allowed beat offset between overlay voices.' },
-                    { key: 'dwellBeats', label: 'Dwell', min: 1, max: 16, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats to stay on a pairing before retargeting.' },
-                    { key: 'density', label: 'Density', min: 1, max: 6, step: 1, format: (v) => `${v}/6`, description: 'Higher values add more simultaneous overlay voices.' },
-                    { key: 'variation', label: 'Variation', min: 0, max: 10, step: 1, format: (v) => `${v}`, description: 'Controls how adventurous the overlay can be when rewiring connections.' }
+                    { key: 'minOffsetBeats', label: 'Minimum Offset', min: 1, max: 192, step: 1, format: (v) => `${v} beats`, description: 'Earliest beat separation between overlay voices.' },
+                    { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 256, step: 1, format: (v) => `${v} beats`, description: 'Largest allowed beat offset between overlay voices.' },
+                    { key: 'dwellBeats', label: 'Dwell', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats to stay on a pairing before retargeting.' },
+                    { key: 'density', label: 'Density', min: 1, max: 16, step: 1, format: (v) => `${v}/16`, description: 'Higher values add more simultaneous overlay voices.' },
+                    { key: 'variation', label: 'Variation', min: 0, max: 50, step: 1, format: (v) => `${v}`, description: 'Controls how adventurous the overlay can be when rewiring connections.' }
                 ]
             },
             jukeboxLoop: {
@@ -541,11 +551,11 @@
                 title: 'Overlay Behaviour',
                 description: 'Shape the multivoice overlay used in Eternal Canonizer mode.',
                 fields: [
-                    { key: 'minOffsetBeats', label: 'Minimum Offset', min: 1, max: 96, step: 1, format: (v) => `${v} beats`, description: 'Earliest beat separation for overlay voices.' },
-                    { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 128, step: 1, format: (v) => `${v} beats`, description: 'Largest beat separation for overlay voices.' },
-                    { key: 'dwellBeats', label: 'Dwell', min: 1, max: 16, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats before switching overlay targets.' },
-                    { key: 'density', label: 'Density', min: 1, max: 6, step: 1, format: (v) => `${v}/6`, description: 'Higher values add thicker overlays.' },
-                    { key: 'variation', label: 'Variation', min: 0, max: 10, step: 1, format: (v) => `${v}`, description: 'Controls how much the overlay may deviate from its base pattern.' }
+                    { key: 'minOffsetBeats', label: 'Minimum Offset', min: 1, max: 192, step: 1, format: (v) => `${v} beats`, description: 'Earliest beat separation for overlay voices.' },
+                    { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 256, step: 1, format: (v) => `${v} beats`, description: 'Largest beat separation for overlay voices.' },
+                    { key: 'dwellBeats', label: 'Dwell', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats before switching overlay targets.' },
+                    { key: 'density', label: 'Density', min: 1, max: 16, step: 1, format: (v) => `${v}/16`, description: 'Higher values add thicker overlays.' },
+                    { key: 'variation', label: 'Variation', min: 0, max: 50, step: 1, format: (v) => `${v}`, description: 'Controls how much the overlay may deviate from its base pattern.' }
                 ]
             },
             eternalLoop: {
@@ -747,13 +757,32 @@
                         input.addEventListener('change', handleAdvancedFieldCommit);
                     });
 
+                    // Button container for Reset and Musicality buttons
+                    const buttonContainer = document.createElement('div');
+                    buttonContainer.className = 'advanced-button-container';
+                    buttonContainer.style.display = 'flex';
+                    buttonContainer.style.gap = '10px';
+                    buttonContainer.style.marginTop = '16px';
+
                     const resetButton = document.createElement('button');
                     resetButton.type = 'button';
                     resetButton.className = 'viz-button ghost advanced-reset-button';
                     resetButton.dataset.groupKey = groupKey;
                     resetButton.textContent = 'Reset to defaults';
                     resetButton.addEventListener('click', handleAdvancedReset);
-                    bodyWrapper.appendChild(resetButton);
+                    buttonContainer.appendChild(resetButton);
+
+                    // Musicality optimization button
+                    const musicalityButton = document.createElement('button');
+                    musicalityButton.type = 'button';
+                    musicalityButton.className = 'viz-button advanced-musicality-button';
+                    musicalityButton.dataset.groupKey = groupKey;
+                    musicalityButton.textContent = 'Optimize Musicality';
+                    musicalityButton.style.background = 'linear-gradient(135deg, rgba(199, 54, 95, 0.3), rgba(232, 180, 184, 0.3))';
+                    musicalityButton.addEventListener('click', handleMusicalityOptimization);
+                    buttonContainer.appendChild(musicalityButton);
+
+                    bodyWrapper.appendChild(buttonContainer);
 
                     toggle.addEventListener('change', handleAdvancedToggle);
 
@@ -766,6 +795,7 @@
                         valueLabels,
                         fieldMeta,
                         resetButton,
+                        musicalityButton,
                         fieldsContainer
                     };
 
@@ -975,6 +1005,158 @@
                 return;
             }
             window.applyAdvancedGroup(groupKey, { source: 'reset' });
+        }
+
+        /**
+         * Musicality Optimization Algorithm
+         * Takes current settings and finds nearest "robust" setup that sounds musical
+         * Based on Paul Lamere's Autocanonizer approach of beat distance and harmonic alignment
+         */
+        function handleMusicalityOptimization(event) {
+            const button = event.currentTarget;
+            const groupKey = button && button.dataset ? button.dataset.groupKey : null;
+            if (!groupKey) {
+                return;
+            }
+
+            const state = getGroupState(groupKey);
+            if (!state) {
+                return;
+            }
+
+            // Get current track info if available
+            const trackInfo = window.currentTrackInfo || {};
+            const bpm = trackInfo.bpm || 120; // Default BPM if not available
+            const beatsPerMeasure = trackInfo.beatsPerMeasure || 4;
+
+            console.log('[Musicality] Optimizing', groupKey, 'with BPM:', bpm);
+
+            let optimized = { ...state };
+
+            // Overlay group optimization (canonOverlay, eternalOverlay)
+            if (groupKey.includes('Overlay')) {
+                // 1. Align offsets to musical intervals (measures, bars)
+                // Canon sounds best when voices are separated by complete musical phrases
+                const currentMinOffset = state.minOffsetBeats || 4;
+                const currentMaxOffset = state.maxOffsetBeats || 16;
+
+                // Round to nearest bar (4, 8, 16, 32, 64, etc.)
+                const musicalIntervals = [4, 8, 12, 16, 24, 32, 48, 64, 96, 128];
+                optimized.minOffsetBeats = musicalIntervals.reduce((prev, curr) =>
+                    Math.abs(curr - currentMinOffset) < Math.abs(prev - currentMinOffset) ? curr : prev
+                );
+                optimized.maxOffsetBeats = musicalIntervals.reduce((prev, curr) =>
+                    Math.abs(curr - currentMaxOffset) < Math.abs(prev - currentMaxOffset) ? curr : prev
+                );
+
+                // Ensure min < max
+                if (optimized.minOffsetBeats >= optimized.maxOffsetBeats) {
+                    const idx = musicalIntervals.indexOf(optimized.minOffsetBeats);
+                    optimized.maxOffsetBeats = musicalIntervals[Math.min(idx + 2, musicalIntervals.length - 1)];
+                }
+
+                // 2. Optimize dwell time for phrase completion
+                // Dwell should align with musical phrasing (typically 4, 8, or 16 beat phrases)
+                const currentDwell = state.dwellBeats || 4;
+                const dwellIntervals = [4, 8, 12, 16, 24, 32];
+                optimized.dwellBeats = dwellIntervals.reduce((prev, curr) =>
+                    Math.abs(curr - currentDwell) < Math.abs(prev - currentDwell) ? curr : prev
+                );
+
+                // 3. Optimize density for harmonic clarity
+                // Too many voices = muddy sound; sweet spot is usually 2-4 voices
+                const currentDensity = state.density || 3;
+                if (currentDensity > 8) {
+                    optimized.density = 4; // Reduce to sweet spot
+                } else if (currentDensity < 2) {
+                    optimized.density = 2; // Ensure minimum texture
+                } else {
+                    optimized.density = Math.round(currentDensity); // Keep in range
+                }
+
+                // 4. Moderate variation for musical consistency
+                // Too much variation = chaos; sweet spot depends on genre
+                const currentVariation = state.variation || 5;
+                if (currentVariation > 25) {
+                    optimized.variation = Math.round(currentVariation * 0.6); // Reduce aggressive variation
+                } else if (currentVariation < 3) {
+                    optimized.variation = 5; // Add some interest
+                } else {
+                    optimized.variation = Math.round(currentVariation); // Keep moderate
+                }
+            }
+
+            // Loop group optimization (jukeboxLoop, eternalLoop)
+            if (groupKey.includes('Loop')) {
+                // 1. Align loop lengths to musical phrases
+                const currentMinLoop = state.minLoopBeats || 8;
+                const loopIntervals = [4, 8, 12, 16, 24, 32, 48, 64];
+                optimized.minLoopBeats = loopIntervals.reduce((prev, curr) =>
+                    Math.abs(curr - currentMinLoop) < Math.abs(prev - currentMinLoop) ? curr : prev
+                );
+
+                // 2. Set sequential ceiling to allow phrases to complete
+                const currentMaxSeq = state.maxSequentialBeats || 64;
+                const seqIntervals = [16, 32, 48, 64, 96, 128];
+                optimized.maxSequentialBeats = seqIntervals.reduce((prev, curr) =>
+                    Math.abs(curr - currentMaxSeq) < Math.abs(prev - currentMaxSeq) ? curr : prev
+                );
+
+                // 3. Optimize similarity threshold for tight loops
+                // Higher threshold = loops sound more similar (safer, more musical)
+                const currentThreshold = state.loopThreshold || 0.7;
+                if (currentThreshold < 0.6) {
+                    optimized.loopThreshold = 0.7; // Increase for tighter similarity
+                } else if (currentThreshold > 0.9) {
+                    optimized.loopThreshold = 0.85; // Reduce slightly for more options
+                } else {
+                    optimized.loopThreshold = Math.round(currentThreshold * 100) / 100;
+                }
+
+                // 4. Optimize section bias for musical coherence
+                // Higher bias = stay in same section (verse, chorus, etc.)
+                const currentBias = state.sectionBias || 0.5;
+                if (currentBias < 0.5) {
+                    optimized.sectionBias = 0.65; // Increase for musical structure
+                } else {
+                    optimized.sectionBias = Math.min(0.8, currentBias); // Cap at 0.8
+                }
+
+                // 5. Moderate jump variance for predictability
+                // Lower variance = more predictable, musical timing
+                const currentVariance = state.jumpVariance || 0.5;
+                if (currentVariance > 0.7) {
+                    optimized.jumpVariance = 0.5; // Reduce for tighter loops
+                } else if (currentVariance < 0.2) {
+                    optimized.jumpVariance = 0.3; // Add some variety
+                } else {
+                    optimized.jumpVariance = Math.round(currentVariance * 20) / 20; // Round to 0.05
+                }
+            }
+
+            // Apply optimized settings
+            console.log('[Musicality] Optimized settings:', optimized);
+
+            // Update state
+            if (typeof window.updateAdvancedSettings === 'function') {
+                window.updateAdvancedSettings(groupKey, optimized);
+            }
+
+            // Sync UI
+            syncGroupFromState(groupKey);
+
+            // Apply to engine
+            if (typeof window.applyAdvancedGroup === 'function') {
+                window.applyAdvancedGroup(groupKey, { source: 'musicality' });
+            }
+
+            // Visual feedback
+            button.textContent = 'Optimized!';
+            button.style.background = 'linear-gradient(135deg, rgba(46, 213, 115, 0.4), rgba(72, 219, 251, 0.4))';
+            setTimeout(() => {
+                button.textContent = 'Optimize Musicality';
+                button.style.background = 'linear-gradient(135deg, rgba(199, 54, 95, 0.3), rgba(232, 180, 184, 0.3))';
+            }, 2000);
         }
 
         function setGroupEnabled(groupKey, enabled) {
@@ -1255,6 +1437,58 @@
                 }
             });
         }
+    })();
+
+    // ==============================
+    // OAuth Authentication Logic
+    // ==============================
+    (function() {
+        const signinButton = document.getElementById('google-signin-button');
+        const userInfo = document.getElementById('user-info');
+        const userEmail = document.getElementById('user-email');
+        const logoutButton = document.getElementById('logout-button');
+
+        // Check authentication status on page load
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/auth/status');
+                const data = await response.json();
+
+                if (data.authenticated) {
+                    // User is logged in
+                    signinButton.style.display = 'none';
+                    userInfo.style.display = 'flex';
+                    userInfo.style.alignItems = 'center';
+                    userEmail.textContent = data.email || 'Signed in with Google';
+                } else {
+                    // User is not logged in
+                    signinButton.style.display = 'inline-block';
+                    userInfo.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error checking auth status:', error);
+                signinButton.style.display = 'inline-block';
+                userInfo.style.display = 'none';
+            }
+        }
+
+        // Sign in with Google
+        signinButton.addEventListener('click', () => {
+            window.location.href = '/auth/google';
+        });
+
+        // Sign out
+        logoutButton.addEventListener('click', async () => {
+            try {
+                await fetch('/auth/logout');
+                window.location.reload();
+            } catch (error) {
+                console.error('Error signing out:', error);
+            }
+        });
+
+        // Check auth status on page load
+        checkAuthStatus();
     })();
     </script>
 </body>
