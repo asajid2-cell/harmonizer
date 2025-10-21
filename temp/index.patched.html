@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harmonizer Lab (Patched)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="modern.css">
+  <link rel="stylesheet" href="visualizer.css">
+</head>
+<body class="page state-player advanced-collapsed" data-mode="jukebox">
+  <main class="layout">
+    <section class="panel viz-panel music-frame" id="viz-panel">
+      <header class="viz-header">
+        <div class="viz-headline">
+          <h2>Visualizer</h2>
+          <p id="info"></p>
+        </div>
+        <div class="viz-actions">
+          <button id="play" class="viz-button">Play</button>
+          <span class="viz-timer" id="mtime">00:00:00</span>
+          <span class="viz-mode-pill" id="mode-pill">Eternal Jukebox</span>
+          <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">Advanced: Off</button>
+        </div>
+      </header>
+      <div class="viz-body">
+        <div class="viz-stage">
+          <div class="viz-status" id="status-panel"></div>
+          <div id="error"></div>
+          <div id="tiles" class="tiles-canvas"></div>
+          <footer class="viz-footer">Press space to toggle playback - drag the window to reposition</footer>
+        </div>
+        <aside class="viz-sidebar hidden" id="advanced-sidebar">
+          <div class="advanced-shell" id="advanced-shell">
+            <header class="advanced-header">
+              <h3>Advanced Settings</h3>
+              <p>Fine-tune how each engine behaves. Changes apply immediately.</p>
+            </header>
+            <div class="advanced-sections" id="advanced-sections"></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <footer class="footer">© Harmonizer Lab</footer>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js"></script>
+  <script src="underscore-min.js"></script>
+  <script src="raphael-min.js"></script>
+  <script src="jremix.js"></script>
+  <!-- Use the patched visualizer -->
+  <script src="visualizer.patched.js"></script>
+  <!-- The advanced panel builder from your original index will still work -->
+</body>
+</html>

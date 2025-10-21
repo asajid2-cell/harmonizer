@@ -14,6 +14,9 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 import librosa
 import numpy as np
 
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_DATA_DIR = BASE_DIR.parent / "data"
+
 
 # Analysis constants
 HOP_LENGTH = 512
@@ -1215,7 +1218,7 @@ def main() -> None:
     track_id = args.track_id
     title = args.title or audio_path.stem
     audio_url = args.audio_url or audio_path.name
-    output_path = args.output or Path("data") / f"{track_id}.json"
+    output_path = args.output or DEFAULT_DATA_DIR / f"{track_id}.json"
 
     profile = build_profile(
         audio_path=audio_path,

@@ -8,9 +8,9 @@ from typing import Optional
 
 from flask import (
     Flask,
+    abort,
     jsonify,
     redirect,
-    render_template,
     request,
     send_from_directory,
     url_for,
@@ -22,17 +22,35 @@ try:
 except ImportError:  # pragma: no cover
     YoutubeDL = None  # type: ignore
 
-from analysis.analyze_track import build_profile
-
 BASE_DIR = Path(__file__).parent.resolve()
+
+try:
+    from .analysis.analyze_track import build_profile
+except ImportError:  # pragma: no cover - support running as script
+    import sys
+
+    sys.path.append(str(BASE_DIR))
+    from analysis.analyze_track import build_profile  # type: ignore
+
+FRONTEND_DIR = BASE_DIR.parent / "frontend"
+
 UPLOAD_FOLDER = BASE_DIR / "uploads"
 DATA_FOLDER = BASE_DIR / "data"
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
 
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 DATA_FOLDER.mkdir(parents=True, exist_ok=True)
+FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
 
-app = Flask(__name__, static_folder=".", static_url_path="")
+app = Flask(__name__, static_folder=None)
+
+
+@app.after_request
+def _apply_cors(response):
+    response.headers.setdefault("Access-Control-Allow-Origin", "*")
+    response.headers.setdefault("Access-Control-Allow-Headers", "Content-Type")
+    response.headers.setdefault("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+    return response
 
 
 def allowed_file(filename: str) -> bool:
@@ -77,11 +95,7 @@ def locate_ffmpeg_bin() -> Optional[Path]:
 
 @app.route("/")
 def index():
-    trid = request.args.get("trid")
-    mode = request.args.get("mode", "canon").lower()
-    if mode not in {"canon", "jukebox", "eternal"}:
-        mode = "canon"
-    return render_template("index.html", track_id=trid, mode=mode)
+    return send_from_directory(FRONTEND_DIR, "index.html")
 
 
 @app.route("/visualizer")
@@ -104,6 +118,18 @@ def media(filename: str):
         conditional=True,
     )
     response.headers.setdefault("Accept-Ranges", "bytes")
+    response.headers.setdefault("Access-Control-Allow-Origin", "*")
+    return response
+
+
+@app.route("/data/<path:filename>")
+def analysis_file(filename: str):
+    response = send_from_directory(
+        DATA_FOLDER,
+        filename,
+        mimetype="application/json",
+        conditional=True,
+    )
     response.headers.setdefault("Access-Control-Allow-Origin", "*")
     return response
 
@@ -212,8 +238,10 @@ def _download_youtube(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
             raise RuntimeError(f"Failed to download video. YouTube may be blocking requests. Please try again now or wait a few minutes and retry.")
 
 
-@app.route("/api/process", methods=["POST"])
+@app.route("/api/process", methods=["POST", "OPTIONS"])
 def api_process():
+    if request.method == "OPTIONS":
+        return ("", 204)
     algorithm = request.form.get("algorithm", "canon").lower()
     if algorithm not in {"canon", "jukebox", "eternal"}:
         return jsonify({"error": "Unsupported algorithm selection."}), 400
@@ -279,9 +307,11 @@ def api_process():
         return jsonify({"error": f"Unexpected error: {exc}"}), 500
 
 
-@app.route("/api/playlist-info", methods=["POST"])
+@app.route("/api/playlist-info", methods=["POST", "OPTIONS"])
 def api_playlist_info():
     """Check if URL is a playlist and return track list."""
+    if request.method == "OPTIONS":
+        return ("", 204)
     url = request.json.get("url", "").strip() if request.json else ""
     if not url:
         return jsonify({"error": "No URL provided"}), 400
@@ -293,6 +323,20 @@ def api_playlist_info():
         return jsonify({"error": str(exc)}), 500
     except Exception as exc:
         return jsonify({"error": f"Unexpected error: {exc}"}), 500
+
+
+@app.route("/<path:asset_path>")
+def serve_frontend_asset(asset_path: str):
+    if asset_path.startswith(("api/", "media/", "data/")):
+        abort(404)
+    target = (FRONTEND_DIR / asset_path).resolve()
+    try:
+        target.relative_to(FRONTEND_DIR)
+    except ValueError:
+        abort(404)
+    if target.is_file():
+        return send_from_directory(FRONTEND_DIR, asset_path)
+    abort(404)
 
 
 if __name__ == "__main__":

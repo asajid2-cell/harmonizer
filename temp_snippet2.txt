@@ -1,0 +1,300 @@
+            if (advancedUiReady) {
+                return;
+            }
+            buildAdvancedUi();
+        }
+
+        function disableAllAdvancedGroups() {
+            if (!advancedUiReady) {
+                return;
+            }
+            Object.keys(ADVANCED_GROUP_METADATA).forEach((groupKey) => {
+                if (isGroupEnabled(groupKey)) {
+                    setGroupEnabled(groupKey, false);
+                }
+                setGroupInputsDisabled(groupKey, true);
+                setGroupCollapsed(groupKey, true);
+                const dom = advancedDomMap[groupKey];
+                if (dom && dom.toggle) {
+                    dom.toggle.checked = false;
+                }
+            });
+        }
+
+        function setAdvancedVisibility(enabled) {
+            const normalized = !!enabled;
+            if (normalized === advancedSidebarVisible) {
+                updateAdvancedToggleState();
+                return;
+            }
+            advancedSidebarVisible = normalized;
+            body.classList.toggle('advanced-expanded', normalized);
+            body.classList.toggle('advanced-collapsed', !normalized);
+            updateAdvancedToggleState();
+            if (normalized) {
+                ensureAdvancedUi();
+                ensureModeDefaults(currentModeKey);
+                showAdvancedSidebar();
+                window.setAdvancedPanelMode(currentModeKey);
+            } else if (advancedSidebar) {
+                disableAllAdvancedGroups();
+                advancedSidebar.classList.add('hidden');
+                advancedSidebar.setAttribute('aria-hidden', 'true');
+            }
+        }
+
+        function handleAdvancedToggle(event) {
+            const checkbox = event.currentTarget;
+            const groupKey = checkbox && checkbox.dataset ? checkbox.dataset.groupKey : null;
+            if (!groupKey) {
+                return;
+            }
+            const enabled = checkbox.checked;
+            setGroupEnabled(groupKey, enabled);
+            setGroupInputsDisabled(groupKey, !enabled);
+            syncGroupFromState(groupKey);
+            if (enabled) {
+                setGroupCollapsed(groupKey, false);
+                forceAdvancedApply(groupKey, null, null, 'toggle');
+            } else {
+                setGroupCollapsed(groupKey, true);
+            }
+        }
+
+        function forceAdvancedApply(groupKey, fieldKey, value, sourceTag) {
+            const source = sourceTag || 'ui';
+            if (typeof window.setAdvancedGroupEnabled === 'function') {
+                window.setAdvancedGroupEnabled(groupKey, true);
+            }
+            if (typeof window.updateAdvancedGroupSetting === 'function' && fieldKey !== null && fieldKey !== undefined && value !== null && !Number.isNaN(value)) {
+                window.updateAdvancedGroupSetting(groupKey, fieldKey, value);
+            }
+            if (typeof window.applyImmediateAdvancedSetting === 'function' && fieldKey !== null && fieldKey !== undefined && value !== null && !Number.isNaN(value)) {
+                window.applyImmediateAdvancedSetting(groupKey, fieldKey, value);
+            }
+            if (typeof window.applyAdvancedGroup === 'function') {
+                window.applyAdvancedGroup(groupKey, { source });
+            } else if (groupKey === 'canonOverlay' && typeof window.regenerateCanonMappingManually === 'function') {
+                window.regenerateCanonMappingManually();
+            } else if (groupKey === 'eternalOverlay' && typeof window.regenerateEternalOverlay === 'function') {
+                window.regenerateEternalOverlay({ source });
+            } else {
+                syncGroupFromState(groupKey);
+            }
+        }
+
+        function handleAdvancedFieldInput(event) {
+            const input = event.currentTarget;
+            const groupKey = input && input.dataset ? input.dataset.groupKey : null;
+            const fieldKey = input && input.dataset ? input.dataset.fieldKey : null;
+            if (!groupKey || !fieldKey) {
+                return;
+            }
+            const value = parseFloat(input.value);
+            if (Number.isNaN(value)) {
+                return;
+            }
+            updateValueLabel(groupKey, fieldKey, value);
+            enforceGroupConstraints(groupKey);
+            if (groupKey === 'canonOverlay') {
+                if (typeof window.setCanonAdvancedEnabled === 'function') {
+                    const isEnabled = typeof window.isCanonAdvancedEnabled === 'function' ? window.isCanonAdvancedEnabled() : false;
+                    if (!isEnabled) {
+                        window.setCanonAdvancedEnabled(true);
+                    }
+                }
+                if (typeof window.updateCanonSetting === 'function') {
+                    window.updateCanonSetting(fieldKey, value);
+                }
+                if (typeof window.applyImmediateAdvancedSetting === 'function') {
+                    window.applyImmediateAdvancedSetting(groupKey, fieldKey, value);
+                }
+                syncGroupFromState(groupKey);
+                return;
+            }
+            forceAdvancedApply(groupKey, fieldKey, value, 'input');
+        }
+
+        function handleAdvancedFieldCommit(event) {
+            const input = event.currentTarget;
+            if (!input || !input.dataset) {
+                return;
+            }
+            const groupKey = input.dataset.groupKey;
+            const fieldKey = input.dataset.fieldKey;
+            if (!groupKey || !fieldKey) {
+                return;
+            }
+            const value = parseFloat(input.value);
+            if (Number.isNaN(value)) {
+                return;
+            }
+            updateValueLabel(groupKey, fieldKey, value);
+            enforceGroupConstraints(groupKey);
+            if (groupKey === 'canonOverlay') {
+                if (typeof window.setCanonAdvancedEnabled === 'function') {
+                    const isEnabled = typeof window.isCanonAdvancedEnabled === 'function' ? window.isCanonAdvancedEnabled() : false;
+                    if (!isEnabled) {
+                        window.setCanonAdvancedEnabled(true);
+                    }
+                }
+                if (typeof window.updateCanonSetting === 'function') {
+                    window.updateCanonSetting(fieldKey, value);
+                }
+                if (typeof window.applyImmediateAdvancedSetting === 'function') {
+                    window.applyImmediateAdvancedSetting(groupKey, fieldKey, value);
+                }
+                syncGroupFromState(groupKey);
+                return;
+            }
+            forceAdvancedApply(groupKey, fieldKey, value, event && event.type ? event.type : 'commit');
+        }
+
+        function handleAdvancedReset(event) {
+            const button = event.currentTarget;
+            const groupKey = button && button.dataset ? button.dataset.groupKey : null;
+            if (!groupKey || typeof window.resetAdvancedGroup !== 'function') {
+                return;
+            }
+            window.resetAdvancedGroup(groupKey);
+            syncGroupFromState(groupKey);
+            if (typeof window.applyAdvancedGroup !== 'function') {
+                return;
+            }
+            window.applyAdvancedGroup(groupKey, { source: 'reset' });
+        }
+
+        function setGroupEnabled(groupKey, enabled) {
+            if (!groupKey) {
+                return;
+            }
+            if (groupKey === 'canonOverlay' && typeof window.setCanonAdvancedEnabled === 'function') {
+                window.setCanonAdvancedEnabled(enabled);
+            } else if (groupKey === 'eternalOverlay' && typeof window.setEternalAdvancedEnabled === 'function') {
+                window.setEternalAdvancedEnabled(enabled);
+            } else if (typeof window.setAdvancedGroupEnabled === 'function') {
+                window.setAdvancedGroupEnabled(groupKey, enabled);
+            }
+        }
+
+        function isGroupEnabled(groupKey) {
+            if (groupKey === 'canonOverlay' && typeof window.isCanonAdvancedEnabled === 'function') {
+                return !!window.isCanonAdvancedEnabled();
+            }
+            if (groupKey === 'eternalOverlay' && typeof window.isEternalAdvancedEnabled === 'function') {
+                return !!window.isEternalAdvancedEnabled();
+            }
+            const state = getGroupState(groupKey);
+            return state ? !!state.enabled : false;
+        }
+
+        function getGroupState(groupKey) {
+            if (typeof window.getAdvancedSettings !== 'function') {
+                return null;
+            }
+            try {
+                return window.getAdvancedSettings(groupKey);
+            } catch (err) {
+                return null;
+            }
+        }
+
+        function updateGroupToggleState(groupKey, enabled) {
+            const dom = advancedDomMap[groupKey];
+            if (!dom || !dom.toggle) {
+                return;
+            }
+            dom.toggle.checked = !!enabled;
+            setGroupInputsDisabled(groupKey, !enabled);
+        }
+
+        function setGroupInputsDisabled(groupKey, disabled) {
+            const dom = advancedDomMap[groupKey];
+            if (!dom) {
+                return;
+            }
+            const disabledFlag = !!disabled && !advancedSidebarVisible;
+            Object.values(dom.inputs).forEach((input) => {
+                input.disabled = disabledFlag;
+            });
+            if (dom.resetButton) {
+                dom.resetButton.disabled = disabledFlag;
+            }
+            if (dom.groupNode) {
+                dom.groupNode.classList.toggle('is-disabled', disabledFlag);
+                dom.groupNode.setAttribute('aria-disabled', disabledFlag ? 'true' : 'false');
+            }
+        }
+
+    function setGroupCollapsed(groupKey, collapsed) {
+        const dom = advancedDomMap[groupKey];
+        if (!dom) {
+            return;
+        }
+        const collapseFlag = !!collapsed;
+        dom.groupNode.classList.toggle('is-collapsed', collapseFlag);
+        if (dom.body) {
+            dom.body.hidden = collapseFlag;
+        }
+        if (dom.collapseButton) {
+            dom.collapseButton.setAttribute('aria-expanded', collapseFlag ? 'false' : 'true');
+        }
+    }
+
+    function primeGroupLayoutForMode(modeKey) {
+        if (!advancedUiReady) {
+            return;
+        }
+        const normalized = (modeKey || '').toLowerCase();
+        let expandedGroups = [];
+        if (normalized === 'canon') {
+            expandedGroups = ['canonOverlay'];
+        } else if (normalized === 'jukebox') {
+            expandedGroups = ['jukeboxLoop'];
+        } else if (normalized === 'eternal') {
+            expandedGroups = ['eternalOverlay', 'eternalLoop'];
+        }
+        Object.keys(ADVANCED_GROUP_METADATA).forEach((groupKey) => {
+            const shouldExpand = expandedGroups.includes(groupKey);
+            setGroupCollapsed(groupKey, !shouldExpand);
+        });
+    }
+
+        function ensureModeDefaults(modeKey) {
+            if (!advancedUiReady) {
+                return;
+            }
+            const normalized = (modeKey || '').toLowerCase();
+            const primaryGroups = MODE_PRIMARY_GROUPS[normalized] || [];
+            primaryGroups.forEach((groupKey, index) => {
+                if (!isGroupEnabled(groupKey)) {
+                    setGroupEnabled(groupKey, true);
+                }
+                const dom = advancedDomMap[groupKey];
+                if (dom) {
+                    if (dom.toggle) {
+                        dom.toggle.checked = true;
+                    }
+                    setGroupInputsDisabled(groupKey, false);
+                }
+                syncGroupFromState(groupKey);
+                if (index === 0) {
+                    setGroupCollapsed(groupKey, false);
+                }
+            });
+        }
+
+        function syncGroupFromState(groupKey) {
+            const dom = advancedDomMap[groupKey];
+            if (!dom) {
+                return;
+            }
+            const state = getGroupState(groupKey);
+            const defaults = state && state.defaults ? state.defaults : {};
+            const settings = state && state.settings ? state.settings : defaults;
+            const enabled = state ? !!state.enabled : false;
+            updateGroupToggleState(groupKey, enabled);
+            Object.entries(dom.inputs).forEach(([fieldKey, input]) => {
+                const nextValue = settings && settings[fieldKey] !== undefined ? settings[fieldKey] : defaults[fieldKey];
+                if (nextValue !== undefined) {
+                    input.value = nextValue;

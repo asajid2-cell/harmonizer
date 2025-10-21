@@ -43,11 +43,6 @@ var isTrackReady = false;
 var serverLoopCandidateMap = {};
 var canonLoopCandidates = [];
 var loopPaths = [];
-
-// Queue management
-var trackQueue = [];
-var currentQueueIndex = -1;
-var autoPlayNext = false;
 var ADVANCED_DEFAULTS = {
     canonOverlay: {
         minOffsetBeats: 8,
@@ -110,21 +105,97 @@ var advancedPresets = {
 };
 
 var queuedAdvancedApplyTimers = Object.create(null);
+var debugLogBuffer = [];
+var DEBUG_LOG_LIMIT = 12;
+
+function debugStep(step, detail) {
+    if (typeof document === "undefined") {
+        return;
+    }
+    try {
+        var el = document.getElementById("debug-log");
+        if (!el) {
+            return;
+        }
+        var stamp = (typeof performance !== "undefined" ? (performance.now() / 1000).toFixed(2) : String(Date.now()));
+        var message = "[" + stamp + "] " + step + (detail ? " :: " + detail : "");
+        debugLogBuffer.push(message);
+        if (debugLogBuffer.length > DEBUG_LOG_LIMIT) {
+            debugLogBuffer.shift();
+        }
+        el.style.display = "block";
+        el.textContent = debugLogBuffer.join("   |   ");
+    } catch (err) {
+        try {
+            console.warn("debugStep failed", err);
+        } catch (consoleErr) {}
+    }
+}
 
 function recomputeLoopGraphForMode(modeName) {
     if (!modeName) {
+        debugStep("recomputeLoopGraph", "no mode provided");
         return;
     }
     var normalized = modeName === "eternal" ? "eternal" : "jukebox";
-    if (mode !== normalized) {
-        return;
-    }
     var loopSettings = getLoopSettingsForMode(normalized);
-    if (driver && typeof driver.recomputeLoopGraph === "function") {
-        driver.recomputeLoopGraph(loopSettings);
+    debugStep("recomputeLoopGraph", normalized + " settings=" + JSON.stringify(loopSettings));
+    if (mode === normalized) {
+        if (driver && typeof driver.recomputeLoopGraph === "function") {
+            driver.recomputeLoopGraph(loopSettings);
+            debugStep("recomputeLoopGraph", "driver recomputed");
+        } else {
+            debugStep("recomputeLoopGraph", "driver missing recomputeLoopGraph");
+        }
+        renderModeVisualization();
     } else {
-        rebuildDriverForCurrentMode(true);
+        debugStep("recomputeLoopGraph", "skipped because current mode=" + mode);
     }
+}
+
+if (typeof window !== "undefined") {
+    window.setMode = function(newMode) {
+        var desired = (newMode || "").toLowerCase();
+        if (desired !== "canon" && desired !== "jukebox" && desired !== "eternal") {
+            debugStep("setMode", "ignored invalid mode " + newMode);
+            return;
+        }
+        if (desired === mode) {
+            debugStep("setMode", "already in mode " + desired);
+            renderModeVisualization();
+            return;
+        }
+        var wasRunning = !!(driver && typeof driver.isRunning === "function" && driver.isRunning());
+        debugStep("setMode", "switch " + mode + " -> " + desired + " (running=" + wasRunning + ")");
+        mode = desired;
+        setPlayingClass(mode);
+        rebuildDriverForCurrentMode(false);
+        if (!isTrackReady) {
+            debugStep("setMode", "track not ready yet");
+            renderModeVisualization();
+            setURL();
+            return;
+        }
+        if (mode === "canon") {
+            debugStep("setMode", "regenerating canon");
+            regenerateCanonMapping({ reason: "mode-change" });
+        } else {
+            recomputeLoopGraphForMode(mode);
+            if (mode === "eternal") {
+                debugStep("setMode", "regenerating eternal overlay");
+                regenerateEternalOverlay({ reason: "mode-change" });
+            }
+        }
+        renderModeVisualization();
+        if (wasRunning && driver && typeof driver.start === "function") {
+            driver.start();
+            debugStep("setMode", "driver restarted");
+        }
+        if (curTrack && typeof getFullTitle === "function") {
+            info(getFullTitle() + " - " + getModeLabel(mode));
+        }
+        setURL();
+    };
 }
 
 var scheduleCanonGraphRebuild = debounce(function(reason) {
@@ -157,53 +228,31 @@ function triggerCanonOverlayRefresh(fieldKey) {
     regenerateCanonMapping({ reason: "live-update", field: fieldKey });
 }
 
-function refreshJukeboxVisualization() {
-    if (!masterQs || !masterQs.length) {
-        return;
-    }
-    if (mode !== "jukebox" && mode !== "eternal") {
-        return;
-    }
-    var loopEdges = collectVisualizationLoops(80);
-    if (mode === "jukebox") {
-        drawLoopConnections(masterQs, loopEdges, false);
-    } else if (mode === "eternal") {
-        // Redraw both canon overlays and loop connections
-        drawConnections(masterQs);
-        drawLoopConnections(masterQs, loopEdges, true);
-    }
-}
-
 function applyLoopFieldToDriver(fieldKey, value) {
     if (!driver) {
         return false;
     }
-    var applied = false;
     if (fieldKey === "minLoopBeats" && typeof driver.setMinLoopBeats === "function") {
         driver.setMinLoopBeats(value);
-        applied = true;
-    } else if (fieldKey === "maxSequentialBeats" && typeof driver.setMaxSequentialBeats === "function") {
+        return true;
+    }
+    if (fieldKey === "maxSequentialBeats" && typeof driver.setMaxSequentialBeats === "function") {
         driver.setMaxSequentialBeats(value);
-        applied = true;
-    } else if (fieldKey === "loopThreshold" && typeof driver.setLoopSimilarityThreshold === "function") {
+        return true;
+    }
+    if (fieldKey === "loopThreshold" && typeof driver.setLoopSimilarityThreshold === "function") {
         driver.setLoopSimilarityThreshold(value);
-        applied = true;
-    } else if (fieldKey === "sectionBias" && typeof driver.setLoopSectionBias === "function") {
+        return true;
+    }
+    if (fieldKey === "sectionBias" && typeof driver.setLoopSectionBias === "function") {
         driver.setLoopSectionBias(value);
-        applied = true;
-    } else if (fieldKey === "jumpVariance" && typeof driver.setLoopJumpVariance === "function") {
+        return true;
+    }
+    if (fieldKey === "jumpVariance" && typeof driver.setLoopJumpVariance === "function") {
         driver.setLoopJumpVariance(value);
-        applied = true;
+        return true;
     }
-
-    // Immediately refresh visualization for fields that affect the loop graph
-    if (applied && (fieldKey === "minLoopBeats" || fieldKey === "loopThreshold")) {
-        // These trigger rebuildLoopChoices internally, visualization update happens there
-    } else if (applied) {
-        // For other fields (sectionBias, jumpVariance, maxSequentialBeats), manually refresh
-        refreshJukeboxVisualization();
-    }
-    return applied;
+    return false;
 }
 
 function cloneAdvancedState(group) {
@@ -241,7 +290,7 @@ function ensureAdvancedGroupSettings(group) {
     return advancedSettings[group];
 }
 
-function setAdvancedGroupSettingValue(group, key, value) {
+function updateAdvancedGroupSetting(group, key, value) {
     var target = ensureAdvancedGroupSettings(group);
     if (target && key !== undefined) {
         target[key] = value;
@@ -386,17 +435,21 @@ function clonePresetList(group) {
 
 function rebuildDriverForCurrentMode(shouldResume) {
     if (!isTrackReady || !remixer || typeof remixer.getPlayer !== "function") {
+        debugStep("rebuildDriver", "skipped (trackReady=" + isTrackReady + ")");
         return;
     }
     var resume = !!shouldResume && driver && typeof driver.isRunning === "function" && driver.isRunning();
+    debugStep("rebuildDriver", "shouldResume=" + shouldResume + " resumeNow=" + resume);
     if (driver && typeof driver.stop === "function") {
         try {
             driver.stop();
         } catch (e) {}
     }
     driver = Driver(remixer.getPlayer());
+    debugStep("rebuildDriver", "driver created");
     if (resume && driver && typeof driver.start === "function") {
         driver.start();
+        debugStep("rebuildDriver", "driver restarted");
     }
 }
 
@@ -661,6 +714,75 @@ function prepareLoopCandidates(track) {
     });
 }
 
+function collectLoopEdgesFromServer(threshold, minBeats) {
+    var results = [];
+    var beats = masterQs || [];
+    if (!beats.length) {
+        debugStep("collectLoopEdges", "no beats");
+        return results;
+    }
+    var minSpan = (typeof minBeats === "number" && minBeats >= 0) ? Math.floor(minBeats) : 1;
+    if (minSpan < 1) {
+        minSpan = 1;
+    }
+    var similarityThreshold = (typeof threshold === "number") ? threshold : 0;
+    _.each(serverLoopCandidateMap, function(entries, key) {
+        var src = parseInt(key, 10);
+        if (isNaN(src) || src < 0 || src >= beats.length) {
+            return;
+        }
+        _.each(entries, function(entry) {
+            if (!entry) {
+                return;
+            }
+            var dst = entry.target;
+            if (typeof dst !== "number" || dst < 0 || dst >= beats.length) {
+                return;
+            }
+            if (dst >= src) {
+                return;
+            }
+            var sim = (typeof entry.similarity === "number") ? entry.similarity : 0;
+            if (sim < similarityThreshold) {
+                return;
+            }
+            var span = Math.abs(src - dst);
+            if (span < minSpan) {
+                return;
+            }
+            results.push({
+                source_start: src,
+                target_start: dst,
+                similarity: sim,
+                span: span
+            });
+        });
+    });
+    if (!results.length) {
+        debugStep("collectLoopEdges", "0 edges from server (minSpan=" + minSpan + ", thr=" + similarityThreshold + ")");
+        return results;
+    }
+    results.sort(function(a, b) {
+        if (a.source_start === b.source_start) {
+            return b.similarity - a.similarity;
+        }
+        return b.similarity - a.similarity;
+    });
+    var seen = {};
+    var deduped = [];
+    for (var i = 0; i < results.length; i++) {
+        var item = results[i];
+        var key = item.source_start + ":" + item.target_start;
+        if (seen[key]) {
+            continue;
+        }
+        seen[key] = true;
+        deduped.push(item);
+    }
+    debugStep("collectLoopEdges", "edges=" + deduped.length);
+    return deduped;
+}
+
 function findMax(dict) {
     var max = -1000000;
     var maxKey = null;
@@ -837,7 +959,7 @@ function restoreBaseCanonMapping(qlist) {
     });
 }
 
-function refreshCanonVisualization() {
+function clearOverlayVisualization() {
     if (!paper || !masterQs || !masterQs.length) {
         return;
     }
@@ -849,13 +971,27 @@ function refreshCanonVisualization() {
             q.ppath = null;
         }
     });
-    if (mode === "canon") {
+}
+
+function refreshCanonVisualization(options) {
+    var opts = options || {};
+    if (!paper || !masterQs || !masterQs.length) {
+        return;
+    }
+    if (opts.clear !== false) {
+        clearOverlayVisualization();
+    }
+    var targetMode = opts.mode || mode;
+    var allowEternal = opts.allowEternal !== false;
+    var shouldDraw = (targetMode === "canon") || (allowEternal && targetMode === "eternal") || opts.force === true;
+    if (shouldDraw) {
         drawConnections(masterQs);
     }
 }
 
 function regenerateCanonMapping(options) {
     if (mode !== "canon" || !masterQs || !masterQs.length) {
+        debugStep("regenerateCanonMapping", "skipped (mode=" + mode + ")");
         return;
     }
     options = options || {};
@@ -863,7 +999,8 @@ function regenerateCanonMapping(options) {
 
     if (!canonAdvancedEnabled) {
         assignNormalizedVolumes(masterQs);
-        refreshCanonVisualization();
+        renderModeVisualization();
+        debugStep("regenerateCanonMapping", "legacy overlay used");
         if (typeof window.onCanonRegenerated === "function") {
             window.onCanonRegenerated({ mode: "legacy" });
         }
@@ -871,7 +1008,8 @@ function regenerateCanonMapping(options) {
     }
 
     var result = regenerateOverlayFromSettings(canonSettings, { targetMode: "canon" });
-    refreshCanonVisualization();
+    renderModeVisualization();
+    debugStep("regenerateCanonMapping", "advanced applied");
     if (typeof window.onCanonRegenerated === "function") {
         window.onCanonRegenerated(result ? Object.assign({ mode: "advanced" }, result) : { mode: "advanced" });
     }
@@ -879,18 +1017,20 @@ function regenerateCanonMapping(options) {
 
 function regenerateEternalOverlay(options) {
     if (mode !== "eternal" || !masterQs || !masterQs.length) {
+        debugStep("regenerateEternalOverlay", "skipped (mode=" + mode + ")");
         return;
     }
     options = options || {};
     restoreBaseCanonMapping(masterQs);
     if (!eternalAdvancedEnabled) {
         assignNormalizedVolumes(masterQs);
-        drawConnections(masterQs);
+        renderModeVisualization();
+        debugStep("regenerateEternalOverlay", "legacy overlay used");
         return;
     }
     regenerateOverlayFromSettings(advancedSettings.eternalOverlay, { targetMode: "eternal" });
-    // Redraw canon overlay connections to show the updated mapping
-    drawConnections(masterQs);
+    renderModeVisualization();
+    debugStep("regenerateEternalOverlay", "advanced applied");
 }
 
 function regenerateOverlayFromSettings(settings, details) {
@@ -993,6 +1133,7 @@ if (typeof window !== "undefined") {
     window.isCanonAdvancedEnabled = function() { return canonAdvancedEnabled; };
     window.setEternalAdvancedEnabled = setEternalAdvancedEnabled;
     window.isEternalAdvancedEnabled = function() { return eternalAdvancedEnabled; };
+    window.regenerateEternalOverlay = regenerateEternalOverlay;
     window.getAdvancedDefaults = function(group) { return cloneAdvancedDefaults(group); };
     window.getAdvancedSettings = function(group) {
         return {
@@ -1004,10 +1145,12 @@ if (typeof window !== "undefined") {
     window.setAdvancedGroupEnabled = function(group, enabled) {
         if (group === "canonOverlay") {
             setCanonAdvancedEnabled(enabled);
+            debugStep("setAdvancedGroupEnabled", group + "=" + enabled);
             return;
         }
         if (group === "eternalOverlay") {
             setEternalAdvancedEnabled(enabled);
+            debugStep("setAdvancedGroupEnabled", group + "=" + enabled);
             return;
         }
         if (!enabled && queuedAdvancedApplyTimers[group]) {
@@ -1015,25 +1158,23 @@ if (typeof window !== "undefined") {
             queuedAdvancedApplyTimers[group] = null;
         }
         setAdvancedGroupEnabledFlag(group, enabled);
-        if (group === "jukeboxLoop" && mode === "jukebox") {
+        if (group === "jukeboxLoop") {
             recomputeLoopGraphForMode("jukebox");
-        } else if (group === "eternalLoop" && mode === "eternal") {
-            // When disabling eternal loop, clear paths and redraw with defaults
-            if (!enabled) {
-                clearLoopPaths();
+            if (mode === "jukebox") {
+                renderModeVisualization();
             }
+            debugStep("setAdvancedGroupEnabled", group + "=" + enabled);
+        } else if (group === "eternalLoop") {
             recomputeLoopGraphForMode("eternal");
-            // Force a visualization refresh to apply default settings
-            if (!enabled) {
-                setTimeout(function() {
-                    refreshJukeboxVisualization();
-                }, 50);
+            if (mode === "eternal") {
+                renderModeVisualization();
             }
+            debugStep("setAdvancedGroupEnabled", group + "=" + enabled);
         }
     };
-    window.isAdvancedGroupEnabled = isAdvancedGroupEnabled;
+    window.isAdvancedGroupEnabled = function(group) { return isAdvancedGroupEnabled(group); };
     window.updateAdvancedGroupSetting = function(group, key, value) {
-        setAdvancedGroupSettingValue(group, key, value);
+        updateAdvancedGroupSetting(group, key, value);
         if (group === "canonOverlay") {
             updateCanonSetting(key, value);
             return;
@@ -1058,12 +1199,10 @@ if (typeof window !== "undefined") {
         }
     };
     window.resetAdvancedGroup = function(group) {
-        console.log('[resetAdvancedGroup] Resetting group:', group, 'mode:', mode);
         var snapshot = resetAdvancedGroupSettings(group);
         if (group === "canonOverlay") {
             canonSettings = ensureAdvancedGroupSettings("canonOverlay");
         }
-        // Immediately apply the reset and regenerate visualization
         if (group === "canonOverlay" && mode === "canon") {
             regenerateCanonMapping({ reason: "reset" });
         } else if (group === "eternalOverlay" && mode === "eternal") {
@@ -1071,15 +1210,8 @@ if (typeof window !== "undefined") {
         } else if (group === "jukeboxLoop" && mode === "jukebox") {
             recomputeLoopGraphForMode("jukebox");
         } else if (group === "eternalLoop" && mode === "eternal") {
-            // For eternal mode, we need to clear and redraw both overlays and loops
-            clearLoopPaths();
             recomputeLoopGraphForMode("eternal");
-            // Force redraw with default settings
-            setTimeout(function() {
-                refreshJukeboxVisualization();
-            }, 50);
         }
-        console.log('[resetAdvancedGroup] Reset complete, new settings:', advancedSettings[group]);
         return snapshot;
     };
     window.applyAdvancedGroup = function(group, options) {
@@ -1106,9 +1238,10 @@ if (typeof window !== "undefined") {
         var setEnabledFn = (typeof window.setAdvancedGroupEnabled === "function") ? window.setAdvancedGroupEnabled : setAdvancedGroupEnabledFlag;
         if (!isEnabledFn(group)) {
             setEnabledFn(group, true);
+            debugStep("applyImmediateAdvancedSetting", "auto-enabling " + group);
         }
 
-        setAdvancedGroupSettingValue(group, key, numericValue);
+        updateAdvancedGroupSetting(group, key, numericValue);
 
         var handled = false;
         if (group === "canonOverlay") {
@@ -1118,26 +1251,37 @@ if (typeof window !== "undefined") {
             updateCanonSetting(key, numericValue);
             triggerCanonOverlayRefresh(key);
             handled = true;
+            debugStep("applyImmediateAdvancedSetting", "canon " + key + "=" + numericValue);
         } else if (group === "eternalOverlay") {
             if (!eternalAdvancedEnabled) {
                 setEternalAdvancedEnabled(true);
             }
             scheduleEternalOverlayRecalc("slider");
             handled = true;
+            debugStep("applyImmediateAdvancedSetting", "eternal overlay " + key + "=" + numericValue);
         } else if (group === "jukeboxLoop") {
             handled = true;
-            applyLoopFieldToDriver(key, numericValue);
+            var appliedJukebox = applyLoopFieldToDriver(key, numericValue);
             scheduleJukeboxLoopRecalc();
+            if (mode === "jukebox" && (appliedJukebox || isTrackReady)) {
+                renderModeVisualization();
+            }
+            debugStep("applyImmediateAdvancedSetting", "jukebox " + key + "=" + numericValue);
         } else if (group === "eternalLoop") {
             handled = true;
-            applyLoopFieldToDriver(key, numericValue);
+            var appliedEternal = applyLoopFieldToDriver(key, numericValue);
             scheduleEternalLoopRecalc();
+            if (mode === "eternal" && (appliedEternal || isTrackReady)) {
+                renderModeVisualization();
+            }
+            debugStep("applyImmediateAdvancedSetting", "eternal loop " + key + "=" + numericValue);
         }
 
         if (!handled && typeof window.applyAdvancedGroup === "function") {
             window.applyAdvancedGroup(group, { source: "immediate" });
         }
     };
+    window.renderModeVisualization = renderModeVisualization;
     window.getAdvancedPresets = function(group) {
         return clonePresetList(group);
     };
@@ -1460,17 +1604,6 @@ function setEternalAdvancedEnabled(enabled) {
     eternalAdvancedEnabled = normalized;
     setAdvancedGroupEnabledFlag("eternalOverlay", normalized);
     if (mode === "eternal" && masterQs && masterQs.length) {
-        // When disabling, clear the overlay paths before regenerating
-        if (!normalized && paper && masterQs) {
-            _.each(masterQs, function(q) {
-                if (q && q.ppath && typeof q.ppath.remove === "function") {
-                    q.ppath.remove();
-                }
-                if (q) {
-                    q.ppath = null;
-                }
-            });
-        }
         regenerateEternalOverlay({ reason: "toggle" });
     }
 }
@@ -1691,10 +1824,6 @@ function allReady() {
                 });
             }
         } else {
-            // Enable eternal overlay by default for eternal mode
-            if (mode === "eternal" && !eternalAdvancedEnabled) {
-                setEternalAdvancedEnabled(true);
-            }
             if (eternalAdvancedEnabled) {
                 regenerateEternalOverlay({ initial: true });
             } else {
@@ -1719,31 +1848,20 @@ function allReady() {
     }
 
     isTrackReady = true;
+    rebuildDriverForCurrentMode(false);
     $("#play").prop("disabled", false).text("Play");
     error("");
     setPlayingClass(mode);
     pulseNotes(baseNoteStrength);
-    $("#mode-pill").text(mode === "jukebox" ? "Eternal Jukebox" : (mode === "eternal" ? "Eternal Canonizer" : "Autocanonizer"));
 
-    // Show/hide eternal stats based on initial mode
-    var eternalStatsContainer = $("#eternal-stats");
-    if (eternalStatsContainer && eternalStatsContainer.length) {
-        if (mode === "jukebox" || mode === "eternal") {
-            eternalStatsContainer.show();
-        } else {
-            eternalStatsContainer.hide();
-        }
-    }
-
-    info("ready!");
-    if (mode === "jukebox") {
-        info(getFullTitle() + " - Eternal Jukebox");
-    } else if (mode === "eternal") {
-        info(getFullTitle() + " - Eternal Canonizer");
+    var modeLabel = getModeLabel(mode);
+    if (curTrack && typeof getFullTitle === "function") {
+        info(getFullTitle() + " - " + modeLabel);
     } else {
-        info(getFullTitle() + " - Autocanonizer");
+        info(modeLabel);
     }
     createTiles(masterQs);
+    renderModeVisualization();
 }
 
 
@@ -1827,6 +1945,29 @@ function getAudioContext() {
 function setDisplayMode() {
 }
 
+function getModeLabel(modeName) {
+    switch ((modeName || "").toLowerCase()) {
+        case "jukebox":
+            return "Eternal Jukebox";
+        case "eternal":
+            return "Eternal Canonizer";
+        default:
+            return "Autocanonizer";
+    }
+}
+
+function updateModeIndicators(modeName) {
+    var normalized = (modeName || mode || "canon");
+    var label = getModeLabel(normalized);
+    if (document.body && document.body.dataset) {
+        document.body.dataset.mode = normalized;
+    }
+    var pill = $("#mode-pill");
+    if (pill && pill.length) {
+        pill.text(label);
+    }
+}
+
 function setPlayingClass(modeName) {
     document.body.classList.remove("playing-canon", "playing-jukebox");
     if (modeName === "canon") {
@@ -1841,6 +1982,7 @@ function setPlayingClass(modeName) {
     } else {
         baseNoteStrength = 0;
     }
+    updateModeIndicators(modeName);
     if (typeof window.setAdvancedPanelMode === "function") {
         window.setAdvancedPanelMode((modeName || "").toLowerCase());
     }
@@ -1939,10 +2081,6 @@ function init() {
         var initialTrid = processParams();
         remixer = createJRemixer(context, $);
         driver = Driver(remixer.getPlayer());
-
-        // Load playlist queue from sessionStorage if available
-        loadPlaylistQueue();
-
         if (initialTrid) {
             fetchAnalysis(initialTrid);
         } else {
@@ -1951,268 +2089,12 @@ function init() {
     }
 }
 
-function loadPlaylistQueue() {
-    try {
-        var queueData = sessionStorage.getItem('playlistQueue');
-        if (queueData) {
-            var tracks = JSON.parse(queueData);
-            console.log('[Queue] Loading playlist from sessionStorage:', tracks.length, 'tracks');
-
-            tracks.forEach(function(track) {
-                addToQueue(track.id, track.title, track.artist);
-            });
-
-            // Find current track and set queue index
-            if (curTrack && curTrack.id) {
-                for (var i = 0; i < trackQueue.length; i++) {
-                    if (trackQueue[i].id === curTrack.id) {
-                        currentQueueIndex = i;
-                        break;
-                    }
-                }
-            } else if (trackQueue.length > 0) {
-                currentQueueIndex = 0;
-            }
-
-            // Enable auto-play for playlists
-            autoPlayNext = true;
-            updateQueueUI();
-
-            // Clear from sessionStorage after loading
-            sessionStorage.removeItem('playlistQueue');
-        }
-    } catch (e) {
-        console.error('[Queue] Failed to load playlist:', e);
-    }
-}
-
 
 function showPlotPage(trid) {
-    var url = location.protocol + "//" +
+    var url = location.protocol + "//" + 
                 location.host + location.pathname + "?trid=" + trid;
     location.href = url;
 }
-
-// Queue Management Functions
-function addToQueue(trackId, title, artist) {
-    trackQueue.push({
-        id: trackId,
-        title: title || "Unknown Track",
-        artist: artist || "Unknown Artist"
-    });
-    updateQueueUI();
-    console.log('[Queue] Added track:', title, '| Queue length:', trackQueue.length);
-}
-
-function playNextInQueue() {
-    if (currentQueueIndex + 1 < trackQueue.length) {
-        currentQueueIndex++;
-        var nextTrack = trackQueue[currentQueueIndex];
-        console.log('[Queue] Playing next:', nextTrack.title, '| Index:', currentQueueIndex);
-        loadTrack(nextTrack.id);
-        updateQueueUI();
-        return true;
-    }
-    console.log('[Queue] No more tracks in queue');
-    return false;
-}
-
-function playPreviousInQueue() {
-    if (currentQueueIndex > 0) {
-        currentQueueIndex--;
-        var prevTrack = trackQueue[currentQueueIndex];
-        console.log('[Queue] Playing previous:', prevTrack.title, '| Index:', currentQueueIndex);
-        loadTrack(prevTrack.id);
-        updateQueueUI();
-        return true;
-    }
-    return false;
-}
-
-function removeFromQueue(index) {
-    if (index >= 0 && index < trackQueue.length) {
-        var removed = trackQueue.splice(index, 1)[0];
-        if (index < currentQueueIndex) {
-            currentQueueIndex--;
-        } else if (index === currentQueueIndex) {
-            // Removed currently playing track
-            currentQueueIndex = -1;
-        }
-        updateQueueUI();
-        console.log('[Queue] Removed track:', removed.title);
-    }
-}
-
-function clearQueue() {
-    trackQueue = [];
-    currentQueueIndex = -1;
-    updateQueueUI();
-    console.log('[Queue] Cleared');
-}
-
-function updateQueueUI() {
-    var queueContainer = $("#queue-container");
-    var queueList = $("#queue-list");
-
-    if (!queueContainer.length || !queueList.length) {
-        return;
-    }
-
-    if (trackQueue.length === 0) {
-        queueContainer.hide();
-        return;
-    }
-
-    queueContainer.show();
-    queueList.empty();
-
-    trackQueue.forEach(function(track, index) {
-        var item = $("<div>").addClass("queue-item");
-        if (index === currentQueueIndex) {
-            item.addClass("playing");
-        }
-
-        var info = $("<div>").addClass("queue-item-info");
-        info.append($("<div>").addClass("queue-item-title").text(track.title));
-        info.append($("<div>").addClass("queue-item-artist").text(track.artist));
-
-        var actions = $("<div>").addClass("queue-item-actions");
-        var playBtn = $("<button>").addClass("queue-btn").text(index === currentQueueIndex ? "♪" : "▶");
-        playBtn.click(function() {
-            currentQueueIndex = index;
-            loadTrack(track.id);
-            updateQueueUI();
-        });
-
-        var removeBtn = $("<button>").addClass("queue-btn queue-btn-remove").text("×");
-        removeBtn.click(function() {
-            removeFromQueue(index);
-        });
-
-        actions.append(playBtn);
-        actions.append(removeBtn);
-
-        item.append(info);
-        item.append(actions);
-        queueList.append(item);
-    });
-}
-
-window.addToQueue = addToQueue;
-window.playNextInQueue = playNextInQueue;
-window.playPreviousInQueue = playPreviousInQueue;
-window.clearQueue = clearQueue;
-
-// Queue modal handling
-$(document).ready(function() {
-    var queueModal = $("#queue-modal");
-    var queueUrlInput = $("#queue-url-input");
-    var queueModalStatus = $("#queue-modal-status");
-
-    // Add to queue button handler
-    $("#add-to-queue-btn").click(function() {
-        queueModal.show();
-        queueUrlInput.val("").focus();
-        queueModalStatus.removeClass("visible error success info").text("");
-    });
-
-    // Close modal handlers
-    $("#queue-modal-close, #queue-modal-cancel").click(function() {
-        queueModal.hide();
-    });
-
-    // Click outside modal to close
-    queueModal.click(function(e) {
-        if (e.target === queueModal[0]) {
-            queueModal.hide();
-        }
-    });
-
-    // Submit handler
-    $("#queue-modal-submit").click(async function() {
-        var url = queueUrlInput.val().trim();
-        if (!url) {
-            queueModalStatus.addClass("visible error").text("Please enter a URL");
-            return;
-        }
-
-        queueModalStatus.addClass("visible info").removeClass("error success").text("Processing...");
-
-        try {
-            // Check if it's a playlist
-            var playlistResponse = await fetch('/api/playlist-info', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: url })
-            });
-
-            var playlistData = await playlistResponse.json();
-
-            if (playlistData.is_playlist && playlistData.entries && playlistData.entries.length > 0) {
-                // Process playlist
-                queueModalStatus.text(`Found playlist with ${playlistData.entries.length} tracks. Processing...`);
-
-                for (var i = 0; i < playlistData.entries.length; i++) {
-                    var entry = playlistData.entries[i];
-                    queueModalStatus.text(`Processing ${i + 1}/${playlistData.entries.length}: ${entry.title}`);
-
-                    var formData = new FormData();
-                    formData.append('url', entry.url);
-                    formData.append('mode', mode);
-
-                    var response = await fetch('/api/process', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    var data = await response.json();
-                    if (data.trackId) {
-                        addToQueue(data.trackId, entry.title, 'YouTube');
-                    }
-                }
-
-                queueModalStatus.addClass("success").removeClass("info").text(`Added ${playlistData.entries.length} tracks to queue!`);
-                setTimeout(function() { queueModal.hide(); }, 1500);
-            } else {
-                // Process single track
-                queueModalStatus.text("Processing track...");
-
-                var formData = new FormData();
-                formData.append('url', url);
-                formData.append('mode', mode);
-
-                var response = await fetch('/api/process', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                var data = await response.json();
-                if (data.trackId) {
-                    addToQueue(data.trackId, data.title || 'YouTube Track', data.artist || 'YouTube');
-                    queueModalStatus.addClass("success").removeClass("info").text("Track added to queue!");
-                    setTimeout(function() { queueModal.hide(); }, 1500);
-                } else {
-                    queueModalStatus.addClass("error").removeClass("info").text("Failed to process track");
-                }
-            }
-        } catch (error) {
-            console.error('Queue modal error:', error);
-            queueModalStatus.addClass("error").removeClass("info success").text("Error: " + error.message);
-        }
-    });
-
-    // Clear queue button handler
-    $("#clear-queue-btn").click(function() {
-        clearQueue();
-    });
-
-    // Enter key to submit
-    queueUrlInput.keypress(function(e) {
-        if (e.which === 13) {
-            $("#queue-modal-submit").click();
-        }
-    });
-});
 
 function setURL() {
     if (curTrack) {
@@ -2240,6 +2122,9 @@ function setSpeedFactor(factor) {
 function processParams() {
     var params = new URLSearchParams(window.location.search);
     var requestedMode = params.get("mode");
+    if (!requestedMode && document.body && document.body.dataset && document.body.dataset.mode) {
+        requestedMode = document.body.dataset.mode;
+    }
     if (requestedMode) {
         requestedMode = requestedMode.toLowerCase();
     }
@@ -2489,10 +2374,63 @@ function collectVisualizationLoops(limit) {
     if (limit && edges.length > limit) {
         edges = edges.slice(0, limit);
     }
+    debugStep("collectVisualizationLoops", "edges=" + edges.length);
     return edges;
 }
 
-function drawLoopConnections(qlist, edges, isEternalMode) {
+function collectFallbackVisualizationLoops(minBeats) {
+    var loops = [];
+    var qlist = masterQs || [];
+    if (!qlist.length) {
+        return loops;
+    }
+    var seen = {};
+    var minSpan = Math.max(1, Math.floor(minBeats || 1));
+    _.each(qlist, function(q) {
+        if (!q || !q.goodNeighbors || !q.goodNeighbors.length) {
+            return;
+        }
+        _.each(q.goodNeighbors, function(entry) {
+            if (!entry || !entry.beat) {
+                return;
+            }
+            var src = q.which;
+            var dst = entry.beat.which;
+            if (typeof src !== "number" || typeof dst !== "number") {
+                return;
+            }
+            if (dst >= src) {
+                return;
+            }
+            var span = src - dst;
+            if (span < minSpan) {
+                return;
+            }
+            var key = src + ":" + dst;
+            if (seen[key]) {
+                return;
+            }
+            seen[key] = true;
+            var distance = (typeof entry.distance === "number") ? entry.distance : 180;
+            var sim = 1 - Math.min(1, distance / 240);
+            loops.push({
+                source: src,
+                target: dst,
+                similarity: sim
+            });
+        });
+    });
+    if (!loops.length) {
+        return loops;
+    }
+    loops.sort(function(a, b) {
+        return b.similarity - a.similarity;
+    });
+    debugStep("collectFallbackVisualizationLoops", "edges=" + loops.length);
+    return loops;
+}
+
+function drawLoopConnections(qlist, edges) {
     clearLoopPaths();
     if (!edges || !edges.length) {
         return;
@@ -2525,10 +2463,6 @@ function drawLoopConnections(qlist, edges, isEternalMode) {
         return;
     }
     maxSpan = Math.max(1, maxSpan);
-
-    // Use different colors for eternal mode vs jukebox mode
-    var loopColor = isEternalMode ? "#F0A86B" : "#6B8AF0"; // Orange for eternal, blue for jukebox
-
     _.each(normalized, function(info, idx) {
         var qSrc = info.sourceBeat;
         var qDst = info.targetBeat;
@@ -2544,7 +2478,7 @@ function drawLoopConnections(qlist, edges, isEternalMode) {
         var strokeWidth = 1.4 + simNorm * 2.6;
         var opacity = 0.18 + simNorm * 0.55;
         path.attr({
-            stroke: loopColor,
+            stroke: "#6B8AF0",
             "stroke-width": strokeWidth,
             "stroke-opacity": opacity
         });
@@ -2554,6 +2488,57 @@ function drawLoopConnections(qlist, edges, isEternalMode) {
 
 var vPad = 20;
 var hPad = 20;
+
+function drawLoopVisualizationForMode(modeName) {
+    if (!masterQs || !masterQs.length) {
+        clearLoopPaths();
+        debugStep("drawLoopVisualization", "no beats");
+        return;
+    }
+    var loopSettings = getLoopSettingsForMode(modeName);
+    var threshold = loopSettings.loopThreshold;
+    var minBeats = loopSettings.minLoopBeats;
+    var edges = collectLoopEdgesFromServer(threshold, minBeats);
+    if ((!edges || !edges.length) && typeof collectVisualizationLoops === "function") {
+        edges = collectVisualizationLoops(80);
+    }
+    if ((!edges || !edges.length) && typeof collectFallbackVisualizationLoops === "function") {
+        var fallback = collectFallbackVisualizationLoops(minBeats);
+        if (fallback && fallback.length) {
+            edges = fallback;
+            debugStep("drawLoopVisualization", "using fallback edges (" + fallback.length + ") for " + modeName);
+        }
+    }
+    if (edges && edges.length) {
+        drawLoopConnections(masterQs, edges);
+        debugStep("drawLoopVisualization", modeName + " edges=" + edges.length);
+    } else {
+        clearLoopPaths();
+        debugStep("drawLoopVisualization", modeName + " edges=0");
+    }
+}
+
+function renderModeVisualization(options) {
+    if (!paper || !masterQs || !masterQs.length) {
+        clearLoopPaths();
+        clearOverlayVisualization();
+        debugStep("renderModeVisualization", "no paper or beats");
+        return;
+    }
+    clearLoopPaths();
+    clearOverlayVisualization();
+    if (mode === "canon") {
+        refreshCanonVisualization({ clear: false, mode: "canon" });
+        debugStep("renderModeVisualization", "mode=canon");
+    } else if (mode === "jukebox") {
+        drawLoopVisualizationForMode("jukebox");
+        debugStep("renderModeVisualization", "mode=jukebox");
+    } else if (mode === "eternal") {
+        refreshCanonVisualization({ clear: false, mode: "eternal", allowEternal: true });
+        drawLoopVisualizationForMode("eternal");
+        debugStep("renderModeVisualization", "mode=eternal");
+    }
+}
 
 function createTiles(qlist) {
     tiles = [];
@@ -2569,17 +2554,6 @@ function createTiles(qlist) {
         var x = hPad + TW * q.start / trackDuration;
         var height = (H - vPad) * Math.pow(q.median_volume, 4);
         createTile(i, q, x, HB - height, tileWidth, height);
-    }
-    if (mode === "canon") {
-        drawConnections(qlist);
-    } else if (mode === "jukebox") {
-        var loopEdges = collectVisualizationLoops(80);
-        drawLoopConnections(qlist, loopEdges, false);
-    } else if (mode === "eternal") {
-        // Draw both canon overlay connections AND loop connections with different colors
-        drawConnections(qlist);
-        var loopEdges = collectVisualizationLoops(80);
-        drawLoopConnections(qlist, loopEdges, true);
     }
     updateCursors(qlist[0]);
     return tiles;
@@ -2794,11 +2768,6 @@ function createCanonDriver(player) {
 
     function process() {
         if (curQ >= masterQs.length) {
-            // Check if we should auto-play the next track in queue
-            if (autoPlayNext && playNextInQueue()) {
-                console.log('[Canon Driver] Auto-playing next track in queue');
-                return;
-            }
             stop();
         } else if (running) {
             var nextQ = masterQs[curQ];
@@ -2904,15 +2873,6 @@ function createJukeboxDriver(player, options) {
     var mtime = $("#mtime");
     var modeName = options.modeName || "jukebox";
 
-    // Stats tracking for eternal modes
-    var totalBeatsPlayed = 0;
-    var sessionStartTime = null;
-    var listenTimeSeconds = 0;
-    var statsUpdateInterval = null;
-    var listenTimeDisplay = $("#listen-time");
-    var beatsPlayedDisplay = $("#beats-played");
-    var eternalStatsContainer = $("#eternal-stats");
-
     var minLoopBeats = coerceNumber(options.minLoopBeats);
     if (minLoopBeats === null) {
         minLoopBeats = 12;
@@ -2948,56 +2908,6 @@ function createJukeboxDriver(player, options) {
     }
 
     recalcLoopWeightParams();
-
-    function updateStatsDisplay() {
-        if (beatsPlayedDisplay && beatsPlayedDisplay.length) {
-            beatsPlayedDisplay.text(totalBeatsPlayed.toLocaleString());
-        }
-        if (listenTimeDisplay && listenTimeDisplay.length) {
-            var minutes = Math.floor(listenTimeSeconds / 60);
-            var seconds = Math.floor(listenTimeSeconds % 60);
-            listenTimeDisplay.text(
-                String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0')
-            );
-        }
-    }
-
-    function startStatsTracking() {
-        if (!sessionStartTime) {
-            sessionStartTime = Date.now();
-        }
-        if (eternalStatsContainer && eternalStatsContainer.length) {
-            eternalStatsContainer.show();
-        }
-        if (!statsUpdateInterval) {
-            statsUpdateInterval = setInterval(function() {
-                if (running && sessionStartTime) {
-                    listenTimeSeconds = Math.floor((Date.now() - sessionStartTime) / 1000);
-                    updateStatsDisplay();
-                }
-            }, 1000);
-        }
-    }
-
-    function stopStatsTracking() {
-        if (statsUpdateInterval) {
-            clearInterval(statsUpdateInterval);
-            statsUpdateInterval = null;
-        }
-    }
-
-    function resetStats() {
-        totalBeatsPlayed = 0;
-        sessionStartTime = null;
-        listenTimeSeconds = 0;
-        stopStatsTracking();
-        updateStatsDisplay();
-    }
-
-    function incrementBeatCount() {
-        totalBeatsPlayed++;
-        updateStatsDisplay();
-    }
 
     function updateMinLoopBeats(value, opts) {
         var num = coerceNumber(value);
@@ -3061,7 +2971,6 @@ function createJukeboxDriver(player, options) {
         }
         sectionBias = num;
         recalcLoopWeightParams();
-        console.log('[updateSectionBias]', num, '→ sameSectionBonus:', sameSectionBonusBase.toFixed(3), 'crossSectionBonus:', crossSectionBonusBase.toFixed(3));
         if (!opts || opts.skipReschedule !== true) {
             scheduleNextJump(true);
         }
@@ -3079,7 +2988,6 @@ function createJukeboxDriver(player, options) {
         }
         jumpVariance = num;
         recalcLoopWeightParams();
-        console.log('[updateJumpVariance]', num, '→ weightJitter:', weightJitterStrength.toFixed(3), 'spanScale:', spanScaleBase.toFixed(3));
         if (!opts || opts.skipReschedule !== true) {
             scheduleNextJump(true);
         }
@@ -3094,9 +3002,47 @@ function createJukeboxDriver(player, options) {
     var recentSections = [];
     var sectionAnchors = [];
     var orderedSectionAnchors = [];
-    var retreatPoint = null; // Fallback jump from end back to beginning
 
     (function initializeSectionAnchors() {
+        // === FIX: derive beat.section if missing so Jukebox/Eternal can build section anchors ===
+        try {
+            if (typeof masterQs !== "undefined" && masterQs && masterQs.length) {
+                var haveAnySection = false;
+                for (var __i = 0; __i < masterQs.length; __i++) {
+                    var __b = masterQs[__i];
+                    if (__b && typeof __b.section === "number") { haveAnySection = true; break; }
+                }
+                if (!haveAnySection) {
+                    var __secs = (curTrack && curTrack.analysis && curTrack.analysis.sections) ? curTrack.analysis.sections : null;
+                    if (__secs && __secs.length) {
+                        for (var __j = 0; __j < masterQs.length; __j++) {
+                            var __beat = masterQs[__j];
+                            if (!__beat) continue;
+                            var __t = (typeof __beat.start === "number") ? __beat.start : 0;
+                            var __assigned = 0;
+                            for (var __s = 0; __s < __secs.length; __s++) {
+                                var __sStart = (typeof __secs[__s].start === "number") ? __secs[__s].start : 0;
+                                var __sEnd = __sStart + ((typeof __secs[__s].duration === "number") ? __secs[__s].duration : 0);
+                                if (__t >= __sStart && __t < __sEnd) { __assigned = __s; break; }
+                                if (__t >= __sEnd) { __assigned = __s; }
+                            }
+                            __beat.section = __assigned;
+                        }
+                    } else {
+                        // No sections array present; fall back to a single synthetic section
+                        for (var __k = 0; __k < masterQs.length; __k++) {
+                            if (masterQs[__k] && typeof masterQs[__k].section !== "number") {
+                                masterQs[__k].section = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (__deriveErr) {
+            try { console.warn("Section-derivation fallback failed:", __deriveErr); } catch(__e) {}
+        }
+        // === END FIX ===
+
         if (!masterQs || !masterQs.length) {
             return;
         }
@@ -3128,7 +3074,6 @@ function createJukeboxDriver(player, options) {
         setURL();
         setPlayingClass(null);
         pulseNotes(baseNoteStrength);
-        stopStatsTracking();
     }
 
     function randomBetween(min, max) {
@@ -3184,52 +3129,6 @@ function createJukeboxDriver(player, options) {
         });
     }
 
-    function collectLoopEdgesFromServer(threshold, minBeats) {
-        var edges = [];
-        _.each(serverLoopCandidateMap, function(entries, key) {
-            var src = parseInt(key, 10);
-            if (isNaN(src)) {
-                return;
-            }
-            _.each(entries, function(entry) {
-                if (!entry) {
-                    return;
-                }
-                var dst = entry.target;
-                if (typeof dst !== "number" || dst < 0 || dst >= masterQs.length) {
-                    return;
-                }
-                if (dst >= src) {
-                    return;
-                }
-                var sim = (typeof entry.similarity === "number") ? entry.similarity : 0;
-                if (sim < threshold) {
-                    return;
-                }
-                var span = Math.abs(src - dst);
-                if (span < minBeats) {
-                    return;
-                }
-                edges.push({
-                    source_start: src,
-                    target_start: dst,
-                    similarity: sim,
-                    span: span
-                });
-            });
-        });
-        var dedup = {};
-        var results = [];
-        _.each(edges, function(edge) {
-            var key = edge.source_start + ":" + edge.target_start;
-            if (!dedup[key]) {
-                dedup[key] = true;
-                results.push(edge);
-            }
-        });
-        return results;
-    }
-
     function collectFallbackLoops(qlist, minBeats) {
         var loops = [];
         var seen = {};
@@ -3275,47 +3174,25 @@ function createJukeboxDriver(player, options) {
     }
 
     function rebuildLoopChoices() {
-        console.log('[rebuildLoopChoices] minLoopBeats:', minLoopBeats, 'loopThreshold:', loopThreshold);
         loopGraph = {};
         var loops = [];
-
-        // Always try to use server loop data first (it has the most comprehensive data)
-        var serverEdges = collectLoopEdgesFromServer(loopThreshold, minLoopBeats);
-        if (serverEdges && serverEdges.length) {
-            var totalServerEdges = serverEdges.length;
-            var sampleSims = [];
-            _.each(serverEdges, function(loop) {
+        if (canonLoopCandidates && canonLoopCandidates.length) {
+            _.each(canonLoopCandidates, function(loop) {
                 var normalized = normalizeLoop(loop);
-                if (normalized) {
-                    if (sampleSims.length < 10) {
-                        sampleSims.push(normalized.similarity.toFixed(3));
-                    }
+                if (normalized && normalized.similarity >= loopThreshold) {
                     loops.push(normalized);
                     registerEdge(normalized.source_start, normalized.target_start, normalized.similarity, normalized.span);
                 }
             });
-            console.log('[rebuildLoopChoices] Using server edges. Total:', totalServerEdges, 'Normalized:', loops.length, 'Sample sims:', sampleSims.join(', '));
         }
-
-        // Fallback to canonLoopCandidates only if server data is missing
-        if (!loops.length && canonLoopCandidates && canonLoopCandidates.length) {
-            var totalCandidates = canonLoopCandidates.length;
-            var passedCount = 0;
-            var sampleSims = [];
-            _.each(canonLoopCandidates, function(loop) {
+        if (!loops.length) {
+            _.each(collectLoopEdgesFromServer(loopThreshold, minLoopBeats), function(loop) {
                 var normalized = normalizeLoop(loop);
                 if (normalized) {
-                    if (sampleSims.length < 10) {
-                        sampleSims.push(normalized.similarity.toFixed(3));
-                    }
-                    if (normalized.similarity >= loopThreshold) {
-                        loops.push(normalized);
-                        registerEdge(normalized.source_start, normalized.target_start, normalized.similarity, normalized.span);
-                        passedCount++;
-                    }
+                    loops.push(normalized);
+                    registerEdge(normalized.source_start, normalized.target_start, normalized.similarity, normalized.span);
                 }
             });
-            console.log('[rebuildLoopChoices] Using canonLoopCandidates. Total:', totalCandidates, 'Passed threshold:', passedCount, 'Sample sims:', sampleSims.join(', '));
         }
         if (!loops.length) {
             _.each(collectFallbackLoops(masterQs, minLoopBeats), function(loop) {
@@ -3351,74 +3228,6 @@ function createJukeboxDriver(player, options) {
         loopHistory = [];
         recentSections = [];
         scheduleNextJump(true);
-
-        // Update global canonLoopCandidates so visualization can see the filtered loops
-        if (typeof canonLoopCandidates !== "undefined") {
-            canonLoopCandidates = loops.slice(0);
-        }
-
-        // Refresh visualization to show updated loop connections
-        if (masterQs && masterQs.length && (mode === "jukebox" || mode === "eternal")) {
-            var loopEdges = collectVisualizationLoops(80);
-            if (mode === "jukebox") {
-                drawLoopConnections(masterQs, loopEdges, false);
-            } else if (mode === "eternal") {
-                drawLoopConnections(masterQs, loopEdges, true);
-            }
-        }
-    }
-
-    function findRetreatPoint() {
-        retreatPoint = null;
-        if (!masterQs || masterQs.length < 40) {
-            return;
-        }
-
-        // Define "end zone" as last 20% of track and "start zone" as first 30%
-        var endZoneStart = Math.floor(masterQs.length * 0.8);
-        var startZoneEnd = Math.floor(masterQs.length * 0.3);
-
-        var bestRetreat = null;
-        var bestSimilarity = -1;
-
-        // Search for the best jump from end zone to start zone
-        for (var srcIdx = endZoneStart; srcIdx < masterQs.length; srcIdx++) {
-            var edges = loopGraph[srcIdx];
-            if (!edges || !edges.length) {
-                continue;
-            }
-            _.each(edges, function(edge) {
-                if (edge.target < startZoneEnd && edge.similarity > bestSimilarity) {
-                    bestSimilarity = edge.similarity;
-                    bestRetreat = {
-                        source: srcIdx,
-                        target: edge.target,
-                        similarity: edge.similarity
-                    };
-                }
-            });
-        }
-
-        // If no good retreat found in loop graph, create one based on section similarity
-        if (!bestRetreat && orderedSectionAnchors.length > 2) {
-            var lastSection = orderedSectionAnchors[orderedSectionAnchors.length - 1];
-            var firstSection = orderedSectionAnchors[0];
-            if (lastSection && firstSection && lastSection > endZoneStart && firstSection < startZoneEnd) {
-                bestRetreat = {
-                    source: lastSection,
-                    target: firstSection,
-                    similarity: 0.45 // Moderate similarity fallback
-                };
-            }
-        }
-
-        retreatPoint = bestRetreat;
-        if (retreatPoint) {
-            console.log('[findRetreatPoint] Found retreat:', retreatPoint.source, '→', retreatPoint.target,
-                        'similarity:', retreatPoint.similarity.toFixed(3));
-        } else {
-            console.log('[findRetreatPoint] No suitable retreat point found');
-        }
     }
 
     function scheduleNextJump(force) {
@@ -3491,14 +3300,7 @@ function createJukeboxDriver(player, options) {
         }
         var weights = [];
         var total = 0;
-        var sameSectionCount = 0;
-        var crossSectionCount = 0;
         _.each(filtered, function(edge) {
-            if (edge.sameSection) {
-                sameSectionCount++;
-            } else {
-                crossSectionCount++;
-            }
             var simNorm = Math.max(0, Math.min(1, (edge.similarity + 1) / 2));
             var spanNorm = Math.min(1, Math.max(0.2, edge.span / (minLoopBeats * spanScaleBase)));
             var sectionBonus = edge.sameSection ? sameSectionBonusBase : crossSectionBonusBase;
@@ -3531,22 +3333,13 @@ function createJukeboxDriver(player, options) {
             return filtered[Math.floor(Math.random() * filtered.length)];
         }
         var pick = Math.random() * total;
-        var selectedIdx = -1;
         for (var i = 0; i < filtered.length; i++) {
             pick -= weights[i];
             if (pick <= 0) {
-                selectedIdx = i;
-                break;
+                return filtered[i];
             }
         }
-        if (selectedIdx === -1) {
-            selectedIdx = filtered.length - 1;
-        }
-        var selected = filtered[selectedIdx];
-        console.log('[selectJumpCandidate] Beat', src, '→', selected.target, '| Candidates:', filtered.length,
-                    '(same-section:', sameSectionCount, 'cross-section:', crossSectionCount + ')',
-                    '| Selected weight:', weights[selectedIdx].toFixed(3), '| sameSection:', selected.sameSection);
-        return selected;
+        return filtered[filtered.length - 1];
     }
 
     function advanceSequential() {
@@ -3562,41 +3355,10 @@ function createJukeboxDriver(player, options) {
         if (!masterQs || !masterQs.length) {
             return;
         }
-
-        // Check if we're in the end zone and should use retreat point
-        var endZoneStart = Math.floor(masterQs.length * 0.8);
-        var inEndZone = currentIndex >= endZoneStart;
-
-        // If in end zone and have a retreat point, consider using it
-        if (inEndZone && retreatPoint && currentIndex >= retreatPoint.source - 4) {
-            // Force a retreat when we're very close to or past the retreat source point
-            if (currentIndex >= retreatPoint.source || beatsUntilJump <= 2) {
-                console.log('[advanceIndex] Using retreat point:', currentIndex, '→', retreatPoint.target);
-                loopHistory.push({ source: currentIndex, target: retreatPoint.target });
-                if (loopHistory.length > LOOP_HISTORY_LIMIT) {
-                    loopHistory.shift();
-                }
-                currentIndex = retreatPoint.target;
-                scheduleNextJump(false);
-                return;
-            }
-        }
-
         beatsUntilJump -= 1;
         if (beatsUntilJump <= 0) {
             var jump = selectJumpCandidate(currentIndex);
             if (jump) {
-                // In end zone, prefer jumps that go back to the beginning
-                if (inEndZone && jump.target >= endZoneStart) {
-                    // This jump stays in the end zone - use retreat instead if available
-                    if (retreatPoint) {
-                        console.log('[advanceIndex] End zone loop detected, forcing retreat:', currentIndex, '→', retreatPoint.target);
-                        currentIndex = retreatPoint.target;
-                        scheduleNextJump(false);
-                        return;
-                    }
-                }
-
                 loopHistory.push({ source: currentIndex, target: jump.target });
                 if (loopHistory.length > LOOP_HISTORY_LIMIT) {
                     loopHistory.shift();
@@ -3616,7 +3378,6 @@ function createJukeboxDriver(player, options) {
         }
         var q = masterQs[currentIndex];
         recordSectionVisit(q.section);
-        incrementBeatCount();
         var delay = player.playQ(q);
         q.tile.highlight();
         if (q.other && q.other.tile) {
@@ -3637,9 +3398,7 @@ function createJukeboxDriver(player, options) {
             resetTileColors(masterQs);
             currentIndex = 0;
             rebuildLoopChoices();
-            resetStats();
             running = true;
-            startStatsTracking();
             process();
             setURL();
             $("#play").text("Stop");
@@ -3651,7 +3410,6 @@ function createJukeboxDriver(player, options) {
             resetTileColors(masterQs);
             rebuildLoopChoices();
             running = true;
-            startStatsTracking();
             process();
             setURL();
             $("#play").text("Stop");
@@ -3747,17 +3505,9 @@ function createJukeboxDriver(player, options) {
 
 function Driver(player) {
     if (mode === "jukebox") {
-        return createJukeboxDriver(player, {
-            modeName: "jukebox",
-            minLoopBeats: 12,
-            loopThreshold: 0.55
-        });
+        return createJukeboxDriver(player, getLoopSettingsForMode("jukebox"));
     } else if (mode === "eternal") {
-        return createJukeboxDriver(player, {
-            modeName: "eternal",
-            minLoopBeats: 8,
-            loopThreshold: 0.5
-        });
+        return createJukeboxDriver(player, getLoopSettingsForMode("eternal"));
     }
     return createCanonDriver(player);
 }

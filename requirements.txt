@@ -1,0 +1,3 @@
+-r backend/analysis/requirements.txt
+gunicorn>=21.2
+

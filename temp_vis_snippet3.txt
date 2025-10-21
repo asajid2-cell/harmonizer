@@ -1,0 +1,210 @@
+            if (state == 1) {
+                info("Here we go ...");
+                setTimeout( function() { readyToPlay(t); }, 10);
+            } else if (state == 0) {
+                if (percent >= 99) {
+                    info("Here we go ...");
+                } else {
+                    if (!isNaN(percent)) {
+                        info( percent  + "% of track loaded ");
+                    }
+                }
+            } else {
+                info('Trouble  ' + t.status);
+            }
+        });
+    } else if (status == 'error') {
+        info("Sorry, couldn't analyze that track");
+    }
+}
+
+
+function fetchAnalysis(trid) {
+    isTrackReady = false;
+    if (driver && driver.isRunning && driver.isRunning()) {
+        driver.stop();
+    }
+    $("#play").prop("disabled", true).text("Loading...");
+    var localUrl = 'data/' + trid + '.json';
+    var remoteUrl = 'http://static.echonest.com/infinite_jukebox_data/' + trid + '.json';
+    info('Fetching the analysis');
+    $.getJSON(localUrl, function(data) { gotTheAnalysis(data); })
+        .fail(function() {
+            $.getJSON(remoteUrl, function(data) { gotTheAnalysis(data); })
+                .fail(function() {
+                    info("Sorry, can't find info for that track");
+                });
+        });
+}
+
+function get_status(data) {
+    if (data.response.status.code == 0) {
+        return data.response.track.status;
+    } else {
+        return 'error';
+    }
+}
+
+
+function isSegment(q) {
+    return 'timbre' in q;
+}
+
+
+async function keydown(evt) {
+    if (evt.which === 32) {
+        evt.preventDefault();
+        await togglePlayback();
+    }
+}
+
+function urldecode(str) {
+   return decodeURIComponent((str+'').replace(/\+/g, '%20'));
+}
+
+function getAudioContext() {
+    if (window.webkitAudioContext) {
+        return new webkitAudioContext();
+    } else {
+        return new AudioContext();
+    }
+}
+
+function setDisplayMode() {
+}
+
+function setPlayingClass(modeName) {
+    document.body.classList.remove("playing-canon", "playing-jukebox");
+    if (modeName === "canon") {
+        document.body.classList.add("playing-canon");
+        baseNoteStrength = 0.05;
+    } else if (modeName === "jukebox") {
+        document.body.classList.add("playing-jukebox");
+        baseNoteStrength = 0.08;
+    } else if (modeName === "eternal") {
+        document.body.classList.add("playing-jukebox");
+        baseNoteStrength = 0.1;
+    } else {
+        baseNoteStrength = 0;
+    }
+    if (typeof window.setAdvancedPanelMode === "function") {
+        window.setAdvancedPanelMode((modeName || "").toLowerCase());
+    }
+    if (typeof window.setCanonUiVisibility === "function") {
+        window.setCanonUiVisibility(modeName === "canon");
+    }
+    rootStyle.setProperty("--note-strength", baseNoteStrength.toFixed(3));
+    var baseAlpha = 0.12 + 0.35 * baseNoteStrength;
+    rootStyle.setProperty("--note-alpha", baseAlpha.toFixed(3));
+}
+
+function pulseNotes(strength) {
+    var intensity = (typeof strength === "number") ? strength : baseNoteStrength;
+    if (isNaN(intensity)) {
+        intensity = baseNoteStrength;
+    }
+    intensity = Math.max(baseNoteStrength, Math.min(1, intensity));
+    rootStyle.setProperty("--note-strength", intensity.toFixed(3));
+    var alpha = 0.12 + 0.5 * intensity;
+    rootStyle.setProperty("--note-alpha", alpha.toFixed(3));
+    if (notePulseTimer) {
+        clearTimeout(notePulseTimer);
+    }
+    var decayDelay = mode === "jukebox" ? 180 : 280;
+    notePulseTimer = setTimeout(function() {
+        rootStyle.setProperty("--note-strength", baseNoteStrength.toFixed(3));
+        var baseAlpha = 0.12 + 0.35 * baseNoteStrength;
+        rootStyle.setProperty("--note-alpha", baseAlpha.toFixed(3));
+    }, decayDelay);
+}
+
+async function togglePlayback() {
+    if (!driver || !isTrackReady) {
+        return;
+    }
+    try {
+        if (remixer && typeof remixer.ensureContext === "function") {
+            await remixer.ensureContext();
+        }
+    } catch (ctxError) {
+        console.error("Failed to resume audio context", ctxError);
+        error("Unable to start audio playback. Check console for details.");
+        return;
+    }
+    if (driver.isRunning()) {
+        driver.stop();
+    } else {
+        driver.start();
+    }
+}
+
+function init() {
+    jQuery.ajaxSettings.traditional = true;  
+    setDisplayMode(false);
+    setPlayingClass(null);
+    pulseNotes(baseNoteStrength);
+
+    window.oncontextmenu = function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+    };
+
+    document.ondblclick = function DoubleClick(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+    }
+
+    $("#error").hide();
+
+    var playButton = $("#play");
+    playButton.prop("disabled", true);
+    playButton.on("click", async function(event) {
+        event.preventDefault();
+        await togglePlayback();
+    });
+
+    var containerWidth = $("#tiles").innerWidth();
+    if (!containerWidth || containerWidth < 100) {
+        containerWidth = $(window).width() - 140;
+    }
+    W = containerWidth;
+    paper = Raphael("tiles", W, TH);
+    $(document).keydown(keydown);
+
+
+    if (window.webkitAudioContext === undefined && window.AudioContext === undefined) {
+        error("Sorry, this app needs advanced web audio. Your browser doesn't"
+            + " support it. Try the latest version of Chrome, Firefox (nightly)  or Safari");
+
+        hideAll();
+
+    } else {
+        var context = getAudioContext();
+        var initialTrid = processParams();
+        remixer = createJRemixer(context, $);
+        driver = Driver(remixer.getPlayer());
+        if (initialTrid) {
+            fetchAnalysis(initialTrid);
+        } else {
+            info("Load a track to begin.");
+        }
+    }
+}
+
+
+function showPlotPage(trid) {
+    var url = location.protocol + "//" + 
+                location.host + location.pathname + "?trid=" + trid;
+    location.href = url;
+}
+
+function setURL() {
+    if (curTrack) {
+        var p = "?trid=" + curTrack.id + "&mode=" + mode;
+        history.replaceState({}, document.title, p);
+    }
+    tweetSetup(curTrack);
+}
+

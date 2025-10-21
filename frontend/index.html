@@ -7,10 +7,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='modern.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='visualizer.css') }}">
+    <link rel="stylesheet" href="./modern.css">
+    <link rel="stylesheet" href="./visualizer.css">
 </head>
-<body class="page {% if track_id %}state-player{% else %}state-home{% endif %} advanced-collapsed" data-mode="{{ mode }}">
+<body class="page state-home advanced-collapsed" data-mode="canon">
     <div class="music-field" aria-hidden="true">
         <div class="music track one"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="music track two"><span></span><span></span><span></span><span></span><span></span></div>
@@ -90,15 +90,7 @@
                     <div class="viz-actions">
                         <button id="play" class="viz-button">Play</button>
                         <span class="viz-timer" id="mtime">00:00:00</span>
-                        <span class="viz-mode-pill" id="mode-pill">
-                            {% if mode == 'jukebox' %}
-                                Eternal Jukebox
-                            {% elif mode == 'eternal' %}
-                                Eternal Canonizer
-                            {% else %}
-                                Autocanonizer
-                            {% endif %}
-                        </span>
+                        <span class="viz-mode-pill" id="mode-pill">Autocanonizer</span>
                         <div class="viz-stats" id="eternal-stats" style="display: none;">
                             <span class="viz-stat-item">
                                 <span class="viz-stat-label">Listen Time:</span>
@@ -206,10 +198,11 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js"></script>
-    <script src="{{ url_for('static', filename='js/underscore-min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/raphael-min.js') }}"></script>
-    <script src="{{ url_for('static', filename='jremix.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/visualizer.js') }}"></script>
+    <script src="./app-config.js"></script>
+    <script src="./js/underscore-min.js"></script>
+    <script src="./js/raphael-min.js"></script>
+    <script src="./jremix.js"></script>
+    <script src="./js/visualizer.js"></script>
     <script>
     (function() {
         const body = document.body;
@@ -220,6 +213,39 @@
         const sourceInput = document.getElementById('source-input');
         const uploadPane = document.getElementById('upload-pane');
         const youtubePane = document.getElementById('youtube-pane');
+        const modePill = document.getElementById('mode-pill');
+        const config = window.HARMONIZER_CONFIG || {};
+        const apiBaseUrl = (config.apiBaseUrl || "").replace(/\/+$/, "");
+        const buildApiUrl = (path) => {
+            if (!path.startsWith('/')) {
+                path = '/' + path;
+            }
+            return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
+        };
+        const MODE_LABELS = {
+            canon: 'Autocanonizer',
+            jukebox: 'Eternal Jukebox',
+            eternal: 'Eternal Canonizer',
+        };
+        const buildFrontendRedirect = (trackId, mode) => {
+            const params = new URLSearchParams();
+            if (trackId) {
+                params.set('trid', trackId);
+            }
+            if (mode) {
+                params.set('mode', mode);
+            }
+            let basePath = window.location.pathname || '/';
+            if (basePath.endsWith('index.html')) {
+                basePath = basePath.slice(0, -'index.html'.length);
+            }
+            if (!basePath.endsWith('/')) {
+                basePath += '/';
+            }
+            const suffix = params.toString();
+            return suffix ? `${basePath}?${suffix}` : basePath;
+        };
+
         const form = document.getElementById('process-form');
         const statusPanel = document.getElementById('form-status');
         const modeFromBody = (body.dataset.mode || "canon").toLowerCase();
@@ -237,8 +263,17 @@
         };
 
         const backButton = document.getElementById('back-button');
+        const params = new URLSearchParams(window.location.search);
+        const tridParam = params.get('trid');
+        const requestedMode = (params.get('mode') || 'canon').toLowerCase();
+        const allowedModes = new Set(['canon', 'jukebox', 'eternal']);
+        const normalizedMode = allowedModes.has(requestedMode) ? requestedMode : 'canon';
+        document.body.dataset.mode = normalizedMode;
+        if (modePill) {
+            modePill.textContent = MODE_LABELS[normalizedMode] || MODE_LABELS.canon;
+        }
 
-        if ({{ 'true' if track_id else 'false' }}) {
+        if (tridParam) {
             setState('state-player');
             if (backButton) {
                 backButton.classList.remove('hidden');
@@ -250,16 +285,22 @@
         }
 
         function syncAlgorithmButtons(targetMode) {
+            targetMode = (targetMode || 'canon').toLowerCase();
             algorithmToggle.querySelectorAll('.toggle').forEach(btn => btn.classList.remove('active'));
-            const match = algorithmToggle.querySelector('[data-algorithm=\"' + targetMode + '\"]');
+            const match = algorithmToggle.querySelector('[data-algorithm\"' + targetMode + '\"]');
             if (match) {
                 match.classList.add('active');
-                algorithmInput.value = targetMode;
             }
+            algorithmInput.value = targetMode;
+            body.dataset.mode = targetMode;
+            if (modePill) {
+                modePill.textContent = MODE_LABELS[targetMode] || MODE_LABELS.canon;
+            }
+            return targetMode;
         }
 
         if (modeFromBody === "jukebox" || modeFromBody === "eternal" || modeFromBody === "canon") {
-            syncAlgorithmButtons(modeFromBody);
+            currentModeKey = syncAlgorithmButtons(modeFromBody);
         }
 
         algorithmToggle.addEventListener('click', (event) => {
@@ -268,9 +309,7 @@
                 return;
             }
             const targetMode = button.dataset.algorithm;
-            syncAlgorithmButtons(targetMode);
-            currentModeKey = (targetMode || '').toLowerCase();
-            body.dataset.mode = targetMode;
+            currentModeKey = syncAlgorithmButtons(targetMode);
             window.setAdvancedPanelMode(currentModeKey);
         });
 
@@ -314,7 +353,7 @@
                 if (url.includes('list=') || url.includes('playlist')) {
                     try {
                         statusPanel.textContent = 'Checking for playlist...';
-                        const playlistResponse = await fetch('/api/playlist-info', {
+                        const playlistResponse = await fetch(buildApiUrl('api/playlist-info'), {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ url: url })
@@ -340,7 +379,8 @@
 
             try {
                 const formData = new FormData(form);
-                const response = await fetch('/api/process', {
+                const selectedAlgorithm = (formData.get('algorithm') || 'canon').toString().toLowerCase();
+                const response = await fetch(buildApiUrl('api/process'), {
                     method: 'POST',
                     body: formData
                 });
@@ -348,8 +388,11 @@
                 if (!response.ok) {
                     throw new Error(payload.error || 'Something went wrong.');
                 }
+                if (!payload.trackId) {
+                    throw new Error('Unexpected response from server.');
+                }
                 statusPanel.textContent = 'Ready! Loading the visualizer...';
-                window.location.href = payload.redirect;
+                window.location.href = buildFrontendRedirect(payload.trackId, selectedAlgorithm);
             } catch (err) {
                 statusPanel.textContent = err.message;
             } finally {
@@ -360,7 +403,7 @@
 
         async function processPlaylist(entries, form) {
             const submitButton = form.querySelector('button[type="submit"]');
-            const algorithm = form.querySelector('input[name="algorithm"]').value;
+            const algorithm = (form.querySelector('input[name="algorithm"]').value || 'canon').toLowerCase();
             submitButton.disabled = true;
 
             const trackIds = [];
@@ -375,7 +418,7 @@
                     formData.append('youtube_url', entries[i].url);
                     formData.append('algorithm', algorithm);
 
-                    const response = await fetch('/api/process', {
+                    const response = await fetch(buildApiUrl('api/process'), {
                         method: 'POST',
                         body: formData
                     });
@@ -403,7 +446,7 @@
 
                 // Navigate to first track with the queue
                 const mode = algorithm || 'canon';
-                window.location.href = `/?trid=${trackIds[0]}&mode=${mode}`;
+                window.location.href = buildFrontendRedirect(trackIds[0], mode);
             } else {
                 statusPanel.textContent = 'Failed to process any tracks from the playlist.';
                 submitButton.disabled = false;

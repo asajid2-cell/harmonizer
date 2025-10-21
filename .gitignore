@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 
 # Generated audio/media
+backend/uploads/
 uploads/
 *.mp3
 *.wav
@@ -11,5 +12,6 @@ uploads/
 *.aac
 
 # Analysis artifacts
+backend/data/
 data/
 *.json
