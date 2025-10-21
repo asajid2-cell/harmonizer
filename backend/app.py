@@ -139,10 +139,12 @@ def _get_youtube_playlist_info(url: str) -> Optional[dict]:
     if YoutubeDL is None:
         raise RuntimeError("yt-dlp is not installed. Run `pip install yt-dlp`.")
 
+    # Use web_embedded, web, tv clients to avoid needing cookies/PO tokens
     ydl_opts = {
         "quiet": True,
         "no_warnings": True,
         "extract_flat": True,  # Don't download, just get metadata
+        "extractor_args": {"youtube": {"player_client": ["web_embedded", "web", "tv"]}},
     }
 
     with YoutubeDL(ydl_opts) as ydl:
@@ -176,28 +178,57 @@ def _download_youtube(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
 
     output_template = str(UPLOAD_FOLDER / f"{track_id}.%(ext)s")
 
-    # Try IPv4 and IPv6
+    # Try multiple client configurations to avoid 403
+    # Using web_embedded, web, tv clients avoids needing PO tokens or cookies
     retry_configs = [
-        # First attempt: Force IPv4
+        # First attempt: web_embedded, web, tv clients (most reliable, no cookies needed)
         {
             "format": "bestaudio/best",
             "outtmpl": output_template,
             "quiet": True,
             "no_warnings": True,
             "noplaylist": True,
-            "source_address": "0.0.0.0",  # Force IPv4
+            "extractor_args": {"youtube": {"player_client": ["web_embedded", "web", "tv"]}},
         },
-        # Second attempt: Force IPv6
+        # Second attempt: Just web_embedded and tv
         {
             "format": "bestaudio/best",
             "outtmpl": output_template,
             "quiet": True,
             "no_warnings": True,
             "noplaylist": True,
-            "source_address": "::",  # Force IPv6
+            "extractor_args": {"youtube": {"player_client": ["web_embedded", "tv"]}},
+        },
+        # Third attempt: Use cookies from Chrome as fallback
+        {
+            "format": "bestaudio/best",
+            "outtmpl": output_template,
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+            "cookiesfrombrowser": ("chrome",),
+        },
+        # Fourth attempt: Use cookies from Edge as fallback
+        {
+            "format": "bestaudio/best",
+            "outtmpl": output_template,
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+            "cookiesfrombrowser": ("edge",),
+        },
+        # Fifth attempt: Default without cookies
+        {
+            "format": "bestaudio/best",
+            "outtmpl": output_template,
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+            "source_address": "0.0.0.0",
         },
     ]
 
+    last_error = None
     for attempt, base_opts in enumerate(retry_configs, 1):
         try:
             ydl_opts = base_opts.copy()
@@ -229,13 +260,24 @@ def _download_youtube(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
 
         except Exception as e:
             error_msg = str(e)
-            print(f"[YouTube Download] Attempt {attempt} failed: {error_msg}")
+            last_error = error_msg
+
+            # Cookie errors are expected if browser is open - don't print full error
+            if "cookie" in error_msg.lower():
+                print(f"[YouTube Download] Attempt {attempt} skipped: Cookie access failed (browser may be open)")
+            else:
+                print(f"[YouTube Download] Attempt {attempt} failed: {error_msg[:200]}")
 
             # If this isn't the last attempt, continue to next config
             if attempt < len(retry_configs):
                 continue
-            # If this was the last attempt, raise the error
-            raise RuntimeError(f"Failed to download video. YouTube may be blocking requests. Please try again now or wait a few minutes and retry.")
+
+    # All attempts failed - raise error
+    raise RuntimeError(
+        f"Failed to download video after {len(retry_configs)} attempts. "
+        f"YouTube may be blocking requests. Try closing your browsers and retry. "
+        f"Last error: {last_error[:200] if last_error else 'Unknown'}"
+    )
 
 
 @app.route("/api/process", methods=["POST", "OPTIONS"])
