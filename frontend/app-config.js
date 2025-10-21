@@ -7,7 +7,7 @@
              * (e.g. when frontend is served by the Flask app). Set to the full
              * deployed backend URL when the frontend is hosted separately.
              */
-            apiBaseUrl: "",
+            apiBaseUrl: "https://harmonizer-backend-bofk.onrender.com",
         },
         existing,
     );
