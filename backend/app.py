@@ -553,13 +553,17 @@ def _download_youtube(url: str, track_id: str, user_id: Optional[str] = None) ->
 
     # All attempts failed - raise error with helpful message
     error_msg = (
-        f"YouTube download temporarily unavailable. This happens due to YouTube's bot protection.\\n\\n"
-        f"Quick fix: Close your browser completely, then try again.\\n\\n"
-        f"If that doesn't work:\\n"
-        f"• The video might be age-restricted or region-locked\\n"
-        f"• Try a different video\\n"
-        f"• Contact support if this persists\\n\\n"
-        f"Technical details: {last_error[:100] if last_error else 'Authentication check failed'}"
+        f"YouTube is currently blocking automated downloads. This is a known YouTube limitation.\\n\\n"
+        f"**Easy Workaround:**\\n"
+        f"1. Download the audio file yourself using any YouTube to MP3 converter\\n"
+        f"2. Use the 'Upload Audio' option instead\\n"
+        f"3. Upload your downloaded file - works perfectly!\\n\\n"
+        f"**Recommended free converters:**\\n"
+        f"• y2mate.com\\n"
+        f"• ytmp3.cc\\n"
+        f"• Any browser extension\\n\\n"
+        f"We're working on a permanent solution. Sorry for the inconvenience!\\n\\n"
+        f"Technical: {last_error[:80] if last_error else 'Bot detection active'}"
     )
     raise RuntimeError(error_msg)
 
