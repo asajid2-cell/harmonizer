@@ -54,6 +54,7 @@
                     <div class="section-title">Source</div>
                     <div class="toggle-group" id="source-toggle">
                         <button type="button" data-source="upload" class="toggle active">Upload Audio</button>
+                        <button type="button" data-source="drive" class="toggle">Google Drive</button>
                         <button type="button" data-source="youtube" class="toggle">YouTube</button>
                     </div>
                     <input type="hidden" name="source" value="upload" id="source-input">
@@ -69,6 +70,16 @@
                                 <span class="file-upload-name" id="file-upload-name">No file chosen</span>
                             </div>
                         </label>
+                    </div>
+
+                    <div class="source-pane hidden" id="drive-pane">
+                        <label class="field">
+                            <span>Google Drive link</span>
+                            <input type="url" name="drive_url" placeholder="https://drive.google.com/file/d/...">
+                        </label>
+                        <p class="field-hint" style="margin-top: 8px; font-size: 13px; color: var(--color-muted);">
+                            Upload audio to Google Drive, right-click → Share → Copy link, then paste here
+                        </p>
                     </div>
 
                     <div class="source-pane hidden" id="youtube-pane">

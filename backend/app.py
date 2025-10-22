@@ -615,6 +615,114 @@ def _smart_download_with_fallback(url: str, track_id: str, user_id: Optional[str
     )
 
 
+def _download_from_drive(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
+    """Download audio file from Google Drive shareable link."""
+    import re
+    import requests
+
+    print(f"[Drive Download] Processing URL: {url}", flush=True)
+
+    # Extract file ID from various Drive URL formats
+    file_id = None
+    patterns = [
+        r'/file/d/([a-zA-Z0-9_-]+)',
+        r'id=([a-zA-Z0-9_-]+)',
+        r'/open\?id=([a-zA-Z0-9_-]+)',
+        r'drive\.google\.com/.*?([a-zA-Z0-9_-]{25,})',
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            file_id = match.group(1)
+            print(f"[Drive Download] Extracted file ID: {file_id}", flush=True)
+            break
+
+    if not file_id:
+        raise RuntimeError("Invalid Google Drive link. Please use a shareable link from Drive.")
+
+    # Construct direct download URL
+    download_url = f"https://drive.google.com/uc?id={file_id}&export=download"
+
+    try:
+        # First request might return confirmation page for large files
+        session = requests.Session()
+        response = session.get(download_url, stream=True)
+
+        # Check if we need to handle the virus scan warning
+        for key, value in response.cookies.items():
+            if key.startswith('download_warning'):
+                download_url = f"https://drive.google.com/uc?id={file_id}&export=download&confirm={value}"
+                response = session.get(download_url, stream=True)
+                break
+
+        if response.status_code != 200:
+            raise RuntimeError(f"Cannot download Drive file (HTTP {response.status_code}). Make sure the link is publicly accessible.")
+
+        # Determine file extension from content type or keep as mp3
+        content_type = response.headers.get('content-type', '')
+        ext = '.mp3'  # Default
+        if 'audio/wav' in content_type or 'audio/x-wav' in content_type:
+            ext = '.wav'
+        elif 'audio/flac' in content_type:
+            ext = '.flac'
+
+        file_path = UPLOAD_FOLDER / f"{track_id}{ext}"
+
+        # Download file in chunks
+        total_size = int(response.headers.get('content-length', 0))
+        downloaded = 0
+        chunk_size = 8192
+
+        print(f"[Drive Download] Downloading file ({total_size} bytes)...", flush=True)
+
+        with open(file_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total_size > 0:
+                        progress = (downloaded / total_size) * 100
+                        if downloaded % (chunk_size * 100) == 0:  # Log every ~800KB
+                            print(f"[Drive Download] Progress: {progress:.1f}%", flush=True)
+
+        if not file_path.exists() or file_path.stat().st_size == 0:
+            raise RuntimeError("Download failed - file is empty")
+
+        # Convert to MP3 if needed
+        if ext != '.mp3':
+            print(f"[Drive Download] Converting {ext} to MP3...", flush=True)
+            ffmpeg_dir = locate_ffmpeg_bin()
+            if ffmpeg_dir:
+                import subprocess
+                mp3_path = UPLOAD_FOLDER / f"{track_id}.mp3"
+                ffmpeg_bin = ffmpeg_dir / "ffmpeg.exe" if os.name == 'nt' else ffmpeg_dir / "ffmpeg"
+                subprocess.run([
+                    str(ffmpeg_bin), '-i', str(file_path),
+                    '-acodec', 'libmp3lame', '-b:a', '192k',
+                    str(mp3_path), '-y'
+                ], check=True, capture_output=True)
+                file_path.unlink()  # Remove original
+                file_path = mp3_path
+
+        info = {
+            "title": "Google Drive Audio",
+            "uploader": "Google Drive",
+        }
+
+        print(f"[Drive Download] Success: {file_path.name}", flush=True)
+        return file_path, info
+
+    except requests.RequestException as e:
+        error_msg = str(e)
+        print(f"[Drive Download] Error: {error_msg}", flush=True)
+        raise RuntimeError(f"Failed to download from Google Drive: {error_msg}")
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[Drive Download] Error: {error_msg}", flush=True)
+        raise RuntimeError(f"Failed to process Google Drive file: {error_msg}")
+
+
 def _download_youtube(url: str, track_id: str, user_id: Optional[str] = None) -> tuple[Path, Optional[dict]]:
     if YoutubeDL is None:
         raise RuntimeError("yt-dlp is not installed. Run `pip install yt-dlp`.")
@@ -809,6 +917,15 @@ def api_process():
             if not url:
                 return jsonify({"error": "Please provide a Spotify URL."}), 400
             audio_path, info = _download_spotify(url, track_id, user_id)
+            if not title:
+                title = info.get("title") if info else None
+            if (not request.form.get("artist")) and info:
+                artist = info.get("uploader", artist)
+        elif source == "drive":
+            url = request.form.get("drive_url", "").strip()
+            if not url:
+                return jsonify({"error": "Please provide a Google Drive URL."}), 400
+            audio_path, info = _download_from_drive(url, track_id)
             if not title:
                 title = info.get("title") if info else None
             if (not request.form.get("artist")) and info:
