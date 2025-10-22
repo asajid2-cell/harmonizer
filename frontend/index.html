@@ -22,13 +22,10 @@
     <div class="page-shell">
         <a href="/" class="back-button hidden" id="back-button" aria-label="Back to song select"><span aria-hidden="true">&#8592;</span><span class="back-button-label">Back</span></a>
 
-        <!-- Logo in top right -->
-        <div class="site-logo" id="site-logo">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2" fill="none"/>
-                <path d="M12 10 L12 22 M16 8 L16 24 M20 10 L20 22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-        </div>
+        <!-- Google sign-in logo in top right -->
+        <button class="site-logo" id="site-logo" aria-label="Sign in with Google">
+            <span class="logo-text">G</span>
+        </button>
 
         <header class="hero">
             <div class="hero-meta">
@@ -1517,8 +1514,8 @@
             }
         }
 
-        // Sign in with Google
-        signinButton.addEventListener('click', () => {
+        // Sign in with Google (function)
+        function handleGoogleSignIn() {
             if (isAppwrite && appwriteAccount) {
                 // Appwrite OAuth
                 appwriteAccount.createOAuth2Session(
@@ -1530,7 +1527,18 @@
                 // Flask OAuth
                 window.location.href = '/auth/google';
             }
-        });
+        }
+
+        // Sign in button in advanced settings
+        if (signinButton) {
+            signinButton.addEventListener('click', handleGoogleSignIn);
+        }
+
+        // Site logo button (top right "G")
+        const siteLogoButton = document.getElementById('site-logo');
+        if (siteLogoButton) {
+            siteLogoButton.addEventListener('click', handleGoogleSignIn);
+        }
 
         // Sign out
         logoutButton.addEventListener('click', async () => {

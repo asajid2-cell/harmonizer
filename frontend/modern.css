@@ -321,6 +321,13 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     cursor: pointer;
 }
 
+.site-logo .logo-text {
+    font-size: 24px;
+    font-weight: 700;
+    font-family: "Product Sans", "Google Sans", system-ui, sans-serif;
+    letter-spacing: -0.02em;
+}
+
 .site-logo:hover {
     background: rgba(232, 180, 184, 0.18);
     box-shadow: 0 10px 24px rgba(232, 180, 184, 0.22);
