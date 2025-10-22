@@ -1309,6 +1309,24 @@ function smoothCanonMapping(qlist, options) {
         var pref = runningMedian(deltas, i, windowSize);
         if (pref === null) { continue; }
         var preferred = Math.round(pref);
+
+        // STRUCTURED OFFSET: Snap to musical intervals for more coherent sound
+        // Prefer multiples of 4, 8, 12, 16 (measures and phrases)
+        var musicalIntervals = [4, 8, 12, 16, 20, 24, 32, 48, 64];
+        var closestMusical = musicalIntervals[0];
+        var minDist = Math.abs(Math.abs(preferred) - musicalIntervals[0]);
+        for (var mi = 1; mi < musicalIntervals.length; mi++) {
+            var dist = Math.abs(Math.abs(preferred) - musicalIntervals[mi]);
+            if (dist < minDist) {
+                minDist = dist;
+                closestMusical = musicalIntervals[mi];
+            }
+        }
+        // If very close to a musical interval (within 3 beats), snap to it
+        if (minDist <= 3) {
+            preferred = preferred >= 0 ? closestMusical : -closestMusical;
+        }
+
         if (Math.abs(preferred) < minAbsOffset) {
             preferred = preferred >= 0 ? minAbsOffset : -minAbsOffset;
         }
@@ -1337,24 +1355,54 @@ function smoothCanonMapping(qlist, options) {
             if (Math.abs(delta) < minAbsOffset) continue;
             if (maxAbsOffset !== null && Math.abs(delta) > maxAbsOffset) continue;
             if (preferSameSection && q.section !== undefined && b.section !== undefined && q.section !== b.section) continue;
+
             var deltaCost = Math.abs(delta - preferred);
             var simCost = (typeof d === 'number') ? (d / 200.0) : 1.0;
-            var sizeReward = 0;
+
+            // BONUS: Prefer offsets that are exact musical intervals (4, 8, 16, etc.)
+            var musicalBonus = 0;
             var absDelta = Math.abs(delta);
+            if (absDelta % 4 === 0) musicalBonus = 0.15; // Reward measure-aligned offsets
+            if (absDelta % 8 === 0) musicalBonus = 0.25; // Extra reward for phrase-aligned
+            if (absDelta % 16 === 0) musicalBonus = 0.35; // Maximum reward for section-aligned
+
+            var sizeReward = 0;
             if (maxAbsOffset !== null && maxAbsOffset > 0) {
                 sizeReward = Math.min(0.35, absDelta / maxAbsOffset * 0.3);
             } else {
                 sizeReward = Math.min(0.25, absDelta / Math.max(8, minAbsOffset * 2) * 0.25);
             }
-            var cost = deltaCost + simCost - sizeReward;
+
+            var cost = deltaCost + simCost - sizeReward - musicalBonus;
             if (!best || cost < best.cost) { best = { beat: b, cost: cost, delta: delta }; }
         }
-        // Dwell/hysteresis: resist changing offset too often
+        // ENHANCED Dwell/hysteresis: resist changing offset AND align to phrase boundaries
         if (best) {
             if (lastDelta === null || best.delta === lastDelta) {
                 runLen += 1;
             } else {
-                if (runLen < minDwell) {
+                // Check if we're at a natural transition point (section boundary or phrase multiple)
+                var atSectionBoundary = false;
+                if (q.section !== undefined) {
+                    // Check if next beat is in a different section (natural transition point)
+                    var nextQ = qlist[Math.min(i + 1, qlist.length - 1)];
+                    if (nextQ && nextQ.section !== undefined && nextQ.section !== q.section) {
+                        atSectionBoundary = true;
+                    }
+                }
+
+                // Check if we're at a phrase boundary (multiples of 4, 8, 16 beats)
+                var atPhraseBoundary = (i % 8 === 0) || (i % 16 === 0);
+
+                // Allow shorter dwell at natural boundaries, require longer dwell mid-phrase
+                var effectiveMinDwell = minDwell;
+                if (atSectionBoundary || atPhraseBoundary) {
+                    effectiveMinDwell = Math.max(2, Math.floor(minDwell * 0.6)); // 60% of normal dwell at boundaries
+                } else {
+                    effectiveMinDwell = Math.ceil(minDwell * 1.2); // 120% mid-phrase to let lyrics ring
+                }
+
+                if (runLen < effectiveMinDwell) {
                     // force continuity by projecting previous delta if valid
                     var ti = i + lastDelta;
                     if (lastDelta !== null && ti >= 0 && ti < qlist.length) {
