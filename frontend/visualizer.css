@@ -244,9 +244,9 @@ body.advanced-expanded .advanced-shell {
 .advanced-group {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 10px;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 8px;
     background: rgba(12, 3, 8, 0.6);
     border: 1px solid rgba(232, 180, 184, 0.12);
     transition: border-color 0.2s ease, background 0.2s ease;
@@ -313,7 +313,7 @@ body.advanced-expanded .advanced-shell {
 .advanced-group-body {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
 }
 
 .advanced-group.is-collapsed .advanced-group-body {
@@ -329,7 +329,7 @@ body.advanced-expanded .advanced-shell {
 
 .advanced-fields {
     display: grid;
-    gap: 12px;
+    gap: 8px;
     grid-template-columns: 1fr;
     width: 100%;
     max-width: 100%;
@@ -338,9 +338,9 @@ body.advanced-expanded .advanced-shell {
 .advanced-control {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 8px;
-    border-radius: 8px;
+    gap: 4px;
+    padding: 6px;
+    border-radius: 6px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(232, 180, 184, 0.08);
     width: 100%;
