@@ -977,9 +977,9 @@ function updateCanonSetting(key, value) {
     } else if (key === "dwellBeats") {
         canonSettings.dwellBeats = Math.max(1, Math.floor(value));
     } else if (key === "density") {
-        canonSettings.density = Math.min(6, Math.max(1, Math.floor(value)));
+        canonSettings.density = Math.min(16, Math.max(1, Math.floor(value)));
     } else if (key === "variation") {
-        canonSettings.variation = Math.min(10, Math.max(0, Math.floor(value)));
+        canonSettings.variation = Math.min(50, Math.max(0, Math.floor(value)));
     } else {
         canonSettings[key] = value;
     }

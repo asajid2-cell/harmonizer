@@ -697,6 +697,13 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 /* OAuth Authentication Styles */
 .auth-status {
     font-family: "Manrope", system-ui, sans-serif;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .auth-button {
@@ -709,6 +716,7 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
 .auth-button:hover {
@@ -721,11 +729,17 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     display: flex;
     align-items: center;
     gap: 10px;
+    background: rgba(19, 6, 12, 0.9);
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(232, 180, 184, 0.2);
+    backdrop-filter: blur(10px);
 }
 
 #user-email {
-    color: var(--color-muted);
+    color: var(--color-text);
     font-size: 14px;
+    font-weight: 500;
 }
 
 /* Advanced Settings Button Enhancements */
