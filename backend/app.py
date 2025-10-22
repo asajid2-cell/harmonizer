@@ -34,6 +34,11 @@ except ImportError:  # pragma: no cover
     Spotdl = None  # type: ignore
     Song = None  # type: ignore
 
+try:
+    from soundcloud import SoundCloud  # type: ignore
+except ImportError:  # pragma: no cover
+    SoundCloud = None  # type: ignore
+
 BASE_DIR = Path(__file__).parent.resolve()
 
 try:
@@ -426,6 +431,190 @@ def _download_spotify(url: str, track_id: str, user_id: Optional[str] = None) ->
         raise RuntimeError(f"Failed to download from Spotify: {error_msg}")
 
 
+def _download_soundcloud(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
+    """Download a track from SoundCloud."""
+    if YoutubeDL is None:
+        raise RuntimeError("yt-dlp is not installed. Run `pip install yt-dlp`.")
+
+    print(f"[SoundCloud Download] Processing: {url}", flush=True)
+
+    ffmpeg_dir = locate_ffmpeg_bin()
+    if ffmpeg_dir is None:
+        raise RuntimeError("FFmpeg binaries not found.")
+
+    output_template = str(UPLOAD_FOLDER / f"{track_id}.%(ext)s")
+
+    ydl_opts = {
+        "format": "bestaudio/best",
+        "outtmpl": output_template,
+        "quiet": True,
+        "no_warnings": True,
+        "ffmpeg_location": str(ffmpeg_dir),
+        "postprocessors": [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }],
+    }
+
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = Path(ydl.prepare_filename(info)).with_suffix(".mp3")
+
+        if not filename.exists():
+            candidates = list(UPLOAD_FOLDER.glob(f"{track_id}.*"))
+            if candidates:
+                filename = candidates[0]
+            else:
+                raise RuntimeError("Unable to locate downloaded audio.")
+
+        print(f"[SoundCloud Download] Success: {filename.name}", flush=True)
+        return filename, info
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[SoundCloud Download] Error: {error_msg}", flush=True)
+        raise RuntimeError(f"Failed to download from SoundCloud: {error_msg}")
+
+
+def _extract_song_info_from_url(url: str) -> Optional[dict]:
+    """Extract song title and artist from URL metadata without downloading."""
+    if YoutubeDL is None:
+        return None
+
+    try:
+        ydl_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "extract_flat": False,
+            "skip_download": True,
+        }
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return {
+                "title": info.get("title", ""),
+                "artist": info.get("uploader", "") or info.get("artist", "") or info.get("creator", ""),
+                "duration": info.get("duration", 0),
+            }
+    except Exception as e:
+        print(f"[Info Extract] Could not extract info from URL: {e}", flush=True)
+        return None
+
+
+def _smart_download_with_fallback(url: str, track_id: str, user_id: Optional[str] = None) -> tuple[Path, Optional[dict]]:
+    """
+    Smart download system that tries multiple sources:
+    1. Try direct URL (YouTube, Spotify, SoundCloud)
+    2. If YouTube fails, extract song info and search on Spotify
+    3. If Spotify fails, search on SoundCloud
+    4. Return best result or fail with helpful message
+    """
+    print(f"[Smart Download] Starting with URL: {url}", flush=True)
+
+    # Detect URL type
+    is_spotify = "spotify.com" in url
+    is_soundcloud = "soundcloud.com" in url
+    is_youtube = "youtube.com" in url or "youtu.be" in url
+
+    errors = []
+
+    # Try 1: Direct download from the provided URL
+    try:
+        if is_spotify:
+            print(f"[Smart Download] Trying Spotify direct...", flush=True)
+            return _download_spotify(url, track_id, user_id)
+        elif is_soundcloud:
+            print(f"[Smart Download] Trying SoundCloud direct...", flush=True)
+            return _download_soundcloud(url, track_id)
+        elif is_youtube:
+            print(f"[Smart Download] Trying YouTube direct...", flush=True)
+            return _download_youtube(url, track_id, user_id)
+    except Exception as e:
+        error_msg = str(e)
+        errors.append(f"Direct download failed: {error_msg[:100]}")
+        print(f"[Smart Download] Direct download failed: {error_msg}", flush=True)
+
+    # Try 2: If YouTube failed, extract song info and try Spotify
+    if is_youtube and Spotdl is not None:
+        try:
+            print(f"[Smart Download] YouTube failed, extracting song info...", flush=True)
+            song_info = _extract_song_info_from_url(url)
+            if song_info and song_info.get("title"):
+                search_query = f"{song_info['title']} {song_info['artist']}"
+                print(f"[Smart Download] Searching Spotify for: {search_query}", flush=True)
+
+                spotdl = Spotdl(
+                    client_id="5f573c9620494bae87890c0f08a60293",
+                    client_secret="212476d9b0f3472eaa762d90b19b0ba8",
+                    user_auth=False,
+                    headless=True,
+                )
+
+                songs = spotdl.search([search_query])
+                if songs and len(songs) > 0:
+                    song = songs[0]
+                    print(f"[Smart Download] Found on Spotify: {song.name} by {', '.join(song.artists)}", flush=True)
+
+                    results = spotdl.download_songs([song])
+                    if results:
+                        # Find and move the downloaded file
+                        safe_name = song.display_name.replace("/", "_").replace("\\", "_")
+                        for possible_path in [
+                            Path.cwd() / f"{safe_name}.mp3",
+                            UPLOAD_FOLDER / f"{safe_name}.mp3",
+                        ]:
+                            if possible_path.exists():
+                                final_path = UPLOAD_FOLDER / f"{track_id}.mp3"
+                                if possible_path.parent != UPLOAD_FOLDER:
+                                    possible_path.rename(final_path)
+                                else:
+                                    final_path = possible_path
+
+                                info = {
+                                    "title": song.name,
+                                    "uploader": ", ".join(song.artists),
+                                    "duration": song.duration,
+                                }
+                                print(f"[Smart Download] Success via Spotify fallback!", flush=True)
+                                return final_path, info
+        except Exception as e:
+            error_msg = str(e)
+            errors.append(f"Spotify fallback failed: {error_msg[:100]}")
+            print(f"[Smart Download] Spotify fallback failed: {error_msg}", flush=True)
+
+    # Try 3: If still failed, try SoundCloud search
+    if is_youtube and YoutubeDL is not None:
+        try:
+            song_info = _extract_song_info_from_url(url)
+            if song_info and song_info.get("title"):
+                # Try to find on SoundCloud by searching
+                search_query = f"{song_info['title']} {song_info['artist']}"
+                soundcloud_search_url = f"scsearch:{search_query}"
+                print(f"[Smart Download] Searching SoundCloud for: {search_query}", flush=True)
+
+                return _download_soundcloud(soundcloud_search_url, track_id)
+        except Exception as e:
+            error_msg = str(e)
+            errors.append(f"SoundCloud fallback failed: {error_msg[:100]}")
+            print(f"[Smart Download] SoundCloud fallback failed: {error_msg}", flush=True)
+
+    # All methods failed - raise comprehensive error
+    error_summary = "\\n".join(errors) if errors else "All download methods failed"
+    raise RuntimeError(
+        f"Unable to download audio from any source.\\n\\n"
+        f"**What we tried:**\\n"
+        f"• Direct download from provided URL\\n"
+        f"• Searching Spotify for the song\\n"
+        f"• Searching SoundCloud for the song\\n\\n"
+        f"**Please try:**\\n"
+        f"1. Upload the audio file directly (most reliable)\\n"
+        f"2. Try a different source (YouTube/Spotify/SoundCloud)\\n"
+        f"3. Ensure the link is public and not age-restricted\\n\\n"
+        f"Errors: {error_summary[:200]}"
+    )
+
+
 def _download_youtube(url: str, track_id: str, user_id: Optional[str] = None) -> tuple[Path, Optional[dict]]:
     if YoutubeDL is None:
         raise RuntimeError("yt-dlp is not installed. Run `pip install yt-dlp`.")
@@ -607,12 +796,9 @@ def api_process():
             if not url:
                 return jsonify({"error": "Please provide a YouTube URL."}), 400
 
-            # Auto-detect Spotify URLs and use spotdl instead
-            if "spotify.com" in url:
-                print(f"[API] Detected Spotify URL, using spotdl...", flush=True)
-                audio_path, info = _download_spotify(url, track_id, user_id)
-            else:
-                audio_path, info = _download_youtube(url, track_id, user_id)
+            # Use smart download with automatic fallback to Spotify/SoundCloud
+            print(f"[API] Using smart download with fallback system...", flush=True)
+            audio_path, info = _smart_download_with_fallback(url, track_id, user_id)
 
             if not title:
                 title = info.get("title") if info else None
