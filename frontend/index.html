@@ -1473,35 +1473,53 @@
                     // Appwrite: Check for active session
                     try {
                         const user = await appwriteAccount.get();
-                        // User is logged in
-                        signinButton.style.display = 'none';
-                        userInfo.style.display = 'flex';
-                        userInfo.style.alignItems = 'center';
-                        userEmail.textContent = user.email || user.name || 'Signed in with Google';
+                        // User is logged in - show user info
+                        if (signinButton) signinButton.style.display = 'none';
+                        if (userInfo) {
+                            userInfo.style.display = 'flex';
+                            userInfo.style.alignItems = 'center';
+                        }
+                        if (userEmail) {
+                            userEmail.textContent = user.email || user.name || 'Signed in';
+                        }
+                        console.log('[Auth] User signed in:', user.email || user.name);
                     } catch (error) {
-                        // Not logged in
-                        signinButton.style.display = 'inline-block';
-                        userInfo.style.display = 'none';
+                        // Not logged in or session expired - silently show sign-in button
+                        if (signinButton) signinButton.style.display = 'inline-block';
+                        if (userInfo) userInfo.style.display = 'none';
+                        console.log('[Auth] No active session');
                     }
                 } else {
                     // Flask: Use existing /auth/status endpoint
-                    const response = await fetch('/auth/status');
-                    const data = await response.json();
+                    try {
+                        const response = await fetch('/auth/status');
+                        if (!response.ok) throw new Error('Auth status check failed');
+                        const data = await response.json();
 
-                    if (data.authenticated) {
-                        signinButton.style.display = 'none';
-                        userInfo.style.display = 'flex';
-                        userInfo.style.alignItems = 'center';
-                        userEmail.textContent = data.email || 'Signed in with Google';
-                    } else {
-                        signinButton.style.display = 'inline-block';
-                        userInfo.style.display = 'none';
+                        if (data && data.authenticated) {
+                            if (signinButton) signinButton.style.display = 'none';
+                            if (userInfo) {
+                                userInfo.style.display = 'flex';
+                                userInfo.style.alignItems = 'center';
+                            }
+                            if (userEmail) {
+                                userEmail.textContent = data.email || 'Signed in';
+                            }
+                        } else {
+                            if (signinButton) signinButton.style.display = 'inline-block';
+                            if (userInfo) userInfo.style.display = 'none';
+                        }
+                    } catch (error) {
+                        // Flask endpoint not available (expected in production) - hide everything
+                        if (signinButton) signinButton.style.display = 'none';
+                        if (userInfo) userInfo.style.display = 'none';
                     }
                 }
             } catch (error) {
-                console.error('Error checking auth status:', error);
-                signinButton.style.display = 'inline-block';
-                userInfo.style.display = 'none';
+                // Catch-all: silently handle any errors, don't show to user
+                console.log('[Auth] Error checking status (non-critical):', error.message);
+                if (signinButton) signinButton.style.display = 'inline-block';
+                if (userInfo) userInfo.style.display = 'none';
             }
         }
 

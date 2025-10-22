@@ -553,12 +553,13 @@ def _download_youtube(url: str, track_id: str, user_id: Optional[str] = None) ->
 
     # All attempts failed - raise error with helpful message
     error_msg = (
-        f"Failed to download video. YouTube requires authentication to prevent bot abuse.\\n\\n"
-        f"Solutions:\\n"
-        f"1. CLOSE all browsers (Chrome, Edge, Firefox) and try again\\n"
-        f"2. Export YouTube cookies to: {cookies_file}\\n"
-        f"   Use browser extension: https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp\\n\\n"
-        f"Last error: {last_error[:150] if last_error else 'Authentication required'}"
+        f"YouTube download temporarily unavailable. This happens due to YouTube's bot protection.\\n\\n"
+        f"Quick fix: Close your browser completely, then try again.\\n\\n"
+        f"If that doesn't work:\\n"
+        f"• The video might be age-restricted or region-locked\\n"
+        f"• Try a different video\\n"
+        f"• Contact support if this persists\\n\\n"
+        f"Technical details: {last_error[:100] if last_error else 'Authentication check failed'}"
     )
     raise RuntimeError(error_msg)
 
