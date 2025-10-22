@@ -9,6 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./modern.css">
     <link rel="stylesheet" href="./visualizer.css">
+    <!-- Appwrite SDK for OAuth (production) -->
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@16.0.2"></script>
 </head>
 <body class="page state-home advanced-collapsed" data-mode="canon">
     <div class="music-field" aria-hidden="true">
@@ -1441,6 +1443,7 @@
 
     // ==============================
     // OAuth Authentication Logic
+    // Supports both Appwrite (production) and Flask (local development)
     // ==============================
     (function() {
         const signinButton = document.getElementById('google-signin-button');
@@ -1448,22 +1451,52 @@
         const userEmail = document.getElementById('user-email');
         const logoutButton = document.getElementById('logout-button');
 
+        // Detect if we're using Appwrite or Flask backend
+        const isAppwrite = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+        let appwriteClient, appwriteAccount;
+
+        if (isAppwrite && typeof Appwrite !== 'undefined') {
+            // Initialize Appwrite client for production
+            appwriteClient = new Appwrite.Client();
+            appwriteAccount = new Appwrite.Account(appwriteClient);
+
+            appwriteClient
+                .setEndpoint('https://sfo.cloud.appwrite.io/v1')
+                .setProject('68f808d30023e28bd79e');
+        }
+
         // Check authentication status on page load
         async function checkAuthStatus() {
             try {
-                const response = await fetch('/auth/status');
-                const data = await response.json();
-
-                if (data.authenticated) {
-                    // User is logged in
-                    signinButton.style.display = 'none';
-                    userInfo.style.display = 'flex';
-                    userInfo.style.alignItems = 'center';
-                    userEmail.textContent = data.email || 'Signed in with Google';
+                if (isAppwrite && appwriteAccount) {
+                    // Appwrite: Check for active session
+                    try {
+                        const user = await appwriteAccount.get();
+                        // User is logged in
+                        signinButton.style.display = 'none';
+                        userInfo.style.display = 'flex';
+                        userInfo.style.alignItems = 'center';
+                        userEmail.textContent = user.email || user.name || 'Signed in with Google';
+                    } catch (error) {
+                        // Not logged in
+                        signinButton.style.display = 'inline-block';
+                        userInfo.style.display = 'none';
+                    }
                 } else {
-                    // User is not logged in
-                    signinButton.style.display = 'inline-block';
-                    userInfo.style.display = 'none';
+                    // Flask: Use existing /auth/status endpoint
+                    const response = await fetch('/auth/status');
+                    const data = await response.json();
+
+                    if (data.authenticated) {
+                        signinButton.style.display = 'none';
+                        userInfo.style.display = 'flex';
+                        userInfo.style.alignItems = 'center';
+                        userEmail.textContent = data.email || 'Signed in with Google';
+                    } else {
+                        signinButton.style.display = 'inline-block';
+                        userInfo.style.display = 'none';
+                    }
                 }
             } catch (error) {
                 console.error('Error checking auth status:', error);
@@ -1474,14 +1507,31 @@
 
         // Sign in with Google
         signinButton.addEventListener('click', () => {
-            window.location.href = '/auth/google';
+            if (isAppwrite && appwriteAccount) {
+                // Appwrite OAuth
+                appwriteAccount.createOAuth2Session(
+                    'google',
+                    window.location.origin,  // Success redirect
+                    window.location.origin   // Failure redirect
+                );
+            } else {
+                // Flask OAuth
+                window.location.href = '/auth/google';
+            }
         });
 
         // Sign out
         logoutButton.addEventListener('click', async () => {
             try {
-                await fetch('/auth/logout');
-                window.location.reload();
+                if (isAppwrite && appwriteAccount) {
+                    // Appwrite: Delete session
+                    await appwriteAccount.deleteSession('current');
+                    window.location.reload();
+                } else {
+                    // Flask: Use /auth/logout endpoint
+                    await fetch('/auth/logout');
+                    window.location.reload();
+                }
             } catch (error) {
                 console.error('Error signing out:', error);
             }
