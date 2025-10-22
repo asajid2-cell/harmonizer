@@ -153,6 +153,13 @@
                             <h3>Advanced Settings</h3>
                             <p>Fine-tune how each engine behaves. Changes apply immediately.</p>
 
+                            <!-- Settings Import/Export -->
+                            <div class="settings-actions" style="display: flex; gap: 8px; margin-top: 12px;">
+                                <button id="export-settings-btn" class="auth-button" style="flex: 1;">Export Settings</button>
+                                <button id="import-settings-btn" class="auth-button" style="flex: 1;">Import Settings</button>
+                                <input type="file" id="import-settings-file" accept=".json" style="display: none;">
+                            </div>
+
                             <!-- OAuth Sign-In Status -->
                             <div class="auth-status" id="auth-status">
                                 <button id="google-signin-button" class="auth-button" style="display: none;">Sign in with Google</button>
@@ -213,8 +220,58 @@
                 <button type="button" class="modal-close" id="queue-modal-close">&times;</button>
             </div>
             <div class="modal-body">
-                <p>Enter a YouTube URL or playlist to add to the queue:</p>
-                <input type="text" id="queue-url-input" class="queue-input" placeholder="https://youtube.com/watch?v=..." />
+                <div class="section-title" style="margin-bottom: 8px;">Source</div>
+                <div class="toggle-group" id="queue-source-toggle" style="margin-bottom: 16px;">
+                    <button type="button" data-source="upload" class="toggle">Upload</button>
+                    <button type="button" data-source="drive" class="toggle">Drive</button>
+                    <button type="button" data-source="youtube" class="toggle active">YouTube</button>
+                    <button type="button" data-source="spotify" class="toggle">Spotify</button>
+                    <button type="button" data-source="soundcloud" class="toggle">SoundCloud</button>
+                </div>
+
+                <!-- Upload pane -->
+                <div id="queue-upload-pane" class="queue-source-pane" style="display: none;">
+                    <label class="field">
+                        <span>Audio file</span>
+                        <div class="file-upload-wrapper">
+                            <input type="file" accept="audio/*" id="queue-audio-file-input" class="file-input-hidden">
+                            <button type="button" class="file-upload-button" id="queue-file-upload-button">
+                                Choose File
+                            </button>
+                            <span class="file-upload-name" id="queue-file-upload-name">No file chosen</span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- URL panes -->
+                <div id="queue-drive-pane" class="queue-source-pane" style="display: none;">
+                    <label class="field">
+                        <span>Google Drive link</span>
+                        <input type="url" id="queue-drive-url-input" class="queue-input" placeholder="https://drive.google.com/file/d/..." />
+                    </label>
+                </div>
+
+                <div id="queue-youtube-pane" class="queue-source-pane">
+                    <label class="field">
+                        <span>YouTube URL or playlist</span>
+                        <input type="url" id="queue-youtube-url-input" class="queue-input" placeholder="https://youtube.com/watch?v=..." />
+                    </label>
+                </div>
+
+                <div id="queue-spotify-pane" class="queue-source-pane" style="display: none;">
+                    <label class="field">
+                        <span>Spotify track/album/playlist URL</span>
+                        <input type="url" id="queue-spotify-url-input" class="queue-input" placeholder="https://open.spotify.com/track/..." />
+                    </label>
+                </div>
+
+                <div id="queue-soundcloud-pane" class="queue-source-pane" style="display: none;">
+                    <label class="field">
+                        <span>SoundCloud track/playlist URL</span>
+                        <input type="url" id="queue-soundcloud-url-input" class="queue-input" placeholder="https://soundcloud.com/..." />
+                    </label>
+                </div>
+
                 <div id="queue-modal-status" class="queue-modal-status"></div>
             </div>
             <div class="modal-footer">
@@ -1559,6 +1616,100 @@
 
         // Check auth status on page load
         checkAuthStatus();
+    })();
+
+    // ==============================
+    // Settings Export/Import
+    // ==============================
+    (function() {
+        const exportBtn = document.getElementById('export-settings-btn');
+        const importBtn = document.getElementById('import-settings-btn');
+        const importFileInput = document.getElementById('import-settings-file');
+
+        // Export settings to JSON
+        if (exportBtn) {
+            exportBtn.addEventListener('click', function() {
+                try {
+                    // Get all advanced settings
+                    const settings = {};
+
+                    if (typeof window.getAdvancedSettings === 'function') {
+                        const allSettings = window.getAdvancedSettings();
+                        settings.advancedSettings = allSettings;
+                    }
+
+                    // Add metadata
+                    settings.exportDate = new Date().toISOString();
+                    settings.version = '1.0';
+                    settings.appName = 'Harmonizer Lab';
+
+                    // Create JSON file
+                    const dataStr = JSON.stringify(settings, null, 2);
+                    const blob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+
+                    // Download file
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `harmonizer-settings-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    console.log('[Settings] Exported settings successfully');
+                } catch (error) {
+                    console.error('[Settings] Export failed:', error);
+                    alert('Failed to export settings: ' + error.message);
+                }
+            });
+        }
+
+        // Import settings from JSON
+        if (importBtn && importFileInput) {
+            importBtn.addEventListener('click', function() {
+                importFileInput.click();
+            });
+
+            importFileInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const settings = JSON.parse(e.target.result);
+
+                        // Validate settings
+                        if (!settings.advancedSettings) {
+                            throw new Error('Invalid settings file: missing advancedSettings');
+                        }
+
+                        // Apply settings
+                        if (typeof window.setAdvancedSettings === 'function') {
+                            window.setAdvancedSettings(settings.advancedSettings);
+                            alert('Settings imported successfully! Refreshing advanced panel...');
+
+                            // Refresh the UI to reflect imported settings
+                            if (typeof window.syncAllGroupsFromState === 'function') {
+                                window.syncAllGroupsFromState();
+                            }
+
+                            console.log('[Settings] Imported settings successfully');
+                        } else {
+                            throw new Error('Settings import function not available');
+                        }
+                    } catch (error) {
+                        console.error('[Settings] Import failed:', error);
+                        alert('Failed to import settings: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+
+                // Reset file input
+                importFileInput.value = '';
+            });
+        }
     })();
     </script>
 </body>

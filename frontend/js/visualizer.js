@@ -1010,11 +1010,62 @@ if (typeof window !== "undefined") {
     window.isEternalAdvancedEnabled = function() { return eternalAdvancedEnabled; };
     window.getAdvancedDefaults = function(group) { return cloneAdvancedDefaults(group); };
     window.getAdvancedSettings = function(group) {
+        // If no group specified, return all settings
+        if (!group) {
+            var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop'];
+            var allSettings = {};
+            allGroups.forEach(function(g) {
+                allSettings[g] = {
+                    enabled: isAdvancedGroupEnabled(g),
+                    settings: cloneAdvancedState(g),
+                    defaults: cloneAdvancedDefaults(g)
+                };
+            });
+            return allSettings;
+        }
+
+        // Return settings for specific group
         return {
             enabled: isAdvancedGroupEnabled(group),
             settings: cloneAdvancedState(group),
             defaults: cloneAdvancedDefaults(group)
         };
+    };
+
+    window.setAdvancedSettings = function(allSettings) {
+        if (!allSettings || typeof allSettings !== 'object') {
+            throw new Error('Invalid settings object');
+        }
+
+        var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop'];
+        allGroups.forEach(function(group) {
+            if (allSettings[group]) {
+                var groupData = allSettings[group];
+
+                // Set enabled state
+                if (typeof groupData.enabled !== 'undefined') {
+                    setAdvancedGroupEnabledFlag(group, groupData.enabled);
+                }
+
+                // Set settings values
+                if (groupData.settings) {
+                    Object.keys(groupData.settings).forEach(function(key) {
+                        setAdvancedGroupSettingValue(group, key, groupData.settings[key]);
+                    });
+                }
+            }
+        });
+
+        console.log('[Settings] Applied imported settings to all groups');
+    };
+
+    window.syncAllGroupsFromState = function() {
+        if (typeof window.syncGroupFromState === 'function') {
+            var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop'];
+            allGroups.forEach(function(group) {
+                window.syncGroupFromState(group);
+            });
+        }
     };
     window.setAdvancedGroupEnabled = function(group, enabled) {
         if (group === "canonOverlay") {
@@ -2173,13 +2224,47 @@ window.clearQueue = clearQueue;
 // Queue modal handling
 $(document).ready(function() {
     var queueModal = $("#queue-modal");
-    var queueUrlInput = $("#queue-url-input");
     var queueModalStatus = $("#queue-modal-status");
+    var queueSourceToggle = $("#queue-source-toggle");
+    var currentQueueSource = "youtube";
+
+    // Source toggle buttons
+    queueSourceToggle.find("button").click(function() {
+        var source = $(this).data("source");
+        queueSourceToggle.find("button").removeClass("active");
+        $(this).addClass("active");
+        currentQueueSource = source;
+
+        // Hide all panes
+        $(".queue-source-pane").hide();
+
+        // Show selected pane
+        $("#queue-" + source + "-pane").show();
+    });
+
+    // File upload button for queue
+    $("#queue-file-upload-button").click(function() {
+        $("#queue-audio-file-input").click();
+    });
+
+    $("#queue-audio-file-input").change(function() {
+        if (this.files.length > 0) {
+            $("#queue-file-upload-name").text(this.files[0].name);
+        } else {
+            $("#queue-file-upload-name").text("No file chosen");
+        }
+    });
 
     // Add to queue button handler
     $("#add-to-queue-btn").click(function() {
         queueModal.show();
-        queueUrlInput.val("").focus();
+        // Reset all inputs
+        $("#queue-youtube-url-input").val("");
+        $("#queue-drive-url-input").val("");
+        $("#queue-spotify-url-input").val("");
+        $("#queue-soundcloud-url-input").val("");
+        $("#queue-audio-file-input").val("");
+        $("#queue-file-upload-name").text("No file chosen");
         queueModalStatus.removeClass("visible error success info").text("");
     });
 
@@ -2197,70 +2282,111 @@ $(document).ready(function() {
 
     // Submit handler
     $("#queue-modal-submit").click(async function() {
-        var url = queueUrlInput.val().trim();
-        if (!url) {
-            queueModalStatus.addClass("visible error").text("Please enter a URL");
-            return;
-        }
-
         queueModalStatus.addClass("visible info").removeClass("error success").text("Processing...");
 
         try {
-            // Check if it's a playlist
-            var playlistResponse = await fetch('/api/playlist-info', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: url })
-            });
+            var formData = new FormData();
+            formData.append('source', currentQueueSource);
+            formData.append('algorithm', mode);
 
-            var playlistData = await playlistResponse.json();
+            var url = null;
 
-            if (playlistData.is_playlist && playlistData.entries && playlistData.entries.length > 0) {
-                // Process playlist
-                queueModalStatus.text(`Found playlist with ${playlistData.entries.length} tracks. Processing...`);
+            if (currentQueueSource === 'upload') {
+                var fileInput = document.getElementById('queue-audio-file-input');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    queueModalStatus.addClass("visible error").removeClass("info").text("Please choose a file");
+                    return;
+                }
+                formData.append('audio', fileInput.files[0]);
+            } else if (currentQueueSource === 'youtube') {
+                url = $("#queue-youtube-url-input").val().trim();
+                if (!url) {
+                    queueModalStatus.addClass("visible error").removeClass("info").text("Please enter a URL");
+                    return;
+                }
+                formData.append('youtube_url', url);
+            } else if (currentQueueSource === 'drive') {
+                url = $("#queue-drive-url-input").val().trim();
+                if (!url) {
+                    queueModalStatus.addClass("visible error").removeClass("info").text("Please enter a URL");
+                    return;
+                }
+                formData.append('drive_url', url);
+            } else if (currentQueueSource === 'spotify') {
+                url = $("#queue-spotify-url-input").val().trim();
+                if (!url) {
+                    queueModalStatus.addClass("visible error").removeClass("info").text("Please enter a URL");
+                    return;
+                }
+                formData.append('spotify_url', url);
+            } else if (currentQueueSource === 'soundcloud') {
+                url = $("#queue-soundcloud-url-input").val().trim();
+                if (!url) {
+                    queueModalStatus.addClass("visible error").removeClass("info").text("Please enter a URL");
+                    return;
+                }
+                formData.append('soundcloud_url', url);
+            }
 
-                for (var i = 0; i < playlistData.entries.length; i++) {
-                    var entry = playlistData.entries[i];
-                    queueModalStatus.text(`Processing ${i + 1}/${playlistData.entries.length}: ${entry.title}`);
-
-                    var formData = new FormData();
-                    formData.append('url', entry.url);
-                    formData.append('mode', mode);
-
-                    var response = await fetch('/api/process', {
+            // Check if YouTube URL is a playlist
+            if (currentQueueSource === 'youtube' && url) {
+                if (url.includes('list=') || url.includes('playlist')) {
+                    var playlistResponse = await fetch('/api/playlist-info', {
                         method: 'POST',
-                        body: formData
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: url })
                     });
 
-                    var data = await response.json();
-                    if (data.trackId) {
-                        addToQueue(data.trackId, entry.title, 'YouTube');
+                    var playlistData = await playlistResponse.json();
+
+                    if (playlistData.is_playlist && playlistData.entries && playlistData.entries.length > 0) {
+                        // Process playlist
+                        queueModalStatus.text(`Found playlist with ${playlistData.entries.length} tracks. Processing...`);
+
+                        for (var i = 0; i < playlistData.entries.length; i++) {
+                            var entry = playlistData.entries[i];
+                            queueModalStatus.text(`Processing ${i + 1}/${playlistData.entries.length}: ${entry.title}`);
+
+                            var entryFormData = new FormData();
+                            entryFormData.append('source', 'youtube');
+                            entryFormData.append('youtube_url', entry.url);
+                            entryFormData.append('algorithm', mode);
+
+                            var response = await fetch('/api/process', {
+                                method: 'POST',
+                                body: entryFormData
+                            });
+
+                            var data = await response.json();
+                            if (data.trackId) {
+                                addToQueue(data.trackId, entry.title, 'YouTube');
+                            }
+                        }
+
+                        queueModalStatus.addClass("success").removeClass("info").text(`Added ${playlistData.entries.length} tracks to queue!`);
+                        setTimeout(function() { queueModal.hide(); }, 1500);
+                        return;
                     }
                 }
+            }
 
-                queueModalStatus.addClass("success").removeClass("info").text(`Added ${playlistData.entries.length} tracks to queue!`);
+            // Process single track
+            queueModalStatus.text("Processing track...");
+
+            var response = await fetch('/api/process', {
+                method: 'POST',
+                body: formData
+            });
+
+            var data = await response.json();
+            if (response.ok && data.trackId) {
+                var trackTitle = data.title || (currentQueueSource === 'upload' ? fileInput.files[0].name : 'Track');
+                var trackArtist = data.artist || currentQueueSource.charAt(0).toUpperCase() + currentQueueSource.slice(1);
+                addToQueue(data.trackId, trackTitle, trackArtist);
+                queueModalStatus.addClass("success").removeClass("info").text("Track added to queue!");
                 setTimeout(function() { queueModal.hide(); }, 1500);
             } else {
-                // Process single track
-                queueModalStatus.text("Processing track...");
-
-                var formData = new FormData();
-                formData.append('url', url);
-                formData.append('mode', mode);
-
-                var response = await fetch('/api/process', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                var data = await response.json();
-                if (data.trackId) {
-                    addToQueue(data.trackId, data.title || 'YouTube Track', data.artist || 'YouTube');
-                    queueModalStatus.addClass("success").removeClass("info").text("Track added to queue!");
-                    setTimeout(function() { queueModal.hide(); }, 1500);
-                } else {
-                    queueModalStatus.addClass("error").removeClass("info").text("Failed to process track");
-                }
+                queueModalStatus.addClass("error").removeClass("info").text(data.error || "Failed to process track");
             }
         } catch (error) {
             console.error('Queue modal error:', error);
@@ -2273,8 +2399,8 @@ $(document).ready(function() {
         clearQueue();
     });
 
-    // Enter key to submit
-    queueUrlInput.keypress(function(e) {
+    // Enter key to submit for URL inputs
+    $("#queue-youtube-url-input, #queue-drive-url-input, #queue-spotify-url-input, #queue-soundcloud-url-input").keypress(function(e) {
         if (e.which === 13) {
             $("#queue-modal-submit").click();
         }
