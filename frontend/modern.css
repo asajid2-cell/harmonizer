@@ -452,7 +452,7 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 .state-player .viz-panel {
     transform: scale(1);
     opacity: 1;
-    max-height: 1200px;
+    max-height: 920px;
     box-shadow: 0 24px 64px rgba(232, 180, 184, 0.2), inset 0 0 46px rgba(232, 180, 184, 0.16);
 }
 
@@ -697,12 +697,12 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 /* OAuth Authentication Styles */
 .auth-status {
     font-family: "Manrope", system-ui, sans-serif;
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 1000;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(232, 180, 184, 0.15);
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
 }
 
@@ -729,11 +729,10 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: rgba(19, 6, 12, 0.9);
+    background: rgba(232, 180, 184, 0.08);
     padding: 8px 16px;
     border-radius: 8px;
     border: 1px solid rgba(232, 180, 184, 0.2);
-    backdrop-filter: blur(10px);
 }
 
 #user-email {
