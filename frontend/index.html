@@ -542,6 +542,7 @@
                 title: 'Overlay Behaviour',
                 description: 'Set spacing, dwell, and texture for the live Autocanonizer voices.',
                 fields: [
+                    { key: 'musicality', label: 'Musicality', min: 0, max: 100, step: 1, format: (v) => `${v}%`, description: 'Forces musical structure: 0% = free form, 100% = perfectly quantized to musical intervals with no awkward beats.' },
                     { key: 'minOffsetBeats', label: 'Minimum Offset', min: 1, max: 192, step: 1, format: (v) => `${v} beats`, description: 'Earliest beat separation between overlay voices.' },
                     { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 256, step: 1, format: (v) => `${v} beats`, description: 'Largest allowed beat offset between overlay voices.' },
                     { key: 'dwellBeats', label: 'Dwell', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats to stay on a pairing before retargeting.' },
@@ -553,6 +554,7 @@
                 title: 'Loop Pathing',
                 description: 'Dial in how Eternal Jukebox picks loops and when it moves on.',
                 fields: [
+                    { key: 'musicality', label: 'Musicality', min: 0, max: 100, step: 1, format: (v) => `${v}%`, description: 'Forces musical structure: 0% = free form, 100% = perfectly quantized to musical intervals with no awkward beats.' },
                     { key: 'minLoopBeats', label: 'Minimum Loop Length', min: 4, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Shortest loop allowed when picking jump targets.' },
                     { key: 'maxSequentialBeats', label: 'Sequential Ceiling', min: 8, max: 128, step: 1, format: (v) => `${v} beats`, description: 'Maximum beats to play before forcing a jump.' },
                     { key: 'loopThreshold', label: 'Similarity Threshold', min: 0.3, max: 0.95, step: 0.01, format: (v) => `${Math.round(v * 100)}%`, description: 'Higher values require closer similarity before a loop is accepted.' },
@@ -564,6 +566,7 @@
                 title: 'Overlay Behaviour',
                 description: 'Shape the multivoice overlay used in Eternal Canonizer mode.',
                 fields: [
+                    { key: 'musicality', label: 'Musicality', min: 0, max: 100, step: 1, format: (v) => `${v}%`, description: 'Forces musical structure: 0% = free form, 100% = perfectly quantized to musical intervals with no awkward beats.' },
                     { key: 'minOffsetBeats', label: 'Minimum Offset', min: 1, max: 192, step: 1, format: (v) => `${v} beats`, description: 'Earliest beat separation for overlay voices.' },
                     { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 256, step: 1, format: (v) => `${v} beats`, description: 'Largest beat separation for overlay voices.' },
                     { key: 'dwellBeats', label: 'Dwell', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats before switching overlay targets.' },
@@ -575,6 +578,7 @@
                 title: 'Loop Pathing',
                 description: 'Control loop behaviour when running the Eternal Canonizer.',
                 fields: [
+                    { key: 'musicality', label: 'Musicality', min: 0, max: 100, step: 1, format: (v) => `${v}%`, description: 'Forces musical structure: 0% = free form, 100% = perfectly quantized to musical intervals with no awkward beats.' },
                     { key: 'minLoopBeats', label: 'Minimum Loop Length', min: 4, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Shortest allowed loop when chaining canon segments.' },
                     { key: 'maxSequentialBeats', label: 'Sequential Ceiling', min: 8, max: 128, step: 1, format: (v) => `${v} beats`, description: 'Maximum beats before forcing a jump to another segment.' },
                     { key: 'loopThreshold', label: 'Similarity Threshold', min: 0.3, max: 0.95, step: 0.01, format: (v) => `${Math.round(v * 100)}%`, description: 'Higher values require stronger similarity before loops are used.' },
@@ -785,16 +789,6 @@
                     resetButton.addEventListener('click', handleAdvancedReset);
                     buttonContainer.appendChild(resetButton);
 
-                    // Musicality optimization button
-                    const musicalityButton = document.createElement('button');
-                    musicalityButton.type = 'button';
-                    musicalityButton.className = 'viz-button advanced-musicality-button';
-                    musicalityButton.dataset.groupKey = groupKey;
-                    musicalityButton.textContent = 'Optimize Musicality';
-                    musicalityButton.style.background = 'linear-gradient(135deg, rgba(199, 54, 95, 0.3), rgba(232, 180, 184, 0.3))';
-                    musicalityButton.addEventListener('click', handleMusicalityOptimization);
-                    buttonContainer.appendChild(musicalityButton);
-
                     bodyWrapper.appendChild(buttonContainer);
 
                     toggle.addEventListener('change', handleAdvancedToggle);
@@ -951,6 +945,13 @@
                 return;
             }
             updateValueLabel(groupKey, fieldKey, value);
+
+            // Special handling for musicality slider - applies optimization
+            if (fieldKey === 'musicality') {
+                applyMusicalityFromSlider(groupKey, value);
+                return;
+            }
+
             enforceGroupConstraints(groupKey);
             if (groupKey === 'canonOverlay') {
                 if (typeof window.setCanonAdvancedEnabled === 'function') {
@@ -986,6 +987,13 @@
                 return;
             }
             updateValueLabel(groupKey, fieldKey, value);
+
+            // Special handling for musicality slider - applies optimization
+            if (fieldKey === 'musicality') {
+                applyMusicalityFromSlider(groupKey, value);
+                return;
+            }
+
             enforceGroupConstraints(groupKey);
             if (groupKey === 'canonOverlay') {
                 if (typeof window.setCanonAdvancedEnabled === 'function') {
@@ -1021,155 +1029,123 @@
         }
 
         /**
-         * Musicality Optimization Algorithm
-         * Takes current settings and finds nearest "robust" setup that sounds musical
+         * Apply musicality based on slider value (0-100%)
+         * Progressive optimization: higher values force more musical structure
+         * At 100%: perfectly quantized to musical intervals with no awkward beats
          * Based on Paul Lamere's Autocanonizer approach of beat distance and harmonic alignment
          */
-        function handleMusicalityOptimization(event) {
-            const button = event.currentTarget;
-            const groupKey = button && button.dataset ? button.dataset.groupKey : null;
-            if (!groupKey) {
-                return;
-            }
-
+        function applyMusicalityFromSlider(groupKey, musicalityPercent) {
             const state = getGroupState(groupKey);
             if (!state) {
                 return;
             }
 
-            // Get current track info if available
-            const trackInfo = window.currentTrackInfo || {};
-            const bpm = trackInfo.bpm || 120; // Default BPM if not available
-            const beatsPerMeasure = trackInfo.beatsPerMeasure || 4;
+            // Musicality from 0-100%
+            const m = musicalityPercent / 100.0;
 
-            console.log('[Musicality] Optimizing', groupKey, 'with BPM:', bpm);
+            console.log('[Musicality] Applying', musicalityPercent + '% to', groupKey);
 
             let optimized = { ...state };
 
             // Overlay group optimization (canonOverlay, eternalOverlay)
             if (groupKey.includes('Overlay')) {
-                // 1. Align offsets to musical intervals (measures, bars)
-                // Canon sounds best when voices are separated by complete musical phrases
                 const currentMinOffset = state.minOffsetBeats || 4;
                 const currentMaxOffset = state.maxOffsetBeats || 16;
+                const currentDwell = state.dwellBeats || 4;
+                const currentDensity = state.density || 3;
+                const currentVariation = state.variation || 5;
 
-                // Round to nearest bar (4, 8, 16, 32, 64, etc.)
+                // 1. Align offsets to musical intervals progressively
                 const musicalIntervals = [4, 8, 12, 16, 24, 32, 48, 64, 96, 128];
-                optimized.minOffsetBeats = musicalIntervals.reduce((prev, curr) =>
+
+                // At 0%: keep current values
+                // At 100%: snap to perfect musical intervals
+                const nearestMin = musicalIntervals.reduce((prev, curr) =>
                     Math.abs(curr - currentMinOffset) < Math.abs(prev - currentMinOffset) ? curr : prev
                 );
-                optimized.maxOffsetBeats = musicalIntervals.reduce((prev, curr) =>
+                const nearestMax = musicalIntervals.reduce((prev, curr) =>
                     Math.abs(curr - currentMaxOffset) < Math.abs(prev - currentMaxOffset) ? curr : prev
                 );
 
+                optimized.minOffsetBeats = Math.round(currentMinOffset * (1 - m) + nearestMin * m);
+                optimized.maxOffsetBeats = Math.round(currentMaxOffset * (1 - m) + nearestMax * m);
+
                 // Ensure min < max
                 if (optimized.minOffsetBeats >= optimized.maxOffsetBeats) {
-                    const idx = musicalIntervals.indexOf(optimized.minOffsetBeats);
-                    optimized.maxOffsetBeats = musicalIntervals[Math.min(idx + 2, musicalIntervals.length - 1)];
+                    optimized.maxOffsetBeats = optimized.minOffsetBeats + 4;
                 }
 
-                // 2. Optimize dwell time for phrase completion
-                // Dwell should align with musical phrasing (typically 4, 8, or 16 beat phrases)
-                const currentDwell = state.dwellBeats || 4;
+                // 2. Align dwell time to phrase boundaries
                 const dwellIntervals = [4, 8, 12, 16, 24, 32];
-                optimized.dwellBeats = dwellIntervals.reduce((prev, curr) =>
+                const nearestDwell = dwellIntervals.reduce((prev, curr) =>
                     Math.abs(curr - currentDwell) < Math.abs(prev - currentDwell) ? curr : prev
                 );
+                optimized.dwellBeats = Math.round(currentDwell * (1 - m) + nearestDwell * m);
 
-                // 3. Optimize density for harmonic clarity
-                // Too many voices = muddy sound; sweet spot is usually 2-4 voices
-                const currentDensity = state.density || 3;
-                if (currentDensity > 8) {
-                    optimized.density = 4; // Reduce to sweet spot
-                } else if (currentDensity < 2) {
-                    optimized.density = 2; // Ensure minimum texture
-                } else {
-                    optimized.density = Math.round(currentDensity); // Keep in range
-                }
+                // 3. Reduce density for clarity (sweet spot = 3 voices)
+                // At 100%: force density to 3 for perfect clarity
+                const targetDensity = 3;
+                optimized.density = Math.max(1, Math.round(currentDensity * (1 - m) + targetDensity * m));
 
-                // 4. Moderate variation for musical consistency
-                // Too much variation = chaos; sweet spot depends on genre
-                const currentVariation = state.variation || 5;
-                if (currentVariation > 25) {
-                    optimized.variation = Math.round(currentVariation * 0.6); // Reduce aggressive variation
-                } else if (currentVariation < 3) {
-                    optimized.variation = 5; // Add some interest
-                } else {
-                    optimized.variation = Math.round(currentVariation); // Keep moderate
-                }
+                // 4. Reduce variation for consistency
+                // At 100%: reduce variation to 5 for predictable, natural sound
+                const targetVariation = 5;
+                optimized.variation = Math.max(0, Math.round(currentVariation * (1 - m) + targetVariation * m));
             }
 
             // Loop group optimization (jukeboxLoop, eternalLoop)
             if (groupKey.includes('Loop')) {
-                // 1. Align loop lengths to musical phrases
                 const currentMinLoop = state.minLoopBeats || 8;
+                const currentMaxSeq = state.maxSequentialBeats || 64;
+                const currentThreshold = state.loopThreshold || 0.7;
+                const currentBias = state.sectionBias || 0.5;
+                const currentVariance = state.jumpVariance || 0.5;
+
+                // 1. Align loop lengths to musical phrases
                 const loopIntervals = [4, 8, 12, 16, 24, 32, 48, 64];
-                optimized.minLoopBeats = loopIntervals.reduce((prev, curr) =>
+                const nearestLoop = loopIntervals.reduce((prev, curr) =>
                     Math.abs(curr - currentMinLoop) < Math.abs(prev - currentMinLoop) ? curr : prev
                 );
+                optimized.minLoopBeats = Math.round(currentMinLoop * (1 - m) + nearestLoop * m);
 
-                // 2. Set sequential ceiling to allow phrases to complete
-                const currentMaxSeq = state.maxSequentialBeats || 64;
+                // 2. Align sequential ceiling to phrase boundaries
                 const seqIntervals = [16, 32, 48, 64, 96, 128];
-                optimized.maxSequentialBeats = seqIntervals.reduce((prev, curr) =>
+                const nearestSeq = seqIntervals.reduce((prev, curr) =>
                     Math.abs(curr - currentMaxSeq) < Math.abs(prev - currentMaxSeq) ? curr : prev
                 );
+                optimized.maxSequentialBeats = Math.round(currentMaxSeq * (1 - m) + nearestSeq * m);
 
-                // 3. Optimize similarity threshold for tight loops
-                // Higher threshold = loops sound more similar (safer, more musical)
-                const currentThreshold = state.loopThreshold || 0.7;
-                if (currentThreshold < 0.6) {
-                    optimized.loopThreshold = 0.7; // Increase for tighter similarity
-                } else if (currentThreshold > 0.9) {
-                    optimized.loopThreshold = 0.85; // Reduce slightly for more options
-                } else {
-                    optimized.loopThreshold = Math.round(currentThreshold * 100) / 100;
-                }
+                // 3. Increase threshold for tighter, more musical loops
+                // At 100%: threshold = 0.85 for very tight similarity
+                const targetThreshold = 0.85;
+                optimized.loopThreshold = currentThreshold * (1 - m) + targetThreshold * m;
 
-                // 4. Optimize section bias for musical coherence
-                // Higher bias = stay in same section (verse, chorus, etc.)
-                const currentBias = state.sectionBias || 0.5;
-                if (currentBias < 0.5) {
-                    optimized.sectionBias = 0.65; // Increase for musical structure
-                } else {
-                    optimized.sectionBias = Math.min(0.8, currentBias); // Cap at 0.8
-                }
+                // 4. Increase section bias to stay within musical sections
+                // At 100%: bias = 0.8 to strongly prefer same section
+                const targetBias = 0.8;
+                optimized.sectionBias = currentBias * (1 - m) + targetBias * m;
 
-                // 5. Moderate jump variance for predictability
-                // Lower variance = more predictable, musical timing
-                const currentVariance = state.jumpVariance || 0.5;
-                if (currentVariance > 0.7) {
-                    optimized.jumpVariance = 0.5; // Reduce for tighter loops
-                } else if (currentVariance < 0.2) {
-                    optimized.jumpVariance = 0.3; // Add some variety
-                } else {
-                    optimized.jumpVariance = Math.round(currentVariance * 20) / 20; // Round to 0.05
-                }
+                // 5. Reduce jump variance for predictable timing
+                // At 100%: variance = 0.3 for tight, musical timing
+                const targetVariance = 0.3;
+                optimized.jumpVariance = currentVariance * (1 - m) + targetVariance * m;
             }
 
             // Apply optimized settings
-            console.log('[Musicality] Optimized settings:', optimized);
+            console.log('[Musicality] Optimized settings at ' + musicalityPercent + '%:', optimized);
 
             // Update state
             if (typeof window.updateAdvancedSettings === 'function') {
                 window.updateAdvancedSettings(groupKey, optimized);
             }
 
-            // Sync UI
+            // Sync UI to show changes (but skip musicality slider to avoid feedback loop)
             syncGroupFromState(groupKey);
 
             // Apply to engine
             if (typeof window.applyAdvancedGroup === 'function') {
                 window.applyAdvancedGroup(groupKey, { source: 'musicality' });
             }
-
-            // Visual feedback
-            button.textContent = 'Optimized!';
-            button.style.background = 'linear-gradient(135deg, rgba(46, 213, 115, 0.4), rgba(72, 219, 251, 0.4))';
-            setTimeout(() => {
-                button.textContent = 'Optimize Musicality';
-                button.style.background = 'linear-gradient(135deg, rgba(199, 54, 95, 0.3), rgba(232, 180, 184, 0.3))';
-            }, 2000);
         }
 
         function setGroupEnabled(groupKey, enabled) {
