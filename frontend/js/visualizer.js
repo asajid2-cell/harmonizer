@@ -3393,22 +3393,28 @@ function createJukeboxDriver(player, options) {
             return;
         }
 
-        // Define "end zone" as last 20% of track and "start zone" as first 30%
-        var endZoneStart = Math.floor(masterQs.length * 0.8);
+        // Define "end zone" as last 15% of track and "start zone" as first 30%
+        // Using a smaller end zone to catch earlier and avoid getting stuck
+        var endZoneStart = Math.floor(masterQs.length * 0.85);
         var startZoneEnd = Math.floor(masterQs.length * 0.3);
 
         var bestRetreat = null;
         var bestSimilarity = -1;
 
         // Search for the best jump from end zone to start zone
+        // Look for high-similarity anchor that makes seamless wraparound
         for (var srcIdx = endZoneStart; srcIdx < masterQs.length; srcIdx++) {
             var edges = loopGraph[srcIdx];
             if (!edges || !edges.length) {
                 continue;
             }
             _.each(edges, function(edge) {
-                if (edge.target < startZoneEnd && edge.similarity > bestSimilarity) {
-                    bestSimilarity = edge.similarity;
+                // Prefer targets very early in the song (first 20%) for clean wraparound
+                var earlyBonus = edge.target < Math.floor(masterQs.length * 0.2) ? 0.1 : 0;
+                var adjustedSimilarity = edge.similarity + earlyBonus;
+
+                if (edge.target < startZoneEnd && adjustedSimilarity > bestSimilarity) {
+                    bestSimilarity = adjustedSimilarity;
                     bestRetreat = {
                         source: srcIdx,
                         target: edge.target,
@@ -3418,7 +3424,29 @@ function createJukeboxDriver(player, options) {
             });
         }
 
-        // If no good retreat found in loop graph, create one based on section similarity
+        // If no good retreat found in loop graph, create multiple fallback anchors
+        if (!bestRetreat) {
+            // Try to find ANY edge from last 10% to first 30%
+            var veryEndStart = Math.floor(masterQs.length * 0.9);
+            for (var srcIdx = veryEndStart; srcIdx < masterQs.length; srcIdx++) {
+                var edges = loopGraph[srcIdx];
+                if (edges && edges.length) {
+                    _.each(edges, function(edge) {
+                        if (edge.target < startZoneEnd) {
+                            if (!bestRetreat || edge.similarity > bestRetreat.similarity) {
+                                bestRetreat = {
+                                    source: srcIdx,
+                                    target: edge.target,
+                                    similarity: edge.similarity
+                                };
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        // Last resort: use section anchors
         if (!bestRetreat && orderedSectionAnchors.length > 2) {
             var lastSection = orderedSectionAnchors[orderedSectionAnchors.length - 1];
             var firstSection = orderedSectionAnchors[0];
@@ -3433,10 +3461,10 @@ function createJukeboxDriver(player, options) {
 
         retreatPoint = bestRetreat;
         if (retreatPoint) {
-            console.log('[findRetreatPoint] Found retreat:', retreatPoint.source, '→', retreatPoint.target,
-                        'similarity:', retreatPoint.similarity.toFixed(3));
+            console.log('[findRetreatPoint] Found retreat anchor:', retreatPoint.source, '→', retreatPoint.target,
+                        'similarity:', retreatPoint.similarity.toFixed(3), '| This prevents end-zone loops');
         } else {
-            console.log('[findRetreatPoint] No suitable retreat point found');
+            console.log('[findRetreatPoint] No suitable retreat point found - may loop at end');
         }
     }
 
@@ -3488,18 +3516,54 @@ function createJukeboxDriver(player, options) {
     }
 
     function selectJumpCandidate(src) {
-        var candidates = loopGraph[src];
+        // To prevent local minima, consider loops from nearby beats, not just exact current beat
+        var searchRadius = Math.min(8, Math.floor(minLoopBeats / 2));
+        var candidates = [];
+
+        // Collect candidates from current beat and nearby beats
+        for (var offset = 0; offset <= searchRadius; offset++) {
+            var searchIdx = src + offset;
+            if (searchIdx >= 0 && searchIdx < masterQs.length && loopGraph[searchIdx]) {
+                _.each(loopGraph[searchIdx], function(edge) {
+                    candidates.push({
+                        source: searchIdx,
+                        target: edge.target,
+                        similarity: edge.similarity,
+                        span: edge.span,
+                        sameSection: edge.sameSection,
+                        distance: offset // track how far from current position
+                    });
+                });
+            }
+            if (offset > 0) {
+                searchIdx = src - offset;
+                if (searchIdx >= 0 && searchIdx < masterQs.length && loopGraph[searchIdx]) {
+                    _.each(loopGraph[searchIdx], function(edge) {
+                        candidates.push({
+                            source: searchIdx,
+                            target: edge.target,
+                            similarity: edge.similarity,
+                            span: edge.span,
+                            sameSection: edge.sameSection,
+                            distance: offset
+                        });
+                    });
+                }
+            }
+        }
+
         if (!candidates || !candidates.length) {
             return null;
         }
+
         var filtered = _.filter(candidates, function(edge) {
             for (var i = loopHistory.length - 1; i >= Math.max(0, loopHistory.length - 3); i--) {
                 var hist = loopHistory[i];
                 if (!hist) {
                     continue;
                 }
-                if ((hist.source === src && hist.target === edge.target) ||
-                    (hist.source === edge.target && hist.target === src)) {
+                if ((hist.source === edge.source && hist.target === edge.target) ||
+                    (hist.source === edge.target && hist.target === edge.source)) {
                     return false;
                 }
             }
@@ -3512,6 +3576,12 @@ function createJukeboxDriver(player, options) {
         var total = 0;
         var sameSectionCount = 0;
         var crossSectionCount = 0;
+
+        // Check if we're in end zone (last 20% of song)
+        var endZoneStart = Math.floor(masterQs.length * 0.8);
+        var startZoneEnd = Math.floor(masterQs.length * 0.3);
+        var inEndZone = src >= endZoneStart;
+
         _.each(filtered, function(edge) {
             if (edge.sameSection) {
                 sameSectionCount++;
@@ -3522,6 +3592,26 @@ function createJukeboxDriver(player, options) {
             var spanNorm = Math.min(1, Math.max(0.2, edge.span / (minLoopBeats * spanScaleBase)));
             var sectionBonus = edge.sameSection ? sameSectionBonusBase : crossSectionBonusBase;
             var weight = 0.22 + simNorm * 0.5 + spanNorm * 0.25 + sectionBonus;
+
+            // Small penalty for distance from current beat (prevents weird jumps)
+            if (edge.distance && edge.distance > 0) {
+                var distancePenalty = edge.distance * 0.02;
+                weight -= distancePenalty;
+            }
+
+            // MAJOR BOOST for jumps back to beginning when in end zone
+            // This prevents getting stuck looping the last 30 seconds
+            if (inEndZone && edge.target < startZoneEnd) {
+                weight *= 2.5; // Strongly prefer going back to start
+                console.log('[selectJumpCandidate] END ZONE: Boosting jump to beginning:', edge.source, '→', edge.target, 'weight boosted');
+            }
+
+            // Strong penalty for staying in end zone when in end zone
+            if (inEndZone && edge.target >= endZoneStart) {
+                weight *= 0.3; // Heavily discourage staying in end zone
+                console.log('[selectJumpCandidate] END ZONE: Penalizing end-zone loop:', edge.source, '→', edge.target);
+            }
+
             var targetSection = null;
             if (masterQs[edge.target] && typeof masterQs[edge.target].section === "number") {
                 targetSection = masterQs[edge.target].section;
@@ -3605,17 +3695,6 @@ function createJukeboxDriver(player, options) {
         if (beatsUntilJump <= 0) {
             var jump = selectJumpCandidate(currentIndex);
             if (jump) {
-                // In end zone, prefer jumps that go back to the beginning
-                if (inEndZone && jump.target >= endZoneStart) {
-                    // This jump stays in the end zone - use retreat instead if available
-                    if (retreatPoint) {
-                        console.log('[advanceIndex] End zone loop detected, forcing retreat:', currentIndex, '→', retreatPoint.target);
-                        currentIndex = retreatPoint.target;
-                        scheduleNextJump(false);
-                        return;
-                    }
-                }
-
                 loopHistory.push({ source: currentIndex, target: jump.target });
                 if (loopHistory.length > LOOP_HISTORY_LIMIT) {
                     loopHistory.shift();
