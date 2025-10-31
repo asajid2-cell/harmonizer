@@ -22,14 +22,17 @@
     <div class="page-shell">
         <a href="/" class="back-button hidden" id="back-button" aria-label="Back to song select"><span aria-hidden="true">&#8592;</span><span class="back-button-label">Back</span></a>
 
-        <!-- Google sign-in logo in top right -->
-        <button class="site-logo" id="site-logo" aria-label="Sign in with Google">
-            <span class="logo-text">G</span>
+        <!-- Music icon in top right -->
+        <button class="site-logo" id="site-logo" aria-label="Music">
+            <svg class="music-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 18V5L21 3V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2"/>
+                <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2"/>
+            </svg>
         </button>
 
         <header class="hero">
             <div class="hero-meta">
-                <div class="badge">Harmonizer Lab</div>
                 <h1>Canonize any track</h1>
                 <p>Upload audio or paste a link, then shape the canon live.</p>
             </div>
@@ -51,7 +54,6 @@
                     <div class="toggle-group" id="source-toggle">
                         <button type="button" data-source="upload" class="toggle active">Upload Audio</button>
                         <button type="button" data-source="drive" class="toggle">Google Drive</button>
-                        <button type="button" data-source="youtube" class="toggle">YouTube</button>
                     </div>
                     <input type="hidden" name="source" value="upload" id="source-input">
 
@@ -76,13 +78,6 @@
                         <p class="field-hint" style="margin-top: 8px; font-size: 13px; color: var(--color-muted);">
                             Upload audio to Google Drive, right-click → Share → Copy link, then paste here
                         </p>
-                    </div>
-
-                    <div class="source-pane hidden" id="youtube-pane">
-                        <label class="field">
-                            <span>YouTube link</span>
-                            <input type="url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=...">
-                        </label>
                     </div>
 
                     <div class="metadata-grid">
@@ -130,21 +125,33 @@
             </header>
             <div class="viz-body">
                 <div class="viz-stage">
-                    <div class="viz-status" id="status-panel"></div>
-                    <div id="error"></div>
-                    <div id="tiles" class="tiles-canvas"></div>
-                    <div id="queue-container" class="queue-container" style="display: none;">
-                        <div class="queue-header">
-                            <h4>Queue</h4>
-                            <button type="button" id="clear-queue-btn" class="viz-button ghost small">Clear All</button>
-                        </div>
-                        <div id="queue-list" class="queue-list"></div>
-                    </div>
+                    <div class="playback-shell" id="playback-shell">
+                        <div class="tiles-shell">
+                            <div class="viz-status" id="status-panel"></div>
+                            <div id="error"></div>
+                            <div id="tiles" class="tiles-canvas"></div>
 
-                    <!-- Footer with random text -->
-                    <footer class="viz-footer" id="footer-text">
-                        drive safe i fucking love you &lt;3
-                    </footer>
+                            <!-- Footer with random text -->
+                            <footer class="viz-footer" id="footer-text">
+                                drive safe i fucking love you &lt;3
+                            </footer>
+                        </div>
+                        <aside id="queue-container" class="queue-container queue-window" style="display: none;">
+                            <div class="queue-header queue-drag-handle">
+                                <div class="queue-title-bar">
+                                    <h4>Queue</h4>
+                                    <button type="button" id="queue-close-btn" class="queue-close-btn" aria-label="Close queue">&times;</button>
+                                </div>
+                                <button type="button" id="clear-queue-btn" class="viz-button ghost small">Clear All</button>
+                            </div>
+                            <div class="queue-controls">
+                                <button type="button" id="queue-prev-btn" class="queue-control-btn" aria-label="Select previous in queue">Prev</button>
+                                <button type="button" id="queue-play-btn" class="queue-control-btn primary" aria-label="Play selected queue track">Play</button>
+                                <button type="button" id="queue-next-btn" class="queue-control-btn" aria-label="Select next in queue">Next</button>
+                            </div>
+                            <div id="queue-list" class="queue-list"></div>
+                        </aside>
+                    </div>
                 </div>
 
                 <aside class="viz-sidebar hidden" id="advanced-sidebar">
@@ -160,14 +167,6 @@
                                 <input type="file" id="import-settings-file" accept=".json" style="display: none;">
                             </div>
 
-                            <!-- OAuth Sign-In Status -->
-                            <div class="auth-status" id="auth-status">
-                                <button id="google-signin-button" class="auth-button" style="display: none;">Sign in with Google</button>
-                                <div id="user-info" style="display: none;">
-                                    <span id="user-email"></span>
-                                    <button id="logout-button" class="auth-button">Sign out</button>
-                                </div>
-                            </div>
                         </header>
                         <div class="advanced-sections" id="advanced-sections"></div>
                     </div>
@@ -175,7 +174,10 @@
             </div>
             </section>
             </main>
-            </div>
+
+        <!-- Harmonizer Lab badge in bottom left corner -->
+        <div class="bottom-badge">Harmonizer Lab</div>
+        </div>
 
             <!-- ✅ Script to randomize the footer message -->
             <script>
@@ -222,15 +224,12 @@
             <div class="modal-body">
                 <div class="section-title" style="margin-bottom: 8px;">Source</div>
                 <div class="toggle-group" id="queue-source-toggle" style="margin-bottom: 16px;">
-                    <button type="button" data-source="upload" class="toggle">Upload</button>
+                    <button type="button" data-source="upload" class="toggle active">Upload</button>
                     <button type="button" data-source="drive" class="toggle">Drive</button>
-                    <button type="button" data-source="youtube" class="toggle active">YouTube</button>
-                    <button type="button" data-source="spotify" class="toggle">Spotify</button>
-                    <button type="button" data-source="soundcloud" class="toggle">SoundCloud</button>
                 </div>
 
                 <!-- Upload pane -->
-                <div id="queue-upload-pane" class="queue-source-pane" style="display: none;">
+                <div id="queue-upload-pane" class="queue-source-pane">
                     <label class="field">
                         <span>Audio file</span>
                         <div class="file-upload-wrapper">
@@ -243,7 +242,7 @@
                     </label>
                 </div>
 
-                <!-- URL panes -->
+                <!-- Drive pane -->
                 <div id="queue-drive-pane" class="queue-source-pane" style="display: none;">
                     <label class="field">
                         <span>Google Drive link</span>
@@ -251,30 +250,10 @@
                     </label>
                 </div>
 
-                <div id="queue-youtube-pane" class="queue-source-pane">
-                    <label class="field">
-                        <span>YouTube URL or playlist</span>
-                        <input type="url" id="queue-youtube-url-input" class="queue-input" placeholder="https://youtube.com/watch?v=..." />
-                    </label>
-                </div>
-
-                <div id="queue-spotify-pane" class="queue-source-pane" style="display: none;">
-                    <label class="field">
-                        <span>Spotify track/album/playlist URL</span>
-                        <input type="url" id="queue-spotify-url-input" class="queue-input" placeholder="https://open.spotify.com/track/..." />
-                    </label>
-                </div>
-
-                <div id="queue-soundcloud-pane" class="queue-source-pane" style="display: none;">
-                    <label class="field">
-                        <span>SoundCloud track/playlist URL</span>
-                        <input type="url" id="queue-soundcloud-url-input" class="queue-input" placeholder="https://soundcloud.com/..." />
-                    </label>
-                </div>
-
                 <div id="queue-modal-status" class="queue-modal-status"></div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="modal-reset-link" id="queue-modal-reset">Reset form</button>
                 <button type="button" class="viz-button ghost" id="queue-modal-cancel">Cancel</button>
                 <button type="button" class="viz-button" id="queue-modal-submit">Add to Queue</button>
             </div>
@@ -547,6 +526,10 @@
         body.classList.add('advanced-collapsed');
 
         let advancedSidebarVisible = false;
+        const PRESET_CUSTOM_VALUE = '';
+        const DEFAULT_CANON_PRESET_ID = window.CANON_DEFAULT_PRESET_ID || 'canon-legacy-default';
+        const activePresetByGroup = Object.create(null);
+        activePresetByGroup.canonOverlay = DEFAULT_CANON_PRESET_ID;
 
         function updateAdvancedToggleState() {
             if (!advancedToggleButton) {
@@ -568,6 +551,95 @@
             }
             advancedSidebar.classList.remove('hidden');
             advancedSidebar.removeAttribute('aria-hidden');
+        }
+
+        function getPresetCatalog(groupKey) {
+            if (typeof window.getAdvancedPresets === 'function') {
+                try {
+                    const presets = window.getAdvancedPresets(groupKey);
+                    if (Array.isArray(presets) && presets.length) {
+                        return presets;
+                    }
+                } catch (err) {
+                    console.warn('[Advanced Presets] Unable to load presets for', groupKey, err);
+                }
+            }
+            if (groupKey === 'canonOverlay') {
+                return [{
+                    id: DEFAULT_CANON_PRESET_ID,
+                    name: 'Legacy Default'
+                }];
+            }
+            return [];
+        }
+
+        function setActivePreset(groupKey, presetId, options) {
+            const shouldUpdateState = !options || options.updateState !== false;
+            const selectOverride = options && options.selectOverride ? options.selectOverride : null;
+            const normalizedId = presetId || (groupKey === 'canonOverlay' ? DEFAULT_CANON_PRESET_ID : null);
+            if (shouldUpdateState) {
+                activePresetByGroup[groupKey] = normalizedId;
+            }
+            const dom = advancedDomMap[groupKey];
+            const selectNode = selectOverride || (dom ? dom.presetSelect : null);
+            if (selectNode && normalizedId) {
+                if (selectNode.value !== normalizedId) {
+                    selectNode.value = normalizedId;
+                }
+            }
+        }
+
+        function populatePresetSelect(groupKey, selectNode) {
+            if (!selectNode) {
+                return;
+            }
+            const presets = getPresetCatalog(groupKey);
+            while (selectNode.firstChild) {
+                selectNode.removeChild(selectNode.firstChild);
+            }
+
+            presets.forEach((preset) => {
+                if (!preset || !preset.id) {
+                    return;
+                }
+                const option = document.createElement('option');
+                option.value = preset.id;
+                option.textContent = preset.name || preset.id;
+                selectNode.appendChild(option);
+            });
+
+            const desired = activePresetByGroup[groupKey] || null;
+            if (desired && !presets.some((preset) => preset && preset.id === desired)) {
+                activePresetByGroup[groupKey] = null;
+            }
+            setActivePreset(groupKey, activePresetByGroup[groupKey] || null, { updateState: false, selectOverride: selectNode });
+        }
+
+        function markPresetCustom(groupKey) {
+            // Removed - presets are no longer switched to "Custom" on slider change
+        }
+
+        function handlePresetChange(event) {
+            const selectNode = event.currentTarget;
+            const groupKey = selectNode && selectNode.dataset ? selectNode.dataset.groupKey : null;
+            if (!groupKey) {
+                return;
+            }
+            const selectedPreset = selectNode.value;
+            if (!selectedPreset) {
+                markPresetCustom(groupKey);
+                return;
+            }
+            setGroupEnabled(groupKey, true);
+            if (typeof window.loadAdvancedPreset === 'function') {
+                const applied = window.loadAdvancedPreset(groupKey, selectedPreset);
+                if (applied) {
+                    setActivePreset(groupKey, selectedPreset);
+                    syncGroupFromState(groupKey);
+                    return;
+                }
+            }
+            markPresetCustom(groupKey);
         }
 
         function syncAdvancedUiForMode(modeKey) {
@@ -609,6 +681,7 @@
                     { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 256, step: 1, format: (v) => `${v} beats`, description: 'Largest allowed beat offset between overlay voices.' },
                     { key: 'dwellBeats', label: 'Dwell', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats to stay on a pairing before retargeting.' },
                     { key: 'density', label: 'Density', min: 1, max: 16, step: 1, format: (v) => `${v}/16`, description: 'Higher values add more simultaneous overlay voices.' },
+                    { key: 'jumpers', label: 'Canon Voices', min: 1, max: 12, step: 1, format: (v) => `${v} ${v === 1 ? 'voice' : 'voices'}`, description: 'Number of simultaneous canon tracks. 2 = double canon, 3 = triple canon, etc.' },
                     { key: 'variation', label: 'Variation', min: 0, max: 50, step: 1, format: (v) => `${v}`, description: 'Controls how adventurous the overlay can be when rewiring connections.' }
                 ]
             },
@@ -633,6 +706,7 @@
                     { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 256, step: 1, format: (v) => `${v} beats`, description: 'Largest beat separation for overlay voices.' },
                     { key: 'dwellBeats', label: 'Dwell', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats before switching overlay targets.' },
                     { key: 'density', label: 'Density', min: 1, max: 16, step: 1, format: (v) => `${v}/16`, description: 'Higher values add thicker overlays.' },
+                    { key: 'jumpers', label: 'Canon Voices', min: 1, max: 12, step: 1, format: (v) => `${v} ${v === 1 ? 'voice' : 'voices'}`, description: 'Number of simultaneous canon tracks. 2 = double canon, 3 = triple canon, etc.' },
                     { key: 'variation', label: 'Variation', min: 0, max: 50, step: 1, format: (v) => `${v}`, description: 'Controls how much the overlay may deviate from its base pattern.' }
                 ]
             },
@@ -777,9 +851,34 @@
                         bodyWrapper.appendChild(descriptionNode);
                     }
 
+                    let presetSelect = null;
+
                     const fieldsContainer = document.createElement('div');
                     fieldsContainer.className = 'advanced-fields';
                     bodyWrapper.appendChild(fieldsContainer);
+
+                    if (groupKey === 'canonOverlay') {
+                        const presetRow = document.createElement('div');
+                        presetRow.className = 'advanced-preset-row';
+
+                        const presetLabel = document.createElement('label');
+                        presetLabel.className = 'advanced-preset-label';
+                        presetLabel.setAttribute('for', `advanced-preset-${groupKey}`);
+                        presetLabel.textContent = 'Preset';
+                        presetRow.appendChild(presetLabel);
+
+                        const presetDropdown = document.createElement('select');
+                        presetDropdown.id = `advanced-preset-${groupKey}`;
+                        presetDropdown.dataset.groupKey = groupKey;
+                        presetDropdown.className = 'advanced-preset-select';
+                        presetRow.appendChild(presetDropdown);
+
+                        bodyWrapper.insertBefore(presetRow, fieldsContainer);
+
+                        populatePresetSelect(groupKey, presetDropdown);
+                        presetDropdown.addEventListener('change', handlePresetChange);
+                        presetSelect = presetDropdown;
+                    }
 
                     const inputs = Object.create(null);
                     const valueLabels = Object.create(null);
@@ -864,7 +963,8 @@
                         valueLabels,
                         fieldMeta,
                         resetButton,
-                        fieldsContainer
+                        fieldsContainer,
+                        presetSelect
                     };
 
                     collapseButton.addEventListener('click', () => {
@@ -1006,11 +1106,8 @@
                 return;
             }
             updateValueLabel(groupKey, fieldKey, value);
-
-            // Special handling for musicality slider - applies optimization
-            if (fieldKey === 'musicality') {
-                applyMusicalityFromSlider(groupKey, value);
-                return;
+            if (groupKey === 'canonOverlay') {
+                markPresetCustom(groupKey);
             }
 
             enforceGroupConstraints(groupKey);
@@ -1048,11 +1145,8 @@
                 return;
             }
             updateValueLabel(groupKey, fieldKey, value);
-
-            // Special handling for musicality slider - applies optimization
-            if (fieldKey === 'musicality') {
-                applyMusicalityFromSlider(groupKey, value);
-                return;
+            if (groupKey === 'canonOverlay') {
+                markPresetCustom(groupKey);
             }
 
             enforceGroupConstraints(groupKey);
@@ -1082,6 +1176,9 @@
                 return;
             }
             window.resetAdvancedGroup(groupKey);
+            if (groupKey === 'canonOverlay') {
+                setActivePreset(groupKey, DEFAULT_CANON_PRESET_ID);
+            }
             syncGroupFromState(groupKey);
             if (typeof window.applyAdvancedGroup !== 'function') {
                 return;
@@ -1262,6 +1359,9 @@
             Object.values(dom.inputs).forEach((input) => {
                 input.disabled = disabledFlag;
             });
+            if (dom.presetSelect) {
+                dom.presetSelect.disabled = disabledFlag;
+            }
             if (dom.resetButton) {
                 dom.resetButton.disabled = disabledFlag;
             }
@@ -1341,12 +1441,15 @@
             updateGroupToggleState(groupKey, enabled);
             Object.entries(dom.inputs).forEach(([fieldKey, input]) => {
                 const nextValue = settings && settings[fieldKey] !== undefined ? settings[fieldKey] : defaults[fieldKey];
-                if (nextValue !== undefined) {
+                if (nextValue !== undefined && input.value != nextValue) {
                     input.value = nextValue;
                 }
                 updateValueLabel(groupKey, fieldKey, parseFloat(input.value));
             });
             enforceGroupConstraints(groupKey);
+            if (dom.presetSelect) {
+                setActivePreset(groupKey, activePresetByGroup[groupKey] || null, { updateState: false, selectOverride: dom.presetSelect });
+            }
         }
 
         function updateValueLabel(groupKey, fieldKey, value) {
@@ -1591,10 +1694,12 @@
             signinButton.addEventListener('click', handleGoogleSignIn);
         }
 
-        // Site logo button (top right "G")
+        // Music icon button (top right) - link to tidal.squid.wtf
         const siteLogoButton = document.getElementById('site-logo');
         if (siteLogoButton) {
-            siteLogoButton.addEventListener('click', handleGoogleSignIn);
+            siteLogoButton.addEventListener('click', () => {
+                window.open('https://tidal.squid.wtf/', '_blank');
+            });
         }
 
         // Sign out

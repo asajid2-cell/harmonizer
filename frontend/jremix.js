@@ -221,6 +221,8 @@ function createJRemixer(context, jquery) {
             var skewDelta = 0;
             var maxSkewDelta = .05;
             var ocurAudioSource = null;
+            var additionalAudioSources = []; // For additional canon voices (other2, other3, etc.)
+            var additionalGains = []; // Gain nodes for additional canon voices
 
             if (typeof context.createStereoPanner === "function") {
                 mainPanner = context.createStereoPanner();
@@ -335,6 +337,54 @@ function createJRemixer(context, jquery) {
                     }
                 }
                 skewDelta += q.duration - q.other.duration;
+
+                // Play additional canon voices (other2, other3, etc.)
+                for (var v = 2; v < 12; v++) {
+                    var otherKey = 'other' + v;
+                    var additionalVoice = q[otherKey];
+
+                    if (additionalVoice && additionalVoice.track && additionalVoice.track.buffer) {
+                        var voiceIndex = v - 2;
+
+                        // Stop previous audio source for this voice if needed
+                        if (curQ == null || !curQ[otherKey] || curQ[otherKey].next != additionalVoice) {
+                            if (additionalAudioSources[voiceIndex]) {
+                                additionalAudioSources[voiceIndex].stop();
+                            }
+
+                            // Create gain node if it doesn't exist
+                            if (!additionalGains[voiceIndex]) {
+                                additionalGains[voiceIndex] = context.createGain();
+                                additionalGains[voiceIndex].connect(context.destination);
+                            }
+
+                            var additionalDuration = additionalVoice.track.audio_summary.duration - additionalVoice.start;
+                            additionalAudioSources[voiceIndex] = llPlay(additionalVoice.track.buffer, additionalVoice.start, additionalDuration, additionalGains[voiceIndex]);
+
+                            // Set gain for additional voice - slightly lower than main overlay to avoid muddiness
+                            var additionalGainValue = targetOther * 0.7 * (1.0 - (voiceIndex * 0.08)); // Each additional voice is progressively quieter
+                            try {
+                                var nowAdditional = context.currentTime;
+                                additionalGains[voiceIndex].gain.cancelScheduledValues(nowAdditional);
+                                additionalGains[voiceIndex].gain.setValueAtTime(0.0001, nowAdditional);
+                                additionalGains[voiceIndex].gain.exponentialRampToValueAtTime(Math.max(0.0002, additionalGainValue), nowAdditional + Math.min(0.08, Math.max(0.02, q.duration * 0.25)));
+                            } catch (e) {
+                                additionalGains[voiceIndex].gain.value = additionalGainValue;
+                            }
+                        } else {
+                            // Update gain for continuing voice
+                            var additionalGainValue = targetOther * 0.7 * (1.0 - (voiceIndex * 0.08));
+                            try {
+                                var nowAdditional2 = context.currentTime;
+                                additionalGains[voiceIndex].gain.cancelScheduledValues(nowAdditional2);
+                                additionalGains[voiceIndex].gain.setTargetAtTime(Math.max(0.0002, additionalGainValue), nowAdditional2, Math.max(0.02, q.duration * 0.3));
+                            } catch (e) {
+                                additionalGains[voiceIndex].gain.value = additionalGainValue;
+                            }
+                        }
+                    }
+                }
+
                 curQ = q;
                 return q.duration - delta;
             }
@@ -365,6 +415,14 @@ function createJRemixer(context, jquery) {
                         ocurAudioSource.stop(0);
                         ocurAudioSource = null;
                     }
+                    // Stop all additional canon voices
+                    for (var i = 0; i < additionalAudioSources.length; i++) {
+                        if (additionalAudioSources[i]) {
+                            additionalAudioSources[i].stop(0);
+                            additionalAudioSources[i] = null;
+                        }
+                    }
+                    additionalAudioSources = [];
                 },
 
                 curTime: function() {

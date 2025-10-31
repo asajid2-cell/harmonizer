@@ -62,23 +62,29 @@ var loopPaths = [];
 // Queue management
 var trackQueue = [];
 var currentQueueIndex = -1;
+var selectedQueueIndex = -1;
 var autoPlayNext = false;
 var ADVANCED_DEFAULTS = {
     canonOverlay: {
+        musicality: 65,
         minOffsetBeats: 8,
         maxOffsetBeats: 64,
         dwellBeats: 6,
         density: 2,
+        jumpers: 2,
         variation: 2
     },
     eternalOverlay: {
+        musicality: 60,
         minOffsetBeats: 8,
         maxOffsetBeats: 64,
         dwellBeats: 6,
         density: 2,
+        jumpers: 2,
         variation: 2
     },
     jukeboxLoop: {
+        musicality: 55,
         minLoopBeats: 12,
         maxSequentialBeats: 36,
         loopThreshold: 0.55,
@@ -86,6 +92,7 @@ var ADVANCED_DEFAULTS = {
         jumpVariance: 0.4
     },
     eternalLoop: {
+        musicality: 60,
         minLoopBeats: 8,
         maxSequentialBeats: 28,
         loopThreshold: 0.5,
@@ -123,6 +130,27 @@ var advancedPresets = {
     jukeboxLoop: [],
     eternalLoop: []
 };
+
+var DEFAULT_CANON_PRESET_ID = "canon-legacy-default";
+
+(function initializeDefaultCanonPreset() {
+    var legacySettings = cloneSettings(ADVANCED_DEFAULTS.canonOverlay);
+    if (legacySettings.musicality === undefined) {
+        legacySettings.musicality = 65;
+    }
+    advancedPresets.canonOverlay = [
+        {
+            id: DEFAULT_CANON_PRESET_ID,
+            name: "Legacy Default",
+            settings: legacySettings,
+            createdAt: Date.now()
+        }
+    ];
+})();
+
+if (typeof window !== "undefined") {
+    window.CANON_DEFAULT_PRESET_ID = DEFAULT_CANON_PRESET_ID;
+}
 
 var queuedAdvancedApplyTimers = Object.create(null);
 
@@ -774,6 +802,19 @@ function applyCanonAlignment(qlist, alignment) {
             var gain = gainBase + simNorm * 0.45;
             q.otherGain = Math.min(1, Math.max(0.25, gain));
         }
+
+        // Create additional canon voices for double/triple/etc. canons
+        var numVoices = (advancedSettings && advancedSettings.canonOverlay && advancedSettings.canonOverlay.settings && advancedSettings.canonOverlay.settings.jumpers)
+            ? Math.max(1, Math.min(12, Math.floor(advancedSettings.canonOverlay.settings.jumpers)))
+            : 2;
+        for (var v = 2; v < numVoices; v++) {
+            var additionalOffset = offset * v;
+            var additionalIdx = (i + additionalOffset) % qlist.length;
+            var safeAdditionalIdx = ((additionalIdx % qlist.length) + qlist.length) % qlist.length;
+            var additionalTarget = qlist[safeAdditionalIdx];
+            var otherKey = 'other' + v;
+            q[otherKey] = additionalTarget;
+        }
     }
 
     if (alignment.loop_candidates && alignment.loop_candidates.length) {
@@ -924,6 +965,7 @@ function regenerateOverlayFromSettings(settings, details) {
     var dwell = Math.max(1, Math.floor(settings.dwellBeats || 4));
     var density = Math.max(1, Math.floor(settings.density || 3));
     var variation = Math.max(0, Math.floor(settings.variation || 0));
+    var musicality = Math.max(0, Math.min(100, Math.floor(settings.musicality || 65)));
     var spacing = Math.max(8, Math.round(36 / density) + 12);
     var runLen = Math.max(2, Math.min(8, density + 2));
     var jitter = Math.min(10, variation + 2);
@@ -943,7 +985,8 @@ function regenerateOverlayFromSettings(settings, details) {
         windowSize: Math.min(15, 7 + variation),
         minAbsOffset: minOffset,
         minDwell: dwell,
-        maxAbsOffset: maxOffset
+        maxAbsOffset: maxOffset,
+        musicality: musicality
     });
     assignNormalizedVolumes(masterQs);
     return {
@@ -1334,6 +1377,7 @@ function smoothCanonMapping(qlist, options) {
     var minDwell = Math.max(2, options.minDwell || 4);
     var preferSameSection = true;
     var maxAbsOffset = options.maxAbsOffset && options.maxAbsOffset > minAbsOffset ? options.maxAbsOffset : null;
+    var musicality = Math.max(0, Math.min(100, options.musicality !== undefined ? options.musicality : 65));
 
     function runningMedian(arr, idx, w) {
         var half = Math.floor(w / 2);
@@ -1363,6 +1407,7 @@ function smoothCanonMapping(qlist, options) {
 
         // STRUCTURED OFFSET: Snap to musical intervals for more coherent sound
         // Prefer multiples of 4, 8, 12, 16 (measures and phrases)
+        // Musicality controls snap strength: 0% = no snap, 100% = aggressive snap
         var musicalIntervals = [4, 8, 12, 16, 20, 24, 32, 48, 64];
         var closestMusical = musicalIntervals[0];
         var minDist = Math.abs(Math.abs(preferred) - musicalIntervals[0]);
@@ -1373,9 +1418,13 @@ function smoothCanonMapping(qlist, options) {
                 closestMusical = musicalIntervals[mi];
             }
         }
-        // If very close to a musical interval (within 3 beats), snap to it
-        if (minDist <= 3) {
-            preferred = preferred >= 0 ? closestMusical : -closestMusical;
+        // Snap threshold scales with musicality: at 0% never snap, at 100% snap within 10 beats
+        var snapThreshold = Math.floor((musicality / 100) * 10);
+        if (minDist <= snapThreshold) {
+            // Blend between original and snapped based on musicality
+            var snapStrength = musicality / 100;
+            var snapped = preferred >= 0 ? closestMusical : -closestMusical;
+            preferred = Math.round(preferred * (1 - snapStrength) + snapped * snapStrength);
         }
 
         if (Math.abs(preferred) < minAbsOffset) {
@@ -2092,6 +2141,12 @@ function loadPlaylistQueue() {
                 currentQueueIndex = 0;
             }
 
+            if (currentQueueIndex >= 0) {
+                selectedQueueIndex = currentQueueIndex;
+            } else if (trackQueue.length > 0) {
+                selectedQueueIndex = 0;
+            }
+
             // Enable auto-play for playlists
             autoPlayNext = true;
             updateQueueUI();
@@ -2111,66 +2166,144 @@ function showPlotPage(trid) {
     location.href = url;
 }
 
+
 // Queue Management Functions
 function addToQueue(trackId, title, artist) {
+    var wasEmpty = trackQueue.length === 0;
     trackQueue.push({
         id: trackId,
         title: title || "Unknown Track",
         artist: artist || "Unknown Artist"
     });
+
+    if (trackQueue.length === 1) {
+        selectedQueueIndex = 0;
+    } else if (currentQueueIndex === -1 && wasEmpty) {
+        selectedQueueIndex = trackQueue.length - 1;
+    }
+
     updateQueueUI();
     console.log('[Queue] Added track:', title, '| Queue length:', trackQueue.length);
 }
 
-function playNextInQueue() {
-    if (currentQueueIndex + 1 < trackQueue.length) {
-        currentQueueIndex++;
-        var nextTrack = trackQueue[currentQueueIndex];
-        console.log('[Queue] Playing next:', nextTrack.title, '| Index:', currentQueueIndex);
-        loadTrack(nextTrack.id);
-        updateQueueUI();
-        return true;
+function selectQueueIndex(index) {
+    if (index < 0 || index >= trackQueue.length) {
+        return;
     }
-    console.log('[Queue] No more tracks in queue');
-    return false;
+    selectedQueueIndex = index;
+    updateQueueUI();
+}
+
+function selectQueueOffset(delta) {
+    if (!trackQueue.length) {
+        return;
+    }
+    if (selectedQueueIndex === -1) {
+        selectedQueueIndex = delta > 0 ? 0 : trackQueue.length - 1;
+    } else {
+        selectedQueueIndex = Math.min(
+            trackQueue.length - 1,
+            Math.max(0, selectedQueueIndex + delta)
+        );
+    }
+    updateQueueUI();
+}
+
+function playQueueIndex(index) {
+    if (index < 0 || index >= trackQueue.length) {
+        return false;
+    }
+    var target = trackQueue[index];
+    selectedQueueIndex = index;
+    currentQueueIndex = index;
+    autoPlayNext = true;
+    loadTrack(target.id);
+    updateQueueUI();
+    return true;
+}
+
+function playNextInQueue() {
+    if (!trackQueue.length) {
+        return false;
+    }
+    var nextIndex = currentQueueIndex === -1 ? 0 : currentQueueIndex + 1;
+    if (nextIndex >= trackQueue.length) {
+        console.log('[Queue] No more tracks in queue');
+        return false;
+    }
+    return playQueueIndex(nextIndex);
 }
 
 function playPreviousInQueue() {
-    if (currentQueueIndex > 0) {
-        currentQueueIndex--;
-        var prevTrack = trackQueue[currentQueueIndex];
-        console.log('[Queue] Playing previous:', prevTrack.title, '| Index:', currentQueueIndex);
-        loadTrack(prevTrack.id);
-        updateQueueUI();
-        return true;
+    if (!trackQueue.length) {
+        return false;
     }
-    return false;
+    var prevIndex = currentQueueIndex === -1 ? -1 : currentQueueIndex - 1;
+    if (prevIndex < 0) {
+        return false;
+    }
+    return playQueueIndex(prevIndex);
 }
 
 function removeFromQueue(index) {
-    if (index >= 0 && index < trackQueue.length) {
-        var removed = trackQueue.splice(index, 1)[0];
-        if (index < currentQueueIndex) {
-            currentQueueIndex--;
-        } else if (index === currentQueueIndex) {
-            // Removed currently playing track
-            currentQueueIndex = -1;
-        }
-        updateQueueUI();
-        console.log('[Queue] Removed track:', removed.title);
+    if (index < 0 || index >= trackQueue.length) {
+        return;
     }
+    var removed = trackQueue.splice(index, 1)[0];
+
+    if (index < currentQueueIndex) {
+        currentQueueIndex--;
+    } else if (index === currentQueueIndex) {
+        currentQueueIndex = -1;
+    }
+
+    if (index < selectedQueueIndex) {
+        selectedQueueIndex--;
+    } else if (index === selectedQueueIndex) {
+        selectedQueueIndex = -1;
+    }
+
+    if (!trackQueue.length) {
+        currentQueueIndex = -1;
+        selectedQueueIndex = -1;
+        autoPlayNext = false;
+    } else if (selectedQueueIndex === -1) {
+        selectedQueueIndex = Math.min(
+            currentQueueIndex !== -1 ? currentQueueIndex : trackQueue.length - 1,
+            trackQueue.length - 1
+        );
+    }
+
+    updateQueueUI();
+    console.log('[Queue] Removed track:', removed.title);
 }
 
 function clearQueue() {
     trackQueue = [];
     currentQueueIndex = -1;
+    selectedQueueIndex = -1;
+    autoPlayNext = false;
     updateQueueUI();
     console.log('[Queue] Cleared');
+}
+
+function updateQueueControls() {
+    var prevBtn = $("#queue-prev-btn");
+    var playBtn = $("#queue-play-btn");
+    var nextBtn = $("#queue-next-btn");
+
+    var hasQueue = trackQueue.length > 0;
+    var hasSelection = hasQueue && selectedQueueIndex >= 0 && selectedQueueIndex < trackQueue.length;
+
+    prevBtn.prop("disabled", !hasSelection || selectedQueueIndex <= 0);
+    nextBtn.prop("disabled", !hasSelection || selectedQueueIndex >= trackQueue.length - 1);
+    playBtn.prop("disabled", !hasSelection || selectedQueueIndex === currentQueueIndex);
 }
 
 function updateQueueUI() {
     var queueContainer = $("#queue-container");
     var queueList = $("#queue-list");
+    var playbackShell = $("#playback-shell");
 
     if (!queueContainer.length || !queueList.length) {
         return;
@@ -2178,44 +2311,79 @@ function updateQueueUI() {
 
     if (trackQueue.length === 0) {
         queueContainer.hide();
+        playbackShell.removeClass("has-queue");
+        queueList.empty();
+        updateQueueControls();
         return;
     }
 
-    queueContainer.show();
+    if (selectedQueueIndex < 0 || selectedQueueIndex >= trackQueue.length) {
+        if (currentQueueIndex >= 0 && currentQueueIndex < trackQueue.length) {
+            selectedQueueIndex = currentQueueIndex;
+        } else {
+            selectedQueueIndex = 0;
+        }
+    }
+
+    playbackShell.addClass("has-queue");
+    queueContainer.css("display", "flex");
     queueList.empty();
+
+    var selectedElement = null;
 
     trackQueue.forEach(function(track, index) {
         var item = $("<div>").addClass("queue-item");
-        if (index === currentQueueIndex) {
+        var isPlaying = index === currentQueueIndex;
+        var isSelected = index === selectedQueueIndex;
+
+        if (isPlaying) {
             item.addClass("playing");
         }
+        if (isSelected) {
+            item.addClass("selected");
+            selectedElement = item;
+        }
+
+        item.on("click", function() {
+            selectQueueIndex(index);
+        });
 
         var info = $("<div>").addClass("queue-item-info");
         info.append($("<div>").addClass("queue-item-title").text(track.title));
         info.append($("<div>").addClass("queue-item-artist").text(track.artist));
 
         var actions = $("<div>").addClass("queue-item-actions");
-        var playBtn = $("<button>").addClass("queue-btn").text(index === currentQueueIndex ? "♪" : "▶");
-        playBtn.click(function() {
-            currentQueueIndex = index;
-            loadTrack(track.id);
-            updateQueueUI();
-        });
+        var playBtn = $("<button>")
+            .addClass("queue-btn queue-btn-play")
+            .text(isPlaying ? "Playing" : "Play")
+            .prop("disabled", isPlaying)
+            .on("click", function(e) {
+                e.stopPropagation();
+                playQueueIndex(index);
+            });
 
-        var removeBtn = $("<button>").addClass("queue-btn queue-btn-remove").text("×");
-        removeBtn.click(function() {
-            removeFromQueue(index);
-        });
+        var removeBtn = $("<button>")
+            .addClass("queue-btn queue-btn-remove")
+            .text("Remove")
+            .on("click", function(e) {
+                e.stopPropagation();
+                removeFromQueue(index);
+            });
 
-        actions.append(playBtn);
-        actions.append(removeBtn);
+        actions.append(playBtn, removeBtn);
 
-        item.append(info);
-        item.append(actions);
+        item.append(info, actions);
         queueList.append(item);
     });
-}
 
+    if (selectedElement && selectedElement[0]) {
+        requestAnimationFrame(function() {
+            selectedElement[0].scrollIntoView({ block: "nearest" });
+        });
+    }
+
+    updateQueueControls();
+}
 window.addToQueue = addToQueue;
 window.playNextInQueue = playNextInQueue;
 window.playPreviousInQueue = playPreviousInQueue;
@@ -2227,6 +2395,36 @@ $(document).ready(function() {
     var queueModalStatus = $("#queue-modal-status");
     var queueSourceToggle = $("#queue-source-toggle");
     var currentQueueSource = "youtube";
+    var queueModalShouldPersist = false;
+
+    function resetQueueModalForm() {
+        $("#queue-youtube-url-input").val("");
+        $("#queue-drive-url-input").val("");
+        $("#queue-spotify-url-input").val("");
+        $("#queue-soundcloud-url-input").val("");
+
+        var fileInput = document.getElementById('queue-audio-file-input');
+        if (fileInput) {
+            fileInput.value = "";
+        }
+        $("#queue-file-upload-name").text("No file chosen");
+
+        queueSourceToggle.find("button").removeClass("active");
+        queueSourceToggle.find('[data-source="youtube"]').addClass("active");
+        $(".queue-source-pane").hide();
+        $("#queue-youtube-pane").show();
+        currentQueueSource = "youtube";
+
+        queueModalStatus.removeClass("visible error success info").text("");
+        queueModalShouldPersist = false;
+    }
+
+    function markQueueModalDirty() {
+        queueModalShouldPersist = true;
+    }
+
+    // Initialize modal state
+    resetQueueModalForm();
 
     // Source toggle buttons
     queueSourceToggle.find("button").click(function() {
@@ -2235,11 +2433,9 @@ $(document).ready(function() {
         $(this).addClass("active");
         currentQueueSource = source;
 
-        // Hide all panes
         $(".queue-source-pane").hide();
-
-        // Show selected pane
         $("#queue-" + source + "-pane").show();
+        markQueueModalDirty();
     });
 
     // File upload button for queue
@@ -2253,19 +2449,17 @@ $(document).ready(function() {
         } else {
             $("#queue-file-upload-name").text("No file chosen");
         }
+        markQueueModalDirty();
     });
+
+    $("#queue-youtube-url-input, #queue-drive-url-input, #queue-spotify-url-input, #queue-soundcloud-url-input").on("input", markQueueModalDirty);
 
     // Add to queue button handler
     $("#add-to-queue-btn").click(function() {
+        if (!queueModalShouldPersist) {
+            resetQueueModalForm();
+        }
         queueModal.show();
-        // Reset all inputs
-        $("#queue-youtube-url-input").val("");
-        $("#queue-drive-url-input").val("");
-        $("#queue-spotify-url-input").val("");
-        $("#queue-soundcloud-url-input").val("");
-        $("#queue-audio-file-input").val("");
-        $("#queue-file-upload-name").text("No file chosen");
-        queueModalStatus.removeClass("visible error success info").text("");
     });
 
     // Close modal handlers
@@ -2280,8 +2474,14 @@ $(document).ready(function() {
         }
     });
 
+    $("#queue-modal-reset").click(function() {
+        resetQueueModalForm();
+        queueModalStatus.removeClass("visible");
+    });
+
     // Submit handler
     $("#queue-modal-submit").click(async function() {
+        queueModalShouldPersist = true;
         queueModalStatus.addClass("visible info").removeClass("error success").text("Processing...");
 
         try {
@@ -2290,9 +2490,9 @@ $(document).ready(function() {
             formData.append('algorithm', mode);
 
             var url = null;
+            var fileInput = document.getElementById('queue-audio-file-input');
 
             if (currentQueueSource === 'upload') {
-                var fileInput = document.getElementById('queue-audio-file-input');
                 if (!fileInput.files || fileInput.files.length === 0) {
                     queueModalStatus.addClass("visible error").removeClass("info").text("Please choose a file");
                     return;
@@ -2328,6 +2528,10 @@ $(document).ready(function() {
                 formData.append('soundcloud_url', url);
             }
 
+            if (currentQueueSource !== 'upload') {
+                markQueueModalDirty();
+            }
+
             // Check if YouTube URL is a playlist
             if (currentQueueSource === 'youtube' && url) {
                 if (url.includes('list=') || url.includes('playlist')) {
@@ -2340,7 +2544,6 @@ $(document).ready(function() {
                     var playlistData = await playlistResponse.json();
 
                     if (playlistData.is_playlist && playlistData.entries && playlistData.entries.length > 0) {
-                        // Process playlist
                         queueModalStatus.text(`Found playlist with ${playlistData.entries.length} tracks. Processing...`);
 
                         for (var i = 0; i < playlistData.entries.length; i++) {
@@ -2364,7 +2567,10 @@ $(document).ready(function() {
                         }
 
                         queueModalStatus.addClass("success").removeClass("info").text(`Added ${playlistData.entries.length} tracks to queue!`);
-                        setTimeout(function() { queueModal.hide(); }, 1500);
+                        setTimeout(function() {
+                            queueModal.hide();
+                            resetQueueModalForm();
+                        }, 1500);
                         return;
                     }
                 }
@@ -2380,11 +2586,14 @@ $(document).ready(function() {
 
             var data = await response.json();
             if (response.ok && data.trackId) {
-                var trackTitle = data.title || (currentQueueSource === 'upload' ? fileInput.files[0].name : 'Track');
+                var trackTitle = data.title || (currentQueueSource === 'upload' && fileInput && fileInput.files.length ? fileInput.files[0].name : 'Track');
                 var trackArtist = data.artist || currentQueueSource.charAt(0).toUpperCase() + currentQueueSource.slice(1);
                 addToQueue(data.trackId, trackTitle, trackArtist);
                 queueModalStatus.addClass("success").removeClass("info").text("Track added to queue!");
-                setTimeout(function() { queueModal.hide(); }, 1500);
+                setTimeout(function() {
+                    queueModal.hide();
+                    resetQueueModalForm();
+                }, 1500);
             } else {
                 queueModalStatus.addClass("error").removeClass("info").text(data.error || "Failed to process track");
             }
@@ -2394,10 +2603,69 @@ $(document).ready(function() {
         }
     });
 
+    $("#queue-prev-btn").click(function() {
+        selectQueueOffset(-1);
+    });
+
+    $("#queue-next-btn").click(function() {
+        selectQueueOffset(1);
+    });
+
+    $("#queue-play-btn").click(function() {
+        if (selectedQueueIndex >= 0) {
+            playQueueIndex(selectedQueueIndex);
+        }
+    });
+
     // Clear queue button handler
     $("#clear-queue-btn").click(function() {
         clearQueue();
     });
+
+    // Close queue button handler
+    $("#queue-close-btn").click(function() {
+        $("#queue-container").hide();
+    });
+
+    // Make queue window draggable
+    (function initQueueDrag() {
+        var queueContainer = document.getElementById('queue-container');
+        var dragHandle = queueContainer.querySelector('.queue-drag-handle');
+        var isDragging = false;
+        var currentX, currentY, initialX, initialY;
+        var xOffset = 0, yOffset = 0;
+
+        dragHandle.addEventListener('mousedown', dragStart);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', dragEnd);
+
+        function dragStart(e) {
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                return;
+            }
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+            isDragging = true;
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+            xOffset = currentX;
+            yOffset = currentY;
+            setTranslate(currentX, currentY, queueContainer);
+        }
+
+        function dragEnd() {
+            isDragging = false;
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+        }
+    })();
 
     // Enter key to submit for URL inputs
     $("#queue-youtube-url-input, #queue-drive-url-input, #queue-spotify-url-input, #queue-soundcloud-url-input").keypress(function(e) {
@@ -2405,6 +2673,8 @@ $(document).ready(function() {
             $("#queue-modal-submit").click();
         }
     });
+
+    updateQueueControls();
 });
 
 function setURL() {
@@ -2975,6 +3245,7 @@ function createCanonDriver(player) {
     var curQ = 0;
     var running = false;
     var mtime = $("#mtime");
+    var jumperPositions = []; // Track position of each additional canon voice
 
     function stop() {
         running = false;
@@ -2983,6 +3254,7 @@ function createCanonDriver(player) {
         setURL();
         setPlayingClass(null);
         pulseNotes(baseNoteStrength);
+        jumperPositions = [];
     }
 
     function process() {
@@ -3002,6 +3274,72 @@ function createCanonDriver(player) {
             if (nextQ.other && nextQ.other.tile) {
                 nextQ.other.tile.highlight2();
             }
+
+            // Handle additional canon voices (jumpers) - each has independent position
+            var numVoices = (advancedSettings && advancedSettings.canonOverlay && advancedSettings.canonOverlay.settings && advancedSettings.canonOverlay.settings.jumpers)
+                ? Math.max(1, Math.min(12, Math.floor(advancedSettings.canonOverlay.settings.jumpers)))
+                : 2;
+
+            // Initialize jumper positions if needed
+            if (jumperPositions.length === 0 && numVoices > 2) {
+                for (var v = 2; v < numVoices; v++) {
+                    var offset = nextQ.otherOffset ? Math.floor(nextQ.otherOffset * v * 0.7) : v * 8;
+                    jumperPositions[v - 2] = (curQ - 1 + offset) % masterQs.length;
+                }
+            }
+
+            // Advance and highlight each jumper, AND PLAY ITS AUDIO
+            if (curQ === 1 && numVoices > 2) {
+                console.log('[Jumpers] Starting loop with numVoices:', numVoices, 'Will create', numVoices - 2, 'jumpers');
+            }
+
+            for (var v = 2; v < numVoices; v++) {
+                var jumperIdx = v - 2;
+
+                // Initialize jumper at a different offset - each jumper gets progressively further ahead
+                if (jumperPositions[jumperIdx] === undefined) {
+                    var offsetMultiplier = v / 2; // v=2 -> 1x, v=3 -> 1.5x, v=4 -> 2x offset
+                    var baseOffset = nextQ.otherOffset || 16;
+                    var jumperOffset = Math.floor(baseOffset * offsetMultiplier);
+                    jumperPositions[jumperIdx] = (curQ - 1 + jumperOffset) % masterQs.length;
+                    console.log('[Jumpers] Initialized jumper', v, 'at position', jumperPositions[jumperIdx], 'with offset', jumperOffset);
+                }
+
+                var currentPos = jumperPositions[jumperIdx];
+                if (currentPos < 0 || currentPos >= masterQs.length) {
+                    currentPos = 0;
+                    jumperPositions[jumperIdx] = 0;
+                }
+
+                var jumperQ = masterQs[currentPos];
+                if (jumperQ) {
+                    // Highlight the jumper's current tile with slightly varied color
+                    if (jumperQ.tile && jumperQ.tile.rect) {
+                        // Use a dimmed/muted version of highlight2 color for additional jumpers
+                        var dimFactor = 0.7 - (jumperIdx * 0.05);
+                        jumperQ.tile.rect.attr("fill", "rgba(255, 200, 100, " + dimFactor + ")");
+                        jumperQ.tile.rect.attr("stroke", "rgba(255, 200, 100, " + (dimFactor * 0.8) + ")");
+
+                        if (curQ <= 3) {
+                            console.log('[Jumpers] Highlighting jumper', v, 'at tile position', currentPos, 'with dimFactor', dimFactor);
+                        }
+                    }
+
+                    // Play the jumper's audio at reduced gain
+                    var jumperGain = 0.5 * (1.0 - (jumperIdx * 0.08));
+                    player.play(0, jumperQ, jumperQ.duration, jumperGain, 0);
+
+                    // Each jumper follows the SAME canon mapping pattern but from their offset position
+                    var nextJumperPos = currentPos;
+                    if (jumperQ.other) {
+                        nextJumperPos = jumperQ.other.which;
+                    } else {
+                        nextJumperPos = (currentPos + 1) % masterQs.length;
+                    }
+                    jumperPositions[jumperIdx] = nextJumperPos;
+                }
+            }
+
             updateCursors(nextQ);
             mtime.text(fmtTime(nextQ.start));
             pulseNotes(nextQ.median_volume || nextQ.volume || baseNoteStrength);
