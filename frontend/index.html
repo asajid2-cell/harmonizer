@@ -570,13 +570,23 @@
                     name: 'Legacy Default'
                 }];
             }
+            if (groupKey === 'eternalLoop') {
+                return [
+                    { id: DEFAULT_ETERNAL_PRESET_ID, name: 'Default' },
+                    { id: 'eternal-labyrinth', name: 'Labyrinth' }
+                ];
+            }
             return [];
         }
 
         function setActivePreset(groupKey, presetId, options) {
             const shouldUpdateState = !options || options.updateState !== false;
             const selectOverride = options && options.selectOverride ? options.selectOverride : null;
-            const normalizedId = presetId || (groupKey === 'canonOverlay' ? DEFAULT_CANON_PRESET_ID : null);
+            let normalizedId = presetId;
+            if (!normalizedId) {
+                if (groupKey === 'canonOverlay') normalizedId = DEFAULT_CANON_PRESET_ID;
+                else if (groupKey === 'eternalLoop') normalizedId = DEFAULT_ETERNAL_PRESET_ID;
+            }
             if (shouldUpdateState) {
                 activePresetByGroup[groupKey] = normalizedId;
             }
