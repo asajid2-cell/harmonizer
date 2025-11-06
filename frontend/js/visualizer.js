@@ -92,12 +92,12 @@ var ADVANCED_DEFAULTS = {
         jumpVariance: 0.4
     },
     eternalLoop: {
-        musicality: 60,
-        minLoopBeats: 8,
-        maxSequentialBeats: 28,
-        loopThreshold: 0.5,
-        sectionBias: 0.55,
-        jumpVariance: 0.5
+        musicality: 100,
+        minLoopBeats: 12,
+        maxSequentialBeats: 90,
+        loopThreshold: 0.76,
+        sectionBias: 0.20,
+        jumpVariance: 0.65
     }
 };
 
@@ -148,8 +148,41 @@ var DEFAULT_CANON_PRESET_ID = "canon-legacy-default";
     ];
 })();
 
+var DEFAULT_ETERNAL_PRESET_ID = "eternal-improved-default";
+
+(function initializeEternalLoopPresets() {
+    // New improved default (less repetitive, more musical)
+    var improvedSettings = cloneSettings(ADVANCED_DEFAULTS.eternalLoop);
+
+    // Labyrinth preset - old default (more repetitive, hypnotic)
+    var labyrinthSettings = {
+        musicality: 60,
+        minLoopBeats: 8,
+        maxSequentialBeats: 28,
+        loopThreshold: 0.5,
+        sectionBias: 0.55,
+        jumpVariance: 0.5
+    };
+
+    advancedPresets.eternalLoop = [
+        {
+            id: DEFAULT_ETERNAL_PRESET_ID,
+            name: "Default",
+            settings: improvedSettings,
+            createdAt: Date.now()
+        },
+        {
+            id: "eternal-labyrinth",
+            name: "Labyrinth",
+            settings: labyrinthSettings,
+            createdAt: Date.now()
+        }
+    ];
+})();
+
 if (typeof window !== "undefined") {
     window.CANON_DEFAULT_PRESET_ID = DEFAULT_CANON_PRESET_ID;
+    window.ETERNAL_DEFAULT_PRESET_ID = DEFAULT_ETERNAL_PRESET_ID;
 }
 
 var queuedAdvancedApplyTimers = Object.create(null);
