@@ -3,6 +3,28 @@
 # Server: harmonizer@164.92.64.157
 
 ################################################################################
+# QUICK DEPLOYMENT REFRESH (Use this to deploy new code)
+################################################################################
+
+# SSH into the server
+ssh harmonizer@164.92.64.157
+
+# Navigate to app directory
+cd /home/harmonizer/apps/harmonizer
+
+# Quick refresh (recommended - watchtower handles updates automatically)
+git pull origin prod && sudo docker compose down && sudo docker compose up -d
+
+# Force complete rebuild (WARNING: Use only if watchtower isn't working)
+git pull origin prod && sudo docker compose down && sudo docker compose up -d --build
+
+# Nuclear option - Clear cache and rebuild everything (clears all data!)
+git pull origin prod && sudo docker compose down && sudo rm -rf ./data/* ./uploads/* && sudo docker compose up -d --build
+
+# Check logs after deployment
+sudo docker compose logs -f harmonizer
+
+################################################################################
 # INITIAL SERVER ACCESS
 ################################################################################
 
