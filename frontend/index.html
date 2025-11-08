@@ -119,6 +119,9 @@
                             <input type="checkbox" id="base-audio-only-toggle">
                             <span>Base audio only</span>
                         </label>
+                        <button type="button" id="spotify-search-btn" class="viz-button ghost small">
+                            Spotify Search
+                        </button>
                         <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
                             Advanced: Off
                         </button>
@@ -189,6 +192,32 @@
         <div class="bottom-badge">Harmonizer Lab</div>
         <!-- Rotating message footer -->
         <footer class="viz-footer" id="footer-text">drive safe i fucking love you &lt;3</footer>
+
+        <!-- Spotify search modal -->
+        <div id="spotify-modal" class="modal" style="display: none;">
+            <div class="modal-content spotify-modal-card">
+                <div class="modal-header">
+                    <h3>Search Spotify</h3>
+                    <button type="button" class="modal-close" id="spotify-modal-close" aria-label="Close Spotify search">&times;</button>
+                </div>
+                <div class="modal-body spotify-modal-body">
+                    <form id="spotify-search-form" class="spotify-search-form">
+                        <input type="text" id="spotify-search-input" placeholder="Search tracks, artists, or albums" autocomplete="off" />
+                        <button type="submit" class="viz-button small">Search</button>
+                    </form>
+                    <div id="spotify-search-status" class="spotify-search-status"></div>
+                    <div id="spotify-search-results" class="spotify-search-results"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="spotify-player-panel" class="spotify-player is-hidden">
+            <div class="spotify-player-header">
+                <span>Spotify Player</span>
+                <button type="button" id="spotify-player-close" aria-label="Close Spotify player">&times;</button>
+            </div>
+            <iframe id="spotify-embed-frame" src="" width="320" height="152" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+        </div>
         </div>
 
             <!-- ✅ Script to randomize the footer message -->

@@ -3028,6 +3028,205 @@ $(document).ready(function() {
     updateQueueControls();
 });
 
+// ==============================
+// Spotify Search & Player
+// ==============================
+(function() {
+    var spotifyBtn = $("#spotify-search-btn");
+    if (!spotifyBtn.length) {
+        return;
+    }
+    var spotifyModal = $("#spotify-modal");
+    var spotifyCloseBtn = $("#spotify-modal-close");
+    var spotifyForm = $("#spotify-search-form");
+    var spotifyInput = $("#spotify-search-input");
+    var spotifyResults = $("#spotify-search-results");
+    var spotifyStatus = $("#spotify-search-status");
+    var spotifyPlayer = $("#spotify-player-panel");
+    var spotifyPlayerClose = $("#spotify-player-close");
+    var spotifyEmbed = $("#spotify-embed-frame");
+    var activeController = null;
+
+    function setSpotifyStatus(message, state) {
+        if (!spotifyStatus.length) {
+            return;
+        }
+        spotifyStatus.removeClass("error info");
+        if (state) {
+            spotifyStatus.addClass(state);
+        }
+        spotifyStatus.text(message || "");
+    }
+
+    function openSpotifyModal() {
+        spotifyModal.show();
+        setSpotifyStatus("", "");
+        spotifyResults.empty();
+        if (spotifyInput && spotifyInput.length) {
+            setTimeout(function() {
+                spotifyInput.trigger("focus");
+            }, 60);
+        }
+    }
+
+    function closeSpotifyModal() {
+        spotifyModal.hide();
+        if (activeController) {
+            activeController.abort();
+            activeController = null;
+        }
+        spotifyInput.val("");
+        spotifyResults.empty();
+        setSpotifyStatus("", "");
+    }
+
+    function showSpotifyPlayer(trackId) {
+        if (!trackId || !spotifyEmbed.length) {
+            return;
+        }
+        var src = "https://open.spotify.com/embed/track/" + encodeURIComponent(trackId) + "?utm_source=harmonizer";
+        spotifyEmbed.attr("src", src);
+        spotifyPlayer.removeClass("is-hidden");
+    }
+
+    function hideSpotifyPlayer() {
+        spotifyPlayer.addClass("is-hidden");
+        spotifyEmbed.attr("src", "");
+    }
+
+    function renderSpotifyResults(tracks) {
+        spotifyResults.empty();
+        if (!tracks || !tracks.length) {
+            setSpotifyStatus("No Spotify results found.", "info");
+            return;
+        }
+        setSpotifyStatus("", "");
+        tracks.forEach(function(track) {
+            var artists = (track.artists || []).join(", ");
+            var artwork = track.image
+                ? '<img src="' + track.image + '" alt="Album art" loading="lazy">'
+                : '<div class="spotify-artwork-placeholder">No Art</div>';
+            var duration = "";
+            if (track.duration_ms) {
+                var totalSeconds = Math.round(track.duration_ms / 1000);
+                var mins = Math.floor(totalSeconds / 60);
+                var secs = totalSeconds % 60;
+                duration = mins + ":" + String(secs).padStart(2, "0");
+            }
+            var playBtn = track.id
+                ? '<button type="button" class="viz-button ghost small spotify-play-btn" data-track-id="' + track.id + '">Play</button>'
+                : "";
+            var external = track.external_url
+                ? '<a class="spotify-open-link" href="' + track.external_url + '" target="_blank" rel="noopener">Open in Spotify</a>'
+                : "";
+            var markup =
+                '<div class="spotify-result">' +
+                artwork +
+                '<div class="spotify-result-details">' +
+                '<h4>' + (track.name || "Unknown track") + '</h4>' +
+                '<p>' + (artists || "Unknown artist") + '</p>' +
+                (track.album
+                    ? '<p>' + track.album + (duration ? ' - ' + duration : '') + '</p>'
+                    : duration
+                    ? '<p>' + duration + '</p>'
+                    : '') +
+                '</div>' +
+                '<div class="spotify-result-actions">' +
+                playBtn +
+                external +
+                '</div>' +
+                '</div>';
+            spotifyResults.append(markup);
+        });
+    }
+
+    function performSpotifySearch(query) {
+        if (!window.fetch) {
+            setSpotifyStatus("Browser does not support Spotify search.", "error");
+            return;
+        }
+        if (activeController) {
+            activeController.abort();
+        }
+        activeController = new AbortController();
+        setSpotifyStatus("Searching Spotify…", "info");
+        spotifyResults.empty();
+        fetch("/api/spotify/search?q=" + encodeURIComponent(query), {
+            signal: activeController.signal,
+        })
+            .then(function(resp) {
+                if (!resp.ok) {
+                    return resp.json().catch(function() {
+                        return { error: "Spotify search failed." };
+                    });
+                }
+                return resp.json();
+            })
+            .then(function(payload) {
+                if (activeController) {
+                    activeController = null;
+                }
+                if (!payload) {
+                    setSpotifyStatus("Spotify search failed.", "error");
+                    return;
+                }
+                if (payload.error) {
+                    setSpotifyStatus(payload.error, "error");
+                    return;
+                }
+                renderSpotifyResults(payload.tracks || []);
+            })
+            .catch(function(err) {
+                if (err.name === "AbortError") {
+                    return;
+                }
+                console.error("[Spotify] Search failed:", err);
+                setSpotifyStatus("Spotify search failed. Try again.", "error");
+            });
+    }
+
+    spotifyBtn.on("click", function() {
+        openSpotifyModal();
+    });
+
+    spotifyCloseBtn.on("click", function() {
+        closeSpotifyModal();
+    });
+
+    spotifyModal.on("click", function(evt) {
+        if (evt.target === spotifyModal[0]) {
+            closeSpotifyModal();
+        }
+    });
+
+    $(document).on("keydown", function(evt) {
+        if (evt.key === "Escape" && spotifyModal.is(":visible")) {
+            closeSpotifyModal();
+        }
+    });
+
+    spotifyForm.on("submit", function(evt) {
+        evt.preventDefault();
+        var query = (spotifyInput.val() || "").trim();
+        if (!query) {
+            setSpotifyStatus("Enter a search phrase.", "error");
+            return;
+        }
+        performSpotifySearch(query);
+    });
+
+    spotifyResults.on("click", ".spotify-play-btn", function() {
+        var trackId = $(this).data("trackId");
+        if (trackId) {
+            showSpotifyPlayer(trackId);
+        }
+    });
+
+    spotifyPlayerClose.on("click", function() {
+        hideSpotifyPlayer();
+    });
+})();
+
 function setURL() {
     if (curTrack) {
         var p = "?trid=" + curTrack.id + "&mode=" + mode;
@@ -4828,6 +5027,7 @@ function ga_track(page, action, id) {
 
 
 window.onload = init;
+
 
 
 

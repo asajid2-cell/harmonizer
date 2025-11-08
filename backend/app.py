@@ -24,6 +24,7 @@ from werkzeug.utils import secure_filename
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 import json
+import requests
 
 try:
     from yt_dlp import YoutubeDL  # type: ignore
@@ -64,6 +65,8 @@ FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
 
 CACHE_MANIFEST_PATH = DATA_FOLDER / "analysis_cache.json"
 CACHE_MANIFEST_LOCK = threading.Lock()
+SPOTIFY_TOKEN_CACHE = {"token": None, "expires_at": 0.0}
+SPOTIFY_TOKEN_LOCK = threading.Lock()
 
 app = Flask(__name__, static_folder=None)
 
@@ -167,6 +170,67 @@ def _get_valid_cache_entry(
             return None, True
 
     return entry, False
+
+
+def _get_spotify_access_token() -> str:
+    client_id = os.environ.get("SPOTIFY_CLIENT_ID")
+    client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise RuntimeError(
+            "Spotify API credentials not configured. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET."
+        )
+    with SPOTIFY_TOKEN_LOCK:
+        now = time.time()
+        token = SPOTIFY_TOKEN_CACHE.get("token")
+        expires_at = SPOTIFY_TOKEN_CACHE.get("expires_at", 0.0)
+        if token and now < expires_at - 30:
+            return token
+
+        resp = requests.post(
+            "https://accounts.spotify.com/api/token",
+            data={"grant_type": "client_credentials"},
+            auth=(client_id, client_secret),
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Spotify authentication failed ({resp.status_code}): {resp.text[:120]}"
+            )
+        payload = resp.json()
+        token = payload.get("access_token")
+        expires_in = payload.get("expires_in", 3600)
+        if not token:
+            raise RuntimeError("Spotify authentication response missing access token.")
+        SPOTIFY_TOKEN_CACHE["token"] = token
+        SPOTIFY_TOKEN_CACHE["expires_at"] = now + max(30, expires_in)
+        return token
+
+
+def _spotify_get(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    token = _get_spotify_access_token()
+    resp = requests.get(
+        f"https://api.spotify.com/v1/{path}",
+        headers={"Authorization": f"Bearer {token}"},
+        params=params,
+        timeout=15,
+    )
+    if resp.status_code == 401:
+        # token expired or revoked; retry once
+        with SPOTIFY_TOKEN_LOCK:
+            SPOTIFY_TOKEN_CACHE["token"] = None
+            SPOTIFY_TOKEN_CACHE["expires_at"] = 0
+        token = _get_spotify_access_token()
+        resp = requests.get(
+            f"https://api.spotify.com/v1/{path}",
+            headers={"Authorization": f"Bearer {token}"},
+            params=params,
+            timeout=15,
+        )
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"Spotify request failed ({resp.status_code}): {resp.text[:200]}"
+        )
+    return resp.json()
 
 
 def get_user_oauth_cookies(user_id: Optional[str]) -> Optional[Path]:
@@ -1117,6 +1181,74 @@ def api_playlist_info():
         return jsonify({"error": str(exc)}), 500
     except Exception as exc:
         return jsonify({"error": f"Unexpected error: {exc}"}), 500
+
+
+@app.route("/api/spotify/search", methods=["GET", "OPTIONS"])
+def api_spotify_search():
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    query = (request.args.get("q") or "").strip()
+    if not query:
+        return jsonify({"error": "Missing search query."}), 400
+
+    limit_param = request.args.get("limit")
+    try:
+        limit = int(limit_param) if limit_param is not None else 12
+    except ValueError:
+        limit = 12
+    limit = max(1, min(25, limit))
+
+    try:
+        data = _spotify_get("search", {"q": query, "type": "track", "limit": limit})
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    tracks_payload = data.get("tracks", {}).get("items", [])
+    tracks = []
+    for item in tracks_payload:
+        album = item.get("album") or {}
+        images = album.get("images") or []
+        tracks.append(
+            {
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "artists": [artist.get("name") for artist in item.get("artists", [])],
+                "album": album.get("name"),
+                "duration_ms": item.get("duration_ms"),
+                "preview_url": item.get("preview_url"),
+                "external_url": item.get("external_urls", {}).get("spotify"),
+                "image": images[0]["url"] if images else None,
+            }
+        )
+
+    return jsonify({"tracks": tracks})
+
+
+@app.route("/api/spotify/track/<track_id>", methods=["GET", "OPTIONS"])
+def api_spotify_track(track_id: str):
+    if request.method == "OPTIONS":
+        return ("", 204)
+    if not track_id:
+        return jsonify({"error": "Missing track id."}), 400
+    try:
+        item = _spotify_get(f"tracks/{track_id}", {})
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    album = item.get("album") or {}
+    images = album.get("images") or []
+    track = {
+        "id": item.get("id"),
+        "name": item.get("name"),
+        "artists": [artist.get("name") for artist in item.get("artists", [])],
+        "album": album.get("name"),
+        "duration_ms": item.get("duration_ms"),
+        "preview_url": item.get("preview_url"),
+        "external_url": item.get("external_urls", {}).get("spotify"),
+        "image": images[0]["url"] if images else None,
+    }
+    return jsonify(track)
 
 
 @app.route("/<path:asset_path>")
