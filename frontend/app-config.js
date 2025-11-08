@@ -16,9 +16,9 @@
         hostname === "::1" ||
         hostname.endsWith(".local");
 
-    // When running the frontend locally (file:// or localhost), default to the same-origin backend.
-    // Otherwise fall back to the hosted backend URL. Users can still override via window.HARMONIZER_CONFIG.
-    var defaultApiBase = isLocalhost ? "" : "https://harmonizer-backend-bofk.onrender.com";
+    // Always prefer same-origin requests; the Flask+Gunicorn server serves both frontend and backend.
+    // Users hosting the frontend separately can override via window.HARMONIZER_CONFIG before this script loads.
+    var defaultApiBase = "";
 
     global.HARMONIZER_CONFIG = Object.assign(
         {
