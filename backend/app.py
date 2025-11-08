@@ -3,8 +3,11 @@ from __future__ import annotations
 import os
 import mimetypes
 import uuid
+import hashlib
+import time
+import threading
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any, Tuple
 
 from flask import (
     Flask,
@@ -59,6 +62,9 @@ UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 DATA_FOLDER.mkdir(parents=True, exist_ok=True)
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
 
+CACHE_MANIFEST_PATH = DATA_FOLDER / "analysis_cache.json"
+CACHE_MANIFEST_LOCK = threading.Lock()
+
 app = Flask(__name__, static_folder=None)
 
 # Configure session for OAuth
@@ -90,6 +96,77 @@ def allowed_file(filename: str) -> bool:
 
 def generate_track_id() -> str:
     return "TR" + uuid.uuid4().hex[:10].upper()
+
+
+def _hash_file(path: Path, chunk_size: int = 65536) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(chunk_size), b""):
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _load_analysis_cache() -> Dict[str, Any]:
+    if not CACHE_MANIFEST_PATH.exists():
+        return {}
+    try:
+        with CACHE_MANIFEST_PATH.open("r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _persist_analysis_cache(cache: Dict[str, Any]) -> None:
+    CACHE_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = CACHE_MANIFEST_PATH.with_suffix(".tmp")
+    with CACHE_MANIFEST_LOCK:
+        with temp_path.open("w", encoding="utf-8") as fh:
+            json.dump(cache, fh, indent=2)
+        temp_path.replace(CACHE_MANIFEST_PATH)
+
+
+def _build_url_cache_key(prefix: str, raw_value: str) -> Optional[str]:
+    if not raw_value:
+        return None
+    normalized = raw_value.strip()
+    if not normalized:
+        return None
+    return f"{prefix}:{normalized.lower()}"
+
+
+def _get_valid_cache_entry(
+    cache: Dict[str, Any], key: Optional[str]
+) -> Tuple[Optional[Dict[str, Any]], bool]:
+    """
+    Returns (entry, removed_flag). removed_flag indicates whether a stale entry
+    was pruned and the manifest should be saved.
+    """
+    if not key:
+        return None, False
+    entry = cache.get(key)
+    if not entry:
+        return None, False
+
+    track_id = entry.get("track_id")
+    if not track_id:
+        cache.pop(key, None)
+        return None, True
+
+    data_path = DATA_FOLDER / f"{track_id}.json"
+    if not data_path.exists():
+        cache.pop(key, None)
+        return None, True
+
+    audio_filename = entry.get("audio_filename")
+    if audio_filename:
+        audio_path = UPLOAD_FOLDER / audio_filename
+        if not audio_path.exists():
+            cache.pop(key, None)
+            return None, True
+
+    return entry, False
 
 
 def get_user_oauth_cookies(user_id: Optional[str]) -> Optional[Path]:
@@ -873,6 +950,13 @@ def api_process():
     if algorithm not in {"canon", "jukebox", "eternal"}:
         return jsonify({"error": "Unsupported algorithm selection."}), 400
 
+    if algorithm == "canon":
+        mode = "canon"
+    elif algorithm == "jukebox":
+        mode = "jukebox"
+    else:
+        mode = "eternal"
+
     source = request.form.get("source", "upload").lower()
     title = request.form.get("title") or None
     artist = request.form.get("artist") or "(unknown artist)"
@@ -885,6 +969,32 @@ def api_process():
     track_id = generate_track_id()
     audio_path: Optional[Path] = None
     info: Optional[dict] = None
+    cache_manifest = _load_analysis_cache()
+    cache_dirty = False
+    cache_key: Optional[str] = None
+
+    def cache_lookup(key: Optional[str]) -> Optional[Dict[str, Any]]:
+        nonlocal cache_dirty
+        entry, removed = _get_valid_cache_entry(cache_manifest, key)
+        if removed:
+            cache_dirty = True
+        return entry
+
+    def cache_register(key: Optional[str], entry: Dict[str, Any]) -> None:
+        nonlocal cache_dirty
+        if not key:
+            return
+        cache_manifest[key] = entry
+        cache_dirty = True
+
+    def cache_response(entry: Dict[str, Any]):
+        return jsonify(
+            {
+                "redirect": url_for("index", trid=entry["track_id"], mode=mode),
+                "trackId": entry["track_id"],
+                "cached": True,
+            }
+        )
 
     try:
         if source == "upload":
@@ -899,10 +1009,24 @@ def api_process():
             uploaded.save(audio_path)
             if not title:
                 title = Path(uploaded.filename).stem
+
+            cache_key = f"upload:{_hash_file(audio_path)}"
+            cached_entry = cache_lookup(cache_key)
+            if cached_entry:
+                try:
+                    audio_path.unlink()
+                except OSError:
+                    pass
+                return cache_response(cached_entry)
         elif source == "youtube":
             url = request.form.get("youtube_url", "").strip()
             if not url:
                 return jsonify({"error": "Please provide a YouTube URL."}), 400
+
+            cache_key = _build_url_cache_key("youtube", url)
+            cached_entry = cache_lookup(cache_key)
+            if cached_entry:
+                return cache_response(cached_entry)
 
             # Use smart download with automatic fallback to Spotify/SoundCloud
             print(f"[API] Using smart download with fallback system...", flush=True)
@@ -916,6 +1040,10 @@ def api_process():
             url = request.form.get("spotify_url", "").strip()
             if not url:
                 return jsonify({"error": "Please provide a Spotify URL."}), 400
+            cache_key = _build_url_cache_key("spotify", url)
+            cached_entry = cache_lookup(cache_key)
+            if cached_entry:
+                return cache_response(cached_entry)
             audio_path, info = _download_spotify(url, track_id, user_id)
             if not title:
                 title = info.get("title") if info else None
@@ -925,6 +1053,11 @@ def api_process():
             url = request.form.get("drive_url", "").strip()
             if not url:
                 return jsonify({"error": "Please provide a Google Drive URL."}), 400
+            # treat drive URLs as cacheable by normalized link
+            cache_key = _build_url_cache_key("drive", url)
+            cached_entry = cache_lookup(cache_key)
+            if cached_entry:
+                return cache_response(cached_entry)
             audio_path, info = _download_from_drive(url, track_id)
             if not title:
                 title = info.get("title") if info else None
@@ -947,18 +1080,25 @@ def api_process():
             output_path=output_path,
         )
 
-        if algorithm == "canon":
-            mode = "canon"
-        elif algorithm == "jukebox":
-            mode = "jukebox"
-        else:
-            mode = "eternal"
+        cache_register(
+            cache_key,
+            {
+                "track_id": track_id,
+                "audio_filename": audio_path.name if audio_path else None,
+                "title": title,
+                "artist": artist,
+                "cached_at": time.time(),
+            },
+        )
         redirect_url = url_for("index", trid=track_id, mode=mode)
         return jsonify({"redirect": redirect_url, "trackId": track_id})
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 500
     except Exception as exc:  # pragma: no cover
         return jsonify({"error": f"Unexpected error: {exc}"}), 500
+    finally:
+        if cache_dirty:
+            _persist_analysis_cache(cache_manifest)
 
 
 @app.route("/api/playlist-info", methods=["POST", "OPTIONS"])

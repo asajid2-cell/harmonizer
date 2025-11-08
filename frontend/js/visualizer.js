@@ -144,6 +144,22 @@ var ROUNDABLE_BEAT_FIELDS = {
     }
 })();
 
+var BASE_AUDIO_ONLY_STORAGE_KEY = "harmonizer:baseAudioOnly";
+var overlayMuteEnabled = false;
+
+(function hydrateBaseAudioOnlyPreference() {
+    try {
+        if (typeof window !== "undefined" && window.localStorage) {
+            var stored = window.localStorage.getItem(BASE_AUDIO_ONLY_STORAGE_KEY);
+            if (stored === "1") {
+                overlayMuteEnabled = true;
+            }
+        }
+    } catch (err) {
+        overlayMuteEnabled = false;
+    }
+})();
+
 var eternalAdvancedEnabled = false;
 
 var advancedPresets = {
@@ -399,6 +415,49 @@ function setAdvancedGroupSettingValue(group, key, value) {
     }
 }
 
+function syncBaseAudioToggleUI() {
+    if (typeof document === "undefined") {
+        return;
+    }
+    var toggle = document.getElementById("base-audio-only-toggle");
+    if (toggle) {
+        toggle.checked = overlayMuteEnabled;
+    }
+    if (document.body) {
+        document.body.classList.toggle("base-audio-only", overlayMuteEnabled);
+    }
+}
+
+function applyOverlayMuteState() {
+    if (!driver || !driver.player) {
+        return;
+    }
+    var audioEngine = driver.player;
+    if (audioEngine && typeof audioEngine.setOverlayMuted === "function") {
+        audioEngine.setOverlayMuted(overlayMuteEnabled);
+    }
+}
+
+function setBaseAudioOnlyPlayback(enabled) {
+    var normalized = !!enabled;
+    var changed = normalized !== overlayMuteEnabled;
+    overlayMuteEnabled = normalized;
+    if (changed) {
+        try {
+            if (typeof window !== "undefined" && window.localStorage) {
+                window.localStorage.setItem(
+                    BASE_AUDIO_ONLY_STORAGE_KEY,
+                    overlayMuteEnabled ? "1" : "0"
+                );
+            }
+        } catch (err) {
+            // ignore persistence errors
+        }
+    }
+    syncBaseAudioToggleUI();
+    applyOverlayMuteState();
+}
+
 function resetAdvancedGroupSettings(group) {
     var defaults = cloneAdvancedDefaults(group);
     advancedSettings[group] = cloneSettings(defaults);
@@ -598,7 +657,13 @@ function rebuildDriverForCurrentMode(shouldResume) {
             driver.stop();
         } catch (e) {}
     }
-    driver = Driver(remixer.getPlayer());
+    var nextPlayer = remixer.getPlayer();
+    if (!nextPlayer) {
+        driver = null;
+        return;
+    }
+    driver = Driver(nextPlayer);
+    applyOverlayMuteState();
     if (resume && driver && typeof driver.start === "function") {
         driver.start();
     }
@@ -1238,6 +1303,8 @@ if (typeof window !== "undefined") {
     window.setEternalAdvancedEnabled = setEternalAdvancedEnabled;
     window.isEternalAdvancedEnabled = function() { return eternalAdvancedEnabled; };
     window.getAdvancedDefaults = function(group) { return cloneAdvancedDefaults(group); };
+    window.setBaseAudioOnlyPlayback = setBaseAudioOnlyPlayback;
+    window.isBaseAudioOnlyPlaybackEnabled = function() { return overlayMuteEnabled; };
     window.setBeatRoundingEnabled = function(enabled) {
         setBeatRoundingEnabledInternal(enabled);
     };
@@ -2245,9 +2312,17 @@ async function togglePlayback() {
         return;
     }
     if (driver.isRunning()) {
-        driver.stop();
+        if (driver.pause && typeof driver.pause === "function") {
+            driver.pause();
+        } else {
+            driver.stop();
+        }
     } else {
-        driver.start();
+        if (driver.resume && typeof driver.resume === "function") {
+            driver.resume();
+        } else {
+            driver.start();
+        }
     }
 }
 
@@ -2278,6 +2353,14 @@ function init() {
         await togglePlayback();
     });
 
+    var baseAudioToggle = document.getElementById("base-audio-only-toggle");
+    if (baseAudioToggle) {
+        baseAudioToggle.addEventListener("change", function(event) {
+            setBaseAudioOnlyPlayback(event.target.checked);
+        });
+    }
+    syncBaseAudioToggleUI();
+
     var containerWidth = $("#tiles").innerWidth();
     if (!containerWidth || containerWidth < 100) {
         containerWidth = $(window).width() - 140;
@@ -2297,7 +2380,9 @@ function init() {
         var context = getAudioContext();
         var initialTrid = processParams();
         remixer = createJRemixer(context, $);
-        driver = Driver(remixer.getPlayer());
+        var initialPlayer = remixer.getPlayer();
+        driver = Driver(initialPlayer);
+        applyOverlayMuteState();
 
         // Load playlist queue from sessionStorage if available
         loadPlaylistQueue();
@@ -3511,9 +3596,18 @@ function createCanonDriver(player) {
     var curQ = 0;
     var running = false;
     var mtime = $("#mtime");
+    var processTimer = null;
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
 
     function stop() {
         running = false;
+        clearProcessTimer();
         player.stop();
         $("#play").text("Play");
         setURL();
@@ -3533,7 +3627,11 @@ function createCanonDriver(player) {
             var nextQ = masterQs[curQ];
             var delay = player.playQ(nextQ);
             curQ++;
-            setTimeout(function() { process(); }, 1000 * delay);
+            clearProcessTimer();
+            processTimer = setTimeout(function() {
+                processTimer = null;
+                process();
+            }, 1000 * delay);
             nextQ.tile.highlight();
             if (nextQ.other && nextQ.other.tile) {
                 nextQ.other.tile.highlight2();
@@ -3547,6 +3645,7 @@ function createCanonDriver(player) {
 
     return {
         start: function() {
+            clearProcessTimer();
             resetTileColors(masterQs);
             // Prefer server-recommended start_index; otherwise start of section 0 on a bar boundary
             var startIdx = 0;
@@ -3595,13 +3694,30 @@ function createCanonDriver(player) {
         },
 
         resume: function() {
-            resetTileColors(masterQs);
+            if (running) {
+                return;
+            }
             running = true;
             process();
             setURL();
             $("#play").text("Stop");
             setPlayingClass("canon");
             pulseNotes(baseNoteStrength);
+        },
+
+        pause: function() {
+            if (!running) {
+                return;
+            }
+            running = false;
+            clearProcessTimer();
+            if (player && typeof player.pause === "function") {
+                player.pause();
+            } else {
+                player.stop();
+            }
+            $("#play").text("Play");
+            setPlayingClass(null);
         },
 
         stop: stop,
@@ -3633,6 +3749,7 @@ function createJukeboxDriver(player, options) {
     var running = false;
     var mtime = $("#mtime");
     var modeName = options.modeName || "jukebox";
+    var processTimer = null;
 
     // Stats tracking for eternal modes
     var totalBeatsPlayed = 0;
@@ -3916,6 +4033,10 @@ function createJukeboxDriver(player, options) {
 
     function stop() {
         running = false;
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
         player.stop();
         $("#play").text("Play");
         setURL();
@@ -4534,11 +4655,21 @@ function createJukeboxDriver(player, options) {
             delay = q.duration;
         }
         advanceIndex();
-        setTimeout(function() { process(); }, 1000 * delay);
+        if (processTimer) {
+            clearTimeout(processTimer);
+        }
+        processTimer = setTimeout(function() {
+            processTimer = null;
+            process();
+        }, 1000 * delay);
     }
 
     return {
         start: function() {
+            if (processTimer) {
+                clearTimeout(processTimer);
+                processTimer = null;
+            }
             resetTileColors(masterQs);
             currentIndex = 0;
             rebuildLoopChoices();
@@ -4553,8 +4684,9 @@ function createJukeboxDriver(player, options) {
         },
 
         resume: function() {
-            resetTileColors(masterQs);
-            rebuildLoopChoices();
+            if (running) {
+                return;
+            }
             running = true;
             startStatsTracking();
             process();
@@ -4562,6 +4694,24 @@ function createJukeboxDriver(player, options) {
             $("#play").text("Stop");
             setPlayingClass(modeName);
             pulseNotes(baseNoteStrength);
+        },
+
+        pause: function() {
+            if (!running) {
+                return;
+            }
+            running = false;
+            if (processTimer) {
+                clearTimeout(processTimer);
+                processTimer = null;
+            }
+            if (player && typeof player.pause === "function") {
+                player.pause();
+            } else {
+                player.stop();
+            }
+            $("#play").text("Play");
+            setPlayingClass(null);
         },
 
         stop: stop,

@@ -214,6 +214,7 @@ function createJRemixer(context, jquery) {
             var curAudioSource = null;
             var masterGain = .53;
             var overlayGain = 0.58;
+            var overlayMuted = false;
             var deltaTime = 0;
             var mainGain = context.createGain();
             var otherGain = context.createGain();
@@ -298,41 +299,81 @@ function createJRemixer(context, jquery) {
                 var now = context.currentTime - deltaTime;
                 var delta = now - q.start;
 
-                var targetOther = overlayGain;
+                var overlayTarget = (q && q.other && q.other.track && q.other.track.buffer) ? q.other : null;
+                var overlayActive = !!(overlayTarget && !overlayMuted);
+                var targetOther = overlayActive ? overlayGain : 0;
                 var targetMain = masterGain;
-                if (curQ == null || curQ.other.next != q.other || Math.abs(skewDelta) > maxSkewDelta) {
-                    skewDelta = 0;
+
+                if (!overlayActive) {
                     if (ocurAudioSource) {
                         ocurAudioSource.stop();
+                        ocurAudioSource = null;
                     }
-                    var oduration = q.other.track.audio_summary.duration - q.other.start;
-                    ocurAudioSource = llPlay(q.other.track.buffer, q.other.start, oduration, otherGain);
                     try {
-                        var now = context.currentTime;
-                        otherGain.gain.cancelScheduledValues(now);
-                        otherGain.gain.setValueAtTime(targetOther, now);
-                        mainGain.gain.cancelScheduledValues(now);
-                        mainGain.gain.setValueAtTime(targetMain, now);
+                        var silentNow = context.currentTime;
+                        otherGain.gain.cancelScheduledValues(silentNow);
+                        otherGain.gain.setValueAtTime(0, silentNow);
+                        mainGain.gain.cancelScheduledValues(silentNow);
+                        mainGain.gain.setValueAtTime(targetMain, silentNow);
                     } catch (e) {
-                        otherGain.gain.value = targetOther;
+                        otherGain.gain.value = 0;
                         mainGain.gain.value = targetMain;
                     }
+                    skewDelta = 0;
                 } else {
-                    try {
-                        var now2 = context.currentTime;
-                        otherGain.gain.cancelScheduledValues(now2);
-                        otherGain.gain.setValueAtTime(targetOther, now2);
-                        mainGain.gain.cancelScheduledValues(now2);
-                        mainGain.gain.setValueAtTime(targetMain, now2);
-                    } catch (e) {
-                        otherGain.gain.value = targetOther;
-                        mainGain.gain.value = targetMain;
+                    var needsNewOverlay = (curQ == null) ||
+                        !curQ.other ||
+                        curQ.other.next != overlayTarget ||
+                        Math.abs(skewDelta) > maxSkewDelta;
+                    if (needsNewOverlay) {
+                        skewDelta = 0;
+                        if (ocurAudioSource) {
+                            ocurAudioSource.stop();
+                        }
+                        var oduration = overlayTarget.track.audio_summary.duration - overlayTarget.start;
+                        ocurAudioSource = llPlay(overlayTarget.track.buffer, overlayTarget.start, oduration, otherGain);
+                        try {
+                            var now = context.currentTime;
+                            otherGain.gain.cancelScheduledValues(now);
+                            otherGain.gain.setValueAtTime(targetOther, now);
+                            mainGain.gain.cancelScheduledValues(now);
+                            mainGain.gain.setValueAtTime(targetMain, now);
+                        } catch (e) {
+                            otherGain.gain.value = targetOther;
+                            mainGain.gain.value = targetMain;
+                        }
+                    } else {
+                        try {
+                            var now2 = context.currentTime;
+                            otherGain.gain.cancelScheduledValues(now2);
+                            otherGain.gain.setValueAtTime(targetOther, now2);
+                            mainGain.gain.cancelScheduledValues(now2);
+                            mainGain.gain.setValueAtTime(targetMain, now2);
+                        } catch (e) {
+                            otherGain.gain.value = targetOther;
+                            mainGain.gain.value = targetMain;
+                        }
                     }
+                    skewDelta += q.duration - overlayTarget.duration;
                 }
-                skewDelta += q.duration - q.other.duration;
 
                 curQ = q;
                 return q.duration - delta;
+            }
+
+            function haltSources() {
+                if (curAudioSource) {
+                    try {
+                        curAudioSource.stop(0);
+                    } catch (e) {}
+                    curAudioSource = null;
+                }
+                if (ocurAudioSource) {
+                    try {
+                        ocurAudioSource.stop(0);
+                    } catch (e) {}
+                    ocurAudioSource = null;
+                }
             }
 
             var player = {
@@ -353,13 +394,34 @@ function createJRemixer(context, jquery) {
                 },
 
                 stop: function() {
-                    if (curAudioSource) {
-                        curAudioSource.stop(0);
-                        curAudioSource = null;
+                    haltSources();
+                    curQ = null;
+                    skewDelta = 0;
+                },
+
+                pause: function() {
+                    haltSources();
+                    curQ = null;
+                },
+
+                setOverlayMuted: function(muted) {
+                    var normalized = !!muted;
+                    if (overlayMuted === normalized) {
+                        return;
                     }
-                    if (ocurAudioSource) {
-                        ocurAudioSource.stop(0);
-                        ocurAudioSource = null;
+                    overlayMuted = normalized;
+                    if (overlayMuted) {
+                        if (ocurAudioSource) {
+                            ocurAudioSource.stop(0);
+                            ocurAudioSource = null;
+                        }
+                        try {
+                            var now = context.currentTime;
+                            otherGain.gain.cancelScheduledValues(now);
+                            otherGain.gain.setValueAtTime(0, now);
+                        } catch (e) {
+                            otherGain.gain.value = 0;
+                        }
                     }
                 },
 
