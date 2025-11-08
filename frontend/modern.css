@@ -405,15 +405,22 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     text-transform: uppercase;
 }
 
-.bottom-badge {
+.corner-cluster {
     position: fixed;
     bottom: clamp(20px, 2.8vw, 32px);
     left: clamp(20px, 2.8vw, 36px);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    z-index: 6;
+}
+
+.bottom-badge {
     color: rgba(232, 180, 184, 0.65);
     letter-spacing: 0.08em;
     font-size: 0.6875rem;
     font-weight: 500;
-    z-index: 5;
     transition: all 0.25s ease;
     opacity: 0.75;
     padding: 8px 16px;

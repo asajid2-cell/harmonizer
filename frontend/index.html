@@ -103,6 +103,13 @@
                         <button id="play" class="viz-button">Play</button>
                         <span class="viz-timer" id="mtime">00:00:00</span>
                         <span class="viz-mode-pill" id="mode-pill">Autocanonizer</span>
+                        <div class="viz-mode-switch" id="viz-mode-switch">
+                            <select id="viz-mode-select" aria-label="Switch playback mode">
+                                <option value="canon">Autocanonizer</option>
+                                <option value="jukebox">Eternal Jukebox</option>
+                                <option value="eternal">Eternal Canonizer</option>
+                            </select>
+                        </div>
                         <div class="viz-stats" id="eternal-stats" style="display: none;">
                             <span class="viz-stat-item">
                                 <span class="viz-stat-label">Listen Time:</span>
@@ -183,10 +190,11 @@
             </section>
             </main>
 
-        <!-- Harmonizer Lab badge in bottom left corner -->
-        <div class="bottom-badge">Harmonizer Lab</div>
-        <!-- Rotating message footer -->
-        <footer class="viz-footer" id="footer-text">drive safe i fucking love you &lt;3</footer>
+        <!-- Harmonizer Lab badge + rotating footer -->
+        <div class="corner-cluster">
+            <div class="bottom-badge">Harmonizer Lab</div>
+            <footer class="viz-footer" id="footer-text">drive safe i fucking love you &lt;3</footer>
+        </div>
         </div>
 
             <!-- ✅ Script to randomize the footer message -->
@@ -289,6 +297,7 @@
         const uploadPane = document.getElementById('upload-pane');
         const youtubePane = document.getElementById('youtube-pane');
         const modePill = document.getElementById('mode-pill');
+        const vizModeSelect = document.getElementById('viz-mode-select');
         const config = window.HARMONIZER_CONFIG || {};
         const apiBaseUrl = (config.apiBaseUrl || "").replace(/\/+$/, "");
         const buildApiUrl = (path) => {
@@ -342,11 +351,15 @@
         const tridParam = params.get('trid');
         const requestedMode = (params.get('mode') || 'canon').toLowerCase();
         const allowedModes = new Set(['canon', 'jukebox', 'eternal']);
-        const normalizedMode = allowedModes.has(requestedMode) ? requestedMode : 'canon';
+        const normalizedMode = allowedModes.has(requestedMode) ? requestedMode : modeFromBody;
         document.body.dataset.mode = normalizedMode;
         if (modePill) {
             modePill.textContent = MODE_LABELS[normalizedMode] || MODE_LABELS.canon;
         }
+        if (vizModeSelect) {
+            vizModeSelect.value = normalizedMode;
+        }
+        currentModeKey = syncAlgorithmButtons(normalizedMode);
 
         if (tridParam) {
             setState('state-player');
@@ -358,7 +371,6 @@
             if (backButton) { backButton.classList.add('hidden'); }
             setState('state-home');
         }
-
         function syncAlgorithmButtons(targetMode) {
             targetMode = (targetMode || 'canon').toLowerCase();
             algorithmToggle.querySelectorAll('.toggle').forEach(btn => btn.classList.remove('active'));
@@ -371,11 +383,10 @@
             if (modePill) {
                 modePill.textContent = MODE_LABELS[targetMode] || MODE_LABELS.canon;
             }
+            if (vizModeSelect) {
+                vizModeSelect.value = targetMode;
+            }
             return targetMode;
-        }
-
-        if (modeFromBody === "jukebox" || modeFromBody === "eternal" || modeFromBody === "canon") {
-            currentModeKey = syncAlgorithmButtons(modeFromBody);
         }
 
         algorithmToggle.addEventListener('click', (event) => {
@@ -387,6 +398,17 @@
             currentModeKey = syncAlgorithmButtons(targetMode);
             window.setAdvancedPanelMode(currentModeKey);
         });
+
+        if (vizModeSelect) {
+            vizModeSelect.addEventListener('change', (event) => {
+                const nextMode = event.target.value;
+                if (!nextMode || nextMode === normalizedMode) {
+                    return;
+                }
+                const nextUrl = buildFrontendRedirect(tridParam, nextMode);
+                window.location.href = nextUrl;
+            });
+        }
 
         sourceToggle.addEventListener('click', (event) => {
             const button = event.target.closest('button[data-source]');

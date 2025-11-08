@@ -618,7 +618,14 @@ if (typeof Object.create !== 'function') {
 
 function info(s) {
     $("#info").text(s);
-    $("#status-panel").text(s);
+    var shouldShowStatus = true;
+    if (typeof s === "string") {
+        var lower = s.toLowerCase();
+        if (lower.indexOf(" - eternal ") !== -1 || lower.indexOf("autocanonizer") !== -1 || s.indexOf(" by ") !== -1) {
+            shouldShowStatus = false;
+        }
+    }
+    $("#status-panel").text(shouldShowStatus ? s : "");
 }
 
 function error(s) {
@@ -2831,66 +2838,6 @@ $(document).ready(function() {
         // Remove minimized class when closing
         $("#queue-container").removeClass("minimized");
         $("#queue-minimize-btn").html("−");
-    });
-
-    // Export settings button handler
-    $("#export-settings-btn").click(function() {
-        try {
-            var allSettings = window.getAdvancedSettings();
-            var settingsJSON = JSON.stringify(allSettings, null, 2);
-
-            // Create a blob and download it
-            var blob = new Blob([settingsJSON], { type: 'application/json' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'harmonizer-settings.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            console.log('[Settings] Exported settings successfully');
-        } catch (err) {
-            console.error('[Settings] Failed to export settings:', err);
-            alert('Failed to export settings: ' + err.message);
-        }
-    });
-
-    // Import settings button handler
-    $("#import-settings-btn").click(function() {
-        // Create a file input element
-        var fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.json';
-
-        fileInput.onchange = function(e) {
-            var file = e.target.files[0];
-            if (!file) return;
-
-            var reader = new FileReader();
-            reader.onload = function(event) {
-                try {
-                    var settingsJSON = event.target.result;
-                    var allSettings = JSON.parse(settingsJSON);
-
-                    // Apply the imported settings
-                    window.setAdvancedSettings(allSettings);
-
-                    // Sync UI with the new settings
-                    window.syncAllGroupsFromState();
-
-                    console.log('[Settings] Imported settings successfully');
-                    alert('Settings imported successfully!');
-                } catch (err) {
-                    console.error('[Settings] Failed to import settings:', err);
-                    alert('Failed to import settings: ' + err.message);
-                }
-            };
-            reader.readAsText(file);
-        };
-
-        fileInput.click();
     });
 
     // Make queue window draggable
