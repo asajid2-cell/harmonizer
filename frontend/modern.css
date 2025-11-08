@@ -409,18 +409,29 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     position: fixed;
     bottom: clamp(20px, 2.8vw, 32px);
     left: clamp(20px, 2.8vw, 36px);
-    color: rgba(232, 180, 184, 0.45);
+    color: rgba(232, 180, 184, 0.65);
     letter-spacing: 0.08em;
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 500;
     z-index: 5;
-    transition: color 0.2s ease, opacity 0.2s ease;
-    opacity: 0.8;
+    transition: all 0.25s ease;
+    opacity: 0.75;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: rgba(18, 6, 12, 0.4);
+    border: 1px solid rgba(232, 180, 184, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .bottom-badge:hover {
-    color: rgba(232, 180, 184, 0.75);
+    color: rgba(232, 180, 184, 0.85);
     opacity: 1;
+    background: rgba(18, 6, 12, 0.6);
+    border-color: rgba(232, 180, 184, 0.25);
+    box-shadow: 0 4px 12px rgba(232, 180, 184, 0.12);
+    transform: translateY(-1px);
 }
 
 .hero h1 {

@@ -710,10 +710,10 @@ function prepareLoopCandidates(track) {
         return;
     }
 
-    // Priority 1: Use eternal_loop_candidates if available (segment-based similarity)
+    // Priority 1: Use eternal_loop_candidates if available (circular, bidirectional)
     var eternalCandidates = track.analysis.eternal_loop_candidates;
     if (eternalCandidates && typeof eternalCandidates === "object") {
-        console.log('[prepareLoopCandidates] Using eternal_loop_candidates with real spectral similarity');
+        console.log('[prepareLoopCandidates] Using eternal_loop_candidates (circular timeline, bidirectional)');
         _.each(eternalCandidates, function(candidates, srcKey) {
             var src = parseInt(srcKey, 10);
             if (isNaN(src) || !Array.isArray(candidates)) {
@@ -726,7 +726,10 @@ function prepareLoopCandidates(track) {
                 if (cand && typeof cand.target === "number" && typeof cand.similarity === "number") {
                     serverLoopCandidateMap[src].push({
                         target: cand.target,
-                        similarity: cand.similarity
+                        similarity: cand.similarity,
+                        span: cand.span || 0,
+                        direction: cand.direction || 'backward',
+                        section_match: cand.section_match || false
                     });
                 }
             });
@@ -2688,9 +2691,83 @@ $(document).ready(function() {
         clearQueue();
     });
 
+    // Minimize queue button handler
+    $("#queue-minimize-btn").click(function() {
+        $("#queue-container").toggleClass("minimized");
+        var minimizeBtn = $("#queue-minimize-btn");
+        if ($("#queue-container").hasClass("minimized")) {
+            minimizeBtn.html("□");
+        } else {
+            minimizeBtn.html("−");
+        }
+    });
+
     // Close queue button handler
     $("#queue-close-btn").click(function() {
         $("#queue-container").hide();
+        // Remove minimized class when closing
+        $("#queue-container").removeClass("minimized");
+        $("#queue-minimize-btn").html("−");
+    });
+
+    // Export settings button handler
+    $("#export-settings-btn").click(function() {
+        try {
+            var allSettings = window.getAdvancedSettings();
+            var settingsJSON = JSON.stringify(allSettings, null, 2);
+
+            // Create a blob and download it
+            var blob = new Blob([settingsJSON], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'harmonizer-settings.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            console.log('[Settings] Exported settings successfully');
+        } catch (err) {
+            console.error('[Settings] Failed to export settings:', err);
+            alert('Failed to export settings: ' + err.message);
+        }
+    });
+
+    // Import settings button handler
+    $("#import-settings-btn").click(function() {
+        // Create a file input element
+        var fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.json';
+
+        fileInput.onchange = function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+
+            var reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    var settingsJSON = event.target.result;
+                    var allSettings = JSON.parse(settingsJSON);
+
+                    // Apply the imported settings
+                    window.setAdvancedSettings(allSettings);
+
+                    // Sync UI with the new settings
+                    window.syncAllGroupsFromState();
+
+                    console.log('[Settings] Imported settings successfully');
+                    alert('Settings imported successfully!');
+                } catch (err) {
+                    console.error('[Settings] Failed to import settings:', err);
+                    alert('Failed to import settings: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        fileInput.click();
     });
 
     // Make queue window draggable
@@ -3391,8 +3468,9 @@ function createCanonDriver(player) {
                         }
                     }
 
-                    // Play the jumper's audio at reduced gain
-                    var jumperGain = 0.5 * (1.0 - (jumperIdx * 0.08));
+                    // Play the jumper's audio - keep both streams prominent and clear
+                    // Reduced overall volume slightly but maintain clarity (no fading)
+                    var jumperGain = 0.7 - (jumperIdx * 0.08); // Start at 0.7 instead of 0.5, gradual reduction
                     player.play(0, jumperQ, jumperQ.duration, jumperGain, 0);
 
                     // Each jumper follows the SAME canon mapping pattern but from their offset position
@@ -3757,26 +3835,31 @@ function createJukeboxDriver(player, options) {
         };
     }
 
-    function registerEdge(src, dst, similarity, span) {
+    function registerEdge(src, dst, similarity, span, direction, sectionMatch) {
         if (src < 0 || dst < 0 || src >= masterQs.length || dst >= masterQs.length || src === dst) {
-            return;
-        }
-        if (dst >= src) {
             return;
         }
         if (!loopGraph[src]) {
             loopGraph[src] = [];
         }
-        var sameSection = false;
-        try {
-            var s1 = masterQs[src] ? masterQs[src].section : null;
-            var s2 = masterQs[dst] ? masterQs[dst].section : null;
-            sameSection = (s1 !== null && s2 !== null && s1 === s2);
-        } catch (e) {}
+
+        // Determine section match if not provided
+        var sameSection = sectionMatch;
+        if (sameSection === undefined || sameSection === null) {
+            try {
+                var s1 = masterQs[src] ? masterQs[src].section : null;
+                var s2 = masterQs[dst] ? masterQs[dst].section : null;
+                sameSection = (s1 !== null && s2 !== null && s1 === s2);
+            } catch (e) {
+                sameSection = false;
+            }
+        }
+
         loopGraph[src].push({
             target: dst,
             similarity: similarity,
             span: span,
+            direction: direction || (dst < src ? 'backward' : 'forward'),
             sameSection: sameSection
         });
     }
@@ -3796,22 +3879,28 @@ function createJukeboxDriver(player, options) {
                 if (typeof dst !== "number" || dst < 0 || dst >= masterQs.length) {
                     return;
                 }
-                if (dst >= src) {
-                    return;
-                }
+                // CIRCULAR TIMELINE: Accept both forward and backward jumps
+                // No longer require dst < src
+
                 var sim = (typeof entry.similarity === "number") ? entry.similarity : 0;
                 if (sim < threshold) {
                     return;
                 }
-                var span = Math.abs(src - dst);
-                if (span < minBeats) {
+
+                // Use provided span if available, otherwise compute
+                var span = entry.span || (dst - src);
+                var absSpan = Math.abs(span);
+                if (absSpan < minBeats) {
                     return;
                 }
+
                 edges.push({
                     source_start: src,
                     target_start: dst,
                     similarity: sim,
-                    span: span
+                    span: span,
+                    direction: entry.direction || (dst < src ? 'backward' : 'forward'),
+                    section_match: entry.section_match || false
                 });
             });
         });
@@ -3888,10 +3977,17 @@ function createJukeboxDriver(player, options) {
                         sampleSims.push(normalized.similarity.toFixed(3));
                     }
                     loops.push(normalized);
-                    registerEdge(normalized.source_start, normalized.target_start, normalized.similarity, normalized.span);
+                    registerEdge(
+                        normalized.source_start,
+                        normalized.target_start,
+                        normalized.similarity,
+                        normalized.span,
+                        loop.direction,
+                        loop.section_match
+                    );
                 }
             });
-            console.log('[rebuildLoopChoices] Using server edges. Total:', totalServerEdges, 'Normalized:', loops.length, 'Sample sims:', sampleSims.join(', '));
+            console.log('[rebuildLoopChoices] Using server edges (circular, bidirectional). Total:', totalServerEdges, 'Normalized:', loops.length, 'Sample sims:', sampleSims.join(', '));
         }
 
         // Fallback to canonLoopCandidates only if server data is missing

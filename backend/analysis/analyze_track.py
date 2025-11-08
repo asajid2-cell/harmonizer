@@ -1104,10 +1104,14 @@ def cosine_similarity(v1: np.ndarray, v2: np.ndarray) -> float:
     return float(max(0.0, min(1.0, (dot / (norm1 * norm2) + 1) / 2)))
 
 
-def compute_segment_similarity(seg1: Dict, seg2: Dict) -> float:
+def compute_segment_similarity(seg1: Dict, seg2: Dict, timbre_weight: float = 0.7) -> float:
     """
     Compute similarity between two segments using timbre and pitch.
     Returns similarity score 0-1, where 1 is most similar.
+
+    Args:
+        seg1, seg2: Segment dictionaries with 'timbre' and 'pitches' keys
+        timbre_weight: Weight for timbre similarity (0-1), default 0.7
     """
     timbre1 = np.array(seg1.get("timbre", []))
     timbre2 = np.array(seg2.get("timbre", []))
@@ -1117,16 +1121,17 @@ def compute_segment_similarity(seg1: Dict, seg2: Dict) -> float:
     if len(timbre1) == 0 or len(timbre2) == 0:
         return 0.0
 
-    # Timbre similarity (70% weight) - use cosine for MFCC-like features
+    # Timbre similarity - use cosine for MFCC-like features
     timbre_sim = cosine_similarity(timbre1, timbre2)
 
-    # Pitch similarity (30% weight) - use cosine for chroma features
+    # Pitch similarity - use cosine for chroma features
     pitch_sim = 0.5
     if len(pitches1) > 0 and len(pitches2) > 0:
         pitch_sim = cosine_similarity(pitches1, pitches2)
 
-    # Combined similarity
-    combined = 0.7 * timbre_sim + 0.3 * pitch_sim
+    # Combined similarity with configurable weight
+    pitch_weight = 1.0 - timbre_weight
+    combined = timbre_weight * timbre_sim + pitch_weight * pitch_sim
 
     return float(combined)
 
@@ -1186,42 +1191,106 @@ def compute_beat_to_beat_similarity(
     return similarity_matrix
 
 
+def circular_distance(src: int, dst: int, n_beats: int) -> int:
+    """
+    Compute circular distance from src to dst.
+    Returns positive for forward jumps, negative for backward jumps.
+    """
+    forward_dist = (dst - src) % n_beats
+    backward_dist = (src - dst) % n_beats
+
+    if forward_dist <= backward_dist:
+        return forward_dist
+    else:
+        return -backward_dist
+
+
 def generate_loop_candidates(
     beats: List[Quantum],
     similarity_matrix: np.ndarray,
-    min_loop_distance: int = 8,
-    similarity_threshold: float = 0.65,
-    max_candidates_per_beat: int = 12,
+    sections: List[Dict] = None,
+    min_span: int = 8,
+    max_span: int = None,
+    thresholds: List[float] = None,
+    max_candidates_per_beat: int = 16,
 ) -> Dict[int, List[Dict]]:
     """
-    Generate loop candidates for each beat based on similarity scores.
-    Returns dict mapping beat_index -> list of {target, similarity, span}.
-    Only includes backward jumps (target < source).
+    Generate bidirectional loop candidates for each beat using multi-tier thresholds.
+    Treats timeline as circular (wraps end → start).
+
+    Args:
+        beats: List of beat quantums
+        similarity_matrix: NxN similarity matrix
+        sections: Optional list of section boundaries for section bias
+        min_span: Minimum distance between beats (in beats)
+        max_span: Maximum distance between beats (None = no limit)
+        thresholds: List of similarity thresholds to try [tight, medium, loose]
+        max_candidates_per_beat: Maximum candidates to keep per beat
+
+    Returns:
+        Dict mapping beat_index -> list of {target, similarity, span, direction, section_match}
+        where direction is 'forward' or 'backward'
     """
     n_beats = len(beats)
+    if thresholds is None:
+        thresholds = [0.76, 0.65, 0.55]  # Multi-tier: tight → medium → loose
+    if max_span is None:
+        max_span = n_beats // 2  # Don't allow jumps larger than half the song
+
+    # Build section map if provided
+    beat_sections = None
+    if sections:
+        beat_sections = []
+        for beat in beats:
+            beat_section = None
+            for idx, section in enumerate(sections):
+                # Handle both Quantum objects and dicts
+                sec_start = section.start if hasattr(section, 'start') else section.get("start", 0)
+                sec_dur = section.duration if hasattr(section, 'duration') else section.get("duration", 0)
+                if sec_start <= beat.start < sec_start + sec_dur:
+                    beat_section = idx
+                    break
+            beat_sections.append(beat_section)
+
     loop_candidates = {}
 
     for source_idx in range(n_beats):
         candidates = []
 
-        # Only consider backward jumps
-        for target_idx in range(source_idx):
-            span = source_idx - target_idx
+        # Try all possible targets in circular manner
+        for target_idx in range(n_beats):
+            if source_idx == target_idx:
+                continue
 
-            # Must be far enough apart
-            if span < min_loop_distance:
+            # Compute circular span
+            span = circular_distance(source_idx, target_idx, n_beats)
+            abs_span = abs(span)
+
+            # Check span constraints
+            if abs_span < min_span or abs_span > max_span:
                 continue
 
             similarity = similarity_matrix[source_idx, target_idx]
 
-            # Must meet threshold
-            if similarity < similarity_threshold:
+            # Check if meets any threshold tier
+            if similarity < thresholds[-1]:  # Must at least meet lowest threshold
                 continue
+
+            # Determine direction
+            direction = "forward" if span > 0 else "backward"
+
+            # Check section match for bias
+            section_match = False
+            if beat_sections and beat_sections[source_idx] is not None:
+                section_match = (beat_sections[source_idx] == beat_sections[target_idx])
 
             candidates.append({
                 "target": target_idx,
                 "similarity": float(similarity),
-                "span": span,
+                "span": int(span),
+                "abs_span": int(abs_span),
+                "direction": direction,
+                "section_match": section_match,
             })
 
         # Sort by similarity (best first) and limit
@@ -1285,27 +1354,35 @@ def build_profile(
     )
 
     # Compute segment-based similarity matrix for eternal jukebox
-    print("[Analysis] Computing segment similarity matrix for eternal jukebox...", flush=True)
+    print("[Analysis] Computing beat-to-beat similarity matrix (circular, bidirectional)...", flush=True)
     similarity_matrix = compute_beat_to_beat_similarity(beats, segments)
 
-    # Generate loop candidates with multiple threshold tiers for flexibility
-    eternal_loop_candidates = {}
-    for threshold in [0.76, 0.65, 0.55]:  # High, medium, low quality tiers
-        candidates = generate_loop_candidates(
-            beats=beats,
-            similarity_matrix=similarity_matrix,
-            min_loop_distance=8,
-            similarity_threshold=threshold,
-            max_candidates_per_beat=12,
-        )
-        # Merge with lower priority for lower thresholds
-        for src, cand_list in candidates.items():
-            if src not in eternal_loop_candidates:
-                eternal_loop_candidates[src] = []
-            # Add new candidates that aren't already present
-            existing_targets = {c["target"] for c in eternal_loop_candidates[src]}
-            for cand in cand_list:
-                if cand["target"] not in existing_targets:
+    # Generate circular bidirectional loop candidates with multi-tier thresholds
+    print("[Analysis] Generating eternal loop candidates (circular timeline)...", flush=True)
+    eternal_loop_candidates = generate_loop_candidates(
+        beats=beats,
+        similarity_matrix=similarity_matrix,
+        sections=sections,
+        min_span=8,
+        max_span=None,  # Auto-computed as n_beats // 2
+        thresholds=[0.76, 0.65, 0.55],  # Tight → medium → loose
+        max_candidates_per_beat=16,
+    )
+
+    # Convert to string keys for JSON serialization
+    eternal_loop_candidates_json = {
+        str(src): cand_list
+        for src, cand_list in eternal_loop_candidates.items()
+    }
+
+    # Legacy merge for backward compatibility (remove after migration)
+    eternal_loop_candidates_legacy = {}
+    for src, cand_list in eternal_loop_candidates.items():
+        if src not in eternal_loop_candidates_legacy:
+            eternal_loop_candidates_legacy[src] = []
+        for cand in cand_list:
+            existing_targets = {c["target"] for c in eternal_loop_candidates_legacy[src]}
+            if cand["target"] not in existing_targets:
                     eternal_loop_candidates[src].append(cand)
                     existing_targets.add(cand["target"])
 
@@ -1346,7 +1423,7 @@ def build_profile(
                     "segments": segments,
                     "canon_alignment": canon_alignment,
                     "loop_candidates": loop_candidates,
-                    "eternal_loop_candidates": eternal_loop_candidates,
+                    "eternal_loop_candidates": eternal_loop_candidates_json,
                 },
             },
         }

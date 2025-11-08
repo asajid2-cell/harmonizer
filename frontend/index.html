@@ -140,7 +140,10 @@
                             <div class="queue-header queue-drag-handle">
                                 <div class="queue-title-bar">
                                     <h4>Queue</h4>
-                                    <button type="button" id="queue-close-btn" class="queue-close-btn" aria-label="Close queue">&times;</button>
+                                    <div class="queue-window-controls">
+                                        <button type="button" id="queue-minimize-btn" class="queue-window-btn" aria-label="Minimize queue">−</button>
+                                        <button type="button" id="queue-close-btn" class="queue-window-btn" aria-label="Close queue">&times;</button>
+                                    </div>
                                 </div>
                                 <button type="button" id="clear-queue-btn" class="viz-button ghost small">Clear All</button>
                             </div>
@@ -266,6 +269,7 @@
     <script src="./js/underscore-min.js"></script>
     <script src="./js/raphael-min.js"></script>
     <script src="./jremix.js"></script>
+    <script src="./js/eternal_jukebox_engine.js"></script>
     <script src="./js/visualizer.js"></script>
     <script>
     (function() {
