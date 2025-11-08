@@ -1,0 +1,637 @@
+# VPS Initial Setup & Deployment Guide
+# Complete step-by-step guide from fresh VPS to deployed application
+# Provider: DigitalOcean (works for other providers too)
+
+################################################################################
+# PART 1: CREATE THE VPS (DigitalOcean Droplet)
+################################################################################
+
+# 1. Log into DigitalOcean dashboard
+# 2. Click "Create" → "Droplets"
+# 3. Choose configuration:
+#    - Image: Ubuntu 24.04 LTS (or latest LTS)
+#    - Plan: Basic
+#    - CPU: Regular (2GB RAM minimum for audio processing)
+#    - Datacenter: Choose closest to your users
+#    - Authentication: SSH Key (RECOMMENDED) or Password
+#    - Hostname: harmonizer-prod (or your preferred name)
+# 4. Click "Create Droplet"
+# 5. Note the IP address (e.g., 164.92.64.157)
+
+################################################################################
+# PART 2: INITIAL SSH CONNECTION
+################################################################################
+
+# If you used SSH key authentication:
+ssh root@164.92.64.157
+
+# If you used password:
+ssh root@164.92.64.157
+# Enter the password sent to your email
+
+# You should now be logged in as root
+
+################################################################################
+# PART 3: SYSTEM UPDATES
+################################################################################
+
+# Update package lists
+apt update
+
+# Upgrade all packages to latest versions
+apt upgrade -y
+
+# Install essential packages
+apt install -y curl wget git vim nano htop net-tools ufw
+
+# Optional: Install additional useful tools
+apt install -y tmux screen build-essential
+
+################################################################################
+# PART 4: CREATE NON-ROOT USER
+################################################################################
+
+# Create a new user (replace 'harmonizer' with your preferred username)
+adduser harmonizer
+
+# You'll be prompted for:
+# - New password (choose a strong password)
+# - Confirm password
+# - Full name (optional, can press Enter)
+# - Other info (optional, can press Enter)
+
+# Add user to sudo group (allows running commands with sudo)
+usermod -aG sudo harmonizer
+
+# Verify user was created
+id harmonizer
+# Should show: uid=1000(harmonizer) gid=1000(harmonizer) groups=1000(harmonizer),27(sudo)
+
+################################################################################
+# PART 5: CONFIGURE SSH FOR NEW USER
+################################################################################
+
+# Switch to the new user
+su - harmonizer
+
+# Create .ssh directory
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+
+# If you're using SSH keys, copy your public key to the server
+# On your LOCAL machine, run:
+# ssh-copy-id harmonizer@164.92.64.157
+
+# OR manually add your public key:
+# nano ~/.ssh/authorized_keys
+# Paste your public key (from ~/.ssh/id_rsa.pub on your local machine)
+# Save and exit (Ctrl+X, Y, Enter)
+
+# Set correct permissions
+chmod 600 ~/.ssh/authorized_keys
+
+# Exit back to root
+exit
+
+################################################################################
+# PART 6: SECURE SSH CONFIGURATION (Optional but RECOMMENDED)
+################################################################################
+
+# Edit SSH configuration
+nano /etc/ssh/sshd_config
+
+# Make these changes (uncomment and modify if needed):
+# PermitRootLogin no                    # Disable root login
+# PasswordAuthentication no             # Disable password auth (SSH keys only)
+# PubkeyAuthentication yes              # Enable SSH key auth
+# Port 22                               # Default port (can change for security)
+
+# Save and exit (Ctrl+X, Y, Enter)
+
+# Restart SSH service to apply changes
+systemctl restart sshd
+
+# IMPORTANT: Before logging out, test SSH connection in a NEW terminal:
+# ssh harmonizer@164.92.64.157
+# Make sure you can log in before closing the root session!
+
+################################################################################
+# PART 7: FIREWALL SETUP (UFW)
+################################################################################
+
+# Log in as your new user
+ssh harmonizer@164.92.64.157
+
+# Set default firewall rules
+sudo ufw default deny incoming   # Block all incoming by default
+sudo ufw default allow outgoing  # Allow all outgoing by default
+
+# Allow SSH (CRITICAL - do this before enabling firewall!)
+sudo ufw allow ssh
+# OR if you changed SSH port (e.g., to 2222):
+# sudo ufw allow 2222/tcp
+
+# Allow HTTP (port 80)
+sudo ufw allow 80/tcp
+
+# Allow HTTPS (port 443)
+sudo ufw allow 443/tcp
+
+# Optional: Allow specific IP addresses only
+# sudo ufw allow from 123.456.789.0 to any port 22
+
+# Enable firewall
+sudo ufw enable
+
+# Check firewall status
+sudo ufw status verbose
+
+# Expected output:
+# Status: active
+# To                         Action      From
+# --                         ------      ----
+# 22/tcp                     ALLOW       Anywhere
+# 80/tcp                     ALLOW       Anywhere
+# 443/tcp                    ALLOW       Anywhere
+
+################################################################################
+# PART 8: INSTALL DOCKER
+################################################################################
+
+# Remove old Docker versions (if any)
+sudo apt remove docker docker-engine docker.io containerd runc
+
+# Install prerequisites
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg lsb-release
+
+# Add Docker's official GPG key
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# Set up Docker repository
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Update package index
+sudo apt update
+
+# Install Docker Engine, containerd, and Docker Compose
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Verify Docker installation
+sudo docker --version
+# Should show: Docker version 24.x.x or higher
+
+# Verify Docker Compose
+sudo docker compose version
+# Should show: Docker Compose version v2.x.x or higher
+
+################################################################################
+# PART 9: CONFIGURE DOCKER FOR NON-ROOT USER
+################################################################################
+
+# Add your user to docker group (allows running docker without sudo)
+sudo usermod -aG docker harmonizer
+
+# Apply group changes without logging out
+newgrp docker
+
+# Test Docker without sudo
+docker run hello-world
+
+# Expected output:
+# Hello from Docker!
+# This message shows that your installation appears to be working correctly.
+
+# Enable Docker to start on boot
+sudo systemctl enable docker
+
+################################################################################
+# PART 10: INSTALL ADDITIONAL DEPENDENCIES
+################################################################################
+
+# Install Python (for running scripts if needed)
+sudo apt install -y python3 python3-pip python3-venv
+
+# Install Node.js (if frontend needs building)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Verify installations
+python3 --version
+node --version
+npm --version
+
+################################################################################
+# PART 11: INSTALL NGINX (Web Server / Reverse Proxy)
+################################################################################
+
+# Install nginx
+sudo apt install -y nginx
+
+# Start nginx
+sudo systemctl start nginx
+
+# Enable nginx to start on boot
+sudo systemctl enable nginx
+
+# Check nginx status
+sudo systemctl status nginx
+
+# Test nginx is working
+curl http://localhost
+# Should return nginx welcome page HTML
+
+# Allow nginx through firewall (already done in PART 7)
+# sudo ufw allow 'Nginx Full'
+
+################################################################################
+# PART 12: CONFIGURE SSL WITH LET'S ENCRYPT (Optional but RECOMMENDED)
+################################################################################
+
+# Install certbot
+sudo apt install -y certbot python3-certbot-nginx
+
+# Get SSL certificate (replace with your domain)
+sudo certbot --nginx -d harmonizerlabs.cc -d www.harmonizerlabs.cc
+
+# You'll be prompted for:
+# - Email address (for renewal notifications)
+# - Agree to Terms of Service (A)
+# - Share email with EFF (Y/N - your choice)
+# - Redirect HTTP to HTTPS (2 - recommended)
+
+# Certbot will automatically:
+# - Obtain SSL certificate
+# - Configure nginx
+# - Set up auto-renewal
+
+# Test auto-renewal
+sudo certbot renew --dry-run
+
+# Verify SSL is working
+curl https://harmonizerlabs.cc
+# Should return your site over HTTPS
+
+################################################################################
+# PART 13: CREATE APPLICATION DIRECTORY
+################################################################################
+
+# Create apps directory
+mkdir -p ~/apps
+
+# Navigate to apps directory
+cd ~/apps
+
+################################################################################
+# PART 14: SET UP GIT AND CLONE REPOSITORY
+################################################################################
+
+# Configure git (use your GitHub credentials)
+git config --global user.name "Your Name"
+git config --global user.email "your.email@example.com"
+
+# Generate SSH key for GitHub (if not already done)
+ssh-keygen -t ed25519 -C "your.email@example.com"
+# Press Enter for default location (~/.ssh/id_ed25519)
+# Optionally enter a passphrase (or press Enter for no passphrase)
+
+# Display your public key
+cat ~/.ssh/id_ed25519.pub
+
+# Copy the output and add it to GitHub:
+# 1. Go to GitHub.com → Settings → SSH and GPG keys
+# 2. Click "New SSH key"
+# 3. Paste the public key
+# 4. Click "Add SSH key"
+
+# Test SSH connection to GitHub
+ssh -T git@github.com
+# Expected: "Hi username! You've successfully authenticated..."
+
+# Clone your repository
+git clone git@github.com:asajid2-cell/harmonizer.git
+
+# Navigate into repository
+cd harmonizer
+
+# Check current branch
+git branch
+
+# Switch to prod branch (or your deployment branch)
+git checkout prod
+
+# Pull latest changes
+git pull origin prod
+
+################################################################################
+# PART 15: CREATE ENVIRONMENT FILE
+################################################################################
+
+# Create .env file (this file contains sensitive data - never commit it!)
+nano .env
+
+# Add your environment variables:
+# SECRET_KEY=your-random-secure-secret-key-here
+# SPOTIFY_CLIENT_ID=your-spotify-client-id
+# SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
+
+# Generate a secure secret key (on server):
+python3 -c "import secrets; print(secrets.token_hex(32))"
+# Copy the output and use it as SECRET_KEY
+
+# Save and exit (Ctrl+X, Y, Enter)
+
+# Secure the .env file
+chmod 600 .env
+
+################################################################################
+# PART 16: CREATE REQUIRED DIRECTORIES
+################################################################################
+
+cd ~/apps/harmonizer
+
+# Create upload and data directories
+mkdir -p uploads data backend/flask_session
+
+# Set proper permissions
+chmod 755 uploads data
+chmod 700 backend/flask_session
+
+################################################################################
+# PART 17: BUILD AND START DOCKER CONTAINERS
+################################################################################
+
+# Make sure you're in the repository directory
+cd ~/apps/harmonizer
+
+# Build Docker image
+docker compose build
+
+# Start containers in detached mode
+docker compose up -d
+
+# Check container status
+docker compose ps
+
+# Expected output:
+# NAME                      IMAGE               STATUS
+# harmonizer                harmonizer:prod     Up X seconds
+# harmonizer-watchtower-1   watchtower:1.7.1    Up X seconds
+
+# View logs
+docker compose logs -f harmonizer
+
+# Press Ctrl+C to stop viewing logs
+
+################################################################################
+# PART 18: CONFIGURE NGINX REVERSE PROXY
+################################################################################
+
+# Remove default nginx config
+sudo rm /etc/nginx/sites-enabled/default
+
+# Create nginx config for your app
+sudo nano /etc/nginx/sites-enabled/harmonizerlabs.cc
+
+# Paste this configuration (replace harmonizerlabs.cc with your domain):
+server {
+    listen 80;
+    listen [::]:80;
+    server_name harmonizerlabs.cc www.harmonizerlabs.cc;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name harmonizerlabs.cc www.harmonizerlabs.cc;
+
+    ssl_certificate /etc/letsencrypt/live/harmonizerlabs.cc/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/harmonizerlabs.cc/privkey.pem;
+
+    client_max_body_size 200m;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # Increase timeouts for audio processing (5 minutes)
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+        send_timeout 300s;
+    }
+}
+
+# Save and exit (Ctrl+X, Y, Enter)
+
+# Test nginx configuration
+sudo nginx -t
+
+# If successful, reload nginx
+sudo systemctl reload nginx
+
+################################################################################
+# PART 19: VERIFY DEPLOYMENT
+################################################################################
+
+# Test local backend
+curl -I http://localhost:5000/
+# Should return: HTTP/1.1 200 OK
+
+# Test through nginx
+curl -I http://localhost/
+# Should return: HTTP/1.1 200 OK or 301 redirect to HTTPS
+
+# Test public HTTPS (replace with your domain)
+curl -I https://harmonizerlabs.cc/
+# Should return: HTTP/2 200
+
+# Check Docker logs for errors
+docker compose logs --tail=100 harmonizer
+
+# Check nginx logs for errors
+sudo tail -f /var/log/nginx/error.log
+
+################################################################################
+# PART 20: SET UP AUTOMATIC UPDATES (Optional)
+################################################################################
+
+# Install watchtower (already included in docker-compose.yml)
+# Watchtower automatically updates Docker containers
+
+# Set up unattended security updates
+sudo apt install -y unattended-upgrades
+sudo dpkg-reconfigure -plow unattended-upgrades
+
+################################################################################
+# PART 21: SET UP MONITORING & BACKUPS
+################################################################################
+
+# Create backup script
+cat > ~/backup.sh << 'EOF'
+#!/bin/bash
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="$HOME/backups"
+mkdir -p $BACKUP_DIR
+
+# Backup application data
+tar -czf $BACKUP_DIR/harmonizer_${DATE}.tar.gz \
+  $HOME/apps/harmonizer/uploads \
+  $HOME/apps/harmonizer/data \
+  $HOME/apps/harmonizer/.env
+
+# Keep only last 7 backups
+ls -t $BACKUP_DIR/*.tar.gz | tail -n +8 | xargs rm -f
+
+echo "Backup completed: harmonizer_${DATE}.tar.gz"
+EOF
+
+chmod +x ~/backup.sh
+
+# Test backup
+./backup.sh
+
+# Set up daily backup cron job (runs at 2 AM)
+crontab -e
+
+# Add this line:
+# 0 2 * * * $HOME/backup.sh
+
+################################################################################
+# PART 22: USEFUL COMMANDS FOR ONGOING MANAGEMENT
+################################################################################
+
+# View running containers
+docker compose ps
+
+# View logs
+docker compose logs -f harmonizer
+
+# Restart containers
+docker compose restart
+
+# Stop containers
+docker compose down
+
+# Start containers
+docker compose up -d
+
+# Rebuild and restart (after code changes)
+cd ~/apps/harmonizer
+git pull origin prod
+docker compose down
+docker compose build
+docker compose up -d
+
+# Check system resources
+htop              # Interactive process viewer
+free -h           # Memory usage
+df -h             # Disk usage
+docker stats      # Container resource usage
+
+# Check firewall status
+sudo ufw status verbose
+
+# Check nginx status
+sudo systemctl status nginx
+
+# Reload nginx (after config changes)
+sudo nginx -t && sudo systemctl reload nginx
+
+################################################################################
+# COMPLETE QUICK START CHECKLIST
+################################################################################
+
+# □ 1. Create DigitalOcean droplet (Ubuntu 24.04, 2GB+ RAM)
+# □ 2. SSH as root: ssh root@YOUR_IP
+# □ 3. Update system: apt update && apt upgrade -y
+# □ 4. Create user: adduser harmonizer && usermod -aG sudo harmonizer
+# □ 5. Configure SSH keys for new user
+# □ 6. Set up firewall: ufw allow ssh/http/https, ufw enable
+# □ 7. Install Docker & Docker Compose
+# □ 8. Add user to docker group: usermod -aG docker harmonizer
+# □ 9. Install nginx: apt install nginx
+# □ 10. Set up SSL: certbot --nginx -d yourdomain.com
+# □ 11. Configure git: git config --global user.name/email
+# □ 12. Add SSH key to GitHub
+# □ 13. Clone repository: git clone git@github.com:user/repo.git
+# □ 14. Switch to prod branch: git checkout prod
+# □ 15. Create .env file with credentials
+# □ 16. Create directories: mkdir uploads data
+# □ 17. Build containers: docker compose build
+# □ 18. Start containers: docker compose up -d
+# □ 19. Configure nginx reverse proxy
+# □ 20. Test deployment: curl https://yourdomain.com
+# □ 21. Set up backups (optional)
+# □ 22. Monitor logs: docker compose logs -f
+
+################################################################################
+# TROUBLESHOOTING
+################################################################################
+
+# Can't SSH to server
+# - Check firewall allows SSH: sudo ufw status
+# - Check SSH service running: sudo systemctl status sshd
+# - Verify correct IP address
+# - Try DigitalOcean web console
+
+# Docker permission denied
+# - Add user to docker group: sudo usermod -aG docker $USER
+# - Log out and back in, or run: newgrp docker
+
+# Port already in use
+# - Check what's using the port: sudo netstat -tlnp | grep :5000
+# - Stop conflicting service or change port
+
+# Firewall blocking connections
+# - Check rules: sudo ufw status verbose
+# - Add rule: sudo ufw allow PORT/tcp
+# - Check nginx config: sudo nginx -t
+
+# SSL certificate issues
+# - Renew certificate: sudo certbot renew
+# - Check certificate status: sudo certbot certificates
+# - Verify DNS points to server IP
+
+# Out of disk space
+# - Check usage: df -h
+# - Clean Docker: docker system prune -a
+# - Remove old logs: sudo journalctl --vacuum-time=7d
+
+################################################################################
+# SECURITY BEST PRACTICES
+################################################################################
+
+# 1. Always use SSH keys, not passwords
+# 2. Disable root login after creating sudo user
+# 3. Keep system updated: apt update && apt upgrade
+# 4. Use firewall (ufw) with minimum required ports
+# 5. Install fail2ban: apt install fail2ban
+# 6. Use strong passwords for all accounts
+# 7. Set up automatic security updates
+# 8. Regularly backup data
+# 9. Monitor logs for suspicious activity
+# 10. Keep .env file secure (chmod 600, never commit)
+# 11. Use HTTPS/SSL for all public services
+# 12. Limit sudo access to trusted users only
+
+################################################################################
+# NOTES
+################################################################################
+
+# - Replace 'harmonizer' with your preferred username throughout
+# - Replace 'harmonizerlabs.cc' with your domain name
+# - Replace GitHub repository URL with your repo
+# - Adjust resource limits based on your application needs
+# - 2GB RAM minimum recommended for audio processing applications
+# - Consider upgrading to 4GB+ RAM for production workloads
+# - Watchtower auto-updates containers every 5 minutes
+# - Keep credentials in .env file, never in code
+# - Test thoroughly before directing production traffic

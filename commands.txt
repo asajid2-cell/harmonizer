@@ -1,0 +1,448 @@
+# Harmonizer VPS Setup Commands
+# Complete setup guide for deploying Harmonizer on a fresh DigitalOcean VPS
+# Server: harmonizer@164.92.64.157
+
+################################################################################
+# INITIAL SERVER ACCESS
+################################################################################
+
+# SSH into the server
+ssh harmonizer@164.92.64.157
+
+################################################################################
+# DOCKER SETUP - Fix gunicorn timeout issues
+################################################################################
+
+# Problem: Gunicorn workers timing out after 30s during audio processing
+# Solution: Increase timeout to 600s (10 minutes) in docker-compose.yml
+
+cd /home/harmonizer/apps/harmonizer
+
+# The docker-compose.yml should have this command:
+# command: gunicorn --bind 0.0.0.0:5000 --timeout 600 --workers 1 --access-logfile - --error-logfile - --log-level info backend.app:app
+
+# Verify docker-compose.yml has timeout set
+cat docker-compose.yml
+
+################################################################################
+# NGINX CONFIGURATION - Fix 504 Gateway Timeout
+################################################################################
+
+# Problem: Nginx timing out after 60s, causing 504 errors on file uploads
+# Solution: Increase all proxy timeouts to 300s (5 minutes)
+
+# Create/update nginx configuration
+sudo tee /etc/nginx/sites-enabled/harmonizerlabs.cc > /dev/null << 'EOF'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name harmonizerlabs.cc www.harmonizerlabs.cc;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name harmonizerlabs.cc www.harmonizerlabs.cc;
+
+    ssl_certificate /etc/letsencrypt/live/harmonizerlabs.cc/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/harmonizerlabs.cc/privkey.pem;
+
+    client_max_body_size 200m;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # Increase timeouts for audio processing (5 minutes)
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+        send_timeout 300s;
+    }
+}
+EOF
+
+# Remove duplicate nginx configs to fix "conflicting server name" warnings
+sudo rm /etc/nginx/sites-enabled/default
+
+# Test nginx configuration
+sudo nginx -t
+
+# Reload nginx to apply changes
+sudo systemctl reload nginx
+
+################################################################################
+# MEMORY OPTIMIZATION - Fix Out of Memory (OOM) kills
+################################################################################
+
+# Problem: Worker processes being killed with "Perhaps out of memory?" error
+# Cause: 2GB droplet doesn't have enough RAM for librosa audio processing
+# Solution: Add 4GB swap space to prevent OOM kills
+
+# Create 4GB swap file
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# Make swap permanent across reboots
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# Verify swap is active
+free -h
+# Should show 4GB swap space
+
+################################################################################
+# DOCKER OPERATIONS
+################################################################################
+
+cd /home/harmonizer/apps/harmonizer
+
+# Stop all containers
+sudo docker compose down
+
+# Start containers
+sudo docker compose up -d
+
+# Check container status
+sudo docker compose ps
+
+# View logs (live tail)
+sudo docker compose logs -f harmonizer
+
+# View last 100 lines of logs
+sudo docker compose logs --tail=100 harmonizer
+
+# Test backend is responding
+curl -I http://localhost:5000/
+
+################################################################################
+# DOCKER LOG ROTATION - Prevent disk space issues
+################################################################################
+
+# Problem: Docker logs can fill up disk space over time
+# Solution: Configure log rotation in Docker daemon
+
+sudo tee /etc/docker/daemon.json > /dev/null << 'EOF'
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  }
+}
+EOF
+
+# Restart Docker to apply log rotation
+sudo systemctl restart docker
+
+# Restart app containers
+cd /home/harmonizer/apps/harmonizer
+sudo docker compose up -d
+
+################################################################################
+# SECURITY HARDENING
+################################################################################
+
+# Set up UFW firewall
+sudo apt update
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow ssh
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+sudo ufw status
+
+# Install fail2ban to prevent brute force attacks
+sudo apt install fail2ban -y
+sudo systemctl enable fail2ban
+sudo systemctl start fail2ban
+
+# Configure automatic security updates
+sudo apt install unattended-upgrades -y
+sudo dpkg-reconfigure -plow unattended-upgrades
+
+# Secure sensitive files
+cd /home/harmonizer/apps/harmonizer
+chmod 600 .env
+chmod 700 uploads data
+
+################################################################################
+# MONITORING & DIAGNOSTICS
+################################################################################
+
+# Check system resource usage
+free -h              # Memory usage
+df -h                # Disk usage
+htop                 # Interactive process viewer (install: sudo apt install htop)
+
+# Check Docker status
+sudo systemctl status docker
+
+# Check nginx status
+sudo systemctl status nginx
+
+# Check nginx error logs
+sudo tail -f /var/log/nginx/error.log
+
+# Monitor Docker container resource usage
+sudo docker stats harmonizer
+
+# Check if port 5000 is listening
+sudo netstat -tlnp | grep 5000
+
+################################################################################
+# RECOVERY SCRIPT - When server becomes unresponsive
+################################################################################
+
+# Use DigitalOcean web console if SSH hangs
+# Run this recovery script:
+
+#!/bin/bash
+echo "=== Harmonizer Recovery Script ==="
+
+# Restart Docker service
+sudo systemctl restart docker
+sleep 3
+
+# Go to app directory
+cd ~/apps/harmonizer
+
+# Stop everything
+sudo docker compose down
+
+# Check disk space
+df -h | grep -E "Filesystem|/dev/vda1"
+
+# Start containers
+sudo docker compose up -d
+
+# Wait and check status
+sleep 10
+sudo docker compose ps
+sudo docker compose logs --tail=30 harmonizer
+
+echo "=== Recovery Complete ==="
+curl -I http://localhost:5000/
+
+################################################################################
+# COMMON ISSUES & FIXES
+################################################################################
+
+# Issue: 502 Bad Gateway
+# Cause: Docker containers not running
+# Fix: Restart containers
+cd /home/harmonizer/apps/harmonizer
+sudo docker compose down
+sudo docker compose up -d
+
+# Issue: 504 Gateway Timeout
+# Cause: Nginx timeout too short OR processing taking too long
+# Fix: Already configured with 300s timeouts in nginx config above
+
+# Issue: 500 Internal Server Error with "Worker timeout"
+# Cause: Gunicorn timeout too short
+# Fix: docker-compose.yml should have --timeout 600
+
+# Issue: Worker killed with "Perhaps out of memory?"
+# Cause: Not enough RAM
+# Fix: Add swap space (see MEMORY OPTIMIZATION section above)
+
+# Issue: SSH connection hangs
+# Cause: Server overloaded or network issue
+# Fix: Use DigitalOcean web console (Droplet > Access > Launch Droplet Console)
+
+# Issue: "conflicting server name" in nginx logs
+# Cause: Duplicate nginx configuration files
+# Fix: Remove duplicate configs
+sudo rm /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl reload nginx
+
+################################################################################
+# ENVIRONMENT VARIABLES (.env file)
+################################################################################
+
+# The .env file should contain:
+# SECRET_KEY=<random-secure-key>
+# SPOTIFY_CLIENT_ID=<your-spotify-client-id>
+# SPOTIFY_CLIENT_SECRET=<your-spotify-client-secret>
+
+# To get Spotify credentials:
+# 1. Go to https://developer.spotify.com/dashboard
+# 2. Create an app
+# 3. Copy Client ID and Client Secret
+
+cd /home/harmonizer/apps/harmonizer
+nano .env
+# Add your credentials, then save
+
+# Restart containers to apply new env vars
+sudo docker compose down
+sudo docker compose up -d
+
+################################################################################
+# UPDATING CODE FROM GITHUB
+################################################################################
+
+cd /home/harmonizer/apps/harmonizer
+
+# Check current branch
+git branch
+
+# Pull latest changes (watchtower does this automatically every 5 minutes)
+git pull origin prod
+
+# If you need to manually rebuild and restart
+sudo docker compose down
+sudo docker compose build --no-cache  # WARNING: Can crash server on small droplets
+sudo docker compose up -d
+
+# Safer alternative: Just restart without rebuild (watchtower handles updates)
+sudo docker compose down
+sudo docker compose up -d
+
+################################################################################
+# BACKUP STRATEGY
+################################################################################
+
+# Create backup script
+cat > /home/harmonizer/backup.sh << 'EOF'
+#!/bin/bash
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/home/harmonizer/backups"
+mkdir -p $BACKUP_DIR
+
+# Backup uploads and data
+tar -czf $BACKUP_DIR/harmonizer_${DATE}.tar.gz \
+  /home/harmonizer/apps/harmonizer/uploads \
+  /home/harmonizer/apps/harmonizer/data \
+  /home/harmonizer/apps/harmonizer/.env
+
+# Keep only last 7 backups
+ls -t $BACKUP_DIR/*.tar.gz | tail -n +8 | xargs rm -f
+EOF
+
+chmod +x /home/harmonizer/backup.sh
+
+# Run daily at 2 AM
+echo '0 2 * * * /home/harmonizer/backup.sh' | crontab -
+
+################################################################################
+# TESTING THE SETUP
+################################################################################
+
+# Test 1: Backend responds
+curl -I http://localhost:5000/
+# Should return: HTTP/1.1 200 OK
+
+# Test 2: Public site loads
+curl -I https://harmonizerlabs.cc/
+# Should return: HTTP/2 200
+
+# Test 3: Upload a test file
+# Use the web interface at https://harmonizerlabs.cc/
+# Upload an audio file and verify it processes without timeout
+
+################################################################################
+# USEFUL PATHS
+################################################################################
+
+# Application directory
+/home/harmonizer/apps/harmonizer
+
+# Docker compose file
+/home/harmonizer/apps/harmonizer/docker-compose.yml
+
+# Nginx config
+/etc/nginx/sites-enabled/harmonizerlabs.cc
+
+# Nginx logs
+/var/log/nginx/error.log
+/var/log/nginx/access.log
+
+# Environment variables
+/home/harmonizer/apps/harmonizer/.env
+
+# Upload directory
+/home/harmonizer/apps/harmonizer/uploads
+
+# Data directory
+/home/harmonizer/apps/harmonizer/data
+
+# Flask session directory
+/home/harmonizer/apps/harmonizer/backend/flask_session
+
+################################################################################
+# COMPLETE STARTUP CHECKLIST FOR NEW VPS
+################################################################################
+
+# 1. SSH into server
+ssh harmonizer@164.92.64.157
+
+# 2. Add swap space (prevents OOM kills)
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# 3. Configure Docker log rotation
+sudo tee /etc/docker/daemon.json > /dev/null << 'EOF'
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  }
+}
+EOF
+sudo systemctl restart docker
+
+# 4. Set up nginx with proper timeouts (see NGINX CONFIGURATION section)
+
+# 5. Remove duplicate nginx configs
+sudo rm /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl reload nginx
+
+# 6. Set up firewall
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow ssh
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw --force enable
+
+# 7. Install fail2ban
+sudo apt install fail2ban -y
+sudo systemctl enable fail2ban
+sudo systemctl start fail2ban
+
+# 8. Start containers
+cd /home/harmonizer/apps/harmonizer
+sudo docker compose up -d
+
+# 9. Verify everything works
+sudo docker compose ps
+curl -I http://localhost:5000/
+curl -I https://harmonizerlabs.cc/
+
+# 10. Monitor logs for issues
+sudo docker compose logs -f harmonizer
+
+################################################################################
+# NOTES
+################################################################################
+
+# - The watchtower container automatically updates the app every 5 minutes
+# - Docker compose file should have --timeout 600 for gunicorn
+# - Nginx should have 300s timeouts for all proxy directives
+# - 4GB swap is essential on 2GB droplets for audio processing
+# - Always use DigitalOcean web console if SSH hangs
+# - Test with actual audio files after setup to verify no timeouts occur

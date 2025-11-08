@@ -1,0 +1,491 @@
+# Harmonizer VPS Deployment Guide
+Complete guide for deploying audio processing app on Ubuntu VPS with Docker
+
+================================================================================
+1. CREATE VPS
+================================================================================
+
+DigitalOcean Settings:
+- Image: Ubuntu 24.04 LTS
+- Plan: 2GB RAM minimum (4GB recommended)
+- Authentication: SSH Key (recommended)
+- Enable: Monitoring, IPv6
+
+Note your server IP: XXX.XXX.XXX.XXX
+
+================================================================================
+2. INITIAL SERVER SETUP
+================================================================================
+
+# Connect as root
+ssh root@YOUR_IP
+
+# Update system
+apt update && apt upgrade -y
+
+# Install essential packages
+apt install -y curl wget git vim nano htop net-tools ufw fail2ban
+
+================================================================================
+3. CREATE USER & CONFIGURE ACCESS
+================================================================================
+
+# Create user (replace 'appuser' with your username)
+adduser appuser
+usermod -aG sudo appuser
+
+# Switch to new user
+su - appuser
+
+# Set up SSH keys
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+
+# On your LOCAL machine, copy your SSH key:
+# ssh-copy-id appuser@YOUR_IP
+
+# OR manually add key:
+nano ~/.ssh/authorized_keys
+# Paste your public key from ~/.ssh/id_rsa.pub
+chmod 600 ~/.ssh/authorized_keys
+
+# Exit back to root to configure SSH
+exit
+
+================================================================================
+4. SECURE SSH (Optional but Recommended)
+================================================================================
+
+nano /etc/ssh/sshd_config
+
+# Change these settings:
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+
+systemctl restart sshd
+
+# Test SSH in NEW terminal before closing root session!
+# ssh appuser@YOUR_IP
+
+================================================================================
+5. FIREWALL CONFIGURATION
+================================================================================
+
+# Set up UFW firewall (do this BEFORE enabling!)
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow ssh
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw enable
+
+# Verify
+ufw status verbose
+
+================================================================================
+6. INSTALL DOCKER
+================================================================================
+
+# Remove old versions
+apt remove docker docker-engine docker.io containerd runc
+
+# Add Docker repository
+apt install -y ca-certificates curl gnupg lsb-release
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Install Docker
+apt update
+apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Add user to docker group
+usermod -aG docker appuser
+newgrp docker
+
+# Verify
+docker --version
+docker compose version
+
+# Enable Docker on boot
+systemctl enable docker
+
+================================================================================
+7. INSTALL NGINX
+================================================================================
+
+apt install -y nginx
+systemctl start nginx
+systemctl enable nginx
+
+# Test
+curl http://localhost
+
+================================================================================
+8. SETUP SSL WITH LET'S ENCRYPT
+================================================================================
+
+# Install certbot
+apt install -y certbot python3-certbot-nginx
+
+# Get SSL certificate (replace with your domain)
+certbot --nginx -d yourdomain.com -d www.yourdomain.com
+
+# Follow prompts:
+# - Enter email
+# - Agree to terms
+# - Redirect HTTP to HTTPS: Yes (recommended)
+
+# Test auto-renewal
+certbot renew --dry-run
+
+================================================================================
+9. CONFIGURE GIT & CLONE REPOSITORY
+================================================================================
+
+# Configure git
+git config --global user.name "Your Name"
+git config --global user.email "your@email.com"
+
+# Generate SSH key for GitHub
+ssh-keygen -t ed25519 -C "your@email.com"
+# Press Enter for defaults, optionally set passphrase
+
+# Display public key
+cat ~/.ssh/id_ed25519.pub
+
+# Add this key to GitHub:
+# GitHub → Settings → SSH and GPG keys → New SSH key
+
+# Test connection
+ssh -T git@github.com
+
+# Clone repository
+mkdir -p ~/apps
+cd ~/apps
+git clone git@github.com:USERNAME/REPO.git
+cd REPO
+git checkout prod
+
+================================================================================
+10. SETUP APPLICATION ENVIRONMENT
+================================================================================
+
+# Create .env file
+nano .env
+
+# Add credentials (example):
+SECRET_KEY=your-random-secret-key-here
+SPOTIFY_CLIENT_ID=your-client-id
+SPOTIFY_CLIENT_SECRET=your-client-secret
+
+# Generate secure secret key:
+python3 -c "import secrets; print(secrets.token_hex(32))"
+
+# Secure the file
+chmod 600 .env
+
+# Create required directories
+mkdir -p uploads data backend/flask_session
+chmod 755 uploads data
+chmod 700 backend/flask_session
+
+================================================================================
+11. OPTIMIZE FOR AUDIO PROCESSING
+================================================================================
+
+# Add swap space (prevents out-of-memory kills)
+fallocate -l 4G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+
+# Make swap permanent
+echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
+
+# Verify
+free -h
+
+================================================================================
+12. CONFIGURE DOCKER LOGGING
+================================================================================
+
+# Prevent disk space issues from logs
+tee /etc/docker/daemon.json > /dev/null << 'EOF'
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  }
+}
+EOF
+
+systemctl restart docker
+
+================================================================================
+13. VERIFY DOCKER-COMPOSE CONFIGURATION
+================================================================================
+
+# Ensure docker-compose.yml has proper timeout settings:
+# command: gunicorn --bind 0.0.0.0:5000 --timeout 600 --workers 1 --access-logfile - --error-logfile - --log-level info backend.app:app
+
+cat docker-compose.yml
+# Verify timeout is set to 600+ seconds
+
+================================================================================
+14. BUILD & START APPLICATION
+================================================================================
+
+cd ~/apps/YOUR_REPO
+
+# Build containers
+docker compose build
+
+# Start containers
+docker compose up -d
+
+# Check status
+docker compose ps
+
+# View logs
+docker compose logs -f
+
+# Press Ctrl+C to exit logs
+
+================================================================================
+15. CONFIGURE NGINX REVERSE PROXY
+================================================================================
+
+# Remove default config
+rm /etc/nginx/sites-enabled/default
+
+# Create app config (replace yourdomain.com)
+nano /etc/nginx/sites-enabled/yourdomain.com
+
+# Paste configuration:
+server {
+    listen 80;
+    listen [::]:80;
+    server_name yourdomain.com www.yourdomain.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name yourdomain.com www.yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+
+    client_max_body_size 200m;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # Audio processing timeouts (5 minutes)
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+        send_timeout 300s;
+    }
+}
+
+# Test configuration
+nginx -t
+
+# Reload nginx
+systemctl reload nginx
+
+================================================================================
+16. VERIFY DEPLOYMENT
+================================================================================
+
+# Test backend
+curl -I http://localhost:5000/
+# Expected: HTTP/1.1 200 OK
+
+# Test public site
+curl -I https://yourdomain.com/
+# Expected: HTTP/2 200
+
+# Check logs for errors
+docker compose logs --tail=100
+tail -f /var/log/nginx/error.log
+
+================================================================================
+17. SETUP SECURITY
+================================================================================
+
+# Enable fail2ban (prevents brute force)
+systemctl enable fail2ban
+systemctl start fail2ban
+
+# Setup automatic security updates
+apt install -y unattended-upgrades
+dpkg-reconfigure -plow unattended-upgrades
+
+================================================================================
+18. SETUP BACKUPS (Optional)
+================================================================================
+
+# Create backup script
+cat > ~/backup.sh << 'EOF'
+#!/bin/bash
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="$HOME/backups"
+mkdir -p $BACKUP_DIR
+
+tar -czf $BACKUP_DIR/app_${DATE}.tar.gz \
+  $HOME/apps/YOUR_REPO/uploads \
+  $HOME/apps/YOUR_REPO/data \
+  $HOME/apps/YOUR_REPO/.env
+
+ls -t $BACKUP_DIR/*.tar.gz | tail -n +8 | xargs rm -f
+EOF
+
+chmod +x ~/backup.sh
+
+# Schedule daily backups at 2 AM
+crontab -e
+# Add: 0 2 * * * $HOME/backup.sh
+
+================================================================================
+COMMON ISSUES & SOLUTIONS
+================================================================================
+
+502 Bad Gateway:
+- Cause: Docker containers not running
+- Fix: docker compose up -d
+
+504 Gateway Timeout:
+- Cause: Nginx timeout too short
+- Fix: Verify nginx config has 300s timeouts (see step 15)
+
+Worker Timeout / 500 Error:
+- Cause: Gunicorn timeout too short
+- Fix: docker-compose.yml needs --timeout 600
+
+Out of Memory:
+- Cause: Insufficient RAM for audio processing
+- Fix: Add swap space (see step 11)
+
+SSH Connection Hangs:
+- Cause: Server overloaded or firewall issue
+- Fix: Use provider's web console
+
+Conflicting Server Name (nginx):
+- Cause: Duplicate nginx configs
+- Fix: rm /etc/nginx/sites-enabled/default && nginx -t && systemctl reload nginx
+
+================================================================================
+USEFUL COMMANDS
+================================================================================
+
+# Container Management
+docker compose ps                  # List containers
+docker compose logs -f            # View logs
+docker compose restart            # Restart containers
+docker compose down               # Stop containers
+docker compose up -d              # Start containers
+
+# Update Application
+cd ~/apps/YOUR_REPO
+git pull origin prod
+docker compose down
+docker compose build
+docker compose up -d
+
+# System Monitoring
+htop                              # Process viewer
+free -h                           # Memory usage
+df -h                             # Disk usage
+docker stats                      # Container resources
+
+# Nginx
+systemctl status nginx            # Check status
+nginx -t                          # Test config
+systemctl reload nginx            # Reload config
+tail -f /var/log/nginx/error.log  # Error logs
+
+# Firewall
+ufw status verbose                # Check rules
+ufw allow PORT/tcp                # Allow port
+
+# SSL Certificates
+certbot certificates              # List certificates
+certbot renew                     # Renew certificates
+
+================================================================================
+QUICK START CHECKLIST
+================================================================================
+
+□ Create VPS (Ubuntu 24.04, 2GB+ RAM)
+□ SSH as root and update: apt update && apt upgrade -y
+□ Create user: adduser appuser && usermod -aG sudo appuser
+□ Configure SSH keys
+□ Secure SSH (disable root/password auth)
+□ Setup firewall: ufw allow ssh/80/443, ufw enable
+□ Install Docker + Docker Compose
+□ Add user to docker group
+□ Install nginx
+□ Setup SSL with certbot
+□ Configure git and GitHub SSH keys
+□ Clone repository
+□ Create .env with credentials
+□ Add 4GB swap space
+□ Configure Docker log rotation
+□ Build and start containers
+□ Configure nginx reverse proxy with timeouts
+□ Verify deployment works
+□ Setup fail2ban and auto-updates
+□ Configure backups (optional)
+
+================================================================================
+SECURITY CHECKLIST
+================================================================================
+
+✓ Use SSH keys, not passwords
+✓ Disable root login
+✓ Enable firewall (minimum required ports only)
+✓ Install fail2ban
+✓ Use HTTPS/SSL for all public traffic
+✓ Keep .env file secure (chmod 600)
+✓ Setup automatic security updates
+✓ Regular backups
+✓ Monitor logs for suspicious activity
+✓ Keep software updated
+
+================================================================================
+KEY FILE LOCATIONS
+================================================================================
+
+Application: ~/apps/YOUR_REPO
+Docker Compose: ~/apps/YOUR_REPO/docker-compose.yml
+Environment: ~/apps/YOUR_REPO/.env
+Nginx Config: /etc/nginx/sites-enabled/yourdomain.com
+Nginx Logs: /var/log/nginx/error.log
+SSL Certs: /etc/letsencrypt/live/yourdomain.com/
+Uploads: ~/apps/YOUR_REPO/uploads
+Data: ~/apps/YOUR_REPO/data
+
+================================================================================
+NOTES
+================================================================================
+
+- Replace 'appuser' with your preferred username
+- Replace 'yourdomain.com' with your actual domain
+- Replace 'YOUR_REPO' with your repository name
+- 2GB RAM minimum, 4GB+ recommended for production
+- Watchtower auto-updates containers (if configured)
+- Never commit .env file to version control
+- Test thoroughly before production use
+- Keep server and packages updated regularly
