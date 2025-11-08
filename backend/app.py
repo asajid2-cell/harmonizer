@@ -16,13 +16,9 @@ from flask import (
     redirect,
     request,
     send_from_directory,
-    session,
     url_for,
 )
-from flask_session import Session
 from werkzeug.utils import secure_filename
-from google_auth_oauthlib.flow import Flow
-from google.oauth2.credentials import Credentials
 import json
 import requests
 
@@ -70,19 +66,8 @@ SPOTIFY_TOKEN_LOCK = threading.Lock()
 
 app = Flask(__name__, static_folder=None)
 
-# Configure session for OAuth
+# Configure secret key for any future features that might rely on it.
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(24))
-app.config["SESSION_TYPE"] = "filesystem"
-app.config["SESSION_FILE_DIR"] = str(BASE_DIR / "flask_session")
-Session(app)
-
-# Google OAuth Configuration
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
-
-# Store user credentials (in production, use Redis or database)
-user_credentials = {}
 
 
 @app.after_request
@@ -233,37 +218,6 @@ def _spotify_get(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
     return resp.json()
 
 
-def get_user_oauth_cookies(user_id: Optional[str]) -> Optional[Path]:
-    """Create a temporary cookies file from user's OAuth credentials"""
-    if not user_id or user_id not in user_credentials:
-        return None
-
-    try:
-        creds_dict = user_credentials[user_id]["credentials"]
-        credentials = Credentials(
-            token=creds_dict["token"],
-            refresh_token=creds_dict.get("refresh_token"),
-            token_uri=creds_dict["token_uri"],
-            client_id=creds_dict["client_id"],
-            client_secret=creds_dict["client_secret"],
-            scopes=creds_dict["scopes"]
-        )
-
-        # Create a Netscape cookie file format for yt-dlp
-        cookie_file = UPLOAD_FOLDER / f"oauth_cookies_{user_id}.txt"
-
-        # yt-dlp can use Authorization header directly, which is better
-        # We'll return a special marker that tells us to use OAuth
-        cookie_file.write_text(f"OAUTH_TOKEN:{credentials.token}")
-
-        print(f"[OAuth] Using user's Google credentials for download", flush=True)
-        return cookie_file
-
-    except Exception as e:
-        print(f"[OAuth] Error creating OAuth cookies: {e}", flush=True)
-        return None
-
-
 def locate_ffmpeg_bin() -> Optional[Path]:
     """Best-effort search for the FFmpeg binaries installed via winget or env overrides."""
     env_candidates = [
@@ -299,106 +253,6 @@ def locate_ffmpeg_bin() -> Optional[Path]:
 @app.route("/")
 def index():
     return send_from_directory(FRONTEND_DIR, "index.html")
-
-
-@app.route("/auth/google")
-def auth_google():
-    """Initiate Google OAuth flow"""
-    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
-        return jsonify({"error": "Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables."}), 500
-
-    flow = Flow.from_client_config(
-        {
-            "web": {
-                "client_id": GOOGLE_CLIENT_ID,
-                "client_secret": GOOGLE_CLIENT_SECRET,
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
-            }
-        },
-        scopes=SCOPES
-    )
-
-    flow.redirect_uri = request.host_url.rstrip("/") + "/auth/callback"
-
-    authorization_url, state = flow.authorization_url(
-        access_type="offline",
-        include_granted_scopes="true",
-        prompt="consent"
-    )
-
-    session["state"] = state
-    return redirect(authorization_url)
-
-
-@app.route("/auth/callback")
-def auth_callback():
-    """Handle OAuth callback from Google"""
-    try:
-        state = session.get("state")
-        if not state:
-            return jsonify({"error": "Invalid session state"}), 400
-
-        flow = Flow.from_client_config(
-            {
-                "web": {
-                    "client_id": GOOGLE_CLIENT_ID,
-                    "client_secret": GOOGLE_CLIENT_SECRET,
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token",
-                }
-            },
-            scopes=SCOPES,
-            state=state
-        )
-
-        flow.redirect_uri = request.host_url.rstrip("/") + "/auth/callback"
-        flow.fetch_token(authorization_response=request.url)
-
-        credentials = flow.credentials
-        user_id = str(uuid.uuid4())
-
-        # Store credentials with user ID
-        user_credentials[user_id] = {
-            "credentials": {
-                "token": credentials.token,
-                "refresh_token": credentials.refresh_token,
-                "token_uri": credentials.token_uri,
-                "client_id": credentials.client_id,
-                "client_secret": credentials.client_secret,
-                "scopes": credentials.scopes,
-            }
-        }
-
-        session["user_id"] = user_id
-        print(f"[OAuth] User authenticated: {user_id}", flush=True)
-
-        return redirect(url_for("index"))
-
-    except Exception as e:
-        print(f"[OAuth] Error: {e}", flush=True)
-        return jsonify({"error": f"Authentication failed: {str(e)}"}), 500
-
-
-@app.route("/auth/status")
-def auth_status():
-    """Check if user is authenticated"""
-    user_id = session.get("user_id")
-    if user_id and user_id in user_credentials:
-        return jsonify({"authenticated": True, "user_id": user_id})
-    return jsonify({"authenticated": False})
-
-
-@app.route("/auth/logout")
-def auth_logout():
-    """Log out user"""
-    user_id = session.get("user_id")
-    if user_id and user_id in user_credentials:
-        del user_credentials[user_id]
-    session.clear()
-    return redirect(url_for("index"))
-
-
 @app.route("/visualizer")
 def visualizer():
     if "trid" not in request.args:
@@ -475,34 +329,21 @@ def _get_youtube_playlist_info(url: str) -> Optional[dict]:
         return {"is_playlist": False}
 
 
-def _download_spotify(url: str, track_id: str, user_id: Optional[str] = None) -> tuple[Path, Optional[dict]]:
-    """Download a track from Spotify using spotdl.
-
-    Note: spotdl downloads audio from YouTube Music, so user_id OAuth credentials
-    will be used for the underlying YouTube download if available.
-    """
+def _download_spotify(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
+    """Download a track from Spotify using spotdl."""
     if Spotdl is None:
         raise RuntimeError("spotdl is not installed. Run `pip install spotdl`.")
 
     print(f"[Spotify Download] Processing: {url}", flush=True)
 
     try:
-        # Configure yt-dlp options for spotdl's underlying YouTube download
-        downloader_settings = {}
-
-        # If user has OAuth credentials, use them for YouTube Music downloads
-        oauth_cookie_file = get_user_oauth_cookies(user_id)
-        if oauth_cookie_file:
-            downloader_settings["cookie_file"] = str(oauth_cookie_file)
-            print(f"[Spotify Download] Using user's OAuth credentials for YouTube Music", flush=True)
-
         # Initialize spotdl - it uses environment credentials or default public ones
         spotdl = Spotdl(
             client_id="5f573c9620494bae87890c0f08a60293",  # Public client ID
             client_secret="212476d9b0f3472eaa762d90b19b0ba8",  # Public client secret
             user_auth=False,
             headless=True,
-            downloader_settings=downloader_settings if downloader_settings else None,
+            downloader_settings=None,
         )
 
         # Download the song
@@ -643,7 +484,7 @@ def _extract_song_info_from_url(url: str) -> Optional[dict]:
         return None
 
 
-def _smart_download_with_fallback(url: str, track_id: str, user_id: Optional[str] = None) -> tuple[Path, Optional[dict]]:
+def _smart_download_with_fallback(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
     """
     Smart download system that tries multiple sources:
     1. Try direct URL (YouTube, Spotify, SoundCloud)
@@ -664,13 +505,13 @@ def _smart_download_with_fallback(url: str, track_id: str, user_id: Optional[str
     try:
         if is_spotify:
             print(f"[Smart Download] Trying Spotify direct...", flush=True)
-            return _download_spotify(url, track_id, user_id)
+            return _download_spotify(url, track_id)
         elif is_soundcloud:
             print(f"[Smart Download] Trying SoundCloud direct...", flush=True)
             return _download_soundcloud(url, track_id)
         elif is_youtube:
             print(f"[Smart Download] Trying YouTube direct...", flush=True)
-            return _download_youtube(url, track_id, user_id)
+            return _download_youtube(url, track_id)
     except Exception as e:
         error_msg = str(e)
         errors.append(f"Direct download failed: {error_msg[:100]}")
@@ -864,7 +705,7 @@ def _download_from_drive(url: str, track_id: str) -> tuple[Path, Optional[dict]]
         raise RuntimeError(f"Failed to process Google Drive file: {error_msg}")
 
 
-def _download_youtube(url: str, track_id: str, user_id: Optional[str] = None) -> tuple[Path, Optional[dict]]:
+def _download_youtube(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
     if YoutubeDL is None:
         raise RuntimeError("yt-dlp is not installed. Run `pip install yt-dlp`.")
 
@@ -914,16 +755,8 @@ def _download_youtube(url: str, track_id: str, user_id: Optional[str] = None) ->
 
     retry_configs = []
 
-    # PRIORITY 0: If user is authenticated with OAuth, use their credentials (BEST - no rate limits per user!)
-    oauth_cookie_file = get_user_oauth_cookies(user_id)
-    if oauth_cookie_file:
-        retry_configs.append({
-            **common_opts,
-            "cookiefile": str(oauth_cookie_file),
-        })
-        print(f"[YouTube Download] Using user's OAuth credentials for authentication", flush=True)
     # PRIORITY 1: If cookie file exists, use it (best for servers/production)
-    elif cookies_file:
+    if cookies_file:
         retry_configs.append({
             **common_opts,
             "cookiefile": str(cookies_file),
@@ -1025,11 +858,6 @@ def api_process():
     title = request.form.get("title") or None
     artist = request.form.get("artist") or "(unknown artist)"
 
-    # Get user_id from session for OAuth authentication
-    user_id = session.get("user_id")
-    if user_id:
-        print(f"[API] Request from authenticated user: {user_id}", flush=True)
-
     track_id = generate_track_id()
     audio_path: Optional[Path] = None
     info: Optional[dict] = None
@@ -1094,7 +922,7 @@ def api_process():
 
             # Use smart download with automatic fallback to Spotify/SoundCloud
             print(f"[API] Using smart download with fallback system...", flush=True)
-            audio_path, info = _smart_download_with_fallback(url, track_id, user_id)
+            audio_path, info = _smart_download_with_fallback(url, track_id)
 
             if not title:
                 title = info.get("title") if info else None
@@ -1108,7 +936,7 @@ def api_process():
             cached_entry = cache_lookup(cache_key)
             if cached_entry:
                 return cache_response(cached_entry)
-            audio_path, info = _download_spotify(url, track_id, user_id)
+            audio_path, info = _download_spotify(url, track_id)
             if not title:
                 title = info.get("title") if info else None
             if (not request.form.get("artist")) and info:
