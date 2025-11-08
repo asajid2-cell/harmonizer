@@ -115,6 +115,10 @@
                                 <span class="viz-stat-value" id="beats-played">0</span>
                             </span>
                         </div>
+                        <label class="audio-compare-toggle" for="base-audio-only-toggle" title="Mute overlay voices for easy A/B checks">
+                            <input type="checkbox" id="base-audio-only-toggle">
+                            <span>Base audio only</span>
+                        </label>
                         <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
                             Advanced: Off
                         </button>
@@ -126,15 +130,10 @@
             <div class="viz-body">
                 <div class="viz-stage">
                     <div class="playback-shell" id="playback-shell">
-                        <div class="tiles-shell">
+                            <div class="tiles-shell">
                             <div class="viz-status" id="status-panel"></div>
                             <div id="error"></div>
                             <div id="tiles" class="tiles-canvas"></div>
-
-                            <!-- Footer with random text -->
-                            <footer class="viz-footer" id="footer-text">
-                                drive safe i fucking love you &lt;3
-                            </footer>
                         </div>
                         <aside id="queue-container" class="queue-container queue-window" style="display: none;">
                             <div class="queue-header queue-drag-handle">
@@ -188,6 +187,8 @@
 
         <!-- Harmonizer Lab badge in bottom left corner -->
         <div class="bottom-badge">Harmonizer Lab</div>
+        <!-- Rotating message footer -->
+        <footer class="viz-footer" id="footer-text">drive safe i fucking love you &lt;3</footer>
         </div>
 
             <!-- ✅ Script to randomize the footer message -->
@@ -1725,21 +1726,23 @@
         }
 
         // Sign out
-        logoutButton.addEventListener('click', async () => {
-            try {
-                if (isAppwrite && appwriteAccount) {
-                    // Appwrite: Delete session
-                    await appwriteAccount.deleteSession('current');
-                    window.location.reload();
-                } else {
-                    // Flask: Use /auth/logout endpoint
-                    await fetch('/auth/logout');
-                    window.location.reload();
+        if (logoutButton) {
+            logoutButton.addEventListener('click', async () => {
+                try {
+                    if (isAppwrite && appwriteAccount) {
+                        // Appwrite: Delete session
+                        await appwriteAccount.deleteSession('current');
+                        window.location.reload();
+                    } else {
+                        // Flask: Use /auth/logout endpoint
+                        await fetch('/auth/logout');
+                        window.location.reload();
+                    }
+                } catch (error) {
+                    console.error('Error signing out:', error);
                 }
-            } catch (error) {
-                console.error('Error signing out:', error);
-            }
-        });
+            });
+        }
 
         // Check auth status on page load
         checkAuthStatus();
