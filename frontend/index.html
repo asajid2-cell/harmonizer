@@ -170,6 +170,14 @@
                                 <input type="file" id="import-settings-file" accept=".json" style="display: none;">
                             </div>
 
+                            <div class="beat-round-control">
+                                <label class="beat-round-toggle" for="beat-round-toggle">
+                                    <input type="checkbox" id="beat-round-toggle">
+                                    <span>Snap to beat grid</span>
+                                </label>
+                                <p class="beat-round-hint">Rounds jump-related values to the nearest bar-aligned beat to avoid off-beat jolts.</p>
+                            </div>
+
                         </header>
                         <div class="advanced-sections" id="advanced-sections"></div>
                     </div>
@@ -695,7 +703,7 @@
                     { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 256, step: 1, format: (v) => `${v} beats`, description: 'Largest allowed beat offset between overlay voices.' },
                     { key: 'dwellBeats', label: 'Dwell', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats to stay on a pairing before retargeting.' },
                     { key: 'density', label: 'Density', min: 1, max: 16, step: 1, format: (v) => `${v}/16`, description: 'Higher values add more simultaneous overlay voices.' },
-                    { key: 'jumpers', label: 'Canon Voices', min: 1, max: 12, step: 1, format: (v) => `${v} ${v === 1 ? 'voice' : 'voices'}`, description: 'Number of simultaneous canon tracks. 2 = double canon, 3 = triple canon, etc.' },
+                    { key: 'jumpBubbleBeats', label: 'Jump Bubble', min: 0, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Keeps this many beats clear around each jump so they do not overlap.' },
                     { key: 'variation', label: 'Variation', min: 0, max: 50, step: 1, format: (v) => `${v}`, description: 'Controls how adventurous the overlay can be when rewiring connections.' }
                 ]
             },
@@ -720,7 +728,7 @@
                     { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 256, step: 1, format: (v) => `${v} beats`, description: 'Largest beat separation for overlay voices.' },
                     { key: 'dwellBeats', label: 'Dwell', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats before switching overlay targets.' },
                     { key: 'density', label: 'Density', min: 1, max: 16, step: 1, format: (v) => `${v}/16`, description: 'Higher values add thicker overlays.' },
-                    { key: 'jumpers', label: 'Canon Voices', min: 1, max: 12, step: 1, format: (v) => `${v} ${v === 1 ? 'voice' : 'voices'}`, description: 'Number of simultaneous canon tracks. 2 = double canon, 3 = triple canon, etc.' },
+                    { key: 'jumpBubbleBeats', label: 'Jump Bubble', min: 0, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Prevents fresh jumps from spawning within this beat radius of the last one.' },
                     { key: 'variation', label: 'Variation', min: 0, max: 50, step: 1, format: (v) => `${v}`, description: 'Controls how much the overlay may deviate from its base pattern.' }
                 ]
             },
@@ -1829,6 +1837,32 @@
                 importFileInput.value = '';
             });
         }
+    })();
+
+    // ==============================
+    // Beat rounding toggle
+    // ==============================
+    (function() {
+        const beatToggle = document.getElementById('beat-round-toggle');
+        if (!beatToggle) {
+            return;
+        }
+
+        function syncBeatToggle() {
+            if (typeof window.isBeatRoundingEnabled === 'function') {
+                beatToggle.checked = !!window.isBeatRoundingEnabled();
+            }
+        }
+
+        syncBeatToggle();
+
+        beatToggle.addEventListener('change', function(event) {
+            if (typeof window.setBeatRoundingEnabled === 'function') {
+                window.setBeatRoundingEnabled(event.target.checked);
+            }
+        });
+
+        window.addEventListener('harmonizer:beatRoundingSync', syncBeatToggle);
     })();
     </script>
 </body>

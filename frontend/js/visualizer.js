@@ -71,7 +71,7 @@ var ADVANCED_DEFAULTS = {
         maxOffsetBeats: 64,
         dwellBeats: 6,
         density: 2,
-        jumpers: 2,
+        jumpBubbleBeats: 8,
         variation: 2
     },
     eternalOverlay: {
@@ -80,7 +80,7 @@ var ADVANCED_DEFAULTS = {
         maxOffsetBeats: 64,
         dwellBeats: 6,
         density: 2,
-        jumpers: 2,
+        jumpBubbleBeats: 8,
         variation: 2
     },
     jukeboxLoop: {
@@ -121,6 +121,28 @@ var advancedEnabled = {
     jukeboxLoop: false,
     eternalLoop: false
 };
+
+var BEAT_ROUND_STORAGE_KEY = "harmonizer:beatRounding";
+var beatRoundingEnabled = false;
+var ROUNDABLE_BEAT_FIELDS = {
+    canonOverlay: ["minOffsetBeats", "maxOffsetBeats", "dwellBeats"],
+    eternalOverlay: ["minOffsetBeats", "maxOffsetBeats", "dwellBeats"],
+    jukeboxLoop: ["minLoopBeats", "maxSequentialBeats"],
+    eternalLoop: ["minLoopBeats", "maxSequentialBeats"]
+};
+
+(function hydrateBeatRoundingPreference() {
+    try {
+        if (typeof window !== "undefined" && window.localStorage) {
+            var stored = window.localStorage.getItem(BEAT_ROUND_STORAGE_KEY);
+            if (stored === "1") {
+                beatRoundingEnabled = true;
+            }
+        }
+    } catch (err) {
+        beatRoundingEnabled = false;
+    }
+})();
 
 var eternalAdvancedEnabled = false;
 
@@ -317,10 +339,63 @@ function ensureAdvancedGroupSettings(group) {
     return advancedSettings[group];
 }
 
+function shouldRoundGroupField(group, key) {
+    var list = ROUNDABLE_BEAT_FIELDS[group];
+    if (!list) {
+        return false;
+    }
+    return list.indexOf(key) !== -1;
+}
+
+function getBeatGridSize() {
+    var grid = 1;
+    try {
+        if (curTrack && curTrack.analysis && curTrack.analysis.audio_summary && curTrack.analysis.audio_summary.time_signature) {
+            var ts = curTrack.analysis.audio_summary.time_signature;
+            if (isFinite(ts)) {
+                grid = Math.max(1, Math.round(ts));
+            }
+        }
+    } catch (err) {
+        grid = 1;
+    }
+    return grid;
+}
+
+function quantizeBeatValue(value) {
+    var num = coerceNumber(value);
+    if (num === null) {
+        return value;
+    }
+    var grid = getBeatGridSize();
+    if (!isFinite(grid) || grid <= 0) {
+        grid = 1;
+    }
+    var rounded = Math.round(num / grid) * grid;
+    return Math.max(1, rounded);
+}
+
+function applyBeatRoundingAcrossGroups() {
+    var groups = Object.keys(ROUNDABLE_BEAT_FIELDS);
+    groups.forEach(function(group) {
+        var target = ensureAdvancedGroupSettings(group);
+        var fields = ROUNDABLE_BEAT_FIELDS[group];
+        fields.forEach(function(key) {
+            if (target && target[key] !== undefined) {
+                target[key] = quantizeBeatValue(target[key]);
+            }
+        });
+    });
+}
+
 function setAdvancedGroupSettingValue(group, key, value) {
     var target = ensureAdvancedGroupSettings(group);
     if (target && key !== undefined) {
-        target[key] = value;
+        var finalValue = value;
+        if (beatRoundingEnabled && shouldRoundGroupField(group, key)) {
+            finalValue = quantizeBeatValue(value);
+        }
+        target[key] = finalValue;
     }
 }
 
@@ -347,6 +422,59 @@ function clamp01(value) {
 function coerceNumber(value) {
     var num = (typeof value === "number") ? value : parseFloat(value);
     return isFinite(num) ? num : null;
+}
+
+function dispatchBeatRoundingEvent() {
+    if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") {
+        return;
+    }
+    var detail = { enabled: beatRoundingEnabled };
+    try {
+        window.dispatchEvent(new CustomEvent("harmonizer:beatRoundingSync", { detail: detail }));
+    } catch (err) {
+        if (typeof document !== "undefined" && document.createEvent) {
+            try {
+                var fallback = document.createEvent("Event");
+                fallback.initEvent("harmonizer:beatRoundingSync", true, true);
+                window.dispatchEvent(fallback);
+            } catch (err2) {
+                // ignore
+            }
+        }
+    }
+}
+
+function setBeatRoundingEnabledInternal(enabled, opts) {
+    var normalized = !!enabled;
+    var options = opts || {};
+    if (!options.force && normalized === beatRoundingEnabled) {
+        return;
+    }
+    beatRoundingEnabled = normalized;
+    try {
+        if (typeof window !== "undefined" && window.localStorage) {
+            window.localStorage.setItem(BEAT_ROUND_STORAGE_KEY, beatRoundingEnabled ? "1" : "0");
+        }
+    } catch (err) {
+        // ignore persistence errors
+    }
+    if (beatRoundingEnabled) {
+        applyBeatRoundingAcrossGroups();
+    }
+    if (!options.skipSync && typeof window.syncAllGroupsFromState === "function") {
+        window.syncAllGroupsFromState();
+    }
+    if (mode === "canon") {
+        regenerateCanonMapping({ reason: "beat-rounding" });
+    } else if (mode === "eternal") {
+        regenerateEternalOverlay({ reason: "beat-rounding" });
+        recomputeLoopGraphForMode("eternal");
+    } else if (mode === "jukebox") {
+        recomputeLoopGraphForMode("jukebox");
+    }
+    if (!options.skipDispatch) {
+        dispatchBeatRoundingEvent();
+    }
 }
 
 function sanitizeLoopSettings(raw, defaults) {
@@ -872,18 +1000,6 @@ function applyCanonAlignment(qlist, alignment) {
             q.otherGain = Math.min(1, Math.max(0.25, gain));
         }
 
-        // Create additional canon voices for double/triple/etc. canons
-        var numVoices = (advancedSettings && advancedSettings.canonOverlay && advancedSettings.canonOverlay.settings && advancedSettings.canonOverlay.settings.jumpers)
-            ? Math.max(1, Math.min(12, Math.floor(advancedSettings.canonOverlay.settings.jumpers)))
-            : 2;
-        for (var v = 2; v < numVoices; v++) {
-            var additionalOffset = offset * v;
-            var additionalIdx = (i + additionalOffset) % qlist.length;
-            var safeAdditionalIdx = ((additionalIdx % qlist.length) + qlist.length) % qlist.length;
-            var additionalTarget = qlist[safeAdditionalIdx];
-            var otherKey = 'other' + v;
-            q[otherKey] = additionalTarget;
-        }
     }
 
     if (alignment.loop_candidates && alignment.loop_candidates.length) {
@@ -1113,7 +1229,8 @@ if (typeof window !== "undefined") {
             maxOffsetBeats: canonSettings.maxOffsetBeats,
             dwellBeats: canonSettings.dwellBeats,
             density: canonSettings.density,
-            variation: canonSettings.variation
+            variation: canonSettings.variation,
+            jumpBubbleBeats: canonSettings.jumpBubbleBeats
         };
     };
     window.setCanonAdvancedEnabled = setCanonAdvancedEnabled;
@@ -1121,6 +1238,12 @@ if (typeof window !== "undefined") {
     window.setEternalAdvancedEnabled = setEternalAdvancedEnabled;
     window.isEternalAdvancedEnabled = function() { return eternalAdvancedEnabled; };
     window.getAdvancedDefaults = function(group) { return cloneAdvancedDefaults(group); };
+    window.setBeatRoundingEnabled = function(enabled) {
+        setBeatRoundingEnabledInternal(enabled);
+    };
+    window.isBeatRoundingEnabled = function() {
+        return beatRoundingEnabled;
+    };
     window.getAdvancedSettings = function(group) {
         // If no group specified, return all settings
         if (!group) {
@@ -3388,7 +3511,6 @@ function createCanonDriver(player) {
     var curQ = 0;
     var running = false;
     var mtime = $("#mtime");
-    var jumperPositions = []; // Track position of each additional canon voice
 
     function stop() {
         running = false;
@@ -3397,7 +3519,6 @@ function createCanonDriver(player) {
         setURL();
         setPlayingClass(null);
         pulseNotes(baseNoteStrength);
-        jumperPositions = [];
     }
 
     function process() {
@@ -3416,72 +3537,6 @@ function createCanonDriver(player) {
             nextQ.tile.highlight();
             if (nextQ.other && nextQ.other.tile) {
                 nextQ.other.tile.highlight2();
-            }
-
-            // Handle additional canon voices (jumpers) - each has independent position
-            var numVoices = (advancedSettings && advancedSettings.canonOverlay && advancedSettings.canonOverlay.settings && advancedSettings.canonOverlay.settings.jumpers)
-                ? Math.max(1, Math.min(12, Math.floor(advancedSettings.canonOverlay.settings.jumpers)))
-                : 2;
-
-            // Initialize jumper positions if needed
-            if (jumperPositions.length === 0 && numVoices > 2) {
-                for (var v = 2; v < numVoices; v++) {
-                    var offset = nextQ.otherOffset ? Math.floor(nextQ.otherOffset * v * 0.7) : v * 8;
-                    jumperPositions[v - 2] = (curQ - 1 + offset) % masterQs.length;
-                }
-            }
-
-            // Advance and highlight each jumper, AND PLAY ITS AUDIO
-            if (curQ === 1 && numVoices > 2) {
-                console.log('[Jumpers] Starting loop with numVoices:', numVoices, 'Will create', numVoices - 2, 'jumpers');
-            }
-
-            for (var v = 2; v < numVoices; v++) {
-                var jumperIdx = v - 2;
-
-                // Initialize jumper at a different offset - each jumper gets progressively further ahead
-                if (jumperPositions[jumperIdx] === undefined) {
-                    var offsetMultiplier = v / 2; // v=2 -> 1x, v=3 -> 1.5x, v=4 -> 2x offset
-                    var baseOffset = nextQ.otherOffset || 16;
-                    var jumperOffset = Math.floor(baseOffset * offsetMultiplier);
-                    jumperPositions[jumperIdx] = (curQ - 1 + jumperOffset) % masterQs.length;
-                    console.log('[Jumpers] Initialized jumper', v, 'at position', jumperPositions[jumperIdx], 'with offset', jumperOffset);
-                }
-
-                var currentPos = jumperPositions[jumperIdx];
-                if (currentPos < 0 || currentPos >= masterQs.length) {
-                    currentPos = 0;
-                    jumperPositions[jumperIdx] = 0;
-                }
-
-                var jumperQ = masterQs[currentPos];
-                if (jumperQ) {
-                    // Highlight the jumper's current tile with slightly varied color
-                    if (jumperQ.tile && jumperQ.tile.rect) {
-                        // Use a dimmed/muted version of highlight2 color for additional jumpers
-                        var dimFactor = 0.7 - (jumperIdx * 0.05);
-                        jumperQ.tile.rect.attr("fill", "rgba(255, 200, 100, " + dimFactor + ")");
-                        jumperQ.tile.rect.attr("stroke", "rgba(255, 200, 100, " + (dimFactor * 0.8) + ")");
-
-                        if (curQ <= 3) {
-                            console.log('[Jumpers] Highlighting jumper', v, 'at tile position', currentPos, 'with dimFactor', dimFactor);
-                        }
-                    }
-
-                    // Play the jumper's audio - keep both streams prominent and clear
-                    // Reduced overall volume slightly but maintain clarity (no fading)
-                    var jumperGain = 0.7 - (jumperIdx * 0.08); // Start at 0.7 instead of 0.5, gradual reduction
-                    player.play(0, jumperQ, jumperQ.duration, jumperGain, 0);
-
-                    // Each jumper follows the SAME canon mapping pattern but from their offset position
-                    var nextJumperPos = currentPos;
-                    if (jumperQ.other) {
-                        nextJumperPos = jumperQ.other.which;
-                    } else {
-                        nextJumperPos = (currentPos + 1) % masterQs.length;
-                    }
-                    jumperPositions[jumperIdx] = nextJumperPos;
-                }
             }
 
             updateCursors(nextQ);
@@ -3765,6 +3820,8 @@ function createJukeboxDriver(player, options) {
     var loopGraph = {};
     var loopHistory = [];
     var LOOP_HISTORY_LIMIT = 8;
+    var jumpBubbleHistory = [];
+    var JUMP_BUBBLE_HISTORY_LIMIT = 24;
     var beatsUntilJump = 0;
     var recentSections = [];
     var sectionAnchors = [];
@@ -3796,6 +3853,67 @@ function createJukeboxDriver(player, options) {
         orderedSectionAnchors.sort(function(a, b) { return a - b; });
     })();
 
+    function clearJumpBubbleHistory() {
+        jumpBubbleHistory = [];
+    }
+
+    function getCurrentJumpBubbleRadius() {
+        var radius = 0;
+        if (canonSettings && canonSettings.jumpBubbleBeats !== undefined) {
+            radius = canonSettings.jumpBubbleBeats;
+        }
+        var num = coerceNumber(radius);
+        if (num === null) {
+            return 0;
+        }
+        return Math.max(0, Math.round(num));
+    }
+
+    function circularBeatDistance(a, b) {
+        if (!masterQs || !masterQs.length) {
+            return Math.abs(a - b);
+        }
+        var total = masterQs.length;
+        var diff = Math.abs(a - b);
+        return Math.min(diff, total - diff);
+    }
+
+    function registerJumpBubble(targetIndex) {
+        var radius = getCurrentJumpBubbleRadius();
+        if (!radius || radius <= 0) {
+            return;
+        }
+        jumpBubbleHistory.push({
+            center: targetIndex,
+            radius: radius
+        });
+        if (jumpBubbleHistory.length > JUMP_BUBBLE_HISTORY_LIMIT) {
+            jumpBubbleHistory.shift();
+        }
+    }
+
+    function isWithinJumpBubble(targetIndex, activeRadius) {
+        if (!jumpBubbleHistory.length) {
+            return false;
+        }
+        var radiusOverride = Math.max(0, activeRadius || 0);
+        for (var i = jumpBubbleHistory.length - 1; i >= 0; i--) {
+            var entry = jumpBubbleHistory[i];
+            if (!entry) {
+                continue;
+            }
+            var finalRadius = Math.max(radiusOverride, entry.radius || 0);
+            if (finalRadius <= 0) {
+                continue;
+            }
+            var dist = circularBeatDistance(entry.center, targetIndex);
+            if (dist <= finalRadius) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function stop() {
         running = false;
         player.stop();
@@ -3803,6 +3921,7 @@ function createJukeboxDriver(player, options) {
         setURL();
         setPlayingClass(null);
         pulseNotes(baseNoteStrength);
+        clearJumpBubbleHistory();
         stopStatsTracking();
     }
 
@@ -4042,6 +4161,7 @@ function createJukeboxDriver(player, options) {
         }
         loopChoices = loops;
         loopHistory = [];
+        clearJumpBubbleHistory();
         recentSections = [];
         scheduleNextJump(true);
 
@@ -4246,6 +4366,17 @@ function createJukeboxDriver(player, options) {
         if (!filtered.length) {
             filtered = candidates.slice(0);
         }
+
+        var currentBubbleRadius = getCurrentJumpBubbleRadius();
+        if (currentBubbleRadius > 0 && jumpBubbleHistory.length) {
+            var bubbleFiltered = _.filter(filtered, function(edge) {
+                return edge && !isWithinJumpBubble(edge.target, currentBubbleRadius);
+            });
+            if (bubbleFiltered.length) {
+                filtered = bubbleFiltered;
+            }
+        }
+
         var weights = [];
         var total = 0;
         var sameSectionCount = 0;
@@ -4360,6 +4491,7 @@ function createJukeboxDriver(player, options) {
                     loopHistory.shift();
                 }
                 currentIndex = retreatPoint.target;
+                registerJumpBubble(retreatPoint.target);
                 scheduleNextJump(false);
                 return;
             }
@@ -4374,6 +4506,7 @@ function createJukeboxDriver(player, options) {
                     loopHistory.shift();
                 }
                 currentIndex = jump.target;
+                registerJumpBubble(jump.target);
                 scheduleNextJump(false);
                 return;
             }

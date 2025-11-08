@@ -1375,17 +1375,6 @@ def build_profile(
         for src, cand_list in eternal_loop_candidates.items()
     }
 
-    # Legacy merge for backward compatibility (remove after migration)
-    eternal_loop_candidates_legacy = {}
-    for src, cand_list in eternal_loop_candidates.items():
-        if src not in eternal_loop_candidates_legacy:
-            eternal_loop_candidates_legacy[src] = []
-        for cand in cand_list:
-            existing_targets = {c["target"] for c in eternal_loop_candidates_legacy[src]}
-            if cand["target"] not in existing_targets:
-                    eternal_loop_candidates[src].append(cand)
-                    existing_targets.add(cand["target"])
-
     print(f"[Analysis] Generated {sum(len(v) for v in eternal_loop_candidates.values())} eternal jukebox loop candidates", flush=True)
 
     profile = {

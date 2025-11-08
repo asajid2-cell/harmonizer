@@ -278,6 +278,38 @@ body.advanced-expanded .advanced-shell::-webkit-scrollbar {
     transform: translateY(-1px);
 }
 
+.beat-round-control {
+    margin-top: 12px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(232, 180, 184, 0.18);
+    background: rgba(18, 6, 12, 0.45);
+}
+
+.beat-round-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: rgba(232, 180, 184, 0.78);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+.beat-round-toggle input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: rgba(232, 180, 184, 0.9);
+    cursor: pointer;
+}
+
+.beat-round-hint {
+    margin: 6px 0 0 0;
+    font-size: 0.7rem;
+    color: rgba(232, 180, 184, 0.48);
+    line-height: 1.4;
+}
+
 .advanced-sections {
     display: flex;
     flex-direction: column;

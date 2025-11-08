@@ -213,6 +213,7 @@ function createJRemixer(context, jquery) {
             var curQ = null;
             var curAudioSource = null;
             var masterGain = .53;
+            var overlayGain = 0.58;
             var deltaTime = 0;
             var mainGain = context.createGain();
             var otherGain = context.createGain();
@@ -221,8 +222,6 @@ function createJRemixer(context, jquery) {
             var skewDelta = 0;
             var maxSkewDelta = .05;
             var ocurAudioSource = null;
-            var additionalAudioSources = []; // For additional canon voices (other2, other3, etc.)
-            var additionalGains = []; // Gain nodes for additional canon voices
 
             if (typeof context.createStereoPanner === "function") {
                 mainPanner = context.createStereoPanner();
@@ -243,7 +242,7 @@ function createJRemixer(context, jquery) {
             }
 
             mainGain.gain.value = masterGain;
-            otherGain.gain.value = 0.0;
+            otherGain.gain.value = overlayGain;
 
             function playQuantumWithDurationSimple(when, q, dur, gain, channel) {
                 var now = context.currentTime;
@@ -299,11 +298,8 @@ function createJRemixer(context, jquery) {
                 var now = context.currentTime - deltaTime;
                 var delta = now - q.start;
 
-                var normalizedOther = Math.max(0, Math.min(1, q.otherGain));
-                var targetOther = Math.max(0, Math.min(1, (1 - masterGain) * normalizedOther));
-                // subtle main ducking to reduce muddiness when overlay is strong
-                var targetMain = Math.max(0.0, Math.min(1.0, masterGain * (1 - 0.18 * normalizedOther)));
-                // smooth ramp on other gain at (re)start to reduce clicks and align feel
+                var targetOther = overlayGain;
+                var targetMain = masterGain;
                 if (curQ == null || curQ.other.next != q.other || Math.abs(skewDelta) > maxSkewDelta) {
                     skewDelta = 0;
                     if (ocurAudioSource) {
@@ -314,12 +310,9 @@ function createJRemixer(context, jquery) {
                     try {
                         var now = context.currentTime;
                         otherGain.gain.cancelScheduledValues(now);
-                        // start low and ramp up quickly to target
-                        otherGain.gain.setValueAtTime(0.0001, now);
-                        otherGain.gain.exponentialRampToValueAtTime(Math.max(0.0002, targetOther), now + Math.min(0.08, Math.max(0.02, q.duration * 0.25)));
-                        // adjust main gain alongside overlay rise
+                        otherGain.gain.setValueAtTime(targetOther, now);
                         mainGain.gain.cancelScheduledValues(now);
-                        mainGain.gain.setTargetAtTime(targetMain, now, Math.max(0.02, q.duration * 0.25));
+                        mainGain.gain.setValueAtTime(targetMain, now);
                     } catch (e) {
                         otherGain.gain.value = targetOther;
                         mainGain.gain.value = targetMain;
@@ -328,62 +321,15 @@ function createJRemixer(context, jquery) {
                     try {
                         var now2 = context.currentTime;
                         otherGain.gain.cancelScheduledValues(now2);
-                        otherGain.gain.setTargetAtTime(Math.max(0.0002, targetOther), now2, Math.max(0.02, q.duration * 0.3));
+                        otherGain.gain.setValueAtTime(targetOther, now2);
                         mainGain.gain.cancelScheduledValues(now2);
-                        mainGain.gain.setTargetAtTime(targetMain, now2, Math.max(0.02, q.duration * 0.3));
+                        mainGain.gain.setValueAtTime(targetMain, now2);
                     } catch (e) {
                         otherGain.gain.value = targetOther;
                         mainGain.gain.value = targetMain;
                     }
                 }
                 skewDelta += q.duration - q.other.duration;
-
-                // Play additional canon voices (other2, other3, etc.)
-                for (var v = 2; v < 12; v++) {
-                    var otherKey = 'other' + v;
-                    var additionalVoice = q[otherKey];
-
-                    if (additionalVoice && additionalVoice.track && additionalVoice.track.buffer) {
-                        var voiceIndex = v - 2;
-
-                        // Stop previous audio source for this voice if needed
-                        if (curQ == null || !curQ[otherKey] || curQ[otherKey].next != additionalVoice) {
-                            if (additionalAudioSources[voiceIndex]) {
-                                additionalAudioSources[voiceIndex].stop();
-                            }
-
-                            // Create gain node if it doesn't exist
-                            if (!additionalGains[voiceIndex]) {
-                                additionalGains[voiceIndex] = context.createGain();
-                                additionalGains[voiceIndex].connect(context.destination);
-                            }
-
-                            var additionalDuration = additionalVoice.track.audio_summary.duration - additionalVoice.start;
-                            additionalAudioSources[voiceIndex] = llPlay(additionalVoice.track.buffer, additionalVoice.start, additionalDuration, additionalGains[voiceIndex]);
-
-                            // Set gain for additional voice - slightly lower than main overlay to avoid muddiness
-                            var additionalGainValue = targetOther * 0.7 * (1.0 - (voiceIndex * 0.08)); // Each additional voice is progressively quieter
-                            try {
-                                var nowAdditional = context.currentTime;
-                                additionalGains[voiceIndex].gain.cancelScheduledValues(nowAdditional);
-                                additionalGains[voiceIndex].gain.setValueAtTime(0.0001, nowAdditional);
-                                additionalGains[voiceIndex].gain.exponentialRampToValueAtTime(Math.max(0.0002, additionalGainValue), nowAdditional + Math.min(0.08, Math.max(0.02, q.duration * 0.25)));
-                            } catch (e) {
-                                additionalGains[voiceIndex].gain.value = additionalGainValue;
-                            }
-                        } else {
-                            // Update gain for continuing voice
-                            var additionalGainValue = targetOther * 0.7 * (1.0 - (voiceIndex * 0.08));
-                            try {
-                                var nowAdditional2 = context.currentTime;
-                                additionalGains[voiceIndex].gain.cancelScheduledValues(nowAdditional2);
-                                additionalGains[voiceIndex].gain.setTargetAtTime(Math.max(0.0002, additionalGainValue), nowAdditional2, Math.max(0.02, q.duration * 0.3));
-                            } catch (e) {
-                                additionalGains[voiceIndex].gain.value = additionalGainValue;
-                            }
-                        }
-                    }
-                }
 
                 curQ = q;
                 return q.duration - delta;
@@ -415,14 +361,6 @@ function createJRemixer(context, jquery) {
                         ocurAudioSource.stop(0);
                         ocurAudioSource = null;
                     }
-                    // Stop all additional canon voices
-                    for (var i = 0; i < additionalAudioSources.length; i++) {
-                        if (additionalAudioSources[i]) {
-                            additionalAudioSources[i].stop(0);
-                            additionalAudioSources[i] = null;
-                        }
-                    }
-                    additionalAudioSources = [];
                 },
 
                 curTime: function() {
