@@ -15,3 +15,6 @@ uploads/
 backend/data/
 data/
 *.json
+
+# Environment
+.env

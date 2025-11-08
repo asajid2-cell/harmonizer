@@ -1,0 +1,21 @@
+version: "3.9"
+services:
+  harmonizer:
+    container_name: harmonizer
+    build: .
+    image: harmonizer:prod
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./uploads:/app/backend/uploads
+      - ./data:/app/backend/data
+    restart: unless-stopped
+
+  watchtower:
+    image: containrrr/watchtower:1.6
+    command: --cleanup --rolling-restart harmonizer
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
