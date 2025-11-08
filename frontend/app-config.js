@@ -18,7 +18,7 @@
 
     // When running the frontend locally (file:// or localhost), default to the same-origin backend.
     // Otherwise fall back to the hosted backend URL. Users can still override via window.HARMONIZER_CONFIG.
-    var defaultApiBase = "";
+    var defaultApiBase = isLocalhost ? "" : "https://harmonizer-backend-bofk.onrender.com";
 
     global.HARMONIZER_CONFIG = Object.assign(
         {

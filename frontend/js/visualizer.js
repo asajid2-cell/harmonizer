@@ -144,22 +144,6 @@ var ROUNDABLE_BEAT_FIELDS = {
     }
 })();
 
-var BASE_AUDIO_ONLY_STORAGE_KEY = "harmonizer:baseAudioOnly";
-var overlayMuteEnabled = false;
-
-(function hydrateBaseAudioOnlyPreference() {
-    try {
-        if (typeof window !== "undefined" && window.localStorage) {
-            var stored = window.localStorage.getItem(BASE_AUDIO_ONLY_STORAGE_KEY);
-            if (stored === "1") {
-                overlayMuteEnabled = true;
-            }
-        }
-    } catch (err) {
-        overlayMuteEnabled = false;
-    }
-})();
-
 var eternalAdvancedEnabled = false;
 
 var advancedPresets = {
@@ -415,49 +399,6 @@ function setAdvancedGroupSettingValue(group, key, value) {
     }
 }
 
-function syncBaseAudioToggleUI() {
-    if (typeof document === "undefined") {
-        return;
-    }
-    var toggle = document.getElementById("base-audio-only-toggle");
-    if (toggle) {
-        toggle.checked = overlayMuteEnabled;
-    }
-    if (document.body) {
-        document.body.classList.toggle("base-audio-only", overlayMuteEnabled);
-    }
-}
-
-function applyOverlayMuteState() {
-    if (!driver || !driver.player) {
-        return;
-    }
-    var audioEngine = driver.player;
-    if (audioEngine && typeof audioEngine.setOverlayMuted === "function") {
-        audioEngine.setOverlayMuted(overlayMuteEnabled);
-    }
-}
-
-function setBaseAudioOnlyPlayback(enabled) {
-    var normalized = !!enabled;
-    var changed = normalized !== overlayMuteEnabled;
-    overlayMuteEnabled = normalized;
-    if (changed) {
-        try {
-            if (typeof window !== "undefined" && window.localStorage) {
-                window.localStorage.setItem(
-                    BASE_AUDIO_ONLY_STORAGE_KEY,
-                    overlayMuteEnabled ? "1" : "0"
-                );
-            }
-        } catch (err) {
-            // ignore persistence errors
-        }
-    }
-    syncBaseAudioToggleUI();
-    applyOverlayMuteState();
-}
-
 function resetAdvancedGroupSettings(group) {
     var defaults = cloneAdvancedDefaults(group);
     advancedSettings[group] = cloneSettings(defaults);
@@ -657,13 +598,7 @@ function rebuildDriverForCurrentMode(shouldResume) {
             driver.stop();
         } catch (e) {}
     }
-    var nextPlayer = remixer.getPlayer();
-    if (!nextPlayer) {
-        driver = null;
-        return;
-    }
-    driver = Driver(nextPlayer);
-    applyOverlayMuteState();
+    driver = Driver(remixer.getPlayer());
     if (resume && driver && typeof driver.start === "function") {
         driver.start();
     }
@@ -1303,8 +1238,6 @@ if (typeof window !== "undefined") {
     window.setEternalAdvancedEnabled = setEternalAdvancedEnabled;
     window.isEternalAdvancedEnabled = function() { return eternalAdvancedEnabled; };
     window.getAdvancedDefaults = function(group) { return cloneAdvancedDefaults(group); };
-    window.setBaseAudioOnlyPlayback = setBaseAudioOnlyPlayback;
-    window.isBaseAudioOnlyPlaybackEnabled = function() { return overlayMuteEnabled; };
     window.setBeatRoundingEnabled = function(enabled) {
         setBeatRoundingEnabledInternal(enabled);
     };
@@ -2312,17 +2245,9 @@ async function togglePlayback() {
         return;
     }
     if (driver.isRunning()) {
-        if (driver.pause && typeof driver.pause === "function") {
-            driver.pause();
-        } else {
-            driver.stop();
-        }
+        driver.stop();
     } else {
-        if (driver.resume && typeof driver.resume === "function") {
-            driver.resume();
-        } else {
-            driver.start();
-        }
+        driver.start();
     }
 }
 
@@ -2353,14 +2278,6 @@ function init() {
         await togglePlayback();
     });
 
-    var baseAudioToggle = document.getElementById("base-audio-only-toggle");
-    if (baseAudioToggle) {
-        baseAudioToggle.addEventListener("change", function(event) {
-            setBaseAudioOnlyPlayback(event.target.checked);
-        });
-    }
-    syncBaseAudioToggleUI();
-
     var containerWidth = $("#tiles").innerWidth();
     if (!containerWidth || containerWidth < 100) {
         containerWidth = $(window).width() - 140;
@@ -2380,9 +2297,7 @@ function init() {
         var context = getAudioContext();
         var initialTrid = processParams();
         remixer = createJRemixer(context, $);
-        var initialPlayer = remixer.getPlayer();
-        driver = Driver(initialPlayer);
-        applyOverlayMuteState();
+        driver = Driver(remixer.getPlayer());
 
         // Load playlist queue from sessionStorage if available
         loadPlaylistQueue();
@@ -3028,205 +2943,6 @@ $(document).ready(function() {
     updateQueueControls();
 });
 
-// ==============================
-// Spotify Search & Player
-// ==============================
-(function() {
-    var spotifyBtn = $("#spotify-search-btn");
-    if (!spotifyBtn.length) {
-        return;
-    }
-    var spotifyModal = $("#spotify-modal");
-    var spotifyCloseBtn = $("#spotify-modal-close");
-    var spotifyForm = $("#spotify-search-form");
-    var spotifyInput = $("#spotify-search-input");
-    var spotifyResults = $("#spotify-search-results");
-    var spotifyStatus = $("#spotify-search-status");
-    var spotifyPlayer = $("#spotify-player-panel");
-    var spotifyPlayerClose = $("#spotify-player-close");
-    var spotifyEmbed = $("#spotify-embed-frame");
-    var activeController = null;
-
-    function setSpotifyStatus(message, state) {
-        if (!spotifyStatus.length) {
-            return;
-        }
-        spotifyStatus.removeClass("error info");
-        if (state) {
-            spotifyStatus.addClass(state);
-        }
-        spotifyStatus.text(message || "");
-    }
-
-    function openSpotifyModal() {
-        spotifyModal.show();
-        setSpotifyStatus("", "");
-        spotifyResults.empty();
-        if (spotifyInput && spotifyInput.length) {
-            setTimeout(function() {
-                spotifyInput.trigger("focus");
-            }, 60);
-        }
-    }
-
-    function closeSpotifyModal() {
-        spotifyModal.hide();
-        if (activeController) {
-            activeController.abort();
-            activeController = null;
-        }
-        spotifyInput.val("");
-        spotifyResults.empty();
-        setSpotifyStatus("", "");
-    }
-
-    function showSpotifyPlayer(trackId) {
-        if (!trackId || !spotifyEmbed.length) {
-            return;
-        }
-        var src = "https://open.spotify.com/embed/track/" + encodeURIComponent(trackId) + "?utm_source=harmonizer";
-        spotifyEmbed.attr("src", src);
-        spotifyPlayer.removeClass("is-hidden");
-    }
-
-    function hideSpotifyPlayer() {
-        spotifyPlayer.addClass("is-hidden");
-        spotifyEmbed.attr("src", "");
-    }
-
-    function renderSpotifyResults(tracks) {
-        spotifyResults.empty();
-        if (!tracks || !tracks.length) {
-            setSpotifyStatus("No Spotify results found.", "info");
-            return;
-        }
-        setSpotifyStatus("", "");
-        tracks.forEach(function(track) {
-            var artists = (track.artists || []).join(", ");
-            var artwork = track.image
-                ? '<img src="' + track.image + '" alt="Album art" loading="lazy">'
-                : '<div class="spotify-artwork-placeholder">No Art</div>';
-            var duration = "";
-            if (track.duration_ms) {
-                var totalSeconds = Math.round(track.duration_ms / 1000);
-                var mins = Math.floor(totalSeconds / 60);
-                var secs = totalSeconds % 60;
-                duration = mins + ":" + String(secs).padStart(2, "0");
-            }
-            var playBtn = track.id
-                ? '<button type="button" class="viz-button ghost small spotify-play-btn" data-track-id="' + track.id + '">Play</button>'
-                : "";
-            var external = track.external_url
-                ? '<a class="spotify-open-link" href="' + track.external_url + '" target="_blank" rel="noopener">Open in Spotify</a>'
-                : "";
-            var markup =
-                '<div class="spotify-result">' +
-                artwork +
-                '<div class="spotify-result-details">' +
-                '<h4>' + (track.name || "Unknown track") + '</h4>' +
-                '<p>' + (artists || "Unknown artist") + '</p>' +
-                (track.album
-                    ? '<p>' + track.album + (duration ? ' - ' + duration : '') + '</p>'
-                    : duration
-                    ? '<p>' + duration + '</p>'
-                    : '') +
-                '</div>' +
-                '<div class="spotify-result-actions">' +
-                playBtn +
-                external +
-                '</div>' +
-                '</div>';
-            spotifyResults.append(markup);
-        });
-    }
-
-    function performSpotifySearch(query) {
-        if (!window.fetch) {
-            setSpotifyStatus("Browser does not support Spotify search.", "error");
-            return;
-        }
-        if (activeController) {
-            activeController.abort();
-        }
-        activeController = new AbortController();
-        setSpotifyStatus("Searching Spotify…", "info");
-        spotifyResults.empty();
-        fetch("/api/spotify/search?q=" + encodeURIComponent(query), {
-            signal: activeController.signal,
-        })
-            .then(function(resp) {
-                if (!resp.ok) {
-                    return resp.json().catch(function() {
-                        return { error: "Spotify search failed." };
-                    });
-                }
-                return resp.json();
-            })
-            .then(function(payload) {
-                if (activeController) {
-                    activeController = null;
-                }
-                if (!payload) {
-                    setSpotifyStatus("Spotify search failed.", "error");
-                    return;
-                }
-                if (payload.error) {
-                    setSpotifyStatus(payload.error, "error");
-                    return;
-                }
-                renderSpotifyResults(payload.tracks || []);
-            })
-            .catch(function(err) {
-                if (err.name === "AbortError") {
-                    return;
-                }
-                console.error("[Spotify] Search failed:", err);
-                setSpotifyStatus("Spotify search failed. Try again.", "error");
-            });
-    }
-
-    spotifyBtn.on("click", function() {
-        openSpotifyModal();
-    });
-
-    spotifyCloseBtn.on("click", function() {
-        closeSpotifyModal();
-    });
-
-    spotifyModal.on("click", function(evt) {
-        if (evt.target === spotifyModal[0]) {
-            closeSpotifyModal();
-        }
-    });
-
-    $(document).on("keydown", function(evt) {
-        if (evt.key === "Escape" && spotifyModal.is(":visible")) {
-            closeSpotifyModal();
-        }
-    });
-
-    spotifyForm.on("submit", function(evt) {
-        evt.preventDefault();
-        var query = (spotifyInput.val() || "").trim();
-        if (!query) {
-            setSpotifyStatus("Enter a search phrase.", "error");
-            return;
-        }
-        performSpotifySearch(query);
-    });
-
-    spotifyResults.on("click", ".spotify-play-btn", function() {
-        var trackId = $(this).data("trackId");
-        if (trackId) {
-            showSpotifyPlayer(trackId);
-        }
-    });
-
-    spotifyPlayerClose.on("click", function() {
-        hideSpotifyPlayer();
-    });
-})();
-
 function setURL() {
     if (curTrack) {
         var p = "?trid=" + curTrack.id + "&mode=" + mode;
@@ -3795,18 +3511,9 @@ function createCanonDriver(player) {
     var curQ = 0;
     var running = false;
     var mtime = $("#mtime");
-    var processTimer = null;
-
-    function clearProcessTimer() {
-        if (processTimer) {
-            clearTimeout(processTimer);
-            processTimer = null;
-        }
-    }
 
     function stop() {
         running = false;
-        clearProcessTimer();
         player.stop();
         $("#play").text("Play");
         setURL();
@@ -3826,11 +3533,7 @@ function createCanonDriver(player) {
             var nextQ = masterQs[curQ];
             var delay = player.playQ(nextQ);
             curQ++;
-            clearProcessTimer();
-            processTimer = setTimeout(function() {
-                processTimer = null;
-                process();
-            }, 1000 * delay);
+            setTimeout(function() { process(); }, 1000 * delay);
             nextQ.tile.highlight();
             if (nextQ.other && nextQ.other.tile) {
                 nextQ.other.tile.highlight2();
@@ -3844,7 +3547,6 @@ function createCanonDriver(player) {
 
     return {
         start: function() {
-            clearProcessTimer();
             resetTileColors(masterQs);
             // Prefer server-recommended start_index; otherwise start of section 0 on a bar boundary
             var startIdx = 0;
@@ -3893,30 +3595,13 @@ function createCanonDriver(player) {
         },
 
         resume: function() {
-            if (running) {
-                return;
-            }
+            resetTileColors(masterQs);
             running = true;
             process();
             setURL();
             $("#play").text("Stop");
             setPlayingClass("canon");
             pulseNotes(baseNoteStrength);
-        },
-
-        pause: function() {
-            if (!running) {
-                return;
-            }
-            running = false;
-            clearProcessTimer();
-            if (player && typeof player.pause === "function") {
-                player.pause();
-            } else {
-                player.stop();
-            }
-            $("#play").text("Play");
-            setPlayingClass(null);
         },
 
         stop: stop,
@@ -3948,7 +3633,6 @@ function createJukeboxDriver(player, options) {
     var running = false;
     var mtime = $("#mtime");
     var modeName = options.modeName || "jukebox";
-    var processTimer = null;
 
     // Stats tracking for eternal modes
     var totalBeatsPlayed = 0;
@@ -4232,10 +3916,6 @@ function createJukeboxDriver(player, options) {
 
     function stop() {
         running = false;
-        if (processTimer) {
-            clearTimeout(processTimer);
-            processTimer = null;
-        }
         player.stop();
         $("#play").text("Play");
         setURL();
@@ -4854,21 +4534,11 @@ function createJukeboxDriver(player, options) {
             delay = q.duration;
         }
         advanceIndex();
-        if (processTimer) {
-            clearTimeout(processTimer);
-        }
-        processTimer = setTimeout(function() {
-            processTimer = null;
-            process();
-        }, 1000 * delay);
+        setTimeout(function() { process(); }, 1000 * delay);
     }
 
     return {
         start: function() {
-            if (processTimer) {
-                clearTimeout(processTimer);
-                processTimer = null;
-            }
             resetTileColors(masterQs);
             currentIndex = 0;
             rebuildLoopChoices();
@@ -4883,9 +4553,8 @@ function createJukeboxDriver(player, options) {
         },
 
         resume: function() {
-            if (running) {
-                return;
-            }
+            resetTileColors(masterQs);
+            rebuildLoopChoices();
             running = true;
             startStatsTracking();
             process();
@@ -4893,24 +4562,6 @@ function createJukeboxDriver(player, options) {
             $("#play").text("Stop");
             setPlayingClass(modeName);
             pulseNotes(baseNoteStrength);
-        },
-
-        pause: function() {
-            if (!running) {
-                return;
-            }
-            running = false;
-            if (processTimer) {
-                clearTimeout(processTimer);
-                processTimer = null;
-            }
-            if (player && typeof player.pause === "function") {
-                player.pause();
-            } else {
-                player.stop();
-            }
-            $("#play").text("Play");
-            setPlayingClass(null);
         },
 
         stop: stop,
@@ -5027,7 +4678,6 @@ function ga_track(page, action, id) {
 
 
 window.onload = init;
-
 
 
 

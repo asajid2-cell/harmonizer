@@ -9,6 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./modern.css">
     <link rel="stylesheet" href="./visualizer.css">
+    <!-- Appwrite SDK for OAuth (production) -->
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@16.0.2"></script>
 </head>
 <body class="page state-home advanced-collapsed" data-mode="canon">
     <div class="music-field" aria-hidden="true">
@@ -117,9 +119,6 @@
                             <input type="checkbox" id="base-audio-only-toggle">
                             <span>Base audio only</span>
                         </label>
-                        <button type="button" id="spotify-search-btn" class="viz-button ghost small">
-                            Spotify Search
-                        </button>
                         <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
                             Advanced: Off
                         </button>
@@ -190,32 +189,6 @@
         <div class="bottom-badge">Harmonizer Lab</div>
         <!-- Rotating message footer -->
         <footer class="viz-footer" id="footer-text">drive safe i fucking love you &lt;3</footer>
-
-        <!-- Spotify search modal -->
-        <div id="spotify-modal" class="modal" style="display: none;">
-            <div class="modal-content spotify-modal-card">
-                <div class="modal-header">
-                    <h3>Search Spotify</h3>
-                    <button type="button" class="modal-close" id="spotify-modal-close" aria-label="Close Spotify search">&times;</button>
-                </div>
-                <div class="modal-body spotify-modal-body">
-                    <form id="spotify-search-form" class="spotify-search-form">
-                        <input type="text" id="spotify-search-input" placeholder="Search tracks, artists, or albums" autocomplete="off" />
-                        <button type="submit" class="viz-button small">Search</button>
-                    </form>
-                    <div id="spotify-search-status" class="spotify-search-status"></div>
-                    <div id="spotify-search-results" class="spotify-search-results"></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="spotify-player-panel" class="spotify-player is-hidden">
-            <div class="spotify-player-header">
-                <span>Spotify Player</span>
-                <button type="button" id="spotify-player-close" aria-label="Close Spotify player">&times;</button>
-            </div>
-            <iframe id="spotify-embed-frame" src="" width="320" height="152" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-        </div>
         </div>
 
             <!-- ✅ Script to randomize the footer message -->
@@ -1642,14 +1615,137 @@
         }
     })();
 
-    // Music icon button (top right) - link to tidal.squid.wtf
+    // ==============================
+    // OAuth Authentication Logic
+    // Supports both Appwrite (production) and Flask (local development)
+    // ==============================
     (function() {
+        const signinButton = document.getElementById('google-signin-button');
+        const userInfo = document.getElementById('user-info');
+        const userEmail = document.getElementById('user-email');
+        const logoutButton = document.getElementById('logout-button');
+
+        // Detect if we're using Appwrite or Flask backend
+        const isAppwrite = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+        let appwriteClient, appwriteAccount;
+
+        if (isAppwrite && typeof Appwrite !== 'undefined') {
+            // Initialize Appwrite client for production
+            appwriteClient = new Appwrite.Client();
+            appwriteAccount = new Appwrite.Account(appwriteClient);
+
+            appwriteClient
+                .setEndpoint('https://sfo.cloud.appwrite.io/v1')
+                .setProject('68f808d30023e28bd79e');
+        }
+
+        // Check authentication status on page load
+        async function checkAuthStatus() {
+            try {
+                if (isAppwrite && appwriteAccount) {
+                    // Appwrite: Check for active session
+                    try {
+                        const user = await appwriteAccount.get();
+                        // User is logged in - show user info
+                        if (signinButton) signinButton.style.display = 'none';
+                        if (userInfo) {
+                            userInfo.style.display = 'flex';
+                            userInfo.style.alignItems = 'center';
+                        }
+                        if (userEmail) {
+                            userEmail.textContent = user.email || user.name || 'Signed in';
+                        }
+                        console.log('[Auth] User signed in:', user.email || user.name);
+                    } catch (error) {
+                        // Not logged in or session expired - silently show sign-in button
+                        if (signinButton) signinButton.style.display = 'inline-block';
+                        if (userInfo) userInfo.style.display = 'none';
+                        console.log('[Auth] No active session');
+                    }
+                } else {
+                    // Flask: Use existing /auth/status endpoint
+                    try {
+                        const response = await fetch('/auth/status');
+                        if (!response.ok) throw new Error('Auth status check failed');
+                        const data = await response.json();
+
+                        if (data && data.authenticated) {
+                            if (signinButton) signinButton.style.display = 'none';
+                            if (userInfo) {
+                                userInfo.style.display = 'flex';
+                                userInfo.style.alignItems = 'center';
+                            }
+                            if (userEmail) {
+                                userEmail.textContent = data.email || 'Signed in';
+                            }
+                        } else {
+                            if (signinButton) signinButton.style.display = 'inline-block';
+                            if (userInfo) userInfo.style.display = 'none';
+                        }
+                    } catch (error) {
+                        // Flask endpoint not available (expected in production) - hide everything
+                        if (signinButton) signinButton.style.display = 'none';
+                        if (userInfo) userInfo.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                // Catch-all: silently handle any errors, don't show to user
+                console.log('[Auth] Error checking status (non-critical):', error.message);
+                if (signinButton) signinButton.style.display = 'inline-block';
+                if (userInfo) userInfo.style.display = 'none';
+            }
+        }
+
+        // Sign in with Google (function)
+        function handleGoogleSignIn() {
+            if (isAppwrite && appwriteAccount) {
+                // Appwrite OAuth
+                appwriteAccount.createOAuth2Session(
+                    'google',
+                    window.location.origin,  // Success redirect
+                    window.location.origin   // Failure redirect
+                );
+            } else {
+                // Flask OAuth
+                window.location.href = '/auth/google';
+            }
+        }
+
+        // Sign in button in advanced settings
+        if (signinButton) {
+            signinButton.addEventListener('click', handleGoogleSignIn);
+        }
+
+        // Music icon button (top right) - link to tidal.squid.wtf
         const siteLogoButton = document.getElementById('site-logo');
         if (siteLogoButton) {
             siteLogoButton.addEventListener('click', () => {
                 window.open('https://tidal.squid.wtf/', '_blank');
             });
         }
+
+        // Sign out
+        if (logoutButton) {
+            logoutButton.addEventListener('click', async () => {
+                try {
+                    if (isAppwrite && appwriteAccount) {
+                        // Appwrite: Delete session
+                        await appwriteAccount.deleteSession('current');
+                        window.location.reload();
+                    } else {
+                        // Flask: Use /auth/logout endpoint
+                        await fetch('/auth/logout');
+                        window.location.reload();
+                    }
+                } catch (error) {
+                    console.error('Error signing out:', error);
+                }
+            });
+        }
+
+        // Check auth status on page load
+        checkAuthStatus();
     })();
 
     // ==============================

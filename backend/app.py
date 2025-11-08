@@ -3,11 +3,8 @@ from __future__ import annotations
 import os
 import mimetypes
 import uuid
-import hashlib
-import time
-import threading
 from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional
 
 from flask import (
     Flask,
@@ -16,11 +13,14 @@ from flask import (
     redirect,
     request,
     send_from_directory,
+    session,
     url_for,
 )
+from flask_session import Session
 from werkzeug.utils import secure_filename
+from google_auth_oauthlib.flow import Flow
+from google.oauth2.credentials import Credentials
 import json
-import requests
 
 try:
     from yt_dlp import YoutubeDL  # type: ignore
@@ -59,15 +59,21 @@ UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 DATA_FOLDER.mkdir(parents=True, exist_ok=True)
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
 
-CACHE_MANIFEST_PATH = DATA_FOLDER / "analysis_cache.json"
-CACHE_MANIFEST_LOCK = threading.Lock()
-SPOTIFY_TOKEN_CACHE = {"token": None, "expires_at": 0.0}
-SPOTIFY_TOKEN_LOCK = threading.Lock()
-
 app = Flask(__name__, static_folder=None)
 
-# Configure secret key for any future features that might rely on it.
+# Configure session for OAuth
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(24))
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_FILE_DIR"] = str(BASE_DIR / "flask_session")
+Session(app)
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
+
+# Store user credentials (in production, use Redis or database)
+user_credentials = {}
 
 
 @app.after_request
@@ -86,136 +92,35 @@ def generate_track_id() -> str:
     return "TR" + uuid.uuid4().hex[:10].upper()
 
 
-def _hash_file(path: Path, chunk_size: int = 65536) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(chunk_size), b""):
-            if not chunk:
-                break
-            digest.update(chunk)
-    return digest.hexdigest()
+def get_user_oauth_cookies(user_id: Optional[str]) -> Optional[Path]:
+    """Create a temporary cookies file from user's OAuth credentials"""
+    if not user_id or user_id not in user_credentials:
+        return None
 
-
-def _load_analysis_cache() -> Dict[str, Any]:
-    if not CACHE_MANIFEST_PATH.exists():
-        return {}
     try:
-        with CACHE_MANIFEST_PATH.open("r", encoding="utf-8") as fh:
-            return json.load(fh)
-    except (json.JSONDecodeError, OSError):
-        return {}
+        creds_dict = user_credentials[user_id]["credentials"]
+        credentials = Credentials(
+            token=creds_dict["token"],
+            refresh_token=creds_dict.get("refresh_token"),
+            token_uri=creds_dict["token_uri"],
+            client_id=creds_dict["client_id"],
+            client_secret=creds_dict["client_secret"],
+            scopes=creds_dict["scopes"]
+        )
 
+        # Create a Netscape cookie file format for yt-dlp
+        cookie_file = UPLOAD_FOLDER / f"oauth_cookies_{user_id}.txt"
 
-def _persist_analysis_cache(cache: Dict[str, Any]) -> None:
-    CACHE_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = CACHE_MANIFEST_PATH.with_suffix(".tmp")
-    with CACHE_MANIFEST_LOCK:
-        with temp_path.open("w", encoding="utf-8") as fh:
-            json.dump(cache, fh, indent=2)
-        temp_path.replace(CACHE_MANIFEST_PATH)
+        # yt-dlp can use Authorization header directly, which is better
+        # We'll return a special marker that tells us to use OAuth
+        cookie_file.write_text(f"OAUTH_TOKEN:{credentials.token}")
 
+        print(f"[OAuth] Using user's Google credentials for download", flush=True)
+        return cookie_file
 
-def _build_url_cache_key(prefix: str, raw_value: str) -> Optional[str]:
-    if not raw_value:
+    except Exception as e:
+        print(f"[OAuth] Error creating OAuth cookies: {e}", flush=True)
         return None
-    normalized = raw_value.strip()
-    if not normalized:
-        return None
-    return f"{prefix}:{normalized.lower()}"
-
-
-def _get_valid_cache_entry(
-    cache: Dict[str, Any], key: Optional[str]
-) -> Tuple[Optional[Dict[str, Any]], bool]:
-    """
-    Returns (entry, removed_flag). removed_flag indicates whether a stale entry
-    was pruned and the manifest should be saved.
-    """
-    if not key:
-        return None, False
-    entry = cache.get(key)
-    if not entry:
-        return None, False
-
-    track_id = entry.get("track_id")
-    if not track_id:
-        cache.pop(key, None)
-        return None, True
-
-    data_path = DATA_FOLDER / f"{track_id}.json"
-    if not data_path.exists():
-        cache.pop(key, None)
-        return None, True
-
-    audio_filename = entry.get("audio_filename")
-    if audio_filename:
-        audio_path = UPLOAD_FOLDER / audio_filename
-        if not audio_path.exists():
-            cache.pop(key, None)
-            return None, True
-
-    return entry, False
-
-
-def _get_spotify_access_token() -> str:
-    client_id = os.environ.get("SPOTIFY_CLIENT_ID")
-    client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
-    if not client_id or not client_secret:
-        raise RuntimeError(
-            "Spotify API credentials not configured. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET."
-        )
-    with SPOTIFY_TOKEN_LOCK:
-        now = time.time()
-        token = SPOTIFY_TOKEN_CACHE.get("token")
-        expires_at = SPOTIFY_TOKEN_CACHE.get("expires_at", 0.0)
-        if token and now < expires_at - 30:
-            return token
-
-        resp = requests.post(
-            "https://accounts.spotify.com/api/token",
-            data={"grant_type": "client_credentials"},
-            auth=(client_id, client_secret),
-            timeout=15,
-        )
-        if resp.status_code != 200:
-            raise RuntimeError(
-                f"Spotify authentication failed ({resp.status_code}): {resp.text[:120]}"
-            )
-        payload = resp.json()
-        token = payload.get("access_token")
-        expires_in = payload.get("expires_in", 3600)
-        if not token:
-            raise RuntimeError("Spotify authentication response missing access token.")
-        SPOTIFY_TOKEN_CACHE["token"] = token
-        SPOTIFY_TOKEN_CACHE["expires_at"] = now + max(30, expires_in)
-        return token
-
-
-def _spotify_get(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
-    token = _get_spotify_access_token()
-    resp = requests.get(
-        f"https://api.spotify.com/v1/{path}",
-        headers={"Authorization": f"Bearer {token}"},
-        params=params,
-        timeout=15,
-    )
-    if resp.status_code == 401:
-        # token expired or revoked; retry once
-        with SPOTIFY_TOKEN_LOCK:
-            SPOTIFY_TOKEN_CACHE["token"] = None
-            SPOTIFY_TOKEN_CACHE["expires_at"] = 0
-        token = _get_spotify_access_token()
-        resp = requests.get(
-            f"https://api.spotify.com/v1/{path}",
-            headers={"Authorization": f"Bearer {token}"},
-            params=params,
-            timeout=15,
-        )
-    if resp.status_code != 200:
-        raise RuntimeError(
-            f"Spotify request failed ({resp.status_code}): {resp.text[:200]}"
-        )
-    return resp.json()
 
 
 def locate_ffmpeg_bin() -> Optional[Path]:
@@ -253,6 +158,106 @@ def locate_ffmpeg_bin() -> Optional[Path]:
 @app.route("/")
 def index():
     return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.route("/auth/google")
+def auth_google():
+    """Initiate Google OAuth flow"""
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        return jsonify({"error": "Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables."}), 500
+
+    flow = Flow.from_client_config(
+        {
+            "web": {
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }
+        },
+        scopes=SCOPES
+    )
+
+    flow.redirect_uri = request.host_url.rstrip("/") + "/auth/callback"
+
+    authorization_url, state = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent"
+    )
+
+    session["state"] = state
+    return redirect(authorization_url)
+
+
+@app.route("/auth/callback")
+def auth_callback():
+    """Handle OAuth callback from Google"""
+    try:
+        state = session.get("state")
+        if not state:
+            return jsonify({"error": "Invalid session state"}), 400
+
+        flow = Flow.from_client_config(
+            {
+                "web": {
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                }
+            },
+            scopes=SCOPES,
+            state=state
+        )
+
+        flow.redirect_uri = request.host_url.rstrip("/") + "/auth/callback"
+        flow.fetch_token(authorization_response=request.url)
+
+        credentials = flow.credentials
+        user_id = str(uuid.uuid4())
+
+        # Store credentials with user ID
+        user_credentials[user_id] = {
+            "credentials": {
+                "token": credentials.token,
+                "refresh_token": credentials.refresh_token,
+                "token_uri": credentials.token_uri,
+                "client_id": credentials.client_id,
+                "client_secret": credentials.client_secret,
+                "scopes": credentials.scopes,
+            }
+        }
+
+        session["user_id"] = user_id
+        print(f"[OAuth] User authenticated: {user_id}", flush=True)
+
+        return redirect(url_for("index"))
+
+    except Exception as e:
+        print(f"[OAuth] Error: {e}", flush=True)
+        return jsonify({"error": f"Authentication failed: {str(e)}"}), 500
+
+
+@app.route("/auth/status")
+def auth_status():
+    """Check if user is authenticated"""
+    user_id = session.get("user_id")
+    if user_id and user_id in user_credentials:
+        return jsonify({"authenticated": True, "user_id": user_id})
+    return jsonify({"authenticated": False})
+
+
+@app.route("/auth/logout")
+def auth_logout():
+    """Log out user"""
+    user_id = session.get("user_id")
+    if user_id and user_id in user_credentials:
+        del user_credentials[user_id]
+    session.clear()
+    return redirect(url_for("index"))
+
+
 @app.route("/visualizer")
 def visualizer():
     if "trid" not in request.args:
@@ -329,21 +334,34 @@ def _get_youtube_playlist_info(url: str) -> Optional[dict]:
         return {"is_playlist": False}
 
 
-def _download_spotify(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
-    """Download a track from Spotify using spotdl."""
+def _download_spotify(url: str, track_id: str, user_id: Optional[str] = None) -> tuple[Path, Optional[dict]]:
+    """Download a track from Spotify using spotdl.
+
+    Note: spotdl downloads audio from YouTube Music, so user_id OAuth credentials
+    will be used for the underlying YouTube download if available.
+    """
     if Spotdl is None:
         raise RuntimeError("spotdl is not installed. Run `pip install spotdl`.")
 
     print(f"[Spotify Download] Processing: {url}", flush=True)
 
     try:
+        # Configure yt-dlp options for spotdl's underlying YouTube download
+        downloader_settings = {}
+
+        # If user has OAuth credentials, use them for YouTube Music downloads
+        oauth_cookie_file = get_user_oauth_cookies(user_id)
+        if oauth_cookie_file:
+            downloader_settings["cookie_file"] = str(oauth_cookie_file)
+            print(f"[Spotify Download] Using user's OAuth credentials for YouTube Music", flush=True)
+
         # Initialize spotdl - it uses environment credentials or default public ones
         spotdl = Spotdl(
             client_id="5f573c9620494bae87890c0f08a60293",  # Public client ID
             client_secret="212476d9b0f3472eaa762d90b19b0ba8",  # Public client secret
             user_auth=False,
             headless=True,
-            downloader_settings=None,
+            downloader_settings=downloader_settings if downloader_settings else None,
         )
 
         # Download the song
@@ -484,7 +502,7 @@ def _extract_song_info_from_url(url: str) -> Optional[dict]:
         return None
 
 
-def _smart_download_with_fallback(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
+def _smart_download_with_fallback(url: str, track_id: str, user_id: Optional[str] = None) -> tuple[Path, Optional[dict]]:
     """
     Smart download system that tries multiple sources:
     1. Try direct URL (YouTube, Spotify, SoundCloud)
@@ -505,13 +523,13 @@ def _smart_download_with_fallback(url: str, track_id: str) -> tuple[Path, Option
     try:
         if is_spotify:
             print(f"[Smart Download] Trying Spotify direct...", flush=True)
-            return _download_spotify(url, track_id)
+            return _download_spotify(url, track_id, user_id)
         elif is_soundcloud:
             print(f"[Smart Download] Trying SoundCloud direct...", flush=True)
             return _download_soundcloud(url, track_id)
         elif is_youtube:
             print(f"[Smart Download] Trying YouTube direct...", flush=True)
-            return _download_youtube(url, track_id)
+            return _download_youtube(url, track_id, user_id)
     except Exception as e:
         error_msg = str(e)
         errors.append(f"Direct download failed: {error_msg[:100]}")
@@ -705,7 +723,7 @@ def _download_from_drive(url: str, track_id: str) -> tuple[Path, Optional[dict]]
         raise RuntimeError(f"Failed to process Google Drive file: {error_msg}")
 
 
-def _download_youtube(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
+def _download_youtube(url: str, track_id: str, user_id: Optional[str] = None) -> tuple[Path, Optional[dict]]:
     if YoutubeDL is None:
         raise RuntimeError("yt-dlp is not installed. Run `pip install yt-dlp`.")
 
@@ -755,8 +773,16 @@ def _download_youtube(url: str, track_id: str) -> tuple[Path, Optional[dict]]:
 
     retry_configs = []
 
+    # PRIORITY 0: If user is authenticated with OAuth, use their credentials (BEST - no rate limits per user!)
+    oauth_cookie_file = get_user_oauth_cookies(user_id)
+    if oauth_cookie_file:
+        retry_configs.append({
+            **common_opts,
+            "cookiefile": str(oauth_cookie_file),
+        })
+        print(f"[YouTube Download] Using user's OAuth credentials for authentication", flush=True)
     # PRIORITY 1: If cookie file exists, use it (best for servers/production)
-    if cookies_file:
+    elif cookies_file:
         retry_configs.append({
             **common_opts,
             "cookiefile": str(cookies_file),
@@ -847,46 +873,18 @@ def api_process():
     if algorithm not in {"canon", "jukebox", "eternal"}:
         return jsonify({"error": "Unsupported algorithm selection."}), 400
 
-    if algorithm == "canon":
-        mode = "canon"
-    elif algorithm == "jukebox":
-        mode = "jukebox"
-    else:
-        mode = "eternal"
-
     source = request.form.get("source", "upload").lower()
     title = request.form.get("title") or None
     artist = request.form.get("artist") or "(unknown artist)"
 
+    # Get user_id from session for OAuth authentication
+    user_id = session.get("user_id")
+    if user_id:
+        print(f"[API] Request from authenticated user: {user_id}", flush=True)
+
     track_id = generate_track_id()
     audio_path: Optional[Path] = None
     info: Optional[dict] = None
-    cache_manifest = _load_analysis_cache()
-    cache_dirty = False
-    cache_key: Optional[str] = None
-
-    def cache_lookup(key: Optional[str]) -> Optional[Dict[str, Any]]:
-        nonlocal cache_dirty
-        entry, removed = _get_valid_cache_entry(cache_manifest, key)
-        if removed:
-            cache_dirty = True
-        return entry
-
-    def cache_register(key: Optional[str], entry: Dict[str, Any]) -> None:
-        nonlocal cache_dirty
-        if not key:
-            return
-        cache_manifest[key] = entry
-        cache_dirty = True
-
-    def cache_response(entry: Dict[str, Any]):
-        return jsonify(
-            {
-                "redirect": url_for("index", trid=entry["track_id"], mode=mode),
-                "trackId": entry["track_id"],
-                "cached": True,
-            }
-        )
 
     try:
         if source == "upload":
@@ -901,28 +899,14 @@ def api_process():
             uploaded.save(audio_path)
             if not title:
                 title = Path(uploaded.filename).stem
-
-            cache_key = f"upload:{_hash_file(audio_path)}"
-            cached_entry = cache_lookup(cache_key)
-            if cached_entry:
-                try:
-                    audio_path.unlink()
-                except OSError:
-                    pass
-                return cache_response(cached_entry)
         elif source == "youtube":
             url = request.form.get("youtube_url", "").strip()
             if not url:
                 return jsonify({"error": "Please provide a YouTube URL."}), 400
 
-            cache_key = _build_url_cache_key("youtube", url)
-            cached_entry = cache_lookup(cache_key)
-            if cached_entry:
-                return cache_response(cached_entry)
-
             # Use smart download with automatic fallback to Spotify/SoundCloud
             print(f"[API] Using smart download with fallback system...", flush=True)
-            audio_path, info = _smart_download_with_fallback(url, track_id)
+            audio_path, info = _smart_download_with_fallback(url, track_id, user_id)
 
             if not title:
                 title = info.get("title") if info else None
@@ -932,11 +916,7 @@ def api_process():
             url = request.form.get("spotify_url", "").strip()
             if not url:
                 return jsonify({"error": "Please provide a Spotify URL."}), 400
-            cache_key = _build_url_cache_key("spotify", url)
-            cached_entry = cache_lookup(cache_key)
-            if cached_entry:
-                return cache_response(cached_entry)
-            audio_path, info = _download_spotify(url, track_id)
+            audio_path, info = _download_spotify(url, track_id, user_id)
             if not title:
                 title = info.get("title") if info else None
             if (not request.form.get("artist")) and info:
@@ -945,11 +925,6 @@ def api_process():
             url = request.form.get("drive_url", "").strip()
             if not url:
                 return jsonify({"error": "Please provide a Google Drive URL."}), 400
-            # treat drive URLs as cacheable by normalized link
-            cache_key = _build_url_cache_key("drive", url)
-            cached_entry = cache_lookup(cache_key)
-            if cached_entry:
-                return cache_response(cached_entry)
             audio_path, info = _download_from_drive(url, track_id)
             if not title:
                 title = info.get("title") if info else None
@@ -972,25 +947,18 @@ def api_process():
             output_path=output_path,
         )
 
-        cache_register(
-            cache_key,
-            {
-                "track_id": track_id,
-                "audio_filename": audio_path.name if audio_path else None,
-                "title": title,
-                "artist": artist,
-                "cached_at": time.time(),
-            },
-        )
+        if algorithm == "canon":
+            mode = "canon"
+        elif algorithm == "jukebox":
+            mode = "jukebox"
+        else:
+            mode = "eternal"
         redirect_url = url_for("index", trid=track_id, mode=mode)
         return jsonify({"redirect": redirect_url, "trackId": track_id})
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 500
     except Exception as exc:  # pragma: no cover
         return jsonify({"error": f"Unexpected error: {exc}"}), 500
-    finally:
-        if cache_dirty:
-            _persist_analysis_cache(cache_manifest)
 
 
 @app.route("/api/playlist-info", methods=["POST", "OPTIONS"])
@@ -1009,74 +977,6 @@ def api_playlist_info():
         return jsonify({"error": str(exc)}), 500
     except Exception as exc:
         return jsonify({"error": f"Unexpected error: {exc}"}), 500
-
-
-@app.route("/api/spotify/search", methods=["GET", "OPTIONS"])
-def api_spotify_search():
-    if request.method == "OPTIONS":
-        return ("", 204)
-
-    query = (request.args.get("q") or "").strip()
-    if not query:
-        return jsonify({"error": "Missing search query."}), 400
-
-    limit_param = request.args.get("limit")
-    try:
-        limit = int(limit_param) if limit_param is not None else 12
-    except ValueError:
-        limit = 12
-    limit = max(1, min(25, limit))
-
-    try:
-        data = _spotify_get("search", {"q": query, "type": "track", "limit": limit})
-    except RuntimeError as exc:
-        return jsonify({"error": str(exc)}), 500
-
-    tracks_payload = data.get("tracks", {}).get("items", [])
-    tracks = []
-    for item in tracks_payload:
-        album = item.get("album") or {}
-        images = album.get("images") or []
-        tracks.append(
-            {
-                "id": item.get("id"),
-                "name": item.get("name"),
-                "artists": [artist.get("name") for artist in item.get("artists", [])],
-                "album": album.get("name"),
-                "duration_ms": item.get("duration_ms"),
-                "preview_url": item.get("preview_url"),
-                "external_url": item.get("external_urls", {}).get("spotify"),
-                "image": images[0]["url"] if images else None,
-            }
-        )
-
-    return jsonify({"tracks": tracks})
-
-
-@app.route("/api/spotify/track/<track_id>", methods=["GET", "OPTIONS"])
-def api_spotify_track(track_id: str):
-    if request.method == "OPTIONS":
-        return ("", 204)
-    if not track_id:
-        return jsonify({"error": "Missing track id."}), 400
-    try:
-        item = _spotify_get(f"tracks/{track_id}", {})
-    except RuntimeError as exc:
-        return jsonify({"error": str(exc)}), 500
-
-    album = item.get("album") or {}
-    images = album.get("images") or []
-    track = {
-        "id": item.get("id"),
-        "name": item.get("name"),
-        "artists": [artist.get("name") for artist in item.get("artists", [])],
-        "album": album.get("name"),
-        "duration_ms": item.get("duration_ms"),
-        "preview_url": item.get("preview_url"),
-        "external_url": item.get("external_urls", {}).get("spotify"),
-        "image": images[0]["url"] if images else None,
-    }
-    return jsonify(track)
 
 
 @app.route("/<path:asset_path>")
