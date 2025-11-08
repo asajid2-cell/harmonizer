@@ -709,32 +709,65 @@ function prepareLoopCandidates(track) {
     if (!track || !track.analysis) {
         return;
     }
-    var edges = track.analysis.loop_candidates || [];
-    if (!edges.length && track.analysis.canon_alignment && track.analysis.canon_alignment.loop_candidates) {
-        edges = track.analysis.canon_alignment.loop_candidates;
-    }
-    _.each(edges, function(edge) {
-        if (!edge) {
-            return;
-        }
-        var src = edge.source;
-        var dst = edge.target;
-        if (typeof src !== "number" || typeof dst !== "number") {
-            return;
-        }
-        if (!serverLoopCandidateMap[src]) {
-            serverLoopCandidateMap[src] = [];
-        }
-        serverLoopCandidateMap[src].push({
-            target: dst,
-            similarity: (typeof edge.similarity === "number") ? edge.similarity : 0
+
+    // Priority 1: Use eternal_loop_candidates if available (segment-based similarity)
+    var eternalCandidates = track.analysis.eternal_loop_candidates;
+    if (eternalCandidates && typeof eternalCandidates === "object") {
+        console.log('[prepareLoopCandidates] Using eternal_loop_candidates with real spectral similarity');
+        _.each(eternalCandidates, function(candidates, srcKey) {
+            var src = parseInt(srcKey, 10);
+            if (isNaN(src) || !Array.isArray(candidates)) {
+                return;
+            }
+            if (!serverLoopCandidateMap[src]) {
+                serverLoopCandidateMap[src] = [];
+            }
+            _.each(candidates, function(cand) {
+                if (cand && typeof cand.target === "number" && typeof cand.similarity === "number") {
+                    serverLoopCandidateMap[src].push({
+                        target: cand.target,
+                        similarity: cand.similarity
+                    });
+                }
+            });
         });
-    });
+    }
+
+    // Priority 2: Fallback to canon loop_candidates
+    if (Object.keys(serverLoopCandidateMap).length === 0) {
+        console.log('[prepareLoopCandidates] Falling back to canon loop_candidates');
+        var edges = track.analysis.loop_candidates || [];
+        if (!edges.length && track.analysis.canon_alignment && track.analysis.canon_alignment.loop_candidates) {
+            edges = track.analysis.canon_alignment.loop_candidates;
+        }
+        _.each(edges, function(edge) {
+            if (!edge) {
+                return;
+            }
+            var src = edge.source;
+            var dst = edge.target;
+            if (typeof src !== "number" || typeof dst !== "number") {
+                return;
+            }
+            if (!serverLoopCandidateMap[src]) {
+                serverLoopCandidateMap[src] = [];
+            }
+            serverLoopCandidateMap[src].push({
+                target: dst,
+                similarity: (typeof edge.similarity === "number") ? edge.similarity : 0
+            });
+        });
+    }
+
+    // Sort and limit candidates per beat
     _.each(serverLoopCandidateMap, function(entries, key) {
         serverLoopCandidateMap[key] = _.sortBy(entries, function(entry) {
             return -entry.similarity;
-        }).slice(0, 12);
+        }).slice(0, 16); // Increased from 12 to 16 for more variety
     });
+
+    var totalCandidates = _.reduce(serverLoopCandidateMap, function(sum, entries) { return sum + entries.length; }, 0);
+    console.log('[prepareLoopCandidates] Prepared', totalCandidates, 'total loop candidates across', Object.keys(serverLoopCandidateMap).length, 'beats');
 }
 
 function findMax(dict) {

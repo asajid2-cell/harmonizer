@@ -1089,6 +1089,148 @@ def compute_canon_alignment(
     }
 
 
+def euclidean_distance(v1: np.ndarray, v2: np.ndarray) -> float:
+    """Compute Euclidean distance between two vectors."""
+    return float(np.sqrt(np.sum((v1 - v2) ** 2)))
+
+
+def cosine_similarity(v1: np.ndarray, v2: np.ndarray) -> float:
+    """Compute cosine similarity between two vectors (returns 0-1, higher is more similar)."""
+    dot = np.dot(v1, v2)
+    norm1 = np.linalg.norm(v1)
+    norm2 = np.linalg.norm(v2)
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+    return float(max(0.0, min(1.0, (dot / (norm1 * norm2) + 1) / 2)))
+
+
+def compute_segment_similarity(seg1: Dict, seg2: Dict) -> float:
+    """
+    Compute similarity between two segments using timbre and pitch.
+    Returns similarity score 0-1, where 1 is most similar.
+    """
+    timbre1 = np.array(seg1.get("timbre", []))
+    timbre2 = np.array(seg2.get("timbre", []))
+    pitches1 = np.array(seg1.get("pitches", []))
+    pitches2 = np.array(seg2.get("pitches", []))
+
+    if len(timbre1) == 0 or len(timbre2) == 0:
+        return 0.0
+
+    # Timbre similarity (70% weight) - use cosine for MFCC-like features
+    timbre_sim = cosine_similarity(timbre1, timbre2)
+
+    # Pitch similarity (30% weight) - use cosine for chroma features
+    pitch_sim = 0.5
+    if len(pitches1) > 0 and len(pitches2) > 0:
+        pitch_sim = cosine_similarity(pitches1, pitches2)
+
+    # Combined similarity
+    combined = 0.7 * timbre_sim + 0.3 * pitch_sim
+
+    return float(combined)
+
+
+def compute_beat_to_beat_similarity(
+    beats: List[Quantum],
+    segments: List[Dict],
+) -> np.ndarray:
+    """
+    Compute similarity matrix between beats based on their overlapping segments.
+    Returns NxN matrix where N is number of beats.
+    """
+    n_beats = len(beats)
+    similarity_matrix = np.zeros((n_beats, n_beats), dtype=np.float32)
+
+    # Map segments to beats
+    beat_segments = []
+    for beat in beats:
+        beat_start = beat.start
+        beat_end = beat.start + beat.duration
+        overlapping = []
+        for seg in segments:
+            seg_start = seg["start"]
+            seg_end = seg["start"] + seg["duration"]
+            # Check if segment overlaps with beat
+            if seg_start < beat_end and seg_end > beat_start:
+                overlapping.append(seg)
+        beat_segments.append(overlapping)
+
+    # Compute pairwise similarities
+    for i in range(n_beats):
+        for j in range(n_beats):
+            if i == j:
+                similarity_matrix[i, j] = 1.0
+                continue
+
+            # Compare segments in each beat
+            segs_i = beat_segments[i]
+            segs_j = beat_segments[j]
+
+            if not segs_i or not segs_j:
+                similarity_matrix[i, j] = 0.0
+                continue
+
+            # Average similarity across segment pairs
+            similarities = []
+            for seg_i in segs_i:
+                for seg_j in segs_j:
+                    sim = compute_segment_similarity(seg_i, seg_j)
+                    similarities.append(sim)
+
+            if similarities:
+                similarity_matrix[i, j] = np.mean(similarities)
+            else:
+                similarity_matrix[i, j] = 0.0
+
+    return similarity_matrix
+
+
+def generate_loop_candidates(
+    beats: List[Quantum],
+    similarity_matrix: np.ndarray,
+    min_loop_distance: int = 8,
+    similarity_threshold: float = 0.65,
+    max_candidates_per_beat: int = 12,
+) -> Dict[int, List[Dict]]:
+    """
+    Generate loop candidates for each beat based on similarity scores.
+    Returns dict mapping beat_index -> list of {target, similarity, span}.
+    Only includes backward jumps (target < source).
+    """
+    n_beats = len(beats)
+    loop_candidates = {}
+
+    for source_idx in range(n_beats):
+        candidates = []
+
+        # Only consider backward jumps
+        for target_idx in range(source_idx):
+            span = source_idx - target_idx
+
+            # Must be far enough apart
+            if span < min_loop_distance:
+                continue
+
+            similarity = similarity_matrix[source_idx, target_idx]
+
+            # Must meet threshold
+            if similarity < similarity_threshold:
+                continue
+
+            candidates.append({
+                "target": target_idx,
+                "similarity": float(similarity),
+                "span": span,
+            })
+
+        # Sort by similarity (best first) and limit
+        candidates.sort(key=lambda x: x["similarity"], reverse=True)
+        loop_candidates[source_idx] = candidates[:max_candidates_per_beat]
+
+    return loop_candidates
+
+
 def build_profile(
     audio_path: Path,
     track_id: str,
@@ -1142,6 +1284,33 @@ def build_profile(
         canon_alignment.get("loop_candidates", []) if canon_alignment else []
     )
 
+    # Compute segment-based similarity matrix for eternal jukebox
+    print("[Analysis] Computing segment similarity matrix for eternal jukebox...", flush=True)
+    similarity_matrix = compute_beat_to_beat_similarity(beats, segments)
+
+    # Generate loop candidates with multiple threshold tiers for flexibility
+    eternal_loop_candidates = {}
+    for threshold in [0.76, 0.65, 0.55]:  # High, medium, low quality tiers
+        candidates = generate_loop_candidates(
+            beats=beats,
+            similarity_matrix=similarity_matrix,
+            min_loop_distance=8,
+            similarity_threshold=threshold,
+            max_candidates_per_beat=12,
+        )
+        # Merge with lower priority for lower thresholds
+        for src, cand_list in candidates.items():
+            if src not in eternal_loop_candidates:
+                eternal_loop_candidates[src] = []
+            # Add new candidates that aren't already present
+            existing_targets = {c["target"] for c in eternal_loop_candidates[src]}
+            for cand in cand_list:
+                if cand["target"] not in existing_targets:
+                    eternal_loop_candidates[src].append(cand)
+                    existing_targets.add(cand["target"])
+
+    print(f"[Analysis] Generated {sum(len(v) for v in eternal_loop_candidates.values())} eternal jukebox loop candidates", flush=True)
+
     profile = {
         "response": {
             "status": {"code": 0, "message": "OK"},
@@ -1177,6 +1346,7 @@ def build_profile(
                     "segments": segments,
                     "canon_alignment": canon_alignment,
                     "loop_candidates": loop_candidates,
+                    "eternal_loop_candidates": eternal_loop_candidates,
                 },
             },
         }
