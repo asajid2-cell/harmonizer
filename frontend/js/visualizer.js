@@ -42,6 +42,8 @@ var otherColor = "#F9F6F2";
 var trackDuration;
 var masterCursor = null;
 var otherCursor = null;
+var masterCursorCircle = null;
+var otherCursorCircle = null;
 
 var paper = null;
 var W = 1000;
@@ -3365,10 +3367,92 @@ function drawLoopConnections(qlist, edges, isEternalMode) {
     });
 }
 
+function drawCircularLoopConnections(qlist, edges) {
+    clearLoopPaths();
+    if (!edges || !edges.length) {
+        return;
+    }
+    var radius = getCircularRadius() - 12;
+    var center = getCircularCenter();
+    var controlRadius = radius * 0.55;
+    _.each(edges, function(edge) {
+        if (edge.source >= qlist.length || edge.target >= qlist.length) {
+            return;
+        }
+        var qSrc = qlist[edge.source];
+        var qDst = qlist[edge.target];
+        if (!qSrc || !qDst) {
+            return;
+        }
+        var srcPoint = getCircularPoint(qSrc, radius);
+        var dstPoint = getCircularPoint(qDst, radius);
+        var angleDiff = shortestAngleBetween(srcPoint.angle, dstPoint.angle);
+        var ctrlAngle = srcPoint.angle + angleDiff / 2;
+        var ctrlX = center.x + Math.cos(ctrlAngle) * controlRadius;
+        var ctrlY = center.y + Math.sin(ctrlAngle) * controlRadius;
+        var pathString = "M" + srcPoint.x + " " + srcPoint.y + " Q " + ctrlX + " " + ctrlY + " " + dstPoint.x + " " + dstPoint.y;
+        var path = paper.path(pathString);
+        var simNorm = Math.max(0, Math.min(1, (edge.similarity + 1) / 2));
+        var strokeWidth = 1.4 + simNorm * 2.6;
+        var opacity = 0.18 + simNorm * 0.55;
+        path.attr({
+            stroke: "#6B8AF0",
+            "stroke-width": strokeWidth,
+            "stroke-opacity": opacity
+        });
+        loopPaths.push(path);
+    });
+}
+
 var vPad = 20;
 var hPad = 20;
 
+function getCircularCenter() {
+    return {
+        x: W / 2,
+        y: H / 2
+    };
+}
+
+function getCircularRadius() {
+    return Math.max(80, Math.min(W, H) / 2 - 40);
+}
+
+function getCircularAngle(q) {
+    var total = Math.max(trackDuration || 0, (q.start || 0) + (q.duration || 0));
+    if (!total) {
+        total = 1;
+    }
+    var mid = (q.start || 0) + ((q.duration || 0) / 2);
+    var ratio = (mid % total) / total;
+    return (ratio * Math.PI * 2) - (Math.PI / 2);
+}
+
+function getCircularPoint(q, radius) {
+    var center = getCircularCenter();
+    var angle = getCircularAngle(q);
+    return {
+        angle: angle,
+        x: center.x + Math.cos(angle) * radius,
+        y: center.y + Math.sin(angle) * radius
+    };
+}
+
+function shortestAngleBetween(a, b) {
+    var diff = (b - a) % (Math.PI * 2);
+    if (diff > Math.PI) {
+        diff -= Math.PI * 2;
+    }
+    if (diff < -Math.PI) {
+        diff += Math.PI * 2;
+    }
+    return diff;
+}
+
 function createTiles(qlist) {
+    if (mode === "jukebox") {
+        return createCircularTiles(qlist);
+    }
     tiles = [];
     normalizeColor();
     var GH = H - vPad * 2;
@@ -3384,7 +3468,7 @@ function createTiles(qlist) {
         createTile(i, q, x, HB - height, tileWidth, height);
     }
     if (mode === "canon") {
-        drawConnections(qlist);
+    drawConnections(qlist);
     } else if (mode === "jukebox") {
         var loopEdges = collectVisualizationLoops(80);
         drawLoopConnections(qlist, loopEdges, false);
@@ -3395,6 +3479,41 @@ function createTiles(qlist) {
         drawLoopConnections(qlist, loopEdges, true);
     }
     updateCursors(qlist[0]);
+    return tiles;
+}
+
+function createCircularTiles(qlist) {
+    tiles = [];
+    normalizeColor();
+    clearLoopPaths();
+    var radius = getCircularRadius();
+    var center = getCircularCenter();
+    var sizeScale = Math.min(radius * 0.12, 18);
+
+    _.each(qlist, function(q, idx) {
+        var volume = typeof q.median_volume === "number" ? q.median_volume : 0.5;
+        var durationRatio = trackDuration ? (q.duration / trackDuration) : 0;
+        var size = Math.max(3, Math.min(10, volume * sizeScale + durationRatio * sizeScale * 0.6));
+        var point = getCircularPoint(q, radius);
+        var tile = Object.create(tilePrototype);
+        tile.which = idx;
+        tile.width = size * 2;
+        tile.height = size * 2;
+        tile.normalColor = getQuantumColor(q);
+        tile.rect = paper.circle(point.x, point.y, size);
+        tile.rect.tile = tile;
+        tile.normal();
+        tile.q = q;
+        tile.init();
+        q.tile = tile;
+        tiles.push(tile);
+    });
+
+    var loopEdges = collectVisualizationLoops(80);
+    drawCircularLoopConnections(qlist, loopEdges);
+    if (qlist.length) {
+        updateCursors(qlist[0]);
+    }
     return tiles;
 }
 
@@ -3461,14 +3580,20 @@ function drawSections() {
 }
 
 function updateCursors(q) {
+    if (!q) {
+        return;
+    }
+    if (mode === "jukebox") {
+        updateCircularCursors(q);
+        return;
+    }
+    removeCircularCursors();
     var cursorWidth = 8;
     if (masterCursor == null) {
         masterCursor = paper.rect(0, H - vPad, cursorWidth, vPad / 2);
-        //masterCursor.attr("stroke", masterColor);
         masterCursor.attr("fill", masterColor);
 
         otherCursor = paper.rect(0, H - vPad / 2 - 1, cursorWidth, vPad / 2);
-        //otherCursor.attr("stroke", otherColor);
         otherCursor.attr("fill", otherColor);
     }
     var TW = W - hPad;
@@ -3480,6 +3605,52 @@ function updateCursors(q) {
         moveAlong(otherCursor, q.ppath, q.other.duration * .75);
     } else {
         otherCursor.attr( {x:ox} );
+    }
+}
+
+function removeLinearCursors() {
+    if (masterCursor) {
+        masterCursor.remove();
+        masterCursor = null;
+    }
+    if (otherCursor) {
+        otherCursor.remove();
+        otherCursor = null;
+    }
+}
+
+function removeCircularCursors() {
+    if (masterCursorCircle) {
+        masterCursorCircle.remove();
+        masterCursorCircle = null;
+    }
+    if (otherCursorCircle) {
+        otherCursorCircle.remove();
+        otherCursorCircle = null;
+    }
+}
+
+function updateCircularCursors(q) {
+    removeLinearCursors();
+    var radius = getCircularRadius();
+    var masterPoint = getCircularPoint(q, radius);
+    if (!masterCursorCircle) {
+        masterCursorCircle = paper.circle(masterPoint.x, masterPoint.y, 6);
+        masterCursorCircle.attr({ fill: masterColor, stroke: masterColor });
+    } else {
+        masterCursorCircle.attr({ cx: masterPoint.x, cy: masterPoint.y });
+    }
+    if (q.other) {
+        var otherPoint = getCircularPoint(q.other, radius - 12);
+        if (!otherCursorCircle) {
+            otherCursorCircle = paper.circle(otherPoint.x, otherPoint.y, 5);
+            otherCursorCircle.attr({ fill: otherColor, stroke: otherColor });
+        } else {
+            otherCursorCircle.attr({ cx: otherPoint.x, cy: otherPoint.y });
+        }
+    } else if (otherCursorCircle) {
+        otherCursorCircle.remove();
+        otherCursorCircle = null;
     }
 }
 
