@@ -44,6 +44,10 @@ var masterCursor = null;
 var otherCursor = null;
 var masterCursorCircle = null;
 var otherCursorCircle = null;
+var jukeboxBackdrop = {
+    wave: null,
+    ring: null,
+};
 
 var paper = null;
 var W = 1000;
@@ -374,6 +378,7 @@ function refreshJukeboxVisualization() {
     }
     var loopEdges = collectVisualizationLoops(80);
     if (mode === "jukebox") {
+        renderJukeboxBackdrop();
         drawCircularLoopConnections(masterQs, loopEdges);
     } else if (mode === "eternal") {
         // Redraw both canon overlays and loop connections
@@ -2340,6 +2345,7 @@ function setPlayingClass(modeName) {
     } else if (modeName === "jukebox") {
         document.body.classList.add("playing-jukebox");
         baseNoteStrength = 0.08;
+        renderJukeboxBackdrop();
     } else if (modeName === "eternal") {
         document.body.classList.add("playing-jukebox");
         baseNoteStrength = 0.1;
@@ -2355,6 +2361,9 @@ function setPlayingClass(modeName) {
     rootStyle.setProperty("--note-strength", baseNoteStrength.toFixed(3));
     var baseAlpha = 0.12 + 0.35 * baseNoteStrength;
     rootStyle.setProperty("--note-alpha", baseAlpha.toFixed(3));
+    if (modeName !== "jukebox") {
+        clearJukeboxBackdrop();
+    }
 }
 
 function pulseNotes(strength) {
@@ -3408,6 +3417,58 @@ function drawCircularLoopConnections(qlist, edges) {
     });
 }
 
+function removeJukeboxBackdrop() {
+    if (jukeboxBackdrop.wave) {
+        jukeboxBackdrop.wave.remove();
+        jukeboxBackdrop.wave = null;
+    }
+    if (jukeboxBackdrop.ring) {
+        jukeboxBackdrop.ring.remove();
+        jukeboxBackdrop.ring = null;
+    }
+}
+
+function clearJukeboxBackdrop() {
+    removeJukeboxBackdrop();
+}
+
+function renderJukeboxBackdrop() {
+    removeJukeboxBackdrop();
+    if (mode !== "jukebox") {
+        return;
+    }
+    var center = getCircularCenter();
+    var radius = getCircularRadius();
+    var outerRadius = radius + 28;
+    var steps = 220;
+    var amplitude = Math.min(28, radius * 0.22);
+    var waveParts = [];
+    for (var i = 0; i <= steps; i++) {
+        var theta = (i / steps) * Math.PI * 2;
+        var modulation = Math.sin(theta * 2.5) * amplitude * Math.sin(theta * 0.35);
+        var r = outerRadius + modulation;
+        var x = center.x + Math.cos(theta) * r;
+        var y = center.y + Math.sin(theta) * r;
+        waveParts.push((i === 0 ? "M" : "L") + x + " " + y);
+    }
+    waveParts.push("Z");
+    jukeboxBackdrop.wave = paper.path(waveParts.join(" "));
+    jukeboxBackdrop.wave.attr({
+        stroke: "rgba(107, 138, 240, 0.25)",
+        "stroke-width": 2,
+        "stroke-linecap": "round",
+        fill: "none",
+    });
+    jukeboxBackdrop.wave.toBack();
+    jukeboxBackdrop.ring = paper.circle(center.x, center.y, radius + 8);
+    jukeboxBackdrop.ring.attr({
+        stroke: "rgba(255, 255, 255, 0.08)",
+        "stroke-width": 10,
+        fill: "none",
+    });
+    jukeboxBackdrop.ring.toBack();
+}
+
 var vPad = 20;
 var hPad = 20;
 
@@ -3421,7 +3482,7 @@ function getCircularCenter() {
 
 function getCircularRadius() {
     var base = Math.min(W, H * 1.2) / 2;
-    return Math.max(70, base - 40);
+    return Math.max(70, base - 60);
 }
 
 function getCircularAngle(q) {
@@ -3457,8 +3518,10 @@ function shortestAngleBetween(a, b) {
 
 function createTiles(qlist) {
     if (mode === "jukebox") {
+        renderJukeboxBackdrop();
         return createCircularTiles(qlist);
     }
+    clearJukeboxBackdrop();
     tiles = [];
     normalizeColor();
     var GH = H - vPad * 2;
