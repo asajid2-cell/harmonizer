@@ -1,4 +1,5 @@
 -r backend/analysis/requirements.txt
 gunicorn>=21.2
 ffmpeg-python>=0.2
+scikit-learn>=1.3
 

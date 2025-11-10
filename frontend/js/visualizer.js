@@ -121,6 +121,108 @@ var advancedEnabled = {
     jukeboxLoop: false,
     eternalLoop: false
 };
+var canonLoopGraph = {};
+
+function getGlobalRLModel() {
+    if (typeof window !== "undefined" && window.harmonizerRLModel) {
+        return window.harmonizerRLModel;
+    }
+    return null;
+}
+
+function getGlobalPolicyMode(defaultMode) {
+    var globalMode =
+        (typeof window !== "undefined" && window.harmonizerPolicyMode) ||
+        (typeof HARMONIZER_CONFIG !== "undefined" &&
+            HARMONIZER_CONFIG.rlPolicyMode) ||
+        defaultMode ||
+        "rl";
+    return (globalMode || "rl").toLowerCase();
+}
+
+function ensureGlobalRLTally(model) {
+    var defaultStats = {
+        total: 0,
+        penalized: 0,
+        boosted: 0,
+        fallback: 0,
+        modelVersion: model ? model.trained_at || model.version : null,
+    };
+    if (typeof window === "undefined") {
+        return defaultStats;
+    }
+    if (!window.harmonizerRLTally) {
+        window.harmonizerRLTally = Object.assign({}, defaultStats);
+    }
+    if (
+        model &&
+        !window.harmonizerRLTally.modelVersion &&
+        (model.trained_at || model.version)
+    ) {
+        window.harmonizerRLTally.modelVersion =
+            model.trained_at || model.version;
+    }
+    return window.harmonizerRLTally;
+}
+
+function getSharedRLTally() {
+    return ensureGlobalRLTally(getGlobalRLModel());
+}
+
+function scoreJumpQuality(edge, options) {
+    options = options || {};
+    var rlModel = getGlobalRLModel();
+    var tally = ensureGlobalRLTally(rlModel);
+    if (tally) {
+        tally.total += 1;
+    }
+    if (getGlobalPolicyMode(options.modeName) !== "rl") {
+        if (tally) {
+            tally.fallback += 1;
+        }
+        return null;
+    }
+    if (!rlModel || rlModel.type === "empty") {
+        if (tally) {
+            tally.fallback += 1;
+        }
+        return null;
+    }
+    var totalBeats =
+        typeof options.totalBeats === "number"
+            ? Math.max(1, options.totalBeats)
+            : masterQs && masterQs.length
+            ? masterQs.length
+            : 1;
+    var baseIndex =
+        typeof edge.source === "number"
+            ? edge.source
+            : typeof options.currentIndex === "number"
+            ? options.currentIndex
+            : 0;
+    var features = {
+        similarity:
+            typeof edge.similarity === "number" ? edge.similarity : 0,
+        span_norm: typeof edge.span === "number" ? edge.span / 64 : 0,
+        same_section: edge.sameSection ? 1 : 0,
+        mode_jukebox: options.modeName === "jukebox" ? 1 : 0,
+        mode_eternal: options.modeName === "eternal" ? 1 : 0,
+        delta_beats: Math.abs(edge.target - baseIndex) / Math.max(1, totalBeats),
+        dwell_norm:
+            ((typeof options.dwellBeats === "number"
+                ? options.dwellBeats
+                : options.minLoopBeats || 8) /
+                64) ||
+            0,
+    };
+    if (rlModel.type === "gbrt") {
+        return evaluateGbrtScore(rlModel, features);
+    }
+    if (tally) {
+        tally.fallback += 1;
+    }
+    return null;
+}
 
 var BEAT_ROUND_STORAGE_KEY = "harmonizer:beatRounding";
 var beatRoundingEnabled = false;
@@ -1038,8 +1140,18 @@ function applyCanonAlignment(qlist, alignment) {
             }
         });
         canonLoopCandidates = loopList;
+        canonLoopGraph = {};
+        loopList.forEach(function(edge) {
+            var src = edge.source_start;
+            if (typeof src !== "number") {
+                return;
+            }
+            canonLoopGraph[src] = canonLoopGraph[src] || [];
+            canonLoopGraph[src].push(edge);
+        });
     } else {
         canonLoopCandidates = [];
+        canonLoopGraph = {};
     }
     return true;
 }
@@ -1281,22 +1393,44 @@ if (typeof window !== "undefined") {
 
         var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop'];
         allGroups.forEach(function(group) {
-            if (allSettings[group]) {
-                var groupData = allSettings[group];
+            if (!allSettings[group]) {
+                return;
+            }
+            var groupData = allSettings[group];
 
-                // Set enabled state
-                if (typeof groupData.enabled !== 'undefined') {
-                    setAdvancedGroupEnabledFlag(group, groupData.enabled);
-                }
+            // Apply enabled state through the public helper so canon/eternal hooks fire
+            if (typeof groupData.enabled !== 'undefined') {
+                setAdvancedGroupEnabled(group, !!groupData.enabled);
+            }
 
-                // Set settings values
-                if (groupData.settings) {
-                    Object.keys(groupData.settings).forEach(function(key) {
-                        setAdvancedGroupSettingValue(group, key, groupData.settings[key]);
-                    });
-                }
+            // Apply individual fields
+            if (groupData.settings) {
+                Object.keys(groupData.settings).forEach(function(key) {
+                    setAdvancedGroupSettingValue(group, key, groupData.settings[key]);
+                });
             }
         });
+
+        if (typeof window.syncAllGroupsFromState === 'function') {
+            window.syncAllGroupsFromState();
+        }
+
+        if (typeof window.applyAdvancedGroup === 'function') {
+            if (mode === "canon" && isAdvancedGroupEnabled("canonOverlay")) {
+                window.applyAdvancedGroup("canonOverlay", { source: "import" });
+            }
+            if (mode === "eternal") {
+                if (isAdvancedGroupEnabled("eternalOverlay")) {
+                    window.applyAdvancedGroup("eternalOverlay", { source: "import" });
+                }
+                if (isAdvancedGroupEnabled("eternalLoop")) {
+                    window.applyAdvancedGroup("eternalLoop", { source: "import" });
+                }
+            }
+            if (mode === "jukebox" && isAdvancedGroupEnabled("jukeboxLoop")) {
+                window.applyAdvancedGroup("jukeboxLoop", { source: "import" });
+            }
+        }
 
         console.log('[Settings] Applied imported settings to all groups');
     };
@@ -2053,14 +2187,11 @@ function allReady() {
                 });
             }
         } else {
-            // Enable eternal overlay by default for eternal mode
-            if (mode === "eternal" && !eternalAdvancedEnabled) {
-                setEternalAdvancedEnabled(true);
-            }
             if (eternalAdvancedEnabled) {
                 regenerateEternalOverlay({ initial: true });
             } else {
                 assignNormalizedVolumes(masterQs);
+                drawConnections(masterQs);
             }
             if (typeof window.onCanonTrackReady === "function") {
                 window.onCanonTrackReady(null);
@@ -3458,6 +3589,184 @@ function createCanonDriver(player) {
     var curQ = 0;
     var running = false;
     var mtime = $("#mtime");
+    var lastLoggedIndex = null;
+
+    function resolveCanonLogger() {
+        if (typeof window === "undefined") {
+            return null;
+        }
+        if (typeof window.harmonizerLogJumpDecision === "function") {
+            return window.harmonizerLogJumpDecision;
+        }
+        return null;
+    }
+
+    function emitCanonJumpLog(meta) {
+        var logger = resolveCanonLogger();
+        if (typeof logger !== "function") {
+            return;
+        }
+        var modelVersion =
+            window.harmonizerRLModel &&
+            (window.harmonizerRLModel.trained_at ||
+                window.harmonizerRLModel.version);
+        logger(
+            Object.assign(
+                {
+                    mode: "canon",
+                    model_version: modelVersion || null,
+                    policy_mode:
+                        (window.harmonizerPolicyMode || "canon").toLowerCase(),
+                },
+                meta || {},
+            ),
+        );
+    }
+
+    function logCanonTransition(targetIdx, reason) {
+        if (!masterQs || !masterQs.length) {
+            lastLoggedIndex = targetIdx;
+            return;
+        }
+        if (
+            typeof targetIdx !== "number" ||
+            targetIdx < 0 ||
+            targetIdx >= masterQs.length
+        ) {
+            lastLoggedIndex = targetIdx;
+            return;
+        }
+        if (lastLoggedIndex === null || lastLoggedIndex === targetIdx) {
+            lastLoggedIndex = targetIdx;
+            return;
+        }
+        var sourceIdx = lastLoggedIndex;
+        var sourceBeat = masterQs[sourceIdx];
+        var targetBeat = masterQs[targetIdx];
+        emitCanonJumpLog({
+            reason: reason || "sequential",
+            source: sourceIdx,
+            target: targetIdx,
+            span: Math.abs(targetIdx - sourceIdx),
+            sameSection:
+                sourceBeat && targetBeat
+                    ? sourceBeat.section === targetBeat.section
+                    : null,
+            source_time: sourceBeat ? sourceBeat.start : null,
+            target_time: targetBeat ? targetBeat.start : null,
+        });
+        lastLoggedIndex = targetIdx;
+    }
+
+    function clampCanonIndex(idx) {
+        if (!masterQs || !masterQs.length) {
+            return 0;
+        }
+        if (idx < 0) {
+            return 0;
+        }
+        if (idx > masterQs.length) {
+            return masterQs.length;
+        }
+        return idx;
+    }
+
+    function beatsInSameSection(a, b) {
+        if (!masterQs || !masterQs[a] || !masterQs[b]) {
+            return false;
+        }
+        return masterQs[a].section === masterQs[b].section;
+    }
+
+    function buildCanonEdge(sourceIndex, targetIndex, similarity, reason) {
+        var target = clampCanonIndex(targetIndex);
+        return {
+            source: sourceIndex,
+            target: target,
+            similarity:
+                typeof similarity === "number" ? similarity : 0,
+            span: Math.abs(target - sourceIndex),
+            sameSection: beatsInSameSection(sourceIndex, target),
+            reason: reason || "sequential",
+        };
+    }
+
+    function chooseCanonNextIndex(sourceIndex) {
+        if (!masterQs || !masterQs.length) {
+            return { index: 0, reason: "sequential" };
+        }
+        if (sourceIndex >= masterQs.length - 1) {
+            return { index: masterQs.length, reason: "end" };
+        }
+        var sequentialTarget = sourceIndex + 1;
+        var candidates = [
+            buildCanonEdge(sourceIndex, sequentialTarget, 1, "sequential"),
+        ];
+        var q = masterQs[sourceIndex];
+        if (q && q.other && typeof q.other.which === "number") {
+            var simVal =
+                typeof q.otherSimilarity === "number"
+                    ? q.otherSimilarity
+                    : typeof q.otherSimilarityRaw === "number"
+                    ? q.otherSimilarityRaw
+                    : 0;
+            if (q.other.which !== sourceIndex) {
+                candidates.push(
+                    buildCanonEdge(
+                        sourceIndex,
+                        q.other.which,
+                        simVal,
+                        "canon_pair",
+                    ),
+                );
+            }
+        }
+        var loopEdges = canonLoopGraph[sourceIndex] || [];
+        loopEdges.forEach(function(edge) {
+            if (edge && typeof edge.target_start === "number") {
+                candidates.push(
+                    buildCanonEdge(
+                        sourceIndex,
+                        edge.target_start,
+                        edge.similarity,
+                        "canon_loop",
+                    ),
+                );
+            }
+        });
+        var bestCandidate = candidates[0];
+        var bestScore = null;
+        var totalBeats = masterQs.length;
+        var dwellBeats =
+            (canonSettings && canonSettings.dwellBeats) || 6;
+        candidates.forEach(function(candidate) {
+            if (candidate.target >= masterQs.length) {
+                return;
+            }
+            if (candidate.target === sourceIndex) {
+                return;
+            }
+            var score = scoreJumpQuality(candidate, {
+                modeName: "canon",
+                currentIndex: sourceIndex,
+                totalBeats: totalBeats,
+                dwellBeats: dwellBeats,
+            });
+            candidate.score = score;
+            if (
+                typeof score === "number" &&
+                (bestScore === null || score > bestScore)
+            ) {
+                bestScore = score;
+                bestCandidate = candidate;
+            }
+        });
+        var targetIdx = clampCanonIndex(bestCandidate.target);
+        if (targetIdx <= sourceIndex) {
+            targetIdx = clampCanonIndex(sourceIndex + 1);
+        }
+        return { index: targetIdx, reason: bestCandidate.reason };
+    }
 
     function stop() {
         running = false;
@@ -3466,6 +3775,7 @@ function createCanonDriver(player) {
         setURL();
         setPlayingClass(null);
         pulseNotes(baseNoteStrength);
+        lastLoggedIndex = null;
     }
 
     function process() {
@@ -3477,10 +3787,8 @@ function createCanonDriver(player) {
             }
             stop();
         } else if (running) {
-            var nextQ = masterQs[curQ];
-            var delay = player.playQ(nextQ);
-            curQ++;
-            setTimeout(function() { process(); }, 1000 * delay);
+            var currentIndex = curQ;
+            var nextQ = masterQs[currentIndex];
             nextQ.tile.highlight();
             if (nextQ.other && nextQ.other.tile) {
                 nextQ.other.tile.highlight2();
@@ -3489,6 +3797,19 @@ function createCanonDriver(player) {
             updateCursors(nextQ);
             mtime.text(fmtTime(nextQ.start));
             pulseNotes(nextQ.median_volume || nextQ.volume || baseNoteStrength);
+            var delay = player.playQ(nextQ);
+            var choice = chooseCanonNextIndex(currentIndex);
+            if (choice.index < masterQs.length) {
+                var reason =
+                    choice.reason === "sequential"
+                        ? "sequential"
+                        : "canon_jump";
+                logCanonTransition(choice.index, reason);
+            }
+            curQ = choice.index;
+            setTimeout(function() {
+                process();
+            }, 1000 * delay);
         }
     }
 
@@ -3533,6 +3854,7 @@ function createCanonDriver(player) {
                 }
             }
             curQ = startIdx;
+            lastLoggedIndex = startIdx;
             running = true;
             process();
             setURL();
@@ -3549,6 +3871,7 @@ function createCanonDriver(player) {
             $("#play").text("Stop");
             setPlayingClass("canon");
             pulseNotes(baseNoteStrength);
+            lastLoggedIndex = curQ;
         },
 
         stop: stop,
@@ -3563,7 +3886,15 @@ function createCanonDriver(player) {
         player: player,
 
         setNextQ: function(q) {
+            if (
+                running &&
+                lastLoggedIndex !== null &&
+                lastLoggedIndex !== q.which
+            ) {
+                logCanonTransition(q.which, "manual");
+            }
             curQ = q.which;
+            lastLoggedIndex = q.which;
             if (!running) {
                 q.tile.highlight();
                 updateCursors(q);
@@ -3580,7 +3911,15 @@ function createJukeboxDriver(player, options) {
     var running = false;
     var mtime = $("#mtime");
     var modeName = options.modeName || "jukebox";
-
+    function resolveJumpLogger() {
+        if (typeof window === "undefined") {
+            return null;
+        }
+        if (typeof window.harmonizerLogJumpDecision === "function") {
+            return window.harmonizerLogJumpDecision;
+        }
+        return null;
+    }
     // Stats tracking for eternal modes
     var totalBeatsPlayed = 0;
     var sessionStartTime = null;
@@ -3625,6 +3964,88 @@ function createJukeboxDriver(player, options) {
     }
 
     recalcLoopWeightParams();
+
+    function emitJumpLog(meta) {
+        var logger = resolveJumpLogger();
+        if (typeof logger !== "function") {
+            return;
+        }
+        var model = getGlobalRLModel();
+        var modelVersion = model ? model.trained_at || model.version : null;
+        var policyMode = getGlobalPolicyMode(modeName);
+        var trackTempo =
+            (curTrack &&
+                curTrack.analysis &&
+                curTrack.analysis.audio_summary &&
+                curTrack.analysis.audio_summary.tempo) ||
+            null;
+        var totalDuration = trackDuration;
+        if (
+            (!totalDuration || !isFinite(totalDuration)) &&
+            masterQs &&
+            masterQs.length
+        ) {
+            var lastBeat = masterQs[masterQs.length - 1];
+            totalDuration =
+                lastBeat && lastBeat.start
+                    ? lastBeat.start + (lastBeat.duration || 0)
+                    : null;
+        }
+        var sourceBeat =
+            masterQs &&
+            typeof meta.source === "number" &&
+            masterQs[meta.source]
+                ? masterQs[meta.source]
+                : null;
+        var targetBeat =
+            masterQs &&
+            typeof meta.target === "number" &&
+            masterQs[meta.target]
+                ? masterQs[meta.target]
+                : null;
+        var contextExtras = {
+            track_tempo: trackTempo,
+            track_duration: totalDuration,
+            source_confidence: sourceBeat ? sourceBeat.confidence : null,
+            target_confidence: targetBeat ? targetBeat.confidence : null,
+            source_duration: sourceBeat ? sourceBeat.duration : null,
+            target_duration: targetBeat ? targetBeat.duration : null,
+            source_time:
+                sourceBeat && typeof sourceBeat.start === "number"
+                    ? sourceBeat.start
+                    : meta.source_time !== undefined
+                    ? meta.source_time
+                    : null,
+            target_time:
+                targetBeat && typeof targetBeat.start === "number"
+                    ? targetBeat.start
+                    : meta.target_time !== undefined
+                    ? meta.target_time
+                    : null,
+            time_from_end:
+                totalDuration && targetBeat && typeof targetBeat.start === "number"
+                    ? Math.max(0, totalDuration - targetBeat.start)
+                    : null,
+        };
+        var mergedContext = Object.assign(
+            {},
+            meta.context || {},
+            contextExtras,
+        );
+        var payload = Object.assign({}, meta, {
+            context: mergedContext,
+        });
+        logger(
+            Object.assign(
+                {
+                    mode: modeName,
+                    model_version: modelVersion || null,
+                    policy_mode: policyMode || "rl",
+                },
+                payload || {},
+            ),
+        );
+    }
 
     function updateStatsDisplay() {
         if (beatsPlayedDisplay && beatsPlayedDisplay.length) {
@@ -3806,8 +4227,14 @@ function createJukeboxDriver(player, options) {
 
     function getCurrentJumpBubbleRadius() {
         var radius = 0;
-        if (canonSettings && canonSettings.jumpBubbleBeats !== undefined) {
-            radius = canonSettings.jumpBubbleBeats;
+        var sourceSettings = null;
+        if (mode === "eternal") {
+            sourceSettings = (advancedSettings && advancedSettings.eternalOverlay) || null;
+        } else {
+            sourceSettings = canonSettings;
+        }
+        if (sourceSettings && sourceSettings.jumpBubbleBeats !== undefined) {
+            radius = sourceSettings.jumpBubbleBeats;
         }
         var num = coerceNumber(radius);
         if (num === null) {
@@ -4260,6 +4687,12 @@ function createJukeboxDriver(player, options) {
         // To prevent local minima, consider loops from nearby beats, not just exact current beat
         var searchRadius = Math.min(8, Math.floor(minLoopBeats / 2));
         var candidates = [];
+        var dwellSource =
+            modeName === "eternal" && advancedSettings && advancedSettings.eternalOverlay
+                ? advancedSettings.eternalOverlay
+                : null;
+        var dwellValue =
+            (dwellSource && dwellSource.dwellBeats) || minLoopBeats;
 
         // Collect candidates from current beat and nearby beats
         for (var offset = 0; offset <= searchRadius; offset++) {
@@ -4382,6 +4815,29 @@ function createJukeboxDriver(player, options) {
                 var jitter = (Math.random() * 2 - 1) * weightJitterStrength;
                 weight *= (1 + jitter);
             }
+            var qualityScore = scoreJumpQuality(edge, {
+                modeName: modeName,
+                currentIndex: src,
+                totalBeats: masterQs.length,
+                dwellBeats: dwellValue,
+                minLoopBeats: minLoopBeats,
+            });
+            edge.qualityScore = qualityScore;
+            if (qualityScore !== null) {
+                if (qualityScore < 0.4) {
+                    weight *= Math.max(0.1, qualityScore / 0.4);
+                    var tally = getSharedRLTally();
+                    if (tally) {
+                        tally.penalized += 1;
+                    }
+                } else if (qualityScore > 0.6) {
+                    weight *= 1 + (qualityScore - 0.6);
+                    var tallyBoost = getSharedRLTally();
+                    if (tallyBoost) {
+                        tallyBoost.boosted += 1;
+                    }
+                }
+            }
             if (weight < 0.05) {
                 weight = 0.05;
             }
@@ -4433,12 +4889,27 @@ function createJukeboxDriver(player, options) {
             // Force a retreat when we're very close to or past the retreat source point
             if (currentIndex >= retreatPoint.source || beatsUntilJump <= 2) {
                 console.log('[advanceIndex] Using retreat point:', currentIndex, '→', retreatPoint.target);
+                var retreatSourceIndex = currentIndex;
                 loopHistory.push({ source: currentIndex, target: retreatPoint.target });
                 if (loopHistory.length > LOOP_HISTORY_LIMIT) {
                     loopHistory.shift();
                 }
                 currentIndex = retreatPoint.target;
                 registerJumpBubble(retreatPoint.target);
+                var sourceBeat = masterQs[retreatSourceIndex];
+                var targetBeat = masterQs[retreatPoint.target];
+                emitJumpLog({
+                    reason: "retreat",
+                    source: retreatSourceIndex,
+                    target: retreatPoint.target,
+                    similarity: retreatPoint.similarity,
+                    beatsUntilJump: beatsUntilJump,
+                    bubbleRadius: getCurrentJumpBubbleRadius(),
+                    context: { retreatSource: retreatPoint.source },
+                    source_time: sourceBeat ? sourceBeat.start : null,
+                    target_time: targetBeat ? targetBeat.start : null,
+                    quality_score: null,
+                });
                 scheduleNextJump(false);
                 return;
             }
@@ -4448,12 +4919,28 @@ function createJukeboxDriver(player, options) {
         if (beatsUntilJump <= 0) {
             var jump = selectJumpCandidate(currentIndex);
             if (jump) {
+                var jumpSourceIndex = currentIndex;
                 loopHistory.push({ source: currentIndex, target: jump.target });
                 if (loopHistory.length > LOOP_HISTORY_LIMIT) {
                     loopHistory.shift();
                 }
                 currentIndex = jump.target;
                 registerJumpBubble(jump.target);
+                var sourceBeat = masterQs[jumpSourceIndex];
+                var targetBeat = masterQs[jump.target];
+                emitJumpLog({
+                    reason: "scheduled",
+                    source: jumpSourceIndex,
+                    target: jump.target,
+                    similarity: jump.similarity,
+                    span: jump.span,
+                    sameSection: jump.sameSection,
+                    beatsUntilJump: beatsUntilJump,
+                    bubbleRadius: getCurrentJumpBubbleRadius(),
+                    source_time: sourceBeat ? sourceBeat.start : null,
+                    target_time: targetBeat ? targetBeat.start : null,
+                    quality_score: jump.qualityScore,
+                });
                 scheduleNextJump(false);
                 return;
             }
@@ -4633,3 +5120,40 @@ window.onload = init;
 
 
 
+    function evaluateGbrtScore(model, featureMap) {
+        var names = model.feature_names || [];
+        var vector = new Array(names.length).fill(0);
+        for (var i = 0; i < names.length; i++) {
+            var key = names[i];
+            vector[i] = featureMap[key] !== undefined ? featureMap[key] : 0;
+        }
+        var sum = typeof model.base_score === "number" ? model.base_score : 0;
+        var lr = typeof model.learning_rate === "number" ? model.learning_rate : 0.1;
+        if (!model.trees || !model.trees.length) {
+            return null;
+        }
+        for (var t = 0; t < model.trees.length; t++) {
+            var nodes = model.trees[t];
+            if (!nodes || !nodes.length) {
+                continue;
+            }
+            var idx = 0;
+            var guard = 0;
+            while (guard < nodes.length) {
+                var node = nodes[idx];
+                if (!node || node.leaf) {
+                    sum += lr * (node && typeof node.value === "number" ? node.value : 0);
+                    break;
+                }
+                var featureIdx = node.feature;
+                var value = vector[featureIdx] || 0;
+                if (value <= node.threshold) {
+                    idx = node.left;
+                } else {
+                    idx = node.right;
+                }
+                guard++;
+            }
+        }
+        return 1 / (1 + Math.exp(-sum));
+    }

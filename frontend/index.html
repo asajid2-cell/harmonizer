@@ -285,7 +285,42 @@
     <script src="./js/raphael-min.js"></script>
     <script src="./jremix.js"></script>
     <script src="./js/eternal_jukebox_engine.js"></script>
-    <script src="./js/visualizer.js"></script>
+    <script>
+        (function ensureRLFallbacks() {
+            var defaultStats = {
+                total: 0,
+                penalized: 0,
+                boosted: 0,
+                fallback: 0,
+                modelVersion: null,
+            };
+            if (!window.harmonizerRLTally) {
+                window.harmonizerRLTally = Object.assign({}, defaultStats);
+            }
+            if (typeof window.getRLTally !== "function") {
+                window.getRLTally = function () {
+                    return window.harmonizerRLTally;
+                };
+            }
+            if (typeof window.getActivePolicyMode !== "function") {
+                window.getActivePolicyMode = function () {
+                    var mode =
+                        (window.harmonizerPolicyMode ||
+                            (window.HARMONIZER_CONFIG &&
+                                window.HARMONIZER_CONFIG.rlPolicyMode) ||
+                            "rl") + "";
+                    return mode.toLowerCase();
+                };
+            }
+            if (typeof window.rlModel === "undefined" && window.harmonizerRLModel) {
+                window.rlModel = window.harmonizerRLModel;
+            }
+            if (typeof window.rlModel === "undefined") {
+                window.rlModel = { type: "empty" };
+            }
+        })();
+    </script>
+    <script src="./js/visualizer.js?v=20251109"></script>
     <script>
     (function() {
         const body = document.body;
@@ -306,11 +341,178 @@
             }
             return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
         };
+        const rlLoggingEnabled = Boolean(config.rlLoggingEnabled);
+        const rlJumpEndpoint = buildApiUrl('/api/rl/jump-event');
+        const rlModelEndpoint = buildApiUrl('/api/rl/model');
+        const rlPolicyEndpoint = buildApiUrl('/api/rl/policy');
+        let rlModel = null;
+        let policyMode = (config.rlPolicyMode || 'auto').toLowerCase();
         const MODE_LABELS = {
             canon: 'Autocanonizer',
             jukebox: 'Eternal Jukebox',
             eternal: 'Eternal Canonizer',
         };
+
+        function snapshotSettingsForMode(modeName) {
+            if (modeName === 'canon') {
+                if (!canonSettings) {
+                    return null;
+                }
+                return {
+                    enabled: !!canonAdvancedEnabled,
+                    minOffsetBeats: canonSettings.minOffsetBeats,
+                    maxOffsetBeats: canonSettings.maxOffsetBeats,
+                    dwellBeats: canonSettings.dwellBeats,
+                    density: canonSettings.density,
+                    variation: canonSettings.variation,
+                    jumpBubbleBeats: canonSettings.jumpBubbleBeats
+                };
+            }
+            if (modeName === 'eternal') {
+                const settings = advancedSettings && advancedSettings.eternalOverlay;
+                if (!settings) {
+                    return null;
+                }
+                return {
+                    enabled: !!isAdvancedGroupEnabled('eternalOverlay'),
+                    minOffsetBeats: settings.minOffsetBeats,
+                    maxOffsetBeats: settings.maxOffsetBeats,
+                    dwellBeats: settings.dwellBeats,
+                    density: settings.density,
+                    variation: settings.variation,
+                    jumpBubbleBeats: settings.jumpBubbleBeats
+                };
+            }
+            if (modeName === 'jukebox') {
+                const settings = advancedSettings && advancedSettings.jukeboxLoop;
+                if (!settings) {
+                    return null;
+                }
+                return {
+                    enabled: !!isAdvancedGroupEnabled('jukeboxLoop'),
+                    minLoopBeats: settings.minLoopBeats,
+                    maxSequentialBeats: settings.maxSequentialBeats,
+                    loopThreshold: settings.loopThreshold,
+                    sectionBias: settings.sectionBias,
+                    jumpVariance: settings.jumpVariance
+                };
+            }
+            return null;
+        }
+
+        async function fetchRLModel() {
+            try {
+                const response = await fetch(rlModelEndpoint);
+                const data = await response.json();
+                if (data && data.model && data.model.weights) {
+                    rlModel = data.model;
+                    window.harmonizerRLModel = rlModel;
+                    console.log('[RL] Loaded jump quality model (samples:', rlModel.samples, ')');
+                } else {
+                    console.log('[RL] No jump model available yet.');
+                }
+            } catch (error) {
+                console.warn('[RL] Failed to load model', error);
+            }
+        }
+
+        async function fetchPolicyAssignment() {
+            try {
+                const response = await fetch(rlPolicyEndpoint);
+                const data = await response.json();
+                if (data && data.mode) {
+                    policyMode = data.mode;
+                    window.harmonizerPolicyMode = policyMode;
+                    console.log('[RL] Policy assignment:', policyMode);
+                    return;
+                }
+            } catch (error) {
+                console.warn('[RL] Failed to fetch policy assignment', error);
+            }
+            // fallback
+            policyMode = policyMode === 'auto' ? 'rl' : policyMode;
+            window.harmonizerPolicyMode = policyMode;
+        }
+
+        fetchRLModel();
+        fetchPolicyAssignment();
+
+        function postRLJumpEvent(payload) {
+            if (!rlLoggingEnabled) {
+                return;
+            }
+            try {
+                const serialized = JSON.stringify(payload);
+                if (navigator && typeof navigator.sendBeacon === 'function') {
+                    const blob = new Blob([serialized], { type: 'application/json' });
+                    navigator.sendBeacon(rlJumpEndpoint, blob);
+                } else {
+                    fetch(rlJumpEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: serialized
+                    }).catch(() => {});
+                }
+            } catch (error) {
+                console.warn('[RL] Failed to emit jump event', error);
+            }
+        }
+
+        function logRLJumpDecision(meta) {
+            if (!rlLoggingEnabled) {
+                return;
+            }
+            if (meta.source === undefined || meta.target === undefined) {
+                return;
+            }
+            var sourceTime =
+                meta.source_time !== undefined
+                    ? meta.source_time
+                    : meta.sourceTime !== undefined
+                    ? meta.sourceTime
+                    : null;
+            var targetTime =
+                meta.target_time !== undefined
+                    ? meta.target_time
+                    : meta.targetTime !== undefined
+                    ? meta.targetTime
+                    : null;
+            const payload = {
+                mode: meta.mode || mode,
+                track_id: curTrack ? curTrack.id : null,
+                track_title: curTrack ? curTrack.fixedTitle : null,
+                source_index: meta.source,
+                target_index: meta.target,
+                source_time: sourceTime,
+                target_time: targetTime,
+                similarity: meta.similarity,
+                span: meta.span,
+                same_section: !!meta.sameSection,
+                policy_mode:
+                    meta.policy_mode ||
+                    window.harmonizerPolicyMode ||
+                    (window.HARMONIZER_CONFIG &&
+                        window.HARMONIZER_CONFIG.rlPolicyMode) ||
+                    "auto",
+                model_version: meta.model_version || null,
+                settings: snapshotSettingsForMode(meta.mode || mode),
+                context: Object.assign(
+                    {
+                        reason: meta.reason || 'scheduled',
+                        beats_until_jump: meta.beatsUntilJump,
+                        bubble_radius: meta.bubbleRadius,
+                        timestamp: Date.now()
+                    },
+                    meta.context || {},
+                ),
+            };
+            postRLJumpEvent(payload);
+        }
+
+        if (typeof window !== 'undefined') {
+            window.harmonizerLogJumpDecision = logRLJumpDecision;
+            window.harmonizerPolicyMode = policyMode;
+        }
         const buildFrontendRedirect = (trackId, mode) => {
             const params = new URLSearchParams();
             if (trackId) {

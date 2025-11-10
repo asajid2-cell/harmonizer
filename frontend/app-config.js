@@ -28,6 +28,18 @@
              * deployed backend URL when the frontend is hosted separately.
              */
             apiBaseUrl: defaultApiBase,
+
+            /**
+             * Enable RL logging hooks. On by default so RL data keeps flowing.
+             * Set to false via window.HARMONIZER_CONFIG if you need to disable.
+             */
+            rlLoggingEnabled: true,
+
+            /**
+             * Allow switching between baseline vs RL policy for experimentation.
+             * Options: "auto" (default), "baseline", "rl".
+             */
+            rlPolicyMode: "auto",
         },
         existing,
     );

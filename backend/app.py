@@ -21,6 +21,84 @@ from werkzeug.utils import secure_filename
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 import json
+import random
+import time
+
+try:
+    from .rl.storage import log_jump_event
+    from .rl import db as rl_db
+except ImportError:  # pragma: no cover
+    from rl.storage import log_jump_event  # type: ignore
+    from rl import db as rl_db  # type: ignore
+
+RL_SNIPPET_DIR = rl_db.SNIPPET_DIR
+RL_MODEL_PATH = rl_db.DATA_DIR / "model.json"
+RL_LABELER_TOKEN = os.environ.get("RL_LABELER_TOKEN")
+RL_BANDIT_SEED = int(os.environ.get("RL_BANDIT_SEED", "42"))
+rl_bandit_rng = random.Random(RL_BANDIT_SEED)
+rl_policy_override = os.environ.get("RL_POLICY_MODE")  # baseline, rl, auto
+rl_eps = float(os.environ.get("RL_POLICY_EPS", "0.1"))
+rl_bandit_proportions = {"baseline": 0, "rl": 0}
+rl_session_assignments: dict[str, str] = {}
+rl_policy_rewards = rl_db.fetch_policy_rewards()
+rl_min_samples = int(os.environ.get("RL_POLICY_MIN", "25"))
+rl_last_reward_refresh = 0.0
+rl_policy_weights: dict[str, float] = {"baseline": 0.5, "rl": 0.5}
+
+
+def _coerce_float(value: Optional[object]) -> Optional[float]:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _refresh_policy_weights():
+    global rl_policy_rewards, rl_policy_weights, rl_last_reward_refresh
+    now = time.time()
+    if now - rl_last_reward_refresh < 30:
+        return
+    rl_policy_rewards = rl_db.fetch_policy_rewards()
+    weights = {}
+    total = 0.0
+    for mode in ("baseline", "rl"):
+        counts = rl_policy_rewards.get(mode, {})
+        positives = counts.get("good", 0) + 0.5 * counts.get("meh", 0)
+        negatives = counts.get("bad", 0)
+        samples = positives + negatives
+        if samples < rl_min_samples:
+            weights[mode] = 0.5
+        else:
+            score = (positives + 1) / (samples + 2)
+            weights[mode] = score
+        total += weights[mode]
+    if total > 0:
+        for mode in weights:
+            weights[mode] /= total
+    rl_policy_weights = weights
+    rl_last_reward_refresh = now
+
+
+def get_session_policy() -> str:
+    if rl_policy_override in {"baseline", "rl"}:
+        return rl_policy_override
+    _refresh_policy_weights()
+    session_id = session.get("policy_session")
+    if not session_id:
+        session_id = str(uuid.uuid4())
+        session["policy_session"] = session_id
+    if session_id in rl_session_assignments:
+        return rl_session_assignments[session_id]
+    if rl_bandit_rng.random() < rl_eps:
+        choice = "baseline" if rl_bandit_rng.random() < 0.5 else "rl"
+    else:
+        bas_weight = rl_policy_weights.get("baseline", 0.5)
+        choice = "baseline" if rl_bandit_rng.random() < bas_weight else "rl"
+    rl_session_assignments[session_id] = choice
+    rl_bandit_proportions[choice] += 1
+    return choice
 
 try:
     from yt_dlp import YoutubeDL  # type: ignore
@@ -66,6 +144,29 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(24))
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_FILE_DIR"] = str(BASE_DIR / "flask_session")
 Session(app)
+app.config["RL_LABELER_TOKEN"] = RL_LABELER_TOKEN
+app.config["RL_POLICY_MODE"] = rl_policy_override
+
+
+def _require_rl_token():
+    """RL labeler endpoints no longer require a token (no-op helper)."""
+    return
+
+
+def get_session_policy() -> str:
+    if rl_policy_override in {"baseline", "rl"}:
+        return rl_policy_override
+    _refresh_policy_weights()
+    session_id = session.get("policy_session")
+    if not session_id:
+        session_id = str(uuid.uuid4())
+        session["policy_session"] = session_id
+    if session_id in rl_session_assignments:
+        return rl_session_assignments[session_id]
+    choice = "rl" if rl_bandit_rng.random() > rl_eps else "baseline"
+    rl_session_assignments[session_id] = choice
+    rl_bandit_proportions[choice] += 1
+    return choice
 
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
@@ -977,6 +1078,171 @@ def api_playlist_info():
         return jsonify({"error": str(exc)}), 500
     except Exception as exc:
         return jsonify({"error": f"Unexpected error: {exc}"}), 500
+
+
+@app.route("/api/rl/jump-event", methods=["POST"])
+def api_rl_jump_event():
+    """
+    Append a single jump-event record to the RL log.
+
+    The frontend sends lightweight metadata about each jump decision so
+    we can build a labeled dataset later without blocking playback.
+    """
+
+    data = request.get_json(silent=True) or {}
+    required_fields = ("mode", "source_index", "target_index")
+    missing = [field for field in required_fields if field not in data]
+    if missing:
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "error": f"Missing required fields: {', '.join(missing)}",
+                }
+            ),
+            400,
+        )
+
+    event = {
+        "mode": data["mode"],
+        "source_index": int(data["source_index"]),
+        "target_index": int(data["target_index"]),
+        "track_id": data.get("track_id"),
+        "track_title": data.get("track_title"),
+        "source_time": _coerce_float(data.get("source_time")),
+        "target_time": _coerce_float(data.get("target_time")),
+        "similarity": data.get("similarity"),
+        "span": data.get("span"),
+        "same_section": bool(data.get("same_section", False)),
+        "settings": data.get("settings") or {},
+        "context": data.get("context") or {},
+        "quality_score": data.get("quality_score"),
+        "policy_mode": data.get("policy_mode"),
+        "model_version": data.get("model_version"),
+    }
+    try:
+        log_jump_event(event)
+    except Exception as exc:  # pragma: no cover
+        app.logger.exception("Failed to log RL jump event")
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+    return jsonify({"ok": True})
+
+
+@app.route("/api/rl/policy", methods=["GET"])
+def api_rl_policy():
+    policy = get_session_policy()
+    return jsonify(
+        {
+            "mode": policy,
+            "epsilon": rl_eps,
+            "override": rl_policy_override,
+            "splits": rl_bandit_proportions,
+            "weights": rl_policy_weights,
+        }
+    )
+
+
+@app.route("/api/rl/snippet/next", methods=["GET"])
+def api_rl_snippet_next():
+    _require_rl_token()
+    row = rl_db.get_next_unlabeled_snippet()
+    counts = rl_db.get_queue_counts()
+    if not row:
+        return jsonify({"snippet": None, "counts": counts})
+    snippet_path = row["snippet_path"]
+    if not snippet_path:
+        return jsonify({"snippet": None, "counts": counts})
+    filename = Path(snippet_path).name
+    payload = {
+        "id": row["id"],
+        "track_id": row["track_id"],
+        "track_title": row["track_title"],
+        "mode": row["mode"],
+        "source_index": row["source_index"],
+        "target_index": row["target_index"],
+        "source_time": row["source_time"],
+        "target_time": row["target_time"],
+        "similarity": row["similarity"],
+        "span": row["span"],
+        "same_section": bool(row["same_section"]),
+        "snippet_url": url_for("serve_rl_snippet", filename=filename),
+        "settings": json.loads(row["settings"] or "{}"),
+        "context": json.loads(row["context"] or "{}"),
+    }
+    return jsonify({"snippet": payload, "counts": counts})
+
+
+@app.route("/api/rl/snippet/<int:event_id>/label", methods=["POST"])
+def api_rl_snippet_label(event_id: int):
+    _require_rl_token()
+    data = request.get_json(silent=True) or {}
+    label = data.get("label")
+    if label not in {"good", "bad", "meh", "skip"}:
+        return jsonify({"ok": False, "error": "Label must be good, meh, bad, or skip."}), 400
+    notes = data.get("notes")
+    rl_db.record_label(event_id, label, notes)
+    return jsonify({"ok": True})
+
+
+@app.route("/media/rl-snippets/<path:filename>")
+def serve_rl_snippet(filename: str):
+    _require_rl_token()
+    target = (RL_SNIPPET_DIR / filename).resolve()
+    try:
+        target.relative_to(RL_SNIPPET_DIR)
+    except ValueError:
+        abort(404)
+    if target.is_file():
+        return send_from_directory(RL_SNIPPET_DIR, filename)
+    abort(404)
+
+
+@app.route("/rl/labeler")
+def rl_labeler_page():
+    target = FRONTEND_DIR / "rl_labeler.html"
+    if target.exists():
+        return send_from_directory(FRONTEND_DIR, "rl_labeler.html")
+    abort(404)
+
+
+@app.route("/api/rl/model", methods=["GET"])
+def api_rl_model():
+    if not RL_MODEL_PATH.exists():
+        return jsonify({"model": None})
+    try:
+        with RL_MODEL_PATH.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        return jsonify({"model": data})
+    except Exception as exc:  # pragma: no cover
+        return jsonify({"model": None, "error": str(exc)}), 500
+
+
+@app.route("/api/rl/telemetry", methods=["GET"])
+def api_rl_telemetry():
+    queue_counts = rl_db.get_queue_counts()
+    label_summary = rl_db.get_label_summary()
+    model_meta = None
+    if RL_MODEL_PATH.exists():
+        try:
+            with RL_MODEL_PATH.open("r", encoding="utf-8") as handle:
+                model_meta = json.load(handle)
+        except Exception:
+            model_meta = None
+    telemetry = {
+        "policy": {
+            "override": rl_policy_override,
+            "epsilon": rl_eps,
+            "splits": rl_bandit_proportions,
+            "sessions": len(rl_session_assignments),
+            "weights": rl_policy_weights,
+            "rewards": rl_policy_rewards,
+        },
+        "queue_counts": queue_counts,
+        "label_summary": label_summary,
+        "model": model_meta,
+    }
+    return jsonify(telemetry)
 
 
 @app.route("/<path:asset_path>")

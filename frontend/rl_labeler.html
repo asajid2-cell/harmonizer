@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>RL Snippet Labeler</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a0f14;
+            color: #f5e4ea;
+            margin: 0;
+            padding: 24px;
+        }
+        .panel {
+            max-width: 640px;
+            margin: 0 auto;
+            background: #2b1720;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+        button {
+            margin: 8px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .btn-good { background: #3aa374; color: #fff; }
+        .btn-meh { background: #b5a14f; color: #1a0f14; }
+        .btn-bad { background: #c95161; color: #fff; }
+        .meta-row { margin: 6px 0; font-size: 0.95rem; color: #d9bac4; }
+        textarea {
+            width: 100%;
+            min-height: 80px;
+            border-radius: 8px;
+            border: 1px solid #53313d;
+            background: #1f1217;
+            color: #f5e4ea;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="panel">
+        <h1>RL Snippet Labeler</h1>
+        <div id="status">Loading…</div>
+        <div id="counts" style="font-size: 0.9rem; color: #bda0aa; margin-bottom: 10px;"></div>
+        <audio id="snippet-audio" controls style="width: 100%; margin: 12px 0;"></audio>
+        <div id="meta"></div>
+        <div>
+            <button class="btn-good" data-label="good">Good</button>
+            <button class="btn-meh" data-label="meh">Meh</button>
+            <button class="btn-bad" data-label="bad">Bad</button>
+            <button class="btn-meh" id="skip-btn" data-label="skip">Skip</button>
+        </div>
+        <div style="margin-top: 16px;">
+            <label for="notes">Notes</label>
+            <textarea id="notes" placeholder="Optional feedback…"></textarea>
+        </div>
+    </div>
+    <script>
+        const statusEl = document.getElementById('status');
+        const countsEl = document.getElementById('counts');
+        const audioEl = document.getElementById('snippet-audio');
+        audioEl.autoplay = true;
+        const metaEl = document.getElementById('meta');
+        const notesEl = document.getElementById('notes');
+        let currentSnippet = null;
+
+        function authHeaders() {
+            return { 'Content-Type': 'application/json' };
+        }
+
+        function formatCounts(counts) {
+            if (!counts) return '';
+            const pending = counts.pending_labels || 0;
+            const rendered = counts['status:rendered'] || 0;
+            const failed = counts['status:failed'] || 0;
+            const total = counts['status:pending'] || 0;
+            const good = counts['label:good'] || 0;
+            const bad = counts['label:bad'] || 0;
+            const meh = counts['label:meh'] || 0;
+            return `Pending labels: ${pending} | Rendered: ${rendered} | Failed: ${failed} | Labeled Good/Meh/Bad: ${good}/${meh}/${bad}`;
+        }
+
+        async function fetchSnippet() {
+            statusEl.textContent = 'Loading next snippet…';
+            notesEl.value = '';
+            audioEl.src = '';
+            metaEl.innerHTML = '';
+            try {
+                const res = await fetch('/api/rl/snippet/next');
+                const data = await res.json();
+                countsEl.textContent = formatCounts(data.counts);
+                if (!data.snippet) {
+                    statusEl.textContent = 'No snippets available.';
+                    currentSnippet = null;
+                    return;
+                }
+                currentSnippet = data.snippet;
+                audioEl.src = currentSnippet.snippet_url;
+                audioEl.currentTime = 0;
+                const playPromise = audioEl.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => {
+                        // Browser blocked autoplay; show a prompt but continue.
+                        statusEl.textContent += ' (Click play to hear it)';
+                    });
+                }
+                statusEl.textContent = `Snippet #${currentSnippet.id}`;
+                const similarityValue =
+                    typeof currentSnippet.similarity === 'number'
+                        ? currentSnippet.similarity.toFixed(3)
+                        : (currentSnippet.similarity ?? 'n/a');
+                metaEl.innerHTML = `
+                    <div class="meta-row"><strong>Track:</strong> ${currentSnippet.track_title || currentSnippet.track_id}</div>
+                    <div class="meta-row"><strong>Mode:</strong> ${currentSnippet.mode}</div>
+                    <div class="meta-row"><strong>Source → Target:</strong> ${currentSnippet.source_index} → ${currentSnippet.target_index}</div>
+                    <div class="meta-row"><strong>Similarity:</strong> ${similarityValue}</div>
+                `;
+            } catch (error) {
+                statusEl.textContent = 'Failed to fetch snippet.';
+                console.error(error);
+            }
+        }
+
+        async function submitLabel(label) {
+            if (!currentSnippet) return;
+            try {
+                const res = await fetch(`/api/rl/snippet/${currentSnippet.id}/label`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ label, notes: notesEl.value.trim() }),
+                });
+                const data = await res.json();
+                if (!data.ok) {
+                    alert('Failed to save label: ' + (data.error || 'unknown error'));
+                    return;
+                }
+                fetchSnippet();
+            } catch (error) {
+                alert('Network error while submitting label.');
+            }
+        }
+
+        document.querySelectorAll('button[data-label]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                submitLabel(btn.dataset.label);
+            });
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.repeat) return;
+            const key = event.key.toLowerCase();
+            if (key === 'g') {
+                submitLabel('good');
+            } else if (key === 'h') {
+                submitLabel('meh');
+            } else if (key === 'j') {
+                submitLabel('bad');
+            } else if (key === 'k') {
+                submitLabel('skip');
+            }
+        });
+
+        fetchSnippet();
+    </script>
+</body>
+</html>
