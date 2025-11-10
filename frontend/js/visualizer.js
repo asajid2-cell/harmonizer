@@ -53,12 +53,14 @@ function measureOrbitSize() {
 function applyOrbitLayout(size) {
     var safe = Math.max(280, Math.floor(size || 0));
     orbitLayout.size = safe;
-    orbitLayout.padding = Math.max(40, safe * 0.12);
+    orbitLayout.padding = Math.max(40, safe * 0.10);
     orbitLayout.center = { x: safe / 2, y: safe / 2 };
-    var maxRadius = (safe / 2) - 25;
-    orbitLayout.baseRadius = Math.max(70, maxRadius - safe * 0.08);
-    orbitLayout.outerRadius = Math.min(maxRadius - 8, orbitLayout.baseRadius + safe * 0.04);
-    orbitLayout.haloRadius = maxRadius - 5;
+    // Reserve proper margin: 80px for outer elements + buffer
+    var margin = 100;
+    var maxRadius = (safe / 2) - margin;
+    orbitLayout.baseRadius = Math.max(70, maxRadius * 0.95);
+    orbitLayout.outerRadius = maxRadius * 1.025;
+    orbitLayout.haloRadius = maxRadius * 1.15;
 }
 
 function clearOrbitBase() {
@@ -107,8 +109,8 @@ function renderOrbitBase() {
 
     for (var i = 0; i < 12; i++) {
         var angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
-        var tickInner = layout.outerRadius + 4;
-        var tickOuter = tickInner + 10;
+        var tickInner = layout.outerRadius + 6;
+        var tickOuter = tickInner + 14;
         var x1 = center.x + Math.cos(angle) * tickInner;
         var y1 = center.y + Math.sin(angle) * tickInner;
         var x2 = center.x + Math.cos(angle) * tickOuter;
@@ -222,7 +224,6 @@ var masterCursor = null;
 var otherCursor = null;
 var masterCursorCircle = null;
 var otherCursorCircle = null;
-var masterCursorTrail = null;
 var jukeboxBackdrop = {
     wave: null,
     wave2: null,
@@ -569,13 +570,9 @@ function refreshJukeboxVisualization() {
         return;
     }
     var loopEdges = collectVisualizationLoops(80);
-    if (mode === "jukebox") {
+    if (mode === "jukebox" || mode === "eternal") {
         renderJukeboxBackdrop();
         drawCircularLoopConnections(masterQs, loopEdges);
-    } else if (mode === "eternal") {
-        // Redraw both canon overlays and loop connections
-        drawConnections(masterQs);
-        drawLoopConnections(masterQs, loopEdges, true);
     }
 }
 
@@ -2531,17 +2528,19 @@ function setDisplayMode() {
 }
 
 function setPlayingClass(modeName) {
-    document.body.classList.remove("playing-canon", "playing-jukebox");
+    document.body.classList.remove("playing-canon", "playing-jukebox", "playing-eternal");
     if (modeName === "canon") {
         document.body.classList.add("playing-canon");
         baseNoteStrength = 0.05;
     } else if (modeName === "jukebox") {
         document.body.classList.add("playing-jukebox");
         baseNoteStrength = 0.08;
-        renderJukeboxBackdrop();
+        renderJukeboxBackdrop(modeName);
     } else if (modeName === "eternal") {
         document.body.classList.add("playing-jukebox");
+        document.body.classList.add("playing-eternal");
         baseNoteStrength = 0.1;
+        renderJukeboxBackdrop(modeName);
     } else {
         baseNoteStrength = 0;
     }
@@ -2554,7 +2553,7 @@ function setPlayingClass(modeName) {
     rootStyle.setProperty("--note-strength", baseNoteStrength.toFixed(3));
     var baseAlpha = 0.12 + 0.35 * baseNoteStrength;
     rootStyle.setProperty("--note-alpha", baseAlpha.toFixed(3));
-    if (modeName !== "jukebox") {
+    if (modeName !== "jukebox" && modeName !== "eternal") {
         clearJukeboxBackdrop();
     }
 }
@@ -2571,7 +2570,7 @@ function pulseNotes(strength) {
     if (notePulseTimer) {
         clearTimeout(notePulseTimer);
     }
-    var decayDelay = mode === "jukebox" ? 180 : 280;
+    var decayDelay = (mode === "jukebox" || mode === "eternal") ? 180 : 280;
     notePulseTimer = setTimeout(function() {
         rootStyle.setProperty("--note-strength", baseNoteStrength.toFixed(3));
         var baseAlpha = 0.12 + 0.35 * baseNoteStrength;
@@ -2665,7 +2664,7 @@ function init() {
     }
 
     window.addEventListener("resize", debounce(function() {
-        if (mode === "jukebox") {
+        if (mode === "jukebox" || mode === "eternal") {
             applyModeLayout();
         }
     }, 160));
@@ -3589,6 +3588,8 @@ function drawCircularLoopConnections(qlist, edges) {
     }
     var radius = getCircularRadius();
     var centerPoint = getCircularCenter();
+    var isEternalMode = mode === "eternal";
+    var loopColor = isEternalMode ? "#F0A86B" : "#6B8AF0";
 
     // Calculate control point offset - arcs should curve inward but not cut through circle
     var controlRadiusRatio = 0.3; // Control point at 30% of radius from center
@@ -3635,13 +3636,13 @@ function drawCircularLoopConnections(qlist, edges) {
         var strokeWidth = 1.2 + simNorm * 2.4;
         var opacity = 0.16 + simNorm * 0.5;
         path.attr({
-            stroke: "#6B8AF0",
+            stroke: loopColor,
             "stroke-width": strokeWidth,
             "stroke-opacity": opacity
         });
         path.data("edgeSource", edge.source);
         path.data("edgeTarget", edge.target);
-        path.data("defaultStroke", "#6B8AF0");
+        path.data("defaultStroke", loopColor);
         path.data("defaultOpacity", opacity);
         path.data("defaultWidth", strokeWidth);
         loopPaths.push(path);
@@ -3698,9 +3699,10 @@ function clearJukeboxBackdrop() {
     }
 }
 
-function renderJukeboxBackdrop() {
+function renderJukeboxBackdrop(targetMode) {
     removeJukeboxBackdrop();
-    if (mode !== "jukebox") {
+    var currentMode = targetMode || mode;
+    if (currentMode !== "jukebox" && currentMode !== "eternal") {
         return;
     }
     var layout = orbitLayout;
@@ -3759,7 +3761,7 @@ var vPad = 20;
 var hPad = 20;
 
 function getCircularCenter() {
-    if (mode === "jukebox") {
+    if (mode === "jukebox" || mode === "eternal") {
         return orbitLayout.center;
     }
     var topOffset = Math.min(H * 0.45, 160);
@@ -3770,7 +3772,7 @@ function getCircularCenter() {
 }
 
 function getCircularRadius() {
-    if (mode === "jukebox") {
+    if (mode === "jukebox" || mode === "eternal") {
         return orbitLayout.baseRadius;
     }
     var base = Math.min(W, H * 1.2) / 2;
@@ -3809,7 +3811,7 @@ function shortestAngleBetween(a, b) {
 }
 
 function createTiles(qlist) {
-    if (mode === "jukebox") {
+    if (mode === "jukebox" || mode === "eternal") {
         return createCircularTiles(qlist);
     }
     clearJukeboxBackdrop();
@@ -3829,11 +3831,6 @@ function createTiles(qlist) {
     }
     if (mode === "canon") {
         drawConnections(qlist);
-    } else if (mode === "eternal") {
-        // Draw both canon overlay connections AND loop connections with different colors
-        drawConnections(qlist);
-        var loopEdges = collectVisualizationLoops(80);
-        drawLoopConnections(qlist, loopEdges, true);
     }
     updateCursors(qlist[0]);
     return tiles;
@@ -3941,7 +3938,7 @@ function updateCursors(q) {
     if (!q) {
         return;
     }
-    if (mode === "jukebox") {
+    if (mode === "jukebox" || mode === "eternal") {
         updateCircularCursors(q);
         return;
     }
@@ -3982,10 +3979,6 @@ function removeCircularCursors() {
         masterCursorCircle.remove();
         masterCursorCircle = null;
     }
-    if (masterCursorTrail) {
-        masterCursorTrail.remove();
-        masterCursorTrail = null;
-    }
     if (otherCursorCircle) {
         otherCursorCircle.remove();
         otherCursorCircle = null;
@@ -3996,21 +3989,9 @@ function updateCircularCursors(q) {
     removeLinearCursors();
     var radius = getCircularRadius();
     var masterPoint = getCircularPoint(q, radius);
-    var trailPoint = getCircularPoint(q, radius + 18);
-    if (!masterCursorTrail) {
-        masterCursorTrail = paper.path("");
-        masterCursorTrail.attr({
-            stroke: "rgba(255, 255, 255, 0.18)",
-            "stroke-width": 1.4,
-            "stroke-linecap": "round"
-        });
-    }
-    masterCursorTrail.attr({
-        path: ["M", orbitLayout.center.x, orbitLayout.center.y, "L", trailPoint.x, trailPoint.y].join(" ")
-    });
     if (!masterCursorCircle) {
-        masterCursorCircle = paper.circle(masterPoint.x, masterPoint.y, 6);
-        masterCursorCircle.attr({ fill: masterColor, stroke: masterColor });
+        masterCursorCircle = paper.circle(masterPoint.x, masterPoint.y, 7);
+        masterCursorCircle.attr({ fill: masterColor, stroke: "rgba(255, 255, 255, 0.6)", "stroke-width": 2 });
     } else {
         masterCursorCircle.attr({ cx: masterPoint.x, cy: masterPoint.y });
     }
@@ -5098,11 +5079,7 @@ function createJukeboxDriver(player, options) {
         // Refresh visualization to show updated loop connections
         if (masterQs && masterQs.length && (mode === "jukebox" || mode === "eternal")) {
             var loopEdges = collectVisualizationLoops(80);
-            if (mode === "jukebox") {
-                drawCircularLoopConnections(masterQs, loopEdges);
-            } else if (mode === "eternal") {
-                drawLoopConnections(masterQs, loopEdges, true);
-            }
+            drawCircularLoopConnections(masterQs, loopEdges);
         }
     }
 

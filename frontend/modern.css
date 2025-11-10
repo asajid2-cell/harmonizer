@@ -10,6 +10,11 @@
     --color-cyan: #00FFFF;
     --radius: 0px;
     --note-strength: 0;
+    --banner-height: 56px;
+    --btn-border: rgba(0, 255, 222, 0.45);
+    --btn-bg: rgba(3, 6, 18, 0.75);
+    --btn-bg-alt: rgba(255, 107, 214, 0.25);
+    --btn-text: rgba(255, 255, 255, 0.92);
     font-family: "Comic Sans MS", "Arial", sans-serif;
 }
 
@@ -37,6 +42,7 @@ body {
     padding: 0;
     min-height: 0;
     height: auto;
+    width: 100%;
     background: #000000;
     background-image:
         radial-gradient(circle, #ffffff 1px, transparent 1px),
@@ -46,10 +52,12 @@ body {
     background-attachment: fixed;
     color: var(--color-text);
     display: flex;
+    flex-direction: column;
+    align-items: center;
     position: relative;
     overflow-x: hidden;
     overflow-y: auto;
-    justify-content: center;
+    justify-content: flex-start;
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
@@ -92,6 +100,7 @@ body::before {
     content: "";
     position: fixed;
     top: 0;
+    --banner-height: 54px;
     left: 0;
     right: 0;
     height: 4px;
@@ -106,6 +115,36 @@ body::before {
     box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
     animation: bar-glow 3s ease-in-out infinite;
     transform: translateZ(0);
+}
+
+.site-landing-banner {
+    width: 100%;
+    max-width: 100%;
+    align-self: stretch;
+    background: rgba(7, 8, 20, 0.9);
+    backdrop-filter: blur(8px);
+    padding: 12px 20px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 1200;
+    border-bottom: 1px solid rgba(232, 180, 184, 0.35);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    flex-shrink: 0;
+}
+
+.site-landing-banner a {
+    color: #F9F6F2;
+    font-family: "Manrope", sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+
+.site-landing-banner a:hover,
+.site-landing-banner a:focus-visible {
+    color: #FFBED8;
 }
 
 @keyframes bar-glow {
@@ -360,12 +399,13 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 .page-shell {
     position: relative;
     z-index: 1;
-    width: min(1220px, 94vw);
+    width: 100%;
+    max-width: 1400px;
     margin: 0 auto;
     padding: clamp(12px, 2.4vw, 24px) clamp(18px, 3.5vw, 40px);
     display: grid;
     grid-template-columns: minmax(300px, 1fr) minmax(580px, 1fr);
-    gap: clamp(26px, 4vw, 50px);
+    gap: clamp(12px, 2vw, 24px);
     align-items: start;
     justify-items: stretch;
 }
@@ -387,8 +427,8 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     gap: clamp(20px, 4vw, 60px);
     align-items: start;
     padding: 0 clamp(20px, 3vw, 40px);
-    margin-top: clamp(10px, 2vw, 20px);
-    margin-bottom: clamp(10px, 2vw, 20px);
+    margin-top: clamp(8px, 1.5vw, 16px);
+    margin-bottom: clamp(4px, 1vw, 8px);
     width: 100%;
     max-width: 1400px;
     margin-left: auto;
@@ -408,7 +448,7 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 
 .back-button {
     position: fixed;
-    top: clamp(18px, 2.6vw, 30px);
+    top: calc(var(--banner-height, 0px) + clamp(12px, 1.5vw, 22px));
     left: clamp(18px, 2.6vw, 34px);
     display: inline-flex;
     align-items: center;
@@ -451,6 +491,7 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 .form-actions .cta {
     flex: 0 1 220px;
     margin-top: 0;
+    --banner-height: 54px;
     text-align: center;
     align-self: stretch;
     width: min(220px, 100%);
@@ -515,7 +556,7 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     align-items: center;
     justify-content: flex-start;
     gap: 12px;
-    z-index: 100;
+    z-index: 5;
     background: rgba(0, 0, 0, 0.95);
     padding: 8px 12px;
     border-top: 4px solid #FF00FF;
@@ -524,6 +565,11 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     border-left: 4px solid #FF00FF;
     box-shadow: 0 -2px 15px rgba(255, 0, 255, 0.6), -2px 0 15px rgba(255, 0, 255, 0.6);
     pointer-events: auto;
+}
+
+.state-home .corner-cluster,
+.state-player .corner-cluster {
+    max-width: 240px;
 }
 
 .cluster-separator {
@@ -654,6 +700,20 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     margin: 0;
     text-shadow: 0 0 8px var(--color-cyan);
     animation: side-bounce 2.5s ease-in-out infinite;
+}
+
+.ascii-dancer-cluster {
+    display: flex;
+    flex-direction: row;
+    gap: clamp(14px, 1.8vw, 28px);
+    margin-left: clamp(14px, 2vw, 24px);
+    align-items: flex-start;
+}
+
+.ascii-dancer-side--pink {
+    color: #ff6bd6;
+    text-shadow: 0 0 8px rgba(255, 107, 214, 0.8);
+    animation-delay: 1s;
 }
 
 @keyframes side-bounce {
@@ -1059,31 +1119,33 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 .cta {
     align-self: flex-start;
     margin-top: 10px;
-    padding: 12px 26px;
+    padding: 10px 20px;
     border-radius: 0;
-    border: 3px solid var(--color-orange);
+    border: 3px solid #00FFDE;
     background: #000000;
-    color: var(--color-orange);
+    color: #00FFDE;
     font-weight: 600;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     cursor: pointer;
     transition: all 0.2s ease;
+    box-shadow: none;
+    font-size: 0.75rem;
 }
 
 .cta:hover {
-    background: var(--color-orange);
+    background: #00FFDE;
     color: #000000;
 }
 
 .cta.ghost {
     background: #000000;
-    border: 3px solid var(--color-cyan);
-    color: var(--color-cyan);
+    border: 3px solid #FF00FF;
+    color: #FF00FF;
 }
 
 .cta.ghost:hover {
-    background: var(--color-cyan);
+    background: #FF00FF;
     color: #000000;
 }
 
@@ -1101,6 +1163,7 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     grid-template-columns: 1fr;
     gap: clamp(20px, 3vw, 36px);
     margin-top: 0;
+    --banner-height: 54px;
     align-items: start;
     justify-items: stretch;
 }
@@ -1204,34 +1267,37 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 .toggle {
     flex: 1 1 190px;
     min-width: 170px;
-    padding: 12px 18px;
+    padding: 12px 20px;
     background: #000000;
-    color: var(--color-text);
-    border: 2px solid var(--color-blue);
+    color: #00FFDE;
+    border: 3px solid #00FFDE;
     border-radius: 0;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.78rem;
+    letter-spacing: 0.16em;
+    font-size: 0.75rem;
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: center;
     line-height: 1.2;
     white-space: normal;
+    box-shadow: none;
+    font-weight: 600;
 }
 
 .toggle:hover {
-    background: var(--color-blue);
+    background: #00FFDE;
     color: #000000;
 }
 
 .toggle.active {
-    background: var(--color-blue);
+    background: #00FFDE;
+    border-color: #00FFDE;
     color: #000000;
 }
 
 .toggle:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px var(--color-blue);
+    box-shadow: 0 0 0 3px rgba(0, 255, 222, 0.4);
 }
 
 .mode-grid {
@@ -1402,9 +1468,11 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     pointer-events: none;
     transform: scale(0.95);
     padding-top: 0;
+    --banner-height: 54px;
     padding-bottom: 0;
     border-width: 0;
     margin-top: 0;
+    --banner-height: 54px;
     max-height: 0;
 }
 
@@ -1490,21 +1558,23 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 }
 
 .auth-button {
-    background: rgba(232, 180, 184, 0.15);
-    border: 1px solid rgba(232, 180, 184, 0.3);
-    color: var(--color-text);
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(0, 255, 222, 0.45);
+    color: rgba(255, 255, 255, 0.92);
+    padding: 10px 24px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
+    box-shadow: 0 12px 22px rgba(0, 0, 0, 0.35), inset 0 0 16px rgba(0, 255, 222, 0.12);
 }
 
 .auth-button:hover {
-    background: rgba(232, 180, 184, 0.25);
-    border-color: rgba(232, 180, 184, 0.5);
+    background: rgba(0, 255, 222, 0.25);
+    border-color: rgba(0, 255, 222, 0.6);
     transform: translateY(-1px);
 }
 
@@ -1553,4 +1623,5 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     flex: 1;
     min-width: 150px;
 }
+
 

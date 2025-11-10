@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import io
 import os
 import mimetypes
 import uuid
@@ -12,6 +14,7 @@ from flask import (
     jsonify,
     redirect,
     request,
+    send_file,
     send_from_directory,
     session,
     url_for,
@@ -137,6 +140,11 @@ except ImportError:  # pragma: no cover - support running as script
     sys.path.append(str(BASE_DIR))
     from analysis.analyze_track import build_profile  # type: ignore
 
+try:
+    from .eldrichify import EldrichifyPipeline
+except ImportError:  # pragma: no cover
+    from eldrichify import EldrichifyPipeline  # type: ignore
+
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
 
 UPLOAD_FOLDER = BASE_DIR / "uploads"
@@ -146,6 +154,10 @@ ALLOWED_EXTENSIONS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 DATA_FOLDER.mkdir(parents=True, exist_ok=True)
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
+ELDRICHIFY_OUTPUT_DIR = UPLOAD_FOLDER / "eldrichify"
+ELDRICHIFY_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 
 app = Flask(__name__, static_folder=None)
 
@@ -197,6 +209,23 @@ def _apply_cors(response):
 
 def allowed_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
+
+
+_eldrichify_pipeline: Optional[EldrichifyPipeline] = None
+
+
+def get_eldrichify_pipeline() -> EldrichifyPipeline:
+    global _eldrichify_pipeline
+    if _eldrichify_pipeline is None:
+        _eldrichify_pipeline = EldrichifyPipeline()
+    return _eldrichify_pipeline
+
+
+def _tensor_to_data_url(pipeline: EldrichifyPipeline, tensor) -> str:
+    buffer = io.BytesIO()
+    pipeline.to_pil(tensor).save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
 
 
 def generate_track_id() -> str:
@@ -379,6 +408,26 @@ def visualizer():
     redirect_url = url_for("index", trid=request.args["trid"], mode=mode)
     return redirect(redirect_url)
 
+
+@app.route("/cheatsheets")
+@app.route("/cheatsheets/")
+def cheatsheets_page():
+    """Serve the cheatsheets landing page."""
+    cheatsheets_index = FRONTEND_DIR / "cheatsheets" / "index.html"
+    if cheatsheets_index.is_file():
+        return send_file(cheatsheets_index)
+    abort(404)
+
+
+@app.route("/projects")
+@app.route("/projects/")
+def projects_page():
+    """Serve the album projects page."""
+    projects_index = FRONTEND_DIR / "projects.html"
+    if projects_index.is_file():
+        return send_file(projects_index)
+    abort(404)
+
 @app.route("/media/<path:filename>")
 def media(filename: str):
     mimetype = mimetypes.guess_type(filename)[0] or "application/octet-stream"
@@ -403,6 +452,45 @@ def analysis_file(filename: str):
     )
     response.headers.setdefault("Access-Control-Allow-Origin", "*")
     return response
+
+
+@app.route("/api/eldrichify", methods=["POST", "OPTIONS"])
+def api_eldrichify():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    upload = request.files.get("image")
+    if not upload or not upload.filename:
+        return jsonify({"error": "Please upload an image file using the 'image' field."}), 400
+    ext = Path(upload.filename).suffix.lower()
+    if ext not in IMAGE_EXTENSIONS:
+        return jsonify({"error": f"Unsupported image format '{ext}'. Use PNG, JPG, JPEG, BMP, or WEBP."}), 400
+    pipeline = get_eldrichify_pipeline()
+    try:
+        upload.stream.seek(0)
+        result = pipeline.run_from_file(upload.stream)
+    except Exception as exc:  # pragma: no cover - runtime safety
+        print(f"[eldrichify] failed to process upload: {exc}", flush=True)
+        return jsonify({"error": "VAE pipeline failed to process the image."}), 500
+
+    filename = f"{uuid.uuid4().hex}.png"
+    relative_path = Path("eldrichify") / filename
+    absolute_path = UPLOAD_FOLDER / relative_path
+    absolute_path.parent.mkdir(parents=True, exist_ok=True)
+    pipeline.to_pil(result.final).save(absolute_path, format="PNG")
+
+    previews = {
+        name: _tensor_to_data_url(pipeline, tensor)
+        for name, tensor in result.stages.items()
+        if name != "final"
+    }
+    return jsonify(
+        {
+            "image_url": f"/media/{relative_path.as_posix()}",
+            "filename": filename,
+            "original_size": {"width": result.original_size[0], "height": result.original_size[1]},
+            "previews": previews,
+        }
+    )
 
 
 def _get_youtube_playlist_info(url: str) -> Optional[dict]:
@@ -1372,8 +1460,12 @@ def serve_frontend_asset(asset_path: str):
         target.relative_to(FRONTEND_DIR)
     except ValueError:
         abort(404)
+    if target.is_dir():
+        index_path = target / "index.html"
+        if index_path.is_file():
+            return send_file(index_path)
     if target.is_file():
-        return send_from_directory(FRONTEND_DIR, asset_path)
+        return send_file(target)
     abort(404)
 
 

@@ -25,6 +25,31 @@ git pull origin prod && sudo docker compose down && sudo rm -rf ./data/* ./uploa
 sudo docker compose logs -f harmonizer
 
 ################################################################################
+# PROD BRANCH + DOMAIN ROUTING WORKFLOW
+################################################################################
+
+# Goal: keep harmonizerlabs.cc pointing at the latest code while only using
+# the prod branch on GitHub.
+#
+# 1. From your local machine, force-push the branch you want live:
+#    (make sure you've committed everything first)
+git push origin HEAD:prod --force
+#
+# 2. SSH to the server and run the rebuild script (or paste the EOF block):
+#    - repo resets to origin/prod
+#    - containers rebuild
+#    - nginx already points harmonizerlabs.cc + www to this stack
+# 3. All routes hang off that single domain:
+#    https://harmonizerlabs.cc/
+#    https://harmonizerlabs.cc/projects
+#    https://harmonizerlabs.cc/harmonizer.html
+#    https://harmonizerlabs.cc/cheatsheets
+#    (no extra domains or config needed because links are root-relative)
+#
+# If DNS ever changes, update /etc/nginx/sites-enabled/harmonizerlabs.cc with
+# the new hostname and rerun `sudo systemctl reload nginx`.
+
+################################################################################
 # INITIAL SERVER ACCESS
 ################################################################################
 

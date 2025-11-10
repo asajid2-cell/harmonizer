@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Internet Discotheque · Album Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
+    <style>
+      :root {
+        color-scheme: dark;
+        --cover: url('/assets/cover.jpg');
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Manrope", system-ui, sans-serif;
+        background:
+          linear-gradient(120deg, rgba(5,5,15,.95), rgba(6,12,28,.96)),
+          var(--cover);
+        background-size: cover;
+        background-attachment: fixed;
+        color: #f5f3ff;
+      }
+      a { color: inherit; text-decoration: none; }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+      }
+      .shell {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: clamp(20px,4vw,60px);
+      }
+      header.hero {
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 28px;
+        padding: clamp(24px,4vw,56px);
+        background: rgba(5,5,15,.8);
+        backdrop-filter: blur(18px);
+        box-shadow: 0 30px 80px rgba(0,0,0,.45);
+      }
+      nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: .78rem;
+        letter-spacing: .28em;
+        text-transform: uppercase;
+        margin-bottom: 28px;
+      }
+      nav .links { display: flex; gap: 18px; font-size: .7rem; }
+      nav .links a { opacity: .75; }
+      nav .links a[aria-current="page"] { color: #7efff7; opacity: 1; }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: clamp(24px,4vw,52px);
+        align-items: center;
+      }
+      .cover-card {
+        border: 1px solid rgba(255,255,255,.25);
+        padding: 20px;
+        border-radius: 22px;
+        background: rgba(0,0,0,.35);
+      }
+      .cover-card img {
+        width: 100%;
+        border-radius: 18px;
+        display: block;
+        box-shadow: 0 25px 40px rgba(0,0,0,.6);
+      }
+      .cover-info {
+        margin-top: 18px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: .8rem;
+        letter-spacing: .1em;
+        color: #aee9ff;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(2.6rem,6vw,4.6rem);
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        text-shadow: 0 0 40px rgba(0,255,231,.45);
+      }
+      .hero-copy p { margin: 0 0 18px; line-height: 1.8; }
+      .cta-row { display:flex; flex-wrap:wrap; gap:12px; }
+      .cta {
+        border: 1px solid rgba(255,255,255,.35);
+        padding: 12px 24px;
+        text-transform: uppercase;
+        font-size: .75rem;
+        letter-spacing: .24em;
+        background: linear-gradient(120deg,#00f7ff,#ff56d3);
+        color: #03050a;
+        font-weight: 700;
+      }
+      .cta.alt {
+        background: transparent;
+        color: #f5f3ff;
+      }
+      section.tracklist {
+        margin-top: 48px;
+        border-radius: 24px;
+        padding: 32px;
+        border: 1px solid rgba(255,255,255,.18);
+        background: rgba(5,8,22,.85);
+        backdrop-filter: blur(14px);
+      }
+      section.tracklist h2 {
+        margin-top: 0;
+        text-transform: uppercase;
+        letter-spacing: .3em;
+        font-size: .9rem;
+        color: #7efff7;
+      }
+      .track-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+        gap: 18px;
+        margin-top: 24px;
+      }
+      .track-card {
+        border: 1px solid rgba(255,255,255,.2);
+        border-radius: 16px;
+        padding: 18px;
+        background: rgba(2,2,8,.9);
+        box-shadow: inset 0 0 22px rgba(0,0,0,.35);
+      }
+      .track-card span {
+        display: block;
+        font-family: "JetBrains Mono", monospace;
+      }
+      .track-card span.track-no {
+        color: #37ffe4;
+        letter-spacing: .2em;
+        font-size: .78rem;
+      }
+      .track-card span.track-title {
+        margin: 8px 0 4px;
+        font-weight: 600;
+        font-size: 1rem;
+      }
+      .track-card span.track-artist {
+        color: rgba(255,255,255,.75);
+        font-size: .85rem;
+      }
+      .track-card span.track-time {
+        color: rgba(255,255,255,.55);
+        font-size: .75rem;
+        letter-spacing: .12em;
+      }
+      .liner-notes {
+        margin-top: 48px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px,1fr));
+        gap: 24px;
+      }
+      .note-card {
+        border: 1px solid rgba(255,255,255,.18);
+        padding: 24px;
+        border-radius: 20px;
+        background: rgba(3,5,14,.85);
+      }
+      .note-card h3 {
+        margin-top: 0;
+        text-transform: uppercase;
+        letter-spacing: .3em;
+        font-size: .8rem;
+        color: #ffb1ff;
+      }
+      .note-card p { line-height: 1.8; color: #dfe7ff; }
+      .stream-grid {
+        margin-top: 40px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
+        gap: 16px;
+      }
+      .stream-card {
+        border: 1px solid rgba(255,255,255,.2);
+        border-radius: 16px;
+        padding: 18px;
+        background: rgba(4,4,12,.85);
+        text-transform: uppercase;
+        letter-spacing: .2em;
+        font-size: .72rem;
+        text-align: center;
+      }
+      footer {
+        margin-top: 56px;
+        text-align: center;
+        font-size: .78rem;
+        letter-spacing: .18em;
+        opacity: .7;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="sr-only" href="#tracks">Skip to tracklist</a>
+    <div class="shell">
+      <header class="hero">
+        <nav>
+          <span>Internet Discotheque</span>
+          <div class="links">
+            <a href="/">Home</a>
+            <a href="/projects" aria-current="page">Projects</a>
+            <a href="/cheatsheets">Cheatsheets</a>
+            <a href="/harmonizer.html">Harmonizer</a>
+            <a href="/eldrichify.html">Eldrichify</a>
+          </div>
+        </nav>
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <p class="overline">VARIOUS ARTISTS · 2025</p>
+            <h1>Internet Discotheque</h1>
+            <p>
+              A long-distance collaboration between ID Chief, ?????THOUGHTS, and
+              Aloe Island Posse. Ten tracks of neon slow-motion funk, designed to
+              soundtrack late-night builds inside the Harmonizer lab.
+            </p>
+            <p>
+              Every patch, bassline, and vocal chop was captured through the
+              same cassette deck now wired into the Discotheque’s visualizer
+              racks.
+            </p>
+            <div class="cta-row">
+              <a class="cta" href="/assets/cover.jpg" target="_blank" rel="noopener">View cover</a>
+              <a class="cta alt" href="/loader.html">Stream loader</a>
+            </div>
+          </div>
+          <div class="cover-card">
+            <img src="/assets/cover.jpg" alt="Internet Discotheque album cover" />
+            <div class="cover-info">CATALOG: ID-CLUB-001 · LENGTH: 38:42</div>
+          </div>
+        </div>
+      </header>
+      <section class="tracklist" id="tracks">
+        <h2>Tracklist</h2>
+        <div class="track-grid">
+          <article class="track-card"><span class="track-no">01</span><span class="track-title">Moves So Sweet</span><span class="track-artist">ID Chief</span><span class="track-time">3:52</span></article>
+          <article class="track-card"><span class="track-no">02</span><span class="track-title">Tigerstyle</span><span class="track-artist">Aloe Island Posse</span><span class="track-time">4:18</span></article>
+          <article class="track-card"><span class="track-no">03</span><span class="track-title">Kotori</span><span class="track-artist">?????THOUGHTS</span><span class="track-time">4:05</span></article>
+          <article class="track-card"><span class="track-no">04</span><span class="track-title">Smile</span><span class="track-artist">ID Chief × Aloe Island Posse</span><span class="track-time">3:58</span></article>
+          <article class="track-card"><span class="track-no">05</span><span class="track-title">Maybe I'm Dreaming</span><span class="track-artist">?????THOUGHTS × ID Chief</span><span class="track-time">4:20</span></article>
+          <article class="track-card"><span class="track-no">06</span><span class="track-title">Refreshing</span><span class="track-artist">?????THOUGHTS × Aloe Island Posse</span><span class="track-time">3:41</span></article>
+          <article class="track-card"><span class="track-no">07</span><span class="track-title">Our Love</span><span class="track-artist">Aloe Island Posse</span><span class="track-time">3:55</span></article>
+          <article class="track-card"><span class="track-no">08</span><span class="track-title">Visions of You</span><span class="track-artist">?????THOUGHTS</span><span class="track-time">3:47</span></article>
+          <article class="track-card"><span class="track-no">09</span><span class="track-title">Me & You</span><span class="track-artist">ID Chief</span><span class="track-time">3:54</span></article>
+          <article class="track-card"><span class="track-no">10</span><span class="track-title">Space Cowboys</span><span class="track-artist">?????THOUGHTS × ID Chief × Aloe Island Posse</span><span class="track-time">6:32</span></article>
+        </div>
+      </section>
+      <section class="liner-notes">
+        <article class="note-card">
+          <h3>Recording Log</h3>
+          <p>
+            Built over two winters, the trio swapped stems through our Harmonizer
+            queue. Every revision ran through the Discotheque compressor bus, so
+            even remote takes share the same flicker and hiss.
+          </p>
+        </article>
+        <article class="note-card">
+          <h3>Visual System</h3>
+          <p>
+            The album cover powers the hero projection behind the live set. Tap
+            “View cover” to open the source art—the backend streams it into the
+            visualizer timeline as a texture layer.
+          </p>
+        </article>
+        <article class="note-card">
+          <h3>Sampler Routing</h3>
+          <p>
+            Track IDs double as preset names in the Harmonizer sampler. Drop any
+            song title inside the console to instantly recall the multi-track
+            stem set mapped to pads.
+          </p>
+        </article>
+      </section>
+      <div class="stream-grid">
+        <a class="stream-card" href="/loader.html">Visualizer Loader</a>
+        <a class="stream-card" href="/commands.txt" target="_blank">Server Notes</a>
+        <a class="stream-card" href="/startup.txt" target="_blank">Startup Ritual</a>
+        <a class="stream-card" href="/web.txt" target="_blank">Web Notes</a>
+      </div>
+      <footer>©2025 · Archiving the glow one side at a time.</footer>
+    </div>
+  </body>
+</html>

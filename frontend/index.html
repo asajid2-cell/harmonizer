@@ -1,2203 +1,297 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Harmonizer Lab</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./modern.css">
-    <link rel="stylesheet" href="./visualizer.css">
-</head>
-<body class="page state-home advanced-collapsed" data-mode="canon">
-    <div class="music-field" aria-hidden="true">
-        <div class="music track one"><span></span><span></span><span></span><span></span><span></span></div>
-        <div class="music track two"><span></span><span></span><span></span><span></span><span></span></div>
-        <div class="music track three"><span></span><span></span><span></span><span></span><span></span></div>
-        <div class="music track four"><span></span><span></span><span></span><span></span><span></span></div>
-        <div class="music track five"><span></span><span></span><span></span><span></span><span></span></div>
-        <div class="music track six"><span></span><span></span><span></span><span></span><span></span></div>
-        <div class="music track seven"><span></span><span></span><span></span><span></span><span></span></div>
-        <div class="music track eight"><span></span><span></span><span></span><span></span><span></span></div>
-    </div>
-
-    <div class="page-shell">
-        <a href="/" class="back-button hidden" id="back-button" aria-label="Back to song select"><span aria-hidden="true">&#8592;</span><span class="back-button-label">Back</span></a>
-
-        <header class="hero">
-            <div class="hero-meta">
-                <p class="hero-eyebrow">*** WELCOME TO THE HARMONIZER LAB ***</p>
-                <h1>⟡ INFINITE LOOPS ⟡</h1>
-                <p class="hero-lede">
-                    UPLOAD YOUR TRACK. WE SLICE IT INTO BEATS, FIND THE PERFECT MATCHES,
-                    AND CREATE ENDLESS SEAMLESS LOOPS. YOUR MUSIC NEVER HAS TO END.
-                </p>
-                <div class="hero-callouts-row">
-                    <ul class="hero-callouts">
-                        <li>⟡ <strong>CANON MODE</strong> → MIRROR VOICES</li>
-                        <li>⟡ <strong>JUKEBOX MODE</strong> → JUMP AND NEVER STOP</li>
-                        <li>⟡ <strong>ETERNAL MODE</strong> → LAYER AND REPEAT</li>
-                    </ul>
-                    <pre class="ascii-dancer-side">
-  ♪♫
-  /|\\
- / | \\
-   |
-  ( )
-   o2
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Internet Discotheque</title><meta name="description" content="Physics-inspired portfolio"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&family=JetBrains+Mono:wght@400;600&display=swap"><style>
+:root{color-scheme:dark}
+body{margin:0;min-height:100vh;background-color:#000;background-image:radial-gradient(circle at 10% 10%,rgba(255,255,255,.08),transparent 45%),radial-gradient(circle at 80% 20%,rgba(0,128,255,.12),transparent 55%),radial-gradient(circle at 50% 80%,rgba(255,0,200,.1),transparent 50%);background-size:320px 320px,420px 420px,500px 500px;color:#f8f8f8;font-family:Times New Roman,serif}
+a{color:#66d9ff}
+a:hover,a:focus-visible{color:#3f9}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.sr-only:focus,.sr-only:focus-visible{position:static;width:auto;height:auto;margin:0;clip:auto;overflow:visible}
+.retro-wrapper{display:flex;justify-content:center;align-items:flex-start;padding:48px 16px 64px}
+.retro-window{width:min(1900px,100%);border:3px solid #17233c;box-shadow:0 0 32px #000000a6;background-color:#010409}
+.retro-window__chrome{background:linear-gradient(90deg,#4b5d7a,#2c3750);color:#e4e8f2;padding:6px 10px;font-family:"MS Sans Serif",Tahoma,sans-serif;font-size:12px;display:flex;justify-content:space-between;align-items:center;letter-spacing:.04em}
+.retro-window__brand{flex:1}
+.retro-window__title{flex:1;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:.18em}
+.retro-window__controls{display:flex;gap:4px}
+.retro-window__btn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid rgba(0,0,0,.4);background-color:#fff3;font-weight:700;line-height:1;font-size:10px}
+.retro-nav{display:flex;gap:8px;padding:6px 10px;background-color:#0b1422;border-bottom:1px solid #24324f;font-family:"MS Sans Serif",Tahoma,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.retro-nav a{color:#8ab4ff;text-decoration:none}
+.retro-nav a:hover,.retro-nav a:focus-visible,.retro-nav a[aria-current=page]{color:#fca1ff;text-decoration:underline}
+.retro-content{padding:32px 36px;text-align:center}
+.retro-title{font-size:clamp(32px,5vw,48px);color:#1d55ff;letter-spacing:.16em;margin-bottom:32px;text-transform:uppercase;text-shadow:0 0 18px rgba(61,128,255,.75)}
+.retro-intro{margin:0 auto 28px;max-width:420px;line-height:1.6;font-size:15px}
+.retro-ascii-wall{margin:32px auto;padding:40px;width:min(92vw,1700px);border:2px solid rgba(255,255,255,.24);background:linear-gradient(180deg,#01060f,#000);font-family:Courier New,monospace;color:#b0c9ff;box-shadow:0 0 32px rgba(0,0,0,.65);column-width:360px;column-gap:40px;text-align:left}
+.retro-ascii-card{margin:0 0 32px;padding:0;background:transparent;border:none;white-space:pre;font-size:13px;line-height:1.25;color:inherit;break-inside:avoid;box-shadow:none}
+.retro-ascii-card--y2k{transform:translateX(20%)}
+.retro-ascii-card--console{margin-left:-15%}
+.retro-credits{display:grid;gap:8px;justify-content:center;margin-top:28px;font-size:18px;font-family:Courier New,monospace;text-transform:uppercase;letter-spacing:.08em}
+.retro-credits span:nth-child(1){color:#ff9330}
+.retro-credits span:nth-child(2){color:#c38aff}
+.retro-credits span:nth-child(3){color:#58ff7a}
+.retro-footer{margin-top:28px;padding:16px;font-family:"MS Sans Serif",Tahoma,sans-serif;font-size:11px;color:#7b8fa7;border-top:1px solid #24324f;background-color:#0b1422}
+.retro-article{text-align:left;margin:0 auto;max-width:460px;line-height:1.75;font-size:15px;font-family:Georgia,serif;color:#d8dff9}
+.retro-article h2{margin-top:0;margin-bottom:16px;color:#39a7ff;text-transform:uppercase;letter-spacing:.14em;font-size:20px;font-family:"MS Sans Serif",Tahoma,sans-serif}
+.retro-list{padding-left:18px}
+.retro-list li{margin-bottom:10px}
+.retro-callout{margin-top:20px;padding:18px;border:1px dashed rgba(255,255,255,.35);background-color:#0c1422cc;font-family:Courier New,monospace;font-size:13px}
+.retro-contact{margin-top:20px;display:grid;gap:12px;font-family:Courier New,monospace;font-size:14px}
+</style></head> <body> <a href="#main" class="sr-only">
+Skip to main content
+</a> <div class="retro-wrapper"> <div class="retro-window"> <div class="retro-window__chrome"> <span class="retro-window__brand">Business Casual presents</span> <span class="retro-window__title">Internet Discotheque</span> <div class="retro-window__controls"> <span class="retro-window__btn">_</span> <span class="retro-window__btn">[]</span> <span class="retro-window__btn">X</span> </div> </div> <nav aria-label="Pages" class="retro-nav"> <a href="/" aria-current="page"> Home </a><a href="/projects"> Projects </a><a href="/cheatsheets"> Cheatsheets </a><a href="https://plaza.one/" target="_blank" rel="noopener"> Radio </a><a href="/harmonizer.html"> Harmonizer </a><a href="/eldrichify.html"> Eldrichify </a> </nav> <main id="main" class="retro-content">  <h1 class="retro-title">Internet Discotheque</h1>  <section class="retro-ascii-wall" aria-label="dancing ascii gallery">
+<pre class="retro-ascii-card retro-ascii-card--y2k" aria-label="internet discotheque marquee">
+                    oOOOoOOo
+                   .OOoOOOo.
+                   OOOoOOOoO
+                   'OOoOOOo'
+                      |||
+                   /\  ||  /\
+                  /  \ || /  \
+                 / /\ \||/ /\ \
+                /_/  \.**./  \_\
+                     / || \
+                    *  ||  *
+                       **
+                           .-'''-.
+                          / .===. \
+                          \/ 6 6 \/
+                          ( \___/ )
+                  ___ooo___\_____/____ooo___
+                 /                            \
+                 |        INTERNET             |
+                 |         DISCOTHEQUE         |
+                 \____________________________/
+                        |  |         |  |
+                        |  |         |  |
+                        |__|         |__|
+                         /_\\         /_\\
+                        // \\         // \\
+                        *   *         *   *
 </pre>
-                </div>
-                <div class="retro-badges">
-                    <span class="retro-badge">BUSINESS CASUAL PRESENTS</span>
-                    <span class="retro-badge">ALOE ISLAND POSSE</span>
-                    <span class="retro-badge">INTERNET DISCONTENT</span>
-                </div>
-            </div>
-            <div class="hero-visual" aria-hidden="true">
-                <div class="hero-orbit">
-                    <span class="hero-ring ring-base"></span>
-                    <span class="hero-ring ring-highlight"></span>
-                </div>
-                <pre class="ascii-woman">
-       _)))
-      /|||\\
-     ({O O})
-      ( > )
-      /|||\\
-     / | | \\
-      /   \\
-     |     |
-   _/ \\___/ \\_
-  /   ( | )   \\
- '    _\\_//_   '
-      o2  o2
+
+<pre class="retro-ascii-card" aria-label="wave dancer">
+     .oOOOo.
+     oOOOoOOo
+     .OOoOOOo.
+     OOOoOOOoO    
+    'OOoOOOo'
+       |||
+    /\  ||  /\
+   /  \ || /  \
+  / /\ \||/ /\ \
+ /_/  \.**./  \_\
+      / || \
+     *  ||  *               
+        **     .''''''''''.
+            .''            ''.
+          .'      .-^.       '.
+         /      .'*   '*.      \
+        ;      /   \ /   \      ;
+        |     /     V     \     |
+        |    /   .-----.   \    |
+        ;    |  (  _ _  )   |   ;
+         \    \   \___/    /   /
+          '.   '._     _.-'  .'
+            '.    ''-''    .'
+              '-._       _.'
+                   '| |'
+                 __/| |\__
+               .'-._| |_._'-.
+              /     | |     \
+             /  /\  | |  /\  \
+            /  /  \ | | /  \  \
+           /__/    \| |/    \__\
+                    * *
 </pre>
-                <pre class="ascii-right-notes">
-  ～～～
-  ♫ ♪
-  ～～～
+
+<pre class="retro-ascii-card" aria-label="sysadmin sentinel">
+             SysAdmin
+              _\/|(/_
+              >_   _ /
+              (_)-(_)
+               ) o (
+               \ = /
+                |W|
+                | |
+              __| |__
+             / \ u / \
+            |   `-'   |
+            |__|   |__|
+             |||ADM|||
+             |||   |||
+             |||   |||
+             |||   |||
+             |||   |||
+             |||   |||
+            /  |___/  \
+            ||(|   \)||
+             \| | |//
+               | | |
+               | | |
+               | | |
+               | | |
+               | | |
+               ( ( |
+               | | |
+               | | |
+               | | |
+               | | |
+               | | |
+            ___[_[_]
+           / /      \ 
+           \_\______/ 
 </pre>
-                <pre class="ascii-background">
-*  .  *    .   *    .  *   .
-  .    *  .   *  .    *   .
-*   .    *  .   *  .   *
-  .  *   .    *   .  *  .
-*    .  *  .   *  .    *  .
+
+<pre class="retro-ascii-card" aria-label="glyph guardian">
+                     .;+itIYIIYIIYItt+;:                      
+                  =tXVVXItt+;=;;=+itIYVVXIi:                  
+               ;YVXXt=:               .;tYXXX+                
+            .tVXVt;                       .iXXVI:             
+           tRXX;                        .;;  ;YVVY:           
+         ;RXV;                            +RR+..YVRt          
+       .XXR;                           :;.  ;BBY.:VXR;        
+      ;RYX                              :XBY; tBBi tVR+       
+     ;RV+                             :;  :RMB+;BMB.;RXt      
+    ;RR;                               ;RR+.tBMBiBMB::RXt     
+   :RV;                             .+;. iBBY;BMMBMMB.:RXi    
+   RYt                                =BBi:BMBXBMMMBY. ;RR;   
+  YtV                               +Y+:tMBIBMMBMR=     iIR   
+ :RR.                        .::.    .tBXtMMBMBY:        RIi  
+ XIt                     ;IRBRXVRBY;   ;BBBMR=           ;VR  
+.RR                    ;RBt:     .+RB;  :BI:              VY; 
++tX                   iBt           =BX                   itY 
+Yt=                  ;Bi             :Bt                  :XR 
+RX:                  RX               =B:                  RX.
+RR                  :B:                Ri                  YX:
+RR                  ;B                 YY                  YY;
+RR                  :B;                Ri                  YX:
+RX:                  RX               +B:                  RX.
+YI;                  +Ri             :Bt                  :XR 
++tX              .i:  iBI           iBX                   itY 
+.RR            ;VBBB.  ;RBt:     :+RR+                    VY; 
+ XIt        .tBMMMRBB;   ;tRBVXVBRY;                     ;VR  
+ :RR.     ;RBMMBVBB;;RR;     .::.                        RIi  
+  IIR  .tBMMMBMMB;RMX:                                  tIR   
+   RII BMMBMMBiBMB;:+Vi:                               ;RR:   
+   :RV;:BMBXBMB;;VBY.                                 :RX+    
+    ;RV+:BMB;RBMY  ;t;                               ;RXt     
+     ;RXt.RMB;:tBB=                                 ;RVi      
+      :RYR.;BBY. :+t;                              IXR;       
+        XXR+ ;RBY:                               ;RYR:        
+         ;RYR; .;Yi:                           :XXVt          
+           +VXV=                             ;YVVt.           
+             +VXVI;                       ;tVXVt.             
+               ;tVXXYi;.              ;+IXXVY;                
+                  ;tIVVXXYti=====iiIXXVVYt;                   
+                      :;iitItttttItt+;:
 </pre>
-            </div>
-        </header>
 
-        <section class="ascii-lounge" aria-label="Retro ASCII lounge" style="display: none;">
-            <div class="ascii-card">
-                <p class="ascii-label">Terminal stack</p>
-                <pre aria-hidden="true">
-      _
-     |-|
-jgs  |=| [Ll]
-     "^" ====`o
-                </pre>
-            </div>
-            <div class="ascii-card">
-                <p class="ascii-label">Prompt ready</p>
-                <pre aria-hidden="true">
-   .----.
-   |C&gt;_ |
- __|____|__
-|  ______--|
-`-/.::::.\-'a
- `--------'
-                </pre>
-            </div>
-            <div class="ascii-card">
-                <p class="ascii-label">Sick computer</p>
-                <pre aria-hidden="true">
-         _______
-        |.-----.|
-        ||x . x||
-        ||_.-._||
-        `--)-(--`
-       __[=== o]___
-      |:::::::::::|\ 
-jgs   `-=========-`() 
-                </pre>
-            </div>
-        </section>
+  <pre class="retro-ascii-card retro-ascii-card--console" aria-label="command console">
+                    \_/ 
+   _______________                        |*\_/*|________
+  |  ___________  |     .-.     .-.      ||_/-\_|______  |
+  | |           | |    .****. .****.     | |           | |
+  | |   0   0   | |    .*****.*****.     | |   0   0   | |
+  | |     -     | |     .*********.      | |     -     | |
+  | |   \___/   | |      .*******.       | |   \___/   | |
+  | |___     ___| |       .*****.        | |___________| |
+  |_____|\_/|_____|        .***.         |_______________|
+    _|__|/ \|_|_.............*.............._|________|_
+   / ********** \                          / ********** \
+ /  ************  \                      /  ************  \
+--------------------                    --------------------
+  </pre>
+
+  <pre class="retro-ascii-card" aria-label="amiga workstation">
+                     ___..-.---.---.--..___
+               _..-- `.`.   `.  `.  `.      --.._
+              /    ___________\   \   \______    \
+              |   |.-----------`.  `.  `.---.|   |
+              |`. |'  \`.        \   \   \  '|   |
+              |`. |'   \ `-._     `.  `.  `.'|   |
+             /|   |'    `-._o)\  /(o\   \   \|   |\
+           .' |   |'  `.     .'  '.  `.  `.  `.  | `.
+          /  .|   |'    `.  (_.==._)   \   \   \ |.  \         _.--.
+        .' .' |   |'      _.-======-._  `.  `.  `. `. `.    _.-_.-'\ 
+       /  /   |   |'    .'   |_||_|   `.  \   \   \  \  \ .'_.'     ||
+      / .'    |`. |'   /_.-'========`-._\  `.  `-._`._`. \(.__      :|
+     ( '      |`. |'.______________________.'\      _.) ` )`-._`-._/ /
+      \\      |   '.------------------------.'`-._-'    //     `-._.'
+      _\\_    \    | AMIGA  O O O O * * `.`.|    '     //
+     (_  _)    '-._|________________________|_.-'|   _//_
+     /  /      /`-._      |`-._     / /      /   |  (_  _)
+   .'   \     |`-._ `-._   `-._`-._/ /      /    |    \  \
+  /      `.   |    `-._ `-._   `-._|/      /     |    /   `.
+ /  / / /. )  |  `-._  `-._ `-._          /     /   .'      \
+| | | \ \|/   |  `-._`-._  `-._ `-._     /     /.  ( .\ \ \  \
+ \ \ \ \/     |  `-._`-._`-._  `-._ `-._/     /  \  \|/ / | | |
+  `.\_\/       `-._  `-._`-._`-._  `-._/|    /|   \   \/ / / /
+              /    `-._  `-._`-._`-._  ||   / |    \   \/_/.'
+            .'         `-._  `-._`-._  ||  /  |     \
+   LGB     /           / . `-._  `-._  || /   |      \
+          '\          / /      `-._    ||/'._.'       \
+           \`.      .' /           `-._|/              \
+            `.`-._.' .'               \               .'
+              `-.__\/                 `\            .' '
+                                       \`.       _.' .'
+                                        `.`-._.-' _.'
+                                          `-.__.-'
+  </pre>
+
+  <pre class="retro-ascii-card" aria-label="circuit totem">
+                                             /'.    /|    .'\
+                                       ,._   |+i\  /++\  / +|    ,,
+                                       |*+'._/+++\/+ ++\/+++<_.-'+|
+                                  :-.  \ ++++?++ +++++*++++++ +++ /  .-:
+                                  |*+\_/++++ +++*++ ++++++ ++?++++\_/ +|
+                              ,    \*+++++ ++++ +++*+++ ++++ +++ +++++/   ,
+                              \'-._> +__+*++__*+++_+__*++ ++__++++__*<_.-'/ 
+                               `>*+++|  \++/  |+*/     `\ +|  |++/  |++++<'
+                            _,-'+ * +*\  \/  /++|__.-.  |+ |  |+/  /+ +*+'-._
+                            '-.*+++++++\    /+ ++++++/  / *|  |/  /+ ++++++.-'
+                                > *+++++\  /*++++ +/` /`+++|     < *++ +++< 
+                            _,-'* +++ ++|  |++ +*/` /` +* +|  |\  \+ ++++++'-._
+                            `-._+ +*++?+|  |+++*|  '-----.+|  |+\  \+* ++ +_.-'
+                               _`\++++++|__|+ *+|________|+|__|++\__|++++/`_
+                              /*++_+* + +++++ ++ + ++++ +++++ ++ ++++ ++_+*+\
+                              '--' `>*+++ +++++ +++++*++++  +++ ++++ ?<' '--'
+                                   /++_++ ++ ++++++ ++?+ +++++*+++ ++++ \
+                                   |_/ `\++ ++ +++*++++++++++ ++++*./`\_|
+                                        /+*.-.*+ +_ ++*+ _+++ .-.* +\
+                                  jgs   | /   | +/ `\?+/` \*+|    \ |
+                                         '    \.'    |/    './     '
+  </pre>
+
+  <pre class="retro-ascii-card" aria-label="ps2 controller">
+      _=====_                               _=====_
+     / _____ \                             / _____ \
+   +.-'_____'-.---------------------------.-'_____'-.+
+  /   |     |  '.        S O N Y        .'  |  _  |   \
+ / ___| /|\ |___ \                     / ___| /_\ |___ \
+/ |      |      | ;  __           _   ; | _         _ | ;
+| | <---   ---> | | |__|         |_:> | ||_|       (_)| |
+| |___   |   ___| ;SELECT       START ; |___       ___| ;
+|\    | \|/ |    /  _     ___      _   \    | (X) |    /|
+| \   |_____|  .','" "', |___|  ,'" "', '.  |_____|  .' |
+|  '-.______.-' /       \ANALOG/       \  '-._____.-'   |
+|               |       |------|       |                |
+|              /\       /      \       /\               |
+|             /  '.___.'        '.___.'  \              |
+|            /                            \             |
+ \          /                              \           /
+  \________/                                \_________/
+                    PS2 CONTROLLER
+  </pre>
+  </section>
+ <div class="retro-credits"> <span>ID Chief</span> <span>KonshasTHOUGHTS</span> <span>Aloe Island Posse</span> </div>  </main> </div> </div> </body></html>
 
-        <main class="layout">
-            <section class="panel intake-panel" id="intake-panel">
-                <h2>Load A Track</h2>
-                <pre class="ascii-divider">～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～</pre>
-                <form id="process-form" enctype="multipart/form-data" novalidate>
-                    <div class="section-title">Engine</div>
-                    <div class="mode-grid" id="algorithm-toggle">
-                        <button type="button" data-algorithm="canon" class="mode-card toggle active">
-                            <span class="mode-card-icon" aria-hidden="true">∞</span>
-                            <div class="mode-card-body">
-                                <h3>CANON</h3>
-                                <p>mirror voices, loop hook</p>
-                            </div>
-                        </button>
-                        <button type="button" data-algorithm="jukebox" class="mode-card toggle">
-                            <span class="mode-card-icon" aria-hidden="true">◎</span>
-                            <div class="mode-card-body">
-                                <h3>JUKEBOX</h3>
-                                <p>jump beats forever</p>
-                            </div>
-                        </button>
-                        <button type="button" data-algorithm="eternal" class="mode-card toggle">
-                            <span class="mode-card-icon" aria-hidden="true">⟲</span>
-                            <div class="mode-card-body">
-                                <h3>ETERNAL</h3>
-                                <p>layer + evolve</p>
-                            </div>
-                        </button>
-                    </div>
-                    <input type="hidden" name="algorithm" value="canon" id="algorithm-input">
-                    <pre class="ascii-divider">～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～</pre>
-                    <div class="section-title">Source</div>
-                    <div class="toggle-group" id="source-toggle">
-                        <button type="button" data-source="upload" class="toggle active">Upload Audio</button>
-                        <button type="button" data-source="drive" class="toggle">Google Drive</button>
-                    </div>
-                    <input type="hidden" name="source" value="upload" id="source-input">
-                    <p class="drive-helper-hint hidden" id="drive-helper-hint">
-                        Need to grab something from Drive? <a href="https://drive.google.com/drive/my-drive" target="_blank" rel="noopener">Open Google Drive</a>
-                    </p>
 
-                    <div class="source-pane" id="upload-pane">
-                        <label class="field">
-                            <span>Audio file</span>
-                            <div class="file-upload-wrapper">
-                                <input type="file" name="audio" accept="audio/*" id="audio-file-input" class="file-input-hidden">
-                                <button type="button" class="file-upload-button" id="file-upload-button">
-                                    Choose File
-                                </button>
-                                <span class="file-upload-name" id="file-upload-name">No file chosen</span>
-                            </div>
-                        </label>
-                    </div>
 
-                    <div class="source-pane hidden" id="drive-pane">
-                        <label class="field">
-                            <input type="url" name="drive_url" placeholder="https://drive.google.com/file/d/...">
-                        </label>
-                    </div>
 
-                    <div class="metadata-grid">
-                        <label class="field">
-                            <span>Title <small>(optional)</small></span>
-                            <input type="text" name="title" placeholder="Auto-detected when possible">
-                        </label>
-                        <label class="field">
-                            <span>Artist <small>(optional)</small></span>
-                            <input type="text" name="artist" placeholder="Auto-detected when possible">
-                        </label>
-                    </div>
 
-                    <div class="form-actions">
-                        <button type="submit" class="cta">Transform Track</button>
-                        <button type="button" class="cta site-logo" id="site-logo" aria-label="Explore music catalogue">
-                            Explore music catalogue
-                        </button>
-                    </div>
-                </form>
-                <div id="form-status" class="status-panel" role="status" aria-live="polite"></div>
-            </section>
 
-            <section class="panel viz-panel music-frame" id="viz-panel">
-                <header class="viz-header">
-                    <div class="viz-headline">
-                        <h2 id="info"></h2>
-                    </div>
-                    <div class="viz-actions">
-                        <button id="play" class="viz-button">Play</button>
-                        <span class="viz-timer" id="mtime">00:00:00</span>
-                        <div class="viz-mode-switch" id="viz-mode-switch">
-                            <select id="viz-mode-select" aria-label="Switch playback mode">
-                                <option value="canon">Autocanonizer</option>
-                                <option value="jukebox">Eternal Jukebox</option>
-                                <option value="eternal">Eternal Canonizer</option>
-                            </select>
-                        </div>
-                        <div class="viz-stats" id="eternal-stats" style="display: none;">
-                            <span class="viz-stat-item">
-                                <span class="viz-stat-label">Listen Time:</span>
-                                <span class="viz-stat-value" id="listen-time">00:00</span>
-                            </span>
-                            <span class="viz-stat-item">
-                                <span class="viz-stat-label">Beats Played:</span>
-                                <span class="viz-stat-value" id="beats-played">0</span>
-                            </span>
-                        </div>
-                        <div class="viz-advanced-cluster">
-                            <label class="audio-compare-toggle" for="base-audio-only-toggle" title="Mute overlay voices for easy A/B checks">
-                                <input type="checkbox" id="base-audio-only-toggle">
-                                <span>Base audio only</span>
-                            </label>
-                            <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
-                                Advanced: Off
-                            </button>
-                        </div>
-                        <div class="rl-model-switch" id="rl-model-switch" role="group" aria-label="RL model selector">
-                            <span class="rl-model-label">RL Model:</span>
-                            <button type="button" class="rl-model-btn" data-variant="a">Model A</button>
-                            <button type="button" class="rl-model-btn" data-variant="b">No RL</button>
-                        </div>
-                        <button type="button" id="add-to-queue-btn" class="viz-button ghost">
-                            + Add to Queue
-                        </button>
-                    </div>
-            </header>
-            <div class="viz-body">
-                <div class="viz-stage">
-                    <div class="playback-shell" id="playback-shell">
-                            <div class="tiles-shell">
-                            <div class="viz-status" id="status-panel"></div>
-                            <div id="error"></div>
-                            <div class="viz-orbit-shell">
-                                <div class="viz-orbit">
-                                    <div id="tiles" class="tiles-canvas"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <aside id="queue-container" class="queue-container queue-window" style="display: none;">
-                            <div class="queue-header queue-drag-handle">
-                                <div class="queue-title-bar">
-                                    <h4>Queue</h4>
-                                    <div class="queue-window-controls">
-                                        <button type="button" id="queue-minimize-btn" class="queue-window-btn" aria-label="Minimize queue">−</button>
-                                        <button type="button" id="queue-close-btn" class="queue-window-btn" aria-label="Close queue">&times;</button>
-                                    </div>
-                                </div>
-                                <button type="button" id="clear-queue-btn" class="viz-button ghost small">Clear All</button>
-                            </div>
-                            <div class="queue-controls">
-                                <button type="button" id="queue-prev-btn" class="queue-control-btn" aria-label="Select previous in queue">Prev</button>
-                                <button type="button" id="queue-play-btn" class="queue-control-btn primary" aria-label="Play selected queue track">Play</button>
-                                <button type="button" id="queue-next-btn" class="queue-control-btn" aria-label="Select next in queue">Next</button>
-                            </div>
-                            <div id="queue-list" class="queue-list"></div>
-                        </aside>
-                    </div>
-                </div>
 
-                <aside class="viz-sidebar hidden" id="advanced-sidebar">
-                    <div class="advanced-shell" id="advanced-shell">
-                        <header class="advanced-header">
-                            <h3>Advanced Settings</h3>
-                            <p>Fine-tune how each engine behaves. Changes apply immediately.</p>
 
-                            <!-- Settings Import/Export -->
-                            <div class="settings-actions" style="display: flex; gap: 8px; margin-top: 12px;">
-                                <button id="export-settings-btn" class="auth-button" style="flex: 1;">Export Settings</button>
-                                <button id="import-settings-btn" class="auth-button" style="flex: 1;">Import Settings</button>
-                                <input type="file" id="import-settings-file" accept=".json" style="display: none;">
-                            </div>
 
-                            <div class="beat-round-control">
-                                <label class="beat-round-toggle" for="beat-round-toggle">
-                                    <input type="checkbox" id="beat-round-toggle">
-                                    <span>Snap to beat grid</span>
-                                </label>
-                                <p class="beat-round-hint">Rounds jump-related values to the nearest bar-aligned beat to avoid off-beat jolts.</p>
-                            </div>
 
-                        </header>
-                        <div class="advanced-sections" id="advanced-sections"></div>
-                    </div>
-                </aside>
-            </div>
-            </section>
-            </main>
 
-        <!-- Harmonizer Lab badge + rotating footer -->
-        <div class="corner-cluster">
-            <pre class="ascii-corner-art">
-  ♫ ♪
- /|\\
-  o2
-</pre>
-            <span class="cluster-separator">|</span>
-            <footer class="viz-footer" id="footer-text">drive safe i fucking love you &lt;3</footer>
-            <span class="cluster-separator">|</span>
-            <pre class="ascii-corner-art-right">
-  ♪ ♫
-  /|\\
-  o2
-</pre>
-        </div>
-        </div>
 
-            <!-- ✅ Script to randomize the footer message -->
-            <script>
-                const messages = [
-                    "drive safe i fucking love you <3",
-                    "text me when you get home <3",
-                    "made for you, by you <3",
-                    "you’re doing amazing, keep going <3",
-                    "i’m proud of you, always <3",
-                    " i do bad all by myself :p",
-                    " you are enough, just as you are <3",
-                    "every day is all there is <3",
-                    "ill wait for you tomorrow <3",
-                    "she said do u love me i tell her only partly :p",
-                    "i cant keep my hands to myself :p",
-                    "you make me wanna die less :p",
-                    " stay hydrated <3",
-                    " to your eternity <3",
-                    " believe in miracles <3",
-                    " you are my sunshine <3",
-                    "u make my day less grey :o",
-                    "passionate from miles away :o",
-                    "were just some soul with good intentions :p",
-                    "who do you think you are? i am :b",
-                    "im sure we're taller in another dimension <3",
 
-                ];
 
-                // Pick a random message
-                const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-
-                // Replace the footer text
-                document.getElementById("footer-text").innerHTML = randomMessage;
-            </script>
-
-
-    <!-- Add to Queue Modal -->
-    <div id="queue-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add to Queue</h3>
-                <button type="button" class="modal-close" id="queue-modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="section-title" style="margin-bottom: 8px;">Source</div>
-                <div class="toggle-group" id="queue-source-toggle" style="margin-bottom: 16px;">
-                    <button type="button" data-source="upload" class="toggle active">Upload</button>
-                    <button type="button" data-source="drive" class="toggle">Drive</button>
-                </div>
-
-                <!-- Upload pane -->
-                <div id="queue-upload-pane" class="queue-source-pane">
-                    <label class="field">
-                        <span>Audio file</span>
-                        <div class="file-upload-wrapper">
-                            <input type="file" accept="audio/*" id="queue-audio-file-input" class="file-input-hidden">
-                            <button type="button" class="file-upload-button" id="queue-file-upload-button">
-                                Choose File
-                            </button>
-                            <span class="file-upload-name" id="queue-file-upload-name">No file chosen</span>
-                        </div>
-                    </label>
-                </div>
-
-                <!-- Drive pane -->
-                <div id="queue-drive-pane" class="queue-source-pane" style="display: none;">
-                    <label class="field">
-                        <input type="url" id="queue-drive-url-input" class="queue-input" placeholder="https://drive.google.com/file/d/..." />
-                    </label>
-                    <p class="queue-hint">
-                        <a href="https://drive.google.com/drive/my-drive" target="_blank" rel="noopener">Open Google Drive</a> to copy a shareable link.
-                    </p>
-                </div>
-
-                <div id="queue-modal-status" class="queue-modal-status"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="modal-reset-link" id="queue-modal-reset">Reset form</button>
-                <button type="button" class="viz-button ghost" id="queue-modal-cancel">Cancel</button>
-                <button type="button" class="viz-button" id="queue-modal-submit">Add to Queue</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js"></script>
-    <script src="./app-config.js"></script>
-    <script src="./js/underscore-min.js"></script>
-    <script src="./js/raphael-min.js"></script>
-    <script src="./jremix.js"></script>
-    <script src="./js/eternal_jukebox_engine.js"></script>
-    <script>
-        (function ensureRLFallbacks() {
-            var defaultStats = {
-                total: 0,
-                penalized: 0,
-                boosted: 0,
-                fallback: 0,
-                modelVersion: null,
-            };
-            if (!window.harmonizerRLTally) {
-                window.harmonizerRLTally = Object.assign({}, defaultStats);
-            }
-            if (typeof window.getRLTally !== "function") {
-                window.getRLTally = function () {
-                    return window.harmonizerRLTally;
-                };
-            }
-            if (typeof window.getActivePolicyMode !== "function") {
-                window.getActivePolicyMode = function () {
-                    var mode =
-                        (window.harmonizerPolicyMode ||
-                            (window.HARMONIZER_CONFIG &&
-                                window.HARMONIZER_CONFIG.rlPolicyMode) ||
-                            "rl") + "";
-                    return mode.toLowerCase();
-                };
-            }
-            if (typeof window.rlModel === "undefined" && window.harmonizerRLModel) {
-                window.rlModel = window.harmonizerRLModel;
-            }
-            if (typeof window.rlModel === "undefined") {
-                window.rlModel = { type: "empty" };
-            }
-        })();
-    </script>
-    <script src="./js/visualizer.js?v=20251109"></script>
-    <script>
-    (function() {
-        const body = document.body;
-        const vizPanelElement = document.getElementById('viz-panel');
-        const algorithmToggle = document.getElementById('algorithm-toggle');
-        const sourceToggle = document.getElementById('source-toggle');
-        const algorithmInput = document.getElementById('algorithm-input');
-        const sourceInput = document.getElementById('source-input');
-        const uploadPane = document.getElementById('upload-pane');
-        const drivePane = document.getElementById('drive-pane');
-        const driveHelperHint = document.getElementById('drive-helper-hint');
-        const vizModeSelect = document.getElementById('viz-mode-select');
-        const config = window.HARMONIZER_CONFIG || {};
-        const apiBaseUrl = (config.apiBaseUrl || "").replace(/\/+$/, "");
-        const buildApiUrl = (path) => {
-            if (!path.startsWith('/')) {
-                path = '/' + path;
-            }
-            return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
-        };
-        const rlLoggingEnabled = Boolean(config.rlLoggingEnabled);
-        const rlJumpEndpoint = buildApiUrl('/api/rl/jump-event');
-        const rlModelEndpoint = buildApiUrl('/api/rl/model');
-        const rlPolicyEndpoint = buildApiUrl('/api/rl/policy');
-        const rlModelSwitcher = document.getElementById('rl-model-switch');
-        const RL_VARIANT_STORAGE_KEY = 'RL_MODEL_VARIANT';
-        const RL_VARIANT_SCHEMA_KEY = 'RL_MODEL_VARIANT_SCHEMA';
-        if (!localStorage.getItem(RL_VARIANT_SCHEMA_KEY)) {
-            localStorage.removeItem(RL_VARIANT_STORAGE_KEY);
-            localStorage.setItem(RL_VARIANT_SCHEMA_KEY, 'v2');
-        }
-        let rlModel = null;
-        let rlModelVariant = (localStorage.getItem(RL_VARIANT_STORAGE_KEY) || 'a').toLowerCase();
-        let rlModelAvailable = [];
-        let policyMode = (config.rlPolicyMode || 'auto').toLowerCase();
-        function snapshotSettingsForMode(modeName) {
-            if (modeName === 'canon') {
-                if (!canonSettings) {
-                    return null;
-                }
-                return {
-                    enabled: !!canonAdvancedEnabled,
-                    minOffsetBeats: canonSettings.minOffsetBeats,
-                    maxOffsetBeats: canonSettings.maxOffsetBeats,
-                    dwellBeats: canonSettings.dwellBeats,
-                    density: canonSettings.density,
-                    variation: canonSettings.variation,
-                    jumpBubbleBeats: canonSettings.jumpBubbleBeats
-                };
-            }
-            if (modeName === 'eternal') {
-                const settings = advancedSettings && advancedSettings.eternalOverlay;
-                if (!settings) {
-                    return null;
-                }
-                return {
-                    enabled: !!isAdvancedGroupEnabled('eternalOverlay'),
-                    minOffsetBeats: settings.minOffsetBeats,
-                    maxOffsetBeats: settings.maxOffsetBeats,
-                    dwellBeats: settings.dwellBeats,
-                    density: settings.density,
-                    variation: settings.variation,
-                    jumpBubbleBeats: settings.jumpBubbleBeats
-                };
-            }
-            if (modeName === 'jukebox') {
-                const settings = advancedSettings && advancedSettings.jukeboxLoop;
-                if (!settings) {
-                    return null;
-                }
-                return {
-                    enabled: !!isAdvancedGroupEnabled('jukeboxLoop'),
-                    minLoopBeats: settings.minLoopBeats,
-                    maxSequentialBeats: settings.maxSequentialBeats,
-                    loopThreshold: settings.loopThreshold,
-                    sectionBias: settings.sectionBias,
-                    jumpVariance: settings.jumpVariance
-                };
-            }
-            return null;
-        }
-
-        function updateRlModelSwitcher() {
-            if (!rlModelSwitcher) {
-                return;
-            }
-            const buttons = rlModelSwitcher.querySelectorAll('.rl-model-btn');
-            buttons.forEach((btn) => {
-                const variant = (btn.dataset.variant || '').toLowerCase();
-                const isActive = variant === rlModelVariant;
-                const isAvailable =
-                    !rlModelAvailable.length || rlModelAvailable.includes(variant);
-                btn.classList.toggle('active', isActive);
-                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-                btn.disabled = !isAvailable;
-                btn.classList.toggle('rl-model-disabled', !isAvailable);
-            });
-        }
-
-        async function fetchRLModel(variantOverride) {
-            const targetVariant = (variantOverride || rlModelVariant || 'a').toLowerCase();
-            const query = targetVariant ? `?variant=${encodeURIComponent(targetVariant)}` : '';
-            try {
-                const response = await fetch(`${rlModelEndpoint}${query}`);
-                const data = await response.json();
-                if (data && data.model) {
-                    rlModel = data.model;
-                    window.harmonizerRLModel = rlModel;
-                    rlModelVariant = (data.variant || targetVariant || 'a').toLowerCase();
-                    window.harmonizerModelVariant = rlModelVariant;
-                    rlModelAvailable = (data.available || []).map((v) => v.toLowerCase());
-                    localStorage.setItem(RL_VARIANT_STORAGE_KEY, rlModelVariant);
-                    if (typeof data.policy === 'string') {
-                        policyMode = data.policy.toLowerCase();
-                        window.harmonizerPolicyMode = policyMode;
-                    } else if (rlModelVariant === 'b') {
-                        policyMode = 'baseline';
-                        window.harmonizerPolicyMode = 'baseline';
-                    }
-                    updateRlModelSwitcher();
-                    console.log(
-                        rlModelVariant === 'b'
-                            ? '[RL] Legacy baseline selected (RL disabled).'
-                            : `[RL] Loaded model variant ${rlModelVariant} (samples: ${
-                                  rlModel.samples ?? 'n/a'
-                              })`,
-                    );
-                } else {
-                    console.log('[RL] No jump model available yet.');
-                }
-            } catch (error) {
-                console.warn('[RL] Failed to load model', error);
-            }
-        }
-
-        async function fetchPolicyAssignment() {
-            try {
-                const response = await fetch(rlPolicyEndpoint);
-                const data = await response.json();
-                if (data && data.mode) {
-                    policyMode = data.mode;
-                    window.harmonizerPolicyMode = policyMode;
-                    console.log('[RL] Policy assignment:', policyMode);
-                    return;
-                }
-            } catch (error) {
-                console.warn('[RL] Failed to fetch policy assignment', error);
-            }
-            // fallback
-            policyMode = policyMode === 'auto' ? 'rl' : policyMode;
-            window.harmonizerPolicyMode = policyMode;
-        }
-
-        if (rlModelSwitcher) {
-            rlModelSwitcher.addEventListener('click', (event) => {
-                const target = event.target.closest('.rl-model-btn');
-                if (!target) {
-                    return;
-                }
-                const nextVariant = (target.dataset.variant || '').toLowerCase();
-                if (!nextVariant || nextVariant === rlModelVariant || target.disabled) {
-                    updateRlModelSwitcher();
-                    return;
-                }
-                fetchRLModel(nextVariant);
-            });
-            updateRlModelSwitcher();
-        }
-
-        fetchRLModel(rlModelVariant);
-        fetchPolicyAssignment();
-
-        function postRLJumpEvent(payload) {
-            if (!rlLoggingEnabled) {
-                return;
-            }
-            try {
-                const serialized = JSON.stringify(payload);
-                if (navigator && typeof navigator.sendBeacon === 'function') {
-                    const blob = new Blob([serialized], { type: 'application/json' });
-                    navigator.sendBeacon(rlJumpEndpoint, blob);
-                } else {
-                    fetch(rlJumpEndpoint, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: serialized
-                    }).catch(() => {});
-                }
-            } catch (error) {
-                console.warn('[RL] Failed to emit jump event', error);
-            }
-        }
-
-        function logRLJumpDecision(meta) {
-            if (!rlLoggingEnabled) {
-                return;
-            }
-            if (meta.source === undefined || meta.target === undefined) {
-                return;
-            }
-            var sourceTime =
-                meta.source_time !== undefined
-                    ? meta.source_time
-                    : meta.sourceTime !== undefined
-                    ? meta.sourceTime
-                    : null;
-            var targetTime =
-                meta.target_time !== undefined
-                    ? meta.target_time
-                    : meta.targetTime !== undefined
-                    ? meta.targetTime
-                    : null;
-            const payload = {
-                mode: meta.mode || mode,
-                track_id: curTrack ? curTrack.id : null,
-                track_title: curTrack ? curTrack.fixedTitle : null,
-                source_index: meta.source,
-                target_index: meta.target,
-                source_time: sourceTime,
-                target_time: targetTime,
-                similarity: meta.similarity,
-                span: meta.span,
-                same_section: !!meta.sameSection,
-                policy_mode:
-                    meta.policy_mode ||
-                    window.harmonizerPolicyMode ||
-                    (window.HARMONIZER_CONFIG &&
-                        window.HARMONIZER_CONFIG.rlPolicyMode) ||
-                    "auto",
-                model_version: meta.model_version || null,
-                settings: snapshotSettingsForMode(meta.mode || mode),
-                context: Object.assign(
-                    {
-                        reason: meta.reason || 'scheduled',
-                        beats_until_jump: meta.beatsUntilJump,
-                        bubble_radius: meta.bubbleRadius,
-                        timestamp: Date.now()
-                    },
-                    meta.context || {},
-                ),
-            };
-            postRLJumpEvent(payload);
-        }
-
-        if (typeof window !== 'undefined') {
-            window.harmonizerLogJumpDecision = logRLJumpDecision;
-            window.harmonizerPolicyMode = policyMode;
-        }
-        const buildFrontendRedirect = (trackId, mode) => {
-            const params = new URLSearchParams();
-            if (trackId) {
-                params.set('trid', trackId);
-            }
-            if (mode) {
-                params.set('mode', mode);
-            }
-            let basePath = window.location.pathname || '/';
-            if (basePath.endsWith('index.html')) {
-                basePath = basePath.slice(0, -'index.html'.length);
-            }
-            if (!basePath.endsWith('/')) {
-                basePath += '/';
-            }
-            const suffix = params.toString();
-            return suffix ? `${basePath}?${suffix}` : basePath;
-        };
-
-        const form = document.getElementById('process-form');
-        const statusPanel = document.getElementById('form-status');
-        const modeFromBody = (body.dataset.mode || "canon").toLowerCase();
-        let currentModeKey = modeFromBody;
-
-        const setState = (state) => {
-            body.classList.remove('state-home', 'state-player');
-            body.classList.add(state);
-            if (state === 'state-home' && vizPanelElement) {
-                vizPanelElement.style.left = '';
-                vizPanelElement.style.top = '';
-                vizPanelElement.style.width = '';
-                vizPanelElement.style.height = '';
-            }
-        };
-
-        const backButton = document.getElementById('back-button');
-        const params = new URLSearchParams(window.location.search);
-        const tridParam = params.get('trid');
-        const requestedMode = (params.get('mode') || 'canon').toLowerCase();
-        const allowedModes = new Set(['canon', 'jukebox', 'eternal']);
-        const normalizedMode = allowedModes.has(requestedMode) ? requestedMode : modeFromBody;
-        document.body.dataset.mode = normalizedMode;
-        if (vizModeSelect) {
-            vizModeSelect.value = normalizedMode;
-        }
-        currentModeKey = syncAlgorithmButtons(normalizedMode);
-
-        if (tridParam) {
-            setState('state-player');
-            if (backButton) {
-                backButton.classList.remove('hidden');
-                backButton.setAttribute('href', window.location.pathname + window.location.search.replace(/([?&])trid=[^&]*/g, '').replace(/^&/, '?'));
-            }
-        } else {
-            if (backButton) { backButton.classList.add('hidden'); }
-            setState('state-home');
-        }
-        function syncAlgorithmButtons(targetMode) {
-            targetMode = (targetMode || 'canon').toLowerCase();
-            algorithmToggle.querySelectorAll('.toggle').forEach(btn => btn.classList.remove('active'));
-            const match = algorithmToggle.querySelector('[data-algorithm="' + targetMode + '"]');
-            if (match) {
-                match.classList.add('active');
-            }
-            algorithmInput.value = targetMode;
-            body.dataset.mode = targetMode;
-            if (vizModeSelect) {
-                vizModeSelect.value = targetMode;
-            }
-            return targetMode;
-        }
-
-        algorithmToggle.addEventListener('click', (event) => {
-            const button = event.target.closest('button[data-algorithm]');
-            if (!button) {
-                return;
-            }
-            const targetMode = button.dataset.algorithm;
-            currentModeKey = syncAlgorithmButtons(targetMode);
-            window.setAdvancedPanelMode(currentModeKey);
-        });
-
-        if (vizModeSelect) {
-            vizModeSelect.addEventListener('change', (event) => {
-                const nextMode = event.target.value;
-                if (!nextMode || nextMode === normalizedMode) {
-                    return;
-                }
-                const nextUrl = buildFrontendRedirect(tridParam, nextMode);
-                window.location.href = nextUrl;
-            });
-        }
-
-        function syncSourcePanels(source) {
-            if (source === 'upload') {
-                uploadPane && uploadPane.classList.remove('hidden');
-                drivePane && drivePane.classList.add('hidden');
-                driveHelperHint && driveHelperHint.classList.add('hidden');
-            } else {
-                drivePane && drivePane.classList.remove('hidden');
-                uploadPane && uploadPane.classList.add('hidden');
-                driveHelperHint && driveHelperHint.classList.remove('hidden');
-            }
-        }
-
-        syncSourcePanels(sourceInput.value || 'upload');
-
-        sourceToggle.addEventListener('click', (event) => {
-            const button = event.target.closest('button[data-source]');
-            if (!button) {
-                return;
-            }
-            sourceToggle.querySelectorAll('.toggle').forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            const source = button.dataset.source;
-            sourceInput.value = source;
-            syncSourcePanels(source);
-        });
-
-        form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            statusPanel.textContent = '';
-            const source = sourceInput.value;
-            if (source === 'upload') {
-                const fileInput = form.querySelector('input[name="audio"]');
-                if (!fileInput.files || fileInput.files.length === 0) {
-                    statusPanel.textContent = 'Please choose an audio file to upload.';
-                    return;
-                }
-            } else {
-                const urlField = form.querySelector('input[name="drive_url"]');
-                if (!urlField || !urlField.value.trim()) {
-                    statusPanel.textContent = 'Please paste a Google Drive link.';
-                    return;
-                }
-                const normalizedUrl = urlField.value.trim();
-                const looksPublic = /drive\.google\.com/.test(normalizedUrl);
-                if (!looksPublic) {
-                    statusPanel.textContent = 'Drive uploads need a shareable drive.google.com link.';
-                    return;
-                }
-            }
-
-            const submitButton = form.querySelector('button[type="submit"]');
-            submitButton.disabled = true;
-            submitButton.textContent = 'Processing...';
-            statusPanel.textContent = 'Analyzing audio... this can take a minute.';
-
-            try {
-                const formData = new FormData(form);
-                const selectedAlgorithm = (formData.get('algorithm') || 'canon').toString().toLowerCase();
-                const response = await fetch(buildApiUrl('api/process'), {
-                    method: 'POST',
-                    body: formData
-                });
-                const payload = await response.json();
-                if (!response.ok) {
-                    throw new Error(payload.error || 'Something went wrong.');
-                }
-                if (!payload.trackId) {
-                    throw new Error('Unexpected response from server.');
-                }
-                statusPanel.textContent = 'Ready! Loading the visualizer...';
-                window.location.href = buildFrontendRedirect(payload.trackId, selectedAlgorithm);
-            } catch (err) {
-                statusPanel.textContent = err.message;
-            } finally {
-                submitButton.disabled = false;
-                submitButton.textContent = 'Transform Track';
-            }
-        });
-
-        async function processPlaylist(entries, form) {
-            const submitButton = form.querySelector('button[type="submit"]');
-            const algorithm = (form.querySelector('input[name="algorithm"]').value || 'canon').toLowerCase();
-            submitButton.disabled = true;
-
-            const trackIds = [];
-            const trackInfo = [];
-
-            for (let i = 0; i < entries.length; i++) {
-                try {
-                    statusPanel.textContent = `Processing track ${i + 1}/${entries.length}: ${entries[i].title}`;
-
-                    const formData = new FormData();
-                    formData.append('source', 'youtube');
-                    formData.append('youtube_url', entries[i].url);
-                    formData.append('algorithm', algorithm);
-
-                    const response = await fetch(buildApiUrl('api/process'), {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const payload = await response.json();
-                    if (response.ok && payload.trackId) {
-                        trackIds.push(payload.trackId);
-                        trackInfo.push({
-                            id: payload.trackId,
-                            title: entries[i].title,
-                            artist: 'YouTube'
-                        });
-                    } else {
-                        console.error(`Failed to process ${entries[i].title}:`, payload.error);
-                    }
-                } catch (err) {
-                    console.error(`Error processing ${entries[i].title}:`, err);
-                }
-            }
-
-            if (trackIds.length > 0) {
-                // Store queue in sessionStorage to load in visualizer
-                sessionStorage.setItem('playlistQueue', JSON.stringify(trackInfo));
-                statusPanel.textContent = `Successfully processed ${trackIds.length} tracks! Loading visualizer...`;
-
-                // Navigate to first track with the queue
-                const mode = algorithm || 'canon';
-                window.location.href = buildFrontendRedirect(trackIds[0], mode);
-            } else {
-                statusPanel.textContent = 'Failed to process any tracks from the playlist.';
-                submitButton.disabled = false;
-                submitButton.textContent = 'Transform Track';
-            }
-        }
-
-        const advancedToggleButton = document.getElementById('advanced-toggle');
-        const advancedSidebar = document.getElementById('advanced-sidebar');
-        const advancedShell = document.getElementById('advanced-shell');
-        const advancedSectionsRoot = document.getElementById('advanced-sections');
-
-        body.classList.add('advanced-collapsed');
-
-        let advancedSidebarVisible = false;
-        const PRESET_CUSTOM_VALUE = '';
-        const DEFAULT_CANON_PRESET_ID = window.CANON_DEFAULT_PRESET_ID || 'canon-legacy-default';
-        const activePresetByGroup = Object.create(null);
-        activePresetByGroup.canonOverlay = DEFAULT_CANON_PRESET_ID;
-
-        function updateAdvancedToggleState() {
-            if (!advancedToggleButton) {
-                return;
-            }
-            advancedToggleButton.setAttribute('aria-pressed', advancedSidebarVisible ? 'true' : 'false');
-            advancedToggleButton.classList.toggle('active', advancedSidebarVisible);
-            advancedToggleButton.textContent = advancedSidebarVisible ? 'Advanced: On' : 'Advanced: Off';
-        }
-
-        if (advancedSidebar) {
-            advancedSidebar.classList.add('hidden');
-            advancedSidebar.setAttribute('aria-hidden', 'true');
-        }
-
-        function showAdvancedSidebar() {
-            if (!advancedSidebarVisible || !advancedSidebar) {
-                return;
-            }
-            advancedSidebar.classList.remove('hidden');
-            advancedSidebar.removeAttribute('aria-hidden');
-        }
-
-        function getPresetCatalog(groupKey) {
-            if (typeof window.getAdvancedPresets === 'function') {
-                try {
-                    const presets = window.getAdvancedPresets(groupKey);
-                    if (Array.isArray(presets) && presets.length) {
-                        return presets;
-                    }
-                } catch (err) {
-                    console.warn('[Advanced Presets] Unable to load presets for', groupKey, err);
-                }
-            }
-            if (groupKey === 'canonOverlay') {
-                return [{
-                    id: DEFAULT_CANON_PRESET_ID,
-                    name: 'Legacy Default'
-                }];
-            }
-            if (groupKey === 'eternalLoop') {
-                return [
-                    { id: DEFAULT_ETERNAL_PRESET_ID, name: 'Default' },
-                    { id: 'eternal-labyrinth', name: 'Labyrinth' }
-                ];
-            }
-            return [];
-        }
-
-        function setActivePreset(groupKey, presetId, options) {
-            const shouldUpdateState = !options || options.updateState !== false;
-            const selectOverride = options && options.selectOverride ? options.selectOverride : null;
-            let normalizedId = presetId;
-            if (!normalizedId) {
-                if (groupKey === 'canonOverlay') normalizedId = DEFAULT_CANON_PRESET_ID;
-                else if (groupKey === 'eternalLoop') normalizedId = DEFAULT_ETERNAL_PRESET_ID;
-            }
-            if (shouldUpdateState) {
-                activePresetByGroup[groupKey] = normalizedId;
-            }
-            const dom = advancedDomMap[groupKey];
-            const selectNode = selectOverride || (dom ? dom.presetSelect : null);
-            if (selectNode && normalizedId) {
-                if (selectNode.value !== normalizedId) {
-                    selectNode.value = normalizedId;
-                }
-            }
-        }
-
-        function populatePresetSelect(groupKey, selectNode) {
-            if (!selectNode) {
-                return;
-            }
-            const presets = getPresetCatalog(groupKey);
-            while (selectNode.firstChild) {
-                selectNode.removeChild(selectNode.firstChild);
-            }
-
-            presets.forEach((preset) => {
-                if (!preset || !preset.id) {
-                    return;
-                }
-                const option = document.createElement('option');
-                option.value = preset.id;
-                option.textContent = preset.name || preset.id;
-                selectNode.appendChild(option);
-            });
-
-            const desired = activePresetByGroup[groupKey] || null;
-            if (desired && !presets.some((preset) => preset && preset.id === desired)) {
-                activePresetByGroup[groupKey] = null;
-            }
-            setActivePreset(groupKey, activePresetByGroup[groupKey] || null, { updateState: false, selectOverride: selectNode });
-        }
-
-        function markPresetCustom(groupKey) {
-            // Removed - presets are no longer switched to "Custom" on slider change
-        }
-
-        function handlePresetChange(event) {
-            const selectNode = event.currentTarget;
-            const groupKey = selectNode && selectNode.dataset ? selectNode.dataset.groupKey : null;
-            if (!groupKey) {
-                return;
-            }
-            const selectedPreset = selectNode.value;
-            if (!selectedPreset) {
-                markPresetCustom(groupKey);
-                return;
-            }
-            setGroupEnabled(groupKey, true);
-            if (typeof window.loadAdvancedPreset === 'function') {
-                const applied = window.loadAdvancedPreset(groupKey, selectedPreset);
-                if (applied) {
-                    setActivePreset(groupKey, selectedPreset);
-                    syncGroupFromState(groupKey);
-                    return;
-                }
-            }
-            markPresetCustom(groupKey);
-        }
-
-        function syncAdvancedUiForMode(modeKey) {
-            if (!advancedSidebarVisible) {
-                return;
-            }
-            const normalized = (modeKey || currentModeKey || 'canon').toLowerCase();
-            currentModeKey = normalized;
-            primeGroupLayoutForMode(currentModeKey);
-            showAdvancedSidebar();
-        }
-
-        window.setCanonUiVisibility = (visible) => {
-            if (visible && advancedSidebarVisible) {
-                window.setAdvancedPanelMode('canon');
-            }
-        };
-
-        window.setAdvancedPanelMode = (modeKey) => {
-            const normalized = (modeKey || currentModeKey || 'canon').toLowerCase();
-            currentModeKey = normalized;
-            pendingAdvancedMode = normalized;
-            if (!advancedSidebarVisible) {
-                return;
-            }
-            ensureAdvancedUi();
-            ensureModeDefaults(currentModeKey);
-            syncAdvancedSectionsForMode(currentModeKey);
-            syncAdvancedUiForMode(currentModeKey);
-        };
-
-        const ADVANCED_GROUP_METADATA = {
-            canonOverlay: {
-                title: 'Overlay Behaviour',
-                description: 'Set spacing, dwell, and texture for the live Autocanonizer voices.',
-                fields: [
-                    { key: 'musicality', label: 'Musicality', min: 0, max: 100, step: 1, format: (v) => `${v}%`, description: 'Forces musical structure: 0% = free form, 100% = perfectly quantized to musical intervals with no awkward beats.' },
-                    { key: 'minOffsetBeats', label: 'Minimum Offset', min: 1, max: 192, step: 1, format: (v) => `${v} beats`, description: 'Earliest beat separation between overlay voices.' },
-                    { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 256, step: 1, format: (v) => `${v} beats`, description: 'Largest allowed beat offset between overlay voices.' },
-                    { key: 'dwellBeats', label: 'Dwell', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats to stay on a pairing before retargeting.' },
-                    { key: 'density', label: 'Density', min: 1, max: 16, step: 1, format: (v) => `${v}/16`, description: 'Higher values add more simultaneous overlay voices.' },
-                    { key: 'jumpBubbleBeats', label: 'Jump Bubble', min: 0, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Keeps this many beats clear around each jump so they do not overlap.' },
-                    { key: 'variation', label: 'Variation', min: 0, max: 50, step: 1, format: (v) => `${v}`, description: 'Controls how adventurous the overlay can be when rewiring connections.' }
-                ]
-            },
-            jukeboxLoop: {
-                title: 'Loop Pathing',
-                description: 'Dial in how Eternal Jukebox picks loops and when it moves on.',
-                fields: [
-                    { key: 'musicality', label: 'Musicality', min: 0, max: 100, step: 1, format: (v) => `${v}%`, description: 'Forces musical structure: 0% = free form, 100% = perfectly quantized to musical intervals with no awkward beats.' },
-                    { key: 'minLoopBeats', label: 'Minimum Loop Length', min: 4, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Shortest loop allowed when picking jump targets.' },
-                    { key: 'maxSequentialBeats', label: 'Sequential Ceiling', min: 8, max: 128, step: 1, format: (v) => `${v} beats`, description: 'Maximum beats to play before forcing a jump.' },
-                    { key: 'loopThreshold', label: 'Similarity Threshold', min: 0.3, max: 0.95, step: 0.01, format: (v) => `${Math.round(v * 100)}%`, description: 'Higher values require closer similarity before a loop is accepted.' },
-                    { key: 'sectionBias', label: 'Section Bias', min: 0, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}% in-section`, description: 'Preference for staying within the same section when looping.' },
-                    { key: 'jumpVariance', label: 'Jump Variance', min: 0, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}%`, description: 'Higher values encourage varied jump timing; lower values keep loops tighter.' }
-                ]
-            },
-            eternalOverlay: {
-                title: 'Overlay Behaviour',
-                description: 'Shape the multivoice overlay used in Eternal Canonizer mode.',
-                fields: [
-                    { key: 'musicality', label: 'Musicality', min: 0, max: 100, step: 1, format: (v) => `${v}%`, description: 'Forces musical structure: 0% = free form, 100% = perfectly quantized to musical intervals with no awkward beats.' },
-                    { key: 'minOffsetBeats', label: 'Minimum Offset', min: 1, max: 192, step: 1, format: (v) => `${v} beats`, description: 'Earliest beat separation for overlay voices.' },
-                    { key: 'maxOffsetBeats', label: 'Maximum Offset', min: 2, max: 256, step: 1, format: (v) => `${v} beats`, description: 'Largest beat separation for overlay voices.' },
-                    { key: 'dwellBeats', label: 'Dwell', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats before switching overlay targets.' },
-                    { key: 'density', label: 'Density', min: 1, max: 16, step: 1, format: (v) => `${v}/16`, description: 'Higher values add thicker overlays.' },
-                    { key: 'jumpBubbleBeats', label: 'Jump Bubble', min: 0, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Prevents fresh jumps from spawning within this beat radius of the last one.' },
-                    { key: 'variation', label: 'Variation', min: 0, max: 50, step: 1, format: (v) => `${v}`, description: 'Controls how much the overlay may deviate from its base pattern.' }
-                ]
-            },
-            eternalLoop: {
-                title: 'Loop Pathing',
-                description: 'Control loop behaviour when running the Eternal Canonizer.',
-                fields: [
-                    { key: 'musicality', label: 'Musicality', min: 0, max: 100, step: 1, format: (v) => `${v}%`, description: 'Forces musical structure: 0% = free form, 100% = perfectly quantized to musical intervals with no awkward beats.' },
-                    { key: 'minLoopBeats', label: 'Minimum Loop Length', min: 4, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Shortest allowed loop when chaining canon segments.' },
-                    { key: 'maxSequentialBeats', label: 'Sequential Ceiling', min: 8, max: 128, step: 1, format: (v) => `${v} beats`, description: 'Maximum beats before forcing a jump to another segment.' },
-                    { key: 'loopThreshold', label: 'Similarity Threshold', min: 0.3, max: 0.95, step: 0.01, format: (v) => `${Math.round(v * 100)}%`, description: 'Higher values require stronger similarity before loops are used.' },
-                    { key: 'sectionBias', label: 'Section Bias', min: 0, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}% in-section`, description: 'Controls how strongly the canon prefers staying within a section when looping.' },
-                    { key: 'jumpVariance', label: 'Jump Variance', min: 0, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}%`, description: 'Influences how surprising the loop timing can be.' }
-                ]
-            }
-        };
-
-        const ADVANCED_SECTION_LAYOUT = [
-            {
-                id: 'canon',
-                label: 'Autocanonizer',
-                summary: 'Control how the live canon overlay weaves through the track.',
-                groups: ['canonOverlay']
-            },
-            {
-                id: 'jukebox',
-                label: 'Eternal Jukebox',
-                summary: 'Shape how the jukebox chooses and times its infinite loops.',
-                groups: ['jukeboxLoop']
-            },
-            {
-                id: 'eternal',
-                label: 'Eternal Canonizer',
-                summary: 'Balance overlay density with the looping engine for long-form canons.',
-                groups: ['eternalOverlay', 'eternalLoop']
-            }
-        ];
-
-        const MODE_TO_SECTION_IDS = {
-            canon: ['canon'],
-            jukebox: ['jukebox'],
-            eternal: ['eternal']
-        };
-
-        const advancedDomMap = Object.create(null);
-        const advancedSectionNodes = Object.create(null);
-        let advancedUiReady = false;
-        let pendingAdvancedMode = currentModeKey;
-
-        const MODE_PRIMARY_GROUPS = {
-            canon: ['canonOverlay'],
-            jukebox: ['jukeboxLoop'],
-            eternal: ['eternalOverlay', 'eternalLoop']
-        };
-
-        function buildAdvancedUi() {
-            if (!advancedSidebar || !advancedShell || !advancedSectionsRoot) {
-                return;
-            }
-            if (typeof window.getAdvancedSettings !== 'function' || typeof window.updateAdvancedGroupSetting !== 'function') {
-                return;
-            }
-
-            advancedSectionsRoot.innerHTML = '';
-            Object.keys(advancedDomMap).forEach((key) => { delete advancedDomMap[key]; });
-            Object.keys(advancedSectionNodes).forEach((key) => { delete advancedSectionNodes[key]; });
-
-            ADVANCED_SECTION_LAYOUT.forEach((sectionConfig) => {
-                const sectionNode = document.createElement('section');
-                sectionNode.className = 'advanced-section';
-                sectionNode.dataset.sectionMode = sectionConfig.id;
-
-                const sectionHeader = document.createElement('header');
-                sectionHeader.className = 'advanced-section-header';
-
-                const headerTitle = document.createElement('h4');
-                headerTitle.textContent = sectionConfig.label;
-                sectionHeader.appendChild(headerTitle);
-
-                // Section summary removed for cleaner UI
-                if (sectionConfig.summary) {
-                    const summaryNode = document.createElement('p');
-                    summaryNode.className = 'advanced-section-summary';
-                    summaryNode.textContent = sectionConfig.summary;
-                    sectionHeader.appendChild(summaryNode);
-                }
-
-                sectionNode.appendChild(sectionHeader);
-
-                sectionConfig.groups.forEach((groupKey) => {
-                    const meta = ADVANCED_GROUP_METADATA[groupKey];
-                    if (!meta) {
-                        return;
-                    }
-
-                    const groupNode = document.createElement('article');
-                    groupNode.className = 'advanced-group';
-                    groupNode.dataset.groupKey = groupKey;
-
-                    const groupHeader = document.createElement('div');
-                    groupHeader.className = 'advanced-group-header';
-
-                    // Group title removed for cleaner UI
-                    const titleNode = document.createElement('h5');
-                    titleNode.className = 'advanced-group-title';
-                    titleNode.textContent = meta.title;
-                    groupHeader.appendChild(titleNode);
-
-                    const collapseButton = document.createElement('button');
-                    collapseButton.type = 'button';
-                    collapseButton.className = 'advanced-collapse-btn';
-                    collapseButton.setAttribute('aria-label', `Toggle ${meta.title} settings`);
-                    collapseButton.setAttribute('aria-expanded', 'false');
-                    collapseButton.innerHTML = '<span class="chevron"></span>';
-
-                    const toggleLabel = document.createElement('label');
-                    toggleLabel.className = 'advanced-group-toggle';
-
-                    const toggle = document.createElement('input');
-                    toggle.type = 'checkbox';
-                    toggle.dataset.groupKey = groupKey;
-                    toggle.id = `advanced-toggle-${groupKey}`;
-                    toggleLabel.appendChild(toggle);
-
-                    const toggleText = document.createElement('span');
-                    toggleText.textContent = 'Enable custom settings';
-                    toggleLabel.appendChild(toggleText);
-
-                    groupHeader.appendChild(toggleLabel);
-                    groupHeader.appendChild(collapseButton);
-                    groupNode.appendChild(groupHeader);
-
-                    const bodyWrapper = document.createElement('div');
-                    bodyWrapper.className = 'advanced-group-body';
-                    groupNode.appendChild(bodyWrapper);
-
-                    // Group description removed for cleaner UI
-                    if (meta.description) {
-                        const descriptionNode = document.createElement('p');
-                        descriptionNode.className = 'advanced-group-description';
-                        descriptionNode.textContent = meta.description;
-                        bodyWrapper.appendChild(descriptionNode);
-                    }
-
-                    let presetSelect = null;
-
-                    const fieldsContainer = document.createElement('div');
-                    fieldsContainer.className = 'advanced-fields';
-                    bodyWrapper.appendChild(fieldsContainer);
-
-                    if (groupKey === 'canonOverlay') {
-                        const presetRow = document.createElement('div');
-                        presetRow.className = 'advanced-preset-row';
-
-                        const presetLabel = document.createElement('label');
-                        presetLabel.className = 'advanced-preset-label';
-                        presetLabel.setAttribute('for', `advanced-preset-${groupKey}`);
-                        presetLabel.textContent = 'Preset';
-                        presetRow.appendChild(presetLabel);
-
-                        const presetDropdown = document.createElement('select');
-                        presetDropdown.id = `advanced-preset-${groupKey}`;
-                        presetDropdown.dataset.groupKey = groupKey;
-                        presetDropdown.className = 'advanced-preset-select';
-                        presetRow.appendChild(presetDropdown);
-
-                        bodyWrapper.insertBefore(presetRow, fieldsContainer);
-
-                        populatePresetSelect(groupKey, presetDropdown);
-                        presetDropdown.addEventListener('change', handlePresetChange);
-                        presetSelect = presetDropdown;
-                    }
-
-                    const inputs = Object.create(null);
-                    const valueLabels = Object.create(null);
-                    const fieldMeta = Object.create(null);
-
-                    meta.fields.forEach((field) => {
-                        const control = document.createElement('div');
-                        control.className = 'advanced-control';
-
-                        const topLine = document.createElement('div');
-                        topLine.className = 'advanced-control-topline';
-
-                        const labelNode = document.createElement('label');
-                        labelNode.className = 'advanced-control-label';
-                        labelNode.htmlFor = `advanced-${groupKey}-${field.key}`;
-                        labelNode.textContent = field.label;
-                        topLine.appendChild(labelNode);
-
-                        const valueNode = document.createElement('span');
-                        valueNode.className = 'advanced-control-value';
-                        topLine.appendChild(valueNode);
-
-                        control.appendChild(topLine);
-
-                        const input = document.createElement('input');
-                        input.type = 'range';
-                        input.min = field.min;
-                        input.max = field.max;
-                        if (field.step !== undefined) {
-                            input.step = field.step;
-                        } else if (field.max - field.min <= 1) {
-                            input.step = 0.01;
-                        }
-                        input.id = `advanced-${groupKey}-${field.key}`;
-                        input.dataset.groupKey = groupKey;
-                        input.dataset.fieldKey = field.key;
-
-                        control.appendChild(input);
-
-                        if (field.description) {
-                            const hint = document.createElement('p');
-                            hint.className = 'advanced-control-hint';
-                            hint.textContent = field.description;
-                            control.appendChild(hint);
-                        }
-
-                        fieldsContainer.appendChild(control);
-
-                        inputs[field.key] = input;
-                        valueLabels[field.key] = valueNode;
-                        fieldMeta[field.key] = field;
-
-                        input.addEventListener('input', handleAdvancedFieldInput);
-                        input.addEventListener('change', handleAdvancedFieldCommit);
-                    });
-
-                    // Button container for Reset and Musicality buttons
-                    const buttonContainer = document.createElement('div');
-                    buttonContainer.className = 'advanced-button-container';
-                    buttonContainer.style.display = 'flex';
-                    buttonContainer.style.gap = '10px';
-                    buttonContainer.style.marginTop = '16px';
-
-                    const resetButton = document.createElement('button');
-                    resetButton.type = 'button';
-                    resetButton.className = 'viz-button ghost advanced-reset-button';
-                    resetButton.dataset.groupKey = groupKey;
-                    resetButton.textContent = 'Reset to defaults';
-                    resetButton.addEventListener('click', handleAdvancedReset);
-                    buttonContainer.appendChild(resetButton);
-
-                    bodyWrapper.appendChild(buttonContainer);
-
-                    toggle.addEventListener('change', handleAdvancedToggle);
-
-                    advancedDomMap[groupKey] = {
-                        groupNode,
-                        toggle,
-                        body: bodyWrapper,
-                        collapseButton,
-                        inputs,
-                        valueLabels,
-                        fieldMeta,
-                        resetButton,
-                        fieldsContainer,
-                        presetSelect
-                    };
-
-                    collapseButton.addEventListener('click', () => {
-                        const dom = advancedDomMap[groupKey];
-                        if (!dom) {
-                            return;
-                        }
-                        const collapsed = dom.groupNode.classList.contains('is-collapsed');
-                        setGroupCollapsed(groupKey, !collapsed);
-                    });
-
-                    sectionNode.appendChild(groupNode);
-                    setGroupCollapsed(groupKey, true);
-                });
-
-                advancedSectionsRoot.appendChild(sectionNode);
-                advancedSectionNodes[sectionConfig.id] = sectionNode;
-            });
-
-            Object.keys(ADVANCED_GROUP_METADATA).forEach((groupKey) => {
-                syncGroupFromState(groupKey);
-            });
-
-            advancedUiReady = true;
-            window.setAdvancedPanelMode(pendingAdvancedMode);
-        }
-
-        function ensureAdvancedUi() {
-            if (advancedUiReady) {
-                return;
-            }
-            buildAdvancedUi();
-        }
-
-        function disableAllAdvancedGroups() {
-            if (!advancedUiReady) {
-                return;
-            }
-            Object.keys(ADVANCED_GROUP_METADATA).forEach((groupKey) => {
-                if (isGroupEnabled(groupKey)) {
-                    setGroupEnabled(groupKey, false);
-                }
-                setGroupInputsDisabled(groupKey, true);
-                setGroupCollapsed(groupKey, true);
-                const dom = advancedDomMap[groupKey];
-                if (dom && dom.toggle) {
-                    dom.toggle.checked = false;
-                }
-            });
-        }
-
-        function resetAllGroupsToDefaults() {
-            if (!advancedUiReady) {
-                return;
-            }
-            console.log('[Advanced Settings] Resetting all groups to defaults');
-            Object.keys(ADVANCED_GROUP_METADATA).forEach((groupKey) => {
-                if (typeof window.resetAdvancedGroup === 'function') {
-                    window.resetAdvancedGroup(groupKey);
-                }
-                if (typeof window.applyAdvancedGroup === 'function') {
-                    window.applyAdvancedGroup(groupKey, { source: 'reset' });
-                }
-            });
-        }
-
-        function setAdvancedVisibility(enabled) {
-            const normalized = !!enabled;
-            if (normalized === advancedSidebarVisible) {
-                updateAdvancedToggleState();
-                return;
-            }
-            advancedSidebarVisible = normalized;
-            body.classList.toggle('advanced-expanded', normalized);
-            body.classList.toggle('advanced-collapsed', !normalized);
-            updateAdvancedToggleState();
-            if (normalized) {
-                ensureAdvancedUi();
-                ensureModeDefaults(currentModeKey);
-                showAdvancedSidebar();
-                window.setAdvancedPanelMode(currentModeKey);
-            } else if (advancedSidebar) {
-                resetAllGroupsToDefaults();
-                disableAllAdvancedGroups();
-                advancedSidebar.classList.add('hidden');
-                advancedSidebar.setAttribute('aria-hidden', 'true');
-            }
-        }
-
-        function handleAdvancedToggle(event) {
-            const checkbox = event.currentTarget;
-            const groupKey = checkbox && checkbox.dataset ? checkbox.dataset.groupKey : null;
-            if (!groupKey) {
-                return;
-            }
-            const enabled = checkbox.checked;
-            setGroupEnabled(groupKey, enabled);
-            setGroupInputsDisabled(groupKey, !enabled);
-            syncGroupFromState(groupKey);
-            if (enabled) {
-                setGroupCollapsed(groupKey, false);
-                forceAdvancedApply(groupKey, null, null, 'toggle');
-            } else {
-                setGroupCollapsed(groupKey, true);
-            }
-        }
-
-        function forceAdvancedApply(groupKey, fieldKey, value, sourceTag) {
-            const source = sourceTag || 'ui';
-            if (typeof window.setAdvancedGroupEnabled === 'function') {
-                window.setAdvancedGroupEnabled(groupKey, true);
-            }
-            if (typeof window.updateAdvancedGroupSetting === 'function' && fieldKey !== null && fieldKey !== undefined && value !== null && !Number.isNaN(value)) {
-                window.updateAdvancedGroupSetting(groupKey, fieldKey, value);
-            }
-            if (typeof window.applyImmediateAdvancedSetting === 'function' && fieldKey !== null && fieldKey !== undefined && value !== null && !Number.isNaN(value)) {
-                window.applyImmediateAdvancedSetting(groupKey, fieldKey, value);
-            }
-            if (typeof window.applyAdvancedGroup === 'function') {
-                window.applyAdvancedGroup(groupKey, { source });
-            } else if (groupKey === 'canonOverlay' && typeof window.regenerateCanonMappingManually === 'function') {
-                window.regenerateCanonMappingManually();
-            } else if (groupKey === 'eternalOverlay' && typeof window.regenerateEternalOverlay === 'function') {
-                window.regenerateEternalOverlay({ source });
-            } else {
-                syncGroupFromState(groupKey);
-            }
-        }
-
-        function handleAdvancedFieldInput(event) {
-            const input = event.currentTarget;
-            const groupKey = input && input.dataset ? input.dataset.groupKey : null;
-            const fieldKey = input && input.dataset ? input.dataset.fieldKey : null;
-            if (!groupKey || !fieldKey) {
-                return;
-            }
-            const value = parseFloat(input.value);
-            if (Number.isNaN(value)) {
-                return;
-            }
-            updateValueLabel(groupKey, fieldKey, value);
-            if (groupKey === 'canonOverlay') {
-                markPresetCustom(groupKey);
-            }
-
-            enforceGroupConstraints(groupKey);
-            if (groupKey === 'canonOverlay') {
-                if (typeof window.setCanonAdvancedEnabled === 'function') {
-                    const isEnabled = typeof window.isCanonAdvancedEnabled === 'function' ? window.isCanonAdvancedEnabled() : false;
-                    if (!isEnabled) {
-                        window.setCanonAdvancedEnabled(true);
-                    }
-                }
-                if (typeof window.updateCanonSetting === 'function') {
-                    window.updateCanonSetting(fieldKey, value);
-                }
-                if (typeof window.applyImmediateAdvancedSetting === 'function') {
-                    window.applyImmediateAdvancedSetting(groupKey, fieldKey, value);
-                }
-                syncGroupFromState(groupKey);
-                return;
-            }
-            forceAdvancedApply(groupKey, fieldKey, value, 'input');
-        }
-
-        function handleAdvancedFieldCommit(event) {
-            const input = event.currentTarget;
-            if (!input || !input.dataset) {
-                return;
-            }
-            const groupKey = input.dataset.groupKey;
-            const fieldKey = input.dataset.fieldKey;
-            if (!groupKey || !fieldKey) {
-                return;
-            }
-            const value = parseFloat(input.value);
-            if (Number.isNaN(value)) {
-                return;
-            }
-            updateValueLabel(groupKey, fieldKey, value);
-            if (groupKey === 'canonOverlay') {
-                markPresetCustom(groupKey);
-            }
-
-            enforceGroupConstraints(groupKey);
-            if (groupKey === 'canonOverlay') {
-                if (typeof window.setCanonAdvancedEnabled === 'function') {
-                    const isEnabled = typeof window.isCanonAdvancedEnabled === 'function' ? window.isCanonAdvancedEnabled() : false;
-                    if (!isEnabled) {
-                        window.setCanonAdvancedEnabled(true);
-                    }
-                }
-                if (typeof window.updateCanonSetting === 'function') {
-                    window.updateCanonSetting(fieldKey, value);
-                }
-                if (typeof window.applyImmediateAdvancedSetting === 'function') {
-                    window.applyImmediateAdvancedSetting(groupKey, fieldKey, value);
-                }
-                syncGroupFromState(groupKey);
-                return;
-            }
-            forceAdvancedApply(groupKey, fieldKey, value, event && event.type ? event.type : 'commit');
-        }
-
-        function handleAdvancedReset(event) {
-            const button = event.currentTarget;
-            const groupKey = button && button.dataset ? button.dataset.groupKey : null;
-            if (!groupKey || typeof window.resetAdvancedGroup !== 'function') {
-                return;
-            }
-            window.resetAdvancedGroup(groupKey);
-            if (groupKey === 'canonOverlay') {
-                setActivePreset(groupKey, DEFAULT_CANON_PRESET_ID);
-            }
-            syncGroupFromState(groupKey);
-            if (typeof window.applyAdvancedGroup !== 'function') {
-                return;
-            }
-            window.applyAdvancedGroup(groupKey, { source: 'reset' });
-        }
-
-        /**
-         * Apply musicality based on slider value (0-100%)
-         * Progressive optimization: higher values force more musical structure
-         * At 100%: perfectly quantized to musical intervals with no awkward beats
-         * Based on Paul Lamere's Autocanonizer approach of beat distance and harmonic alignment
-         */
-        function applyMusicalityFromSlider(groupKey, musicalityPercent) {
-            const state = getGroupState(groupKey);
-            if (!state) {
-                return;
-            }
-
-            // Musicality from 0-100%
-            const m = musicalityPercent / 100.0;
-
-            console.log('[Musicality] Applying', musicalityPercent + '% to', groupKey);
-
-            let optimized = { ...state };
-
-            // Overlay group optimization (canonOverlay, eternalOverlay)
-            if (groupKey.includes('Overlay')) {
-                const currentMinOffset = state.minOffsetBeats || 4;
-                const currentMaxOffset = state.maxOffsetBeats || 16;
-                const currentDwell = state.dwellBeats || 4;
-                const currentDensity = state.density || 3;
-                const currentVariation = state.variation || 5;
-
-                // 1. Align offsets to musical intervals progressively
-                const musicalIntervals = [4, 8, 12, 16, 24, 32, 48, 64, 96, 128];
-
-                // At 0%: keep current values
-                // At 100%: snap to perfect musical intervals
-                const nearestMin = musicalIntervals.reduce((prev, curr) =>
-                    Math.abs(curr - currentMinOffset) < Math.abs(prev - currentMinOffset) ? curr : prev
-                );
-                const nearestMax = musicalIntervals.reduce((prev, curr) =>
-                    Math.abs(curr - currentMaxOffset) < Math.abs(prev - currentMaxOffset) ? curr : prev
-                );
-
-                optimized.minOffsetBeats = Math.round(currentMinOffset * (1 - m) + nearestMin * m);
-                optimized.maxOffsetBeats = Math.round(currentMaxOffset * (1 - m) + nearestMax * m);
-
-                // Ensure min < max
-                if (optimized.minOffsetBeats >= optimized.maxOffsetBeats) {
-                    optimized.maxOffsetBeats = optimized.minOffsetBeats + 4;
-                }
-
-                // 2. Align dwell time to phrase boundaries
-                const dwellIntervals = [4, 8, 12, 16, 24, 32];
-                const nearestDwell = dwellIntervals.reduce((prev, curr) =>
-                    Math.abs(curr - currentDwell) < Math.abs(prev - currentDwell) ? curr : prev
-                );
-                optimized.dwellBeats = Math.round(currentDwell * (1 - m) + nearestDwell * m);
-
-                // 3. Reduce density for clarity (sweet spot = 3 voices)
-                // At 100%: force density to 3 for perfect clarity
-                const targetDensity = 3;
-                optimized.density = Math.max(1, Math.round(currentDensity * (1 - m) + targetDensity * m));
-
-                // 4. Reduce variation for consistency
-                // At 100%: reduce variation to 5 for predictable, natural sound
-                const targetVariation = 5;
-                optimized.variation = Math.max(0, Math.round(currentVariation * (1 - m) + targetVariation * m));
-            }
-
-            // Loop group optimization (jukeboxLoop, eternalLoop)
-            if (groupKey.includes('Loop')) {
-                const currentMinLoop = state.minLoopBeats || 8;
-                const currentMaxSeq = state.maxSequentialBeats || 64;
-                const currentThreshold = state.loopThreshold || 0.7;
-                const currentBias = state.sectionBias || 0.5;
-                const currentVariance = state.jumpVariance || 0.5;
-
-                // 1. Align loop lengths to musical phrases
-                const loopIntervals = [4, 8, 12, 16, 24, 32, 48, 64];
-                const nearestLoop = loopIntervals.reduce((prev, curr) =>
-                    Math.abs(curr - currentMinLoop) < Math.abs(prev - currentMinLoop) ? curr : prev
-                );
-                optimized.minLoopBeats = Math.round(currentMinLoop * (1 - m) + nearestLoop * m);
-
-                // 2. Align sequential ceiling to phrase boundaries
-                const seqIntervals = [16, 32, 48, 64, 96, 128];
-                const nearestSeq = seqIntervals.reduce((prev, curr) =>
-                    Math.abs(curr - currentMaxSeq) < Math.abs(prev - currentMaxSeq) ? curr : prev
-                );
-                optimized.maxSequentialBeats = Math.round(currentMaxSeq * (1 - m) + nearestSeq * m);
-
-                // 3. Increase threshold for tighter, more musical loops
-                // At 100%: threshold = 0.85 for very tight similarity
-                const targetThreshold = 0.85;
-                optimized.loopThreshold = currentThreshold * (1 - m) + targetThreshold * m;
-
-                // 4. Increase section bias to stay within musical sections
-                // At 100%: bias = 0.8 to strongly prefer same section
-                const targetBias = 0.8;
-                optimized.sectionBias = currentBias * (1 - m) + targetBias * m;
-
-                // 5. Reduce jump variance for predictable timing
-                // At 100%: variance = 0.3 for tight, musical timing
-                const targetVariance = 0.3;
-                optimized.jumpVariance = currentVariance * (1 - m) + targetVariance * m;
-            }
-
-            // Apply optimized settings
-            console.log('[Musicality] Optimized settings at ' + musicalityPercent + '%:', optimized);
-
-            // Update state
-            if (typeof window.updateAdvancedSettings === 'function') {
-                window.updateAdvancedSettings(groupKey, optimized);
-            }
-
-            // Sync UI to show changes (but skip musicality slider to avoid feedback loop)
-            syncGroupFromState(groupKey);
-
-            // Apply to engine
-            if (typeof window.applyAdvancedGroup === 'function') {
-                window.applyAdvancedGroup(groupKey, { source: 'musicality' });
-            }
-        }
-
-        function setGroupEnabled(groupKey, enabled) {
-            if (!groupKey) {
-                return;
-            }
-            if (groupKey === 'canonOverlay' && typeof window.setCanonAdvancedEnabled === 'function') {
-                window.setCanonAdvancedEnabled(enabled);
-            } else if (groupKey === 'eternalOverlay' && typeof window.setEternalAdvancedEnabled === 'function') {
-                window.setEternalAdvancedEnabled(enabled);
-            } else if (typeof window.setAdvancedGroupEnabled === 'function') {
-                window.setAdvancedGroupEnabled(groupKey, enabled);
-            }
-        }
-
-        function isGroupEnabled(groupKey) {
-            if (groupKey === 'canonOverlay' && typeof window.isCanonAdvancedEnabled === 'function') {
-                return !!window.isCanonAdvancedEnabled();
-            }
-            if (groupKey === 'eternalOverlay' && typeof window.isEternalAdvancedEnabled === 'function') {
-                return !!window.isEternalAdvancedEnabled();
-            }
-            const state = getGroupState(groupKey);
-            return state ? !!state.enabled : false;
-        }
-
-        function getGroupState(groupKey) {
-            if (typeof window.getAdvancedSettings !== 'function') {
-                return null;
-            }
-            try {
-                return window.getAdvancedSettings(groupKey);
-            } catch (err) {
-                return null;
-            }
-        }
-
-        function updateGroupToggleState(groupKey, enabled) {
-            const dom = advancedDomMap[groupKey];
-            if (!dom || !dom.toggle) {
-                return;
-            }
-            dom.toggle.checked = !!enabled;
-            setGroupInputsDisabled(groupKey, !enabled);
-        }
-
-        function setGroupInputsDisabled(groupKey, disabled) {
-            const dom = advancedDomMap[groupKey];
-            if (!dom) {
-                return;
-            }
-            const disabledFlag = !!disabled && !advancedSidebarVisible;
-            Object.values(dom.inputs).forEach((input) => {
-                input.disabled = disabledFlag;
-            });
-            if (dom.presetSelect) {
-                dom.presetSelect.disabled = disabledFlag;
-            }
-            if (dom.resetButton) {
-                dom.resetButton.disabled = disabledFlag;
-            }
-            if (dom.groupNode) {
-                dom.groupNode.classList.toggle('is-disabled', disabledFlag);
-                dom.groupNode.setAttribute('aria-disabled', disabledFlag ? 'true' : 'false');
-            }
-        }
-
-    function setGroupCollapsed(groupKey, collapsed) {
-        const dom = advancedDomMap[groupKey];
-        if (!dom) {
-            return;
-        }
-        const collapseFlag = !!collapsed;
-        dom.groupNode.classList.toggle('is-collapsed', collapseFlag);
-        if (dom.body) {
-            dom.body.hidden = collapseFlag;
-        }
-        if (dom.collapseButton) {
-            dom.collapseButton.setAttribute('aria-expanded', collapseFlag ? 'false' : 'true');
-        }
-    }
-
-    function primeGroupLayoutForMode(modeKey) {
-        if (!advancedUiReady) {
-            return;
-        }
-        const normalized = (modeKey || '').toLowerCase();
-        let expandedGroups = [];
-        if (normalized === 'canon') {
-            expandedGroups = ['canonOverlay'];
-        } else if (normalized === 'jukebox') {
-            expandedGroups = ['jukeboxLoop'];
-        } else if (normalized === 'eternal') {
-            expandedGroups = ['eternalOverlay', 'eternalLoop'];
-        }
-        Object.keys(ADVANCED_GROUP_METADATA).forEach((groupKey) => {
-            const shouldExpand = expandedGroups.includes(groupKey);
-            setGroupCollapsed(groupKey, !shouldExpand);
-        });
-    }
-
-        function ensureModeDefaults(modeKey) {
-            if (!advancedUiReady) {
-                return;
-            }
-            const normalized = (modeKey || '').toLowerCase();
-            const primaryGroups = MODE_PRIMARY_GROUPS[normalized] || [];
-            primaryGroups.forEach((groupKey, index) => {
-                if (!isGroupEnabled(groupKey)) {
-                    setGroupEnabled(groupKey, true);
-                }
-                const dom = advancedDomMap[groupKey];
-                if (dom) {
-                    if (dom.toggle) {
-                        dom.toggle.checked = true;
-                    }
-                    setGroupInputsDisabled(groupKey, false);
-                }
-                syncGroupFromState(groupKey);
-                if (index === 0) {
-                    setGroupCollapsed(groupKey, false);
-                }
-            });
-        }
-
-        function syncGroupFromState(groupKey) {
-            const dom = advancedDomMap[groupKey];
-            if (!dom) {
-                return;
-            }
-            const state = getGroupState(groupKey);
-            const defaults = state && state.defaults ? state.defaults : {};
-            const settings = state && state.settings ? state.settings : defaults;
-            const enabled = state ? !!state.enabled : false;
-            updateGroupToggleState(groupKey, enabled);
-            Object.entries(dom.inputs).forEach(([fieldKey, input]) => {
-                const nextValue = settings && settings[fieldKey] !== undefined ? settings[fieldKey] : defaults[fieldKey];
-                if (nextValue !== undefined && input.value != nextValue) {
-                    input.value = nextValue;
-                }
-                updateValueLabel(groupKey, fieldKey, parseFloat(input.value));
-            });
-            enforceGroupConstraints(groupKey);
-            if (dom.presetSelect) {
-                setActivePreset(groupKey, activePresetByGroup[groupKey] || null, { updateState: false, selectOverride: dom.presetSelect });
-            }
-        }
-
-        function updateValueLabel(groupKey, fieldKey, value) {
-            const dom = advancedDomMap[groupKey];
-            if (!dom || !dom.valueLabels[fieldKey]) {
-                return;
-            }
-            const field = dom.fieldMeta[fieldKey];
-            dom.valueLabels[fieldKey].textContent = formatFieldValue(value, field);
-        }
-
-        function formatFieldValue(value, field) {
-            if (field && typeof field.format === 'function') {
-                return field.format(value);
-            }
-            if (typeof value === 'number' && value % 1 !== 0) {
-                return value.toFixed(2);
-            }
-            return `${value}`;
-        }
-
-        function enforceGroupConstraints(groupKey) {
-            const dom = advancedDomMap[groupKey];
-            if (!dom) {
-                return;
-            }
-            if (groupKey === 'canonOverlay' || groupKey === 'eternalOverlay') {
-                const minInput = dom.inputs.minOffsetBeats;
-                const maxInput = dom.inputs.maxOffsetBeats;
-                if (minInput && maxInput) {
-                    const minValue = parseInt(minInput.value, 10) || 1;
-                    const minForMax = Math.max(minValue + 1, parseInt(maxInput.min, 10) || minValue + 1);
-                    maxInput.min = minForMax;
-                    let maxValue = parseInt(maxInput.value, 10) || minForMax;
-                    if (maxValue <= minValue) {
-                        maxValue = minForMax;
-                        maxInput.value = String(maxValue);
-                        if (typeof window.updateAdvancedGroupSetting === 'function') {
-                            window.updateAdvancedGroupSetting(groupKey, 'maxOffsetBeats', maxValue);
-                        }
-                    }
-                    updateValueLabel(groupKey, 'maxOffsetBeats', parseFloat(maxInput.value));
-                }
-            } else if (groupKey === 'jukeboxLoop' || groupKey === 'eternalLoop') {
-                const minLoopInput = dom.inputs.minLoopBeats;
-                const maxSeqInput = dom.inputs.maxSequentialBeats;
-                if (minLoopInput && maxSeqInput) {
-                    const minLoop = parseInt(minLoopInput.value, 10) || 4;
-                    const minSeq = Math.max(minLoop + 2, parseInt(maxSeqInput.min, 10) || (minLoop + 2));
-                    maxSeqInput.min = minSeq;
-                    let maxSeq = parseInt(maxSeqInput.value, 10) || minSeq;
-                    if (maxSeq <= minLoop) {
-                        maxSeq = minSeq;
-                        maxSeqInput.value = String(maxSeq);
-                        if (typeof window.updateAdvancedGroupSetting === 'function') {
-                            window.updateAdvancedGroupSetting(groupKey, 'maxSequentialBeats', maxSeq);
-                        }
-                    }
-                    updateValueLabel(groupKey, 'maxSequentialBeats', parseFloat(maxSeqInput.value));
-                }
-            }
-        }
-
-        function syncAdvancedSectionsForMode(modeKey) {
-            pendingAdvancedMode = modeKey;
-            if (!advancedUiReady) {
-                return;
-            }
-            const allowed = MODE_TO_SECTION_IDS[modeKey] || [];
-            const selection = allowed.length ? allowed : ADVANCED_SECTION_LAYOUT.map((section) => section.id);
-            const allowedSet = new Set(selection);
-            ADVANCED_SECTION_LAYOUT.forEach((section) => {
-                const node = advancedSectionNodes[section.id];
-                if (node) {
-                    node.classList.toggle('hidden', !allowedSet.has(section.id));
-                }
-            });
-            primeGroupLayoutForMode(modeKey);
-        }
-
-        window.onCanonModeChanged = (enabled) => {
-            if (!advancedSidebarVisible) {
-                return;
-            }
-            updateGroupToggleState('canonOverlay', enabled);
-            syncGroupFromState('canonOverlay');
-            if (enabled) {
-                setGroupCollapsed('canonOverlay', false);
-            }
-        };
-
-        setAdvancedVisibility(false);
-        if (advancedToggleButton) {
-            advancedToggleButton.addEventListener('click', () => {
-                setAdvancedVisibility(!advancedSidebarVisible);
-            });
-        }
-
-
-
-        // helper to clear params when browser back/forward is used
-        window.addEventListener('popstate', () => {
-            if (backButton) { backButton.classList.add('hidden'); }
-            const params = new URLSearchParams(window.location.search);
-            if (!params.has('trid')) {
-                setState('state-home');
-                if (driver && typeof driver.stop === "function") {
-                    driver.stop();
-                }
-            }
-        });
-
-        // Queue management
-        const clearQueueBtn = document.getElementById('clear-queue-btn');
-        if (clearQueueBtn) {
-            clearQueueBtn.addEventListener('click', function() {
-                if (typeof window.clearQueue === 'function') {
-                    window.clearQueue();
-                }
-            });
-        }
-
-        // Custom file upload button
-        const fileUploadButton = document.getElementById('file-upload-button');
-        const fileInput = document.getElementById('audio-file-input');
-        const fileName = document.getElementById('file-upload-name');
-
-        if (fileUploadButton && fileInput && fileName) {
-            fileUploadButton.addEventListener('click', function() {
-                fileInput.click();
-            });
-
-            fileInput.addEventListener('change', function() {
-                if (fileInput.files.length > 0) {
-                    fileName.textContent = fileInput.files[0].name;
-                } else {
-                    fileName.textContent = 'No file chosen';
-                }
-            });
-        }
-    })();
-
-    // ==============================
-    // OAuth Authentication Logic
-    // Flask authentication helpers (production + local)
-    // ==============================
-    (function() {
-        const signinButton = document.getElementById('google-signin-button');
-        const userInfo = document.getElementById('user-info');
-        const userEmail = document.getElementById('user-email');
-        const logoutButton = document.getElementById('logout-button');
-
-        async function checkAuthStatus() {
-            try {
-                const response = await fetch('/auth/status');
-                if (!response.ok) throw new Error('Auth status check failed');
-
-                const data = await response.json();
-                if (data && data.authenticated) {
-                    if (signinButton) signinButton.style.display = 'none';
-                    if (userInfo) {
-                        userInfo.style.display = 'flex';
-                        userInfo.style.alignItems = 'center';
-                    }
-                    if (userEmail) {
-                        userEmail.textContent = data.email || 'Signed in';
-                    }
-                } else {
-                    if (signinButton) signinButton.style.display = 'inline-block';
-                    if (userInfo) userInfo.style.display = 'none';
-                }
-            } catch (error) {
-                // If auth endpoints aren't configured, hide the controls
-                console.log('[Auth] Status check skipped:', error.message);
-                if (signinButton) signinButton.style.display = 'none';
-                if (userInfo) userInfo.style.display = 'none';
-            }
-        }
-
-        function handleGoogleSignIn() {
-            window.location.href = '/auth/google';
-        }
-
-        if (signinButton) {
-            signinButton.addEventListener('click', handleGoogleSignIn);
-        }
-
-        // Music icon button (top right) - link to tidal.squid.wtf
-        const siteLogoButton = document.getElementById('site-logo');
-        if (siteLogoButton) {
-            siteLogoButton.addEventListener('click', () => {
-                window.open('https://tidal.squid.wtf/', '_blank');
-            });
-        }
-
-        if (logoutButton) {
-            logoutButton.addEventListener('click', async () => {
-                try {
-                    await fetch('/auth/logout');
-                    window.location.reload();
-                } catch (error) {
-                    console.error('Error signing out:', error);
-                }
-            });
-        }
-
-        checkAuthStatus();
-    })();
-
-    // ==============================
-    // Settings Export/Import
-    // ==============================
-    (function() {
-        const exportBtn = document.getElementById('export-settings-btn');
-        const importBtn = document.getElementById('import-settings-btn');
-        const importFileInput = document.getElementById('import-settings-file');
-
-        // Export settings to JSON
-        if (exportBtn) {
-            exportBtn.addEventListener('click', function() {
-                try {
-                    // Get all advanced settings
-                    const settings = {};
-
-                    if (typeof window.getAdvancedSettings === 'function') {
-                        const allSettings = window.getAdvancedSettings();
-                        settings.advancedSettings = allSettings;
-                    }
-
-                    // Add metadata
-                    settings.exportDate = new Date().toISOString();
-                    settings.version = '1.0';
-                    settings.appName = 'Harmonizer Lab';
-
-                    // Create JSON file
-                    const dataStr = JSON.stringify(settings, null, 2);
-                    const blob = new Blob([dataStr], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-
-                    // Download file
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `harmonizer-settings-${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-
-                    console.log('[Settings] Exported settings successfully');
-                } catch (error) {
-                    console.error('[Settings] Export failed:', error);
-                    alert('Failed to export settings: ' + error.message);
-                }
-            });
-        }
-
-        // Import settings from JSON
-        if (importBtn && importFileInput) {
-            importBtn.addEventListener('click', function() {
-                importFileInput.click();
-            });
-
-            importFileInput.addEventListener('change', function(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const settings = JSON.parse(e.target.result);
-
-                        // Validate settings
-                        if (!settings.advancedSettings) {
-                            throw new Error('Invalid settings file: missing advancedSettings');
-                        }
-
-                        // Apply settings
-                        if (typeof window.setAdvancedSettings === 'function') {
-                            window.setAdvancedSettings(settings.advancedSettings);
-                            alert('Settings imported successfully! Refreshing advanced panel...');
-
-                            // Refresh the UI to reflect imported settings
-                            if (typeof window.syncAllGroupsFromState === 'function') {
-                                window.syncAllGroupsFromState();
-                            }
-
-                            console.log('[Settings] Imported settings successfully');
-                        } else {
-                            throw new Error('Settings import function not available');
-                        }
-                    } catch (error) {
-                        console.error('[Settings] Import failed:', error);
-                        alert('Failed to import settings: ' + error.message);
-                    }
-                };
-                reader.readAsText(file);
-
-                // Reset file input
-                importFileInput.value = '';
-            });
-        }
-    })();
-
-    // ==============================
-    // Beat rounding toggle
-    // ==============================
-    (function() {
-        const beatToggle = document.getElementById('beat-round-toggle');
-        if (!beatToggle) {
-            return;
-        }
-
-        function syncBeatToggle() {
-            if (typeof window.isBeatRoundingEnabled === 'function') {
-                beatToggle.checked = !!window.isBeatRoundingEnabled();
-            }
-        }
-
-        syncBeatToggle();
-
-        beatToggle.addEventListener('change', function(event) {
-            if (typeof window.setBeatRoundingEnabled === 'function') {
-                window.setBeatRoundingEnabled(event.target.checked);
-            }
-        });
-
-        window.addEventListener('harmonizer:beatRoundingSync', syncBeatToggle);
-    })();
-    </script>
-</body>
-</html>
