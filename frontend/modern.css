@@ -175,26 +175,6 @@ body::before {
     --note-strength: 0.45;
 }
 
-.music-field .music.track.nine {
-    animation-delay: 29s;
-    animation-duration: 32s;
-    --note-color: rgba(255, 236, 179, 0.35);
-    --note-ring-color: rgba(255, 236, 179, 0.32);
-    --note-bar-color: rgba(255, 236, 179, 0.24);
-    --note-glow: rgba(255, 236, 179, 0.18);
-    --note-strength: 0.38;
-}
-
-.music-field .music.track.ten {
-    animation-delay: 33s;
-    animation-duration: 34s;
-    --note-color: rgba(173, 255, 203, 0.32);
-    --note-ring-color: rgba(173, 255, 203, 0.34);
-    --note-bar-color: rgba(173, 255, 203, 0.26);
-    --note-glow: rgba(173, 255, 203, 0.16);
-    --note-strength: 0.4;
-}
-
 
 .music-field .music span {
     position: absolute;
