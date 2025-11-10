@@ -37,7 +37,7 @@ except ImportError:  # pragma: no cover
     from rl import db as rl_db  # type: ignore
 
 RL_SNIPPET_DIR = rl_db.SNIPPET_DIR
-RL_MODEL_PATH = rl_db.DATA_DIR / "model.json"
+RL_MODEL_PATH = rl_db.MODEL_PATH
 PRIMARY_RL_VARIANT = "a"
 BASELINE_RL_VARIANT = "b"
 RL_MODEL_VARIANTS = {

@@ -14,7 +14,7 @@ from sklearn.ensemble import GradientBoostingRegressor
 
 from . import db
 
-MODEL_PATH = db.DATA_DIR / "model.json"
+MODEL_PATH = db.MODEL_PATH
 FEATURE_NAMES = [
     "similarity",
     "span_norm",

@@ -12,11 +12,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data" / "rl"
 SNIPPET_DIR = DATA_DIR / "snippets"
 DB_PATH = DATA_DIR / "rl.sqlite3"
+MODEL_DIR = BASE_DIR.parent / "rl_models"
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
+MODEL_PATH = MODEL_DIR / "model.json"
 
 
 def _ensure_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     SNIPPET_DIR.mkdir(parents=True, exist_ok=True)
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _connect() -> sqlite3.Connection:

@@ -7,7 +7,7 @@ import os
 
 from . import db
 
-RL_MODEL_PATH = db.DATA_DIR / "model.json"
+RL_MODEL_PATH = db.MODEL_PATH
 
 
 def main():
