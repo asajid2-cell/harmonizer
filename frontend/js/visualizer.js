@@ -374,7 +374,7 @@ function refreshJukeboxVisualization() {
     }
     var loopEdges = collectVisualizationLoops(80);
     if (mode === "jukebox") {
-        drawLoopConnections(masterQs, loopEdges, false);
+        drawCircularLoopConnections(masterQs, loopEdges);
     } else if (mode === "eternal") {
         // Redraw both canon overlays and loop connections
         drawConnections(masterQs);
@@ -3372,9 +3372,7 @@ function drawCircularLoopConnections(qlist, edges) {
     if (!edges || !edges.length) {
         return;
     }
-    var radius = getCircularRadius() - 12;
-    var center = getCircularCenter();
-    var controlRadius = radius * 0.55;
+    var radius = getCircularRadius();
     _.each(edges, function(edge) {
         if (edge.source >= qlist.length || edge.target >= qlist.length) {
             return;
@@ -3386,11 +3384,17 @@ function drawCircularLoopConnections(qlist, edges) {
         }
         var srcPoint = getCircularPoint(qSrc, radius);
         var dstPoint = getCircularPoint(qDst, radius);
-        var angleDiff = shortestAngleBetween(srcPoint.angle, dstPoint.angle);
-        var ctrlAngle = srcPoint.angle + angleDiff / 2;
-        var ctrlX = center.x + Math.cos(ctrlAngle) * controlRadius;
-        var ctrlY = center.y + Math.sin(ctrlAngle) * controlRadius;
-        var pathString = "M" + srcPoint.x + " " + srcPoint.y + " Q " + ctrlX + " " + ctrlY + " " + dstPoint.x + " " + dstPoint.y;
+        var rawDiff = (dstPoint.angle - srcPoint.angle) % (Math.PI * 2);
+        if (rawDiff < 0) {
+            rawDiff += Math.PI * 2;
+        }
+        var largeArc = rawDiff > Math.PI ? 1 : 0;
+        var sweepFlag = rawDiff >= 0 ? 1 : 0;
+        var pathString = [
+            "M", srcPoint.x, srcPoint.y,
+            "A", radius, radius, 0, largeArc, sweepFlag,
+            dstPoint.x, dstPoint.y
+        ].join(" ");
         var path = paper.path(pathString);
         var simNorm = Math.max(0, Math.min(1, (edge.similarity + 1) / 2));
         var strokeWidth = 1.4 + simNorm * 2.6;
@@ -3408,14 +3412,16 @@ var vPad = 20;
 var hPad = 20;
 
 function getCircularCenter() {
+    var topOffset = Math.min(H * 0.45, 160);
     return {
         x: W / 2,
-        y: H / 2
+        y: topOffset
     };
 }
 
 function getCircularRadius() {
-    return Math.max(80, Math.min(W, H) / 2 - 40);
+    var base = Math.min(W, H * 1.2) / 2;
+    return Math.max(70, base - 40);
 }
 
 function getCircularAngle(q) {
@@ -3468,10 +3474,7 @@ function createTiles(qlist) {
         createTile(i, q, x, HB - height, tileWidth, height);
     }
     if (mode === "canon") {
-    drawConnections(qlist);
-    } else if (mode === "jukebox") {
-        var loopEdges = collectVisualizationLoops(80);
-        drawLoopConnections(qlist, loopEdges, false);
+        drawConnections(qlist);
     } else if (mode === "eternal") {
         // Draw both canon overlay connections AND loop connections with different colors
         drawConnections(qlist);
@@ -3487,7 +3490,6 @@ function createCircularTiles(qlist) {
     normalizeColor();
     clearLoopPaths();
     var radius = getCircularRadius();
-    var center = getCircularCenter();
     var sizeScale = Math.min(radius * 0.12, 18);
 
     _.each(qlist, function(q, idx) {
@@ -4725,7 +4727,7 @@ function createJukeboxDriver(player, options) {
         if (masterQs && masterQs.length && (mode === "jukebox" || mode === "eternal")) {
             var loopEdges = collectVisualizationLoops(80);
             if (mode === "jukebox") {
-                drawLoopConnections(masterQs, loopEdges, false);
+                drawCircularLoopConnections(masterQs, loopEdges);
             } else if (mode === "eternal") {
                 drawLoopConnections(masterQs, loopEdges, true);
             }
