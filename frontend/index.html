@@ -15,19 +15,17 @@
         <div class="music track one"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="music track two"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="music track three"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="music track four"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="music track five"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="music track six"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="music track seven"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="music track eight"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="music track nine"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="music track ten"><span></span><span></span><span></span><span></span><span></span></div>
     </div>
 
     <div class="page-shell">
         <a href="/" class="back-button hidden" id="back-button" aria-label="Back to song select"><span aria-hidden="true">&#8592;</span><span class="back-button-label">Back</span></a>
-
-        <!-- Music icon in top right -->
-        <button class="site-logo" id="site-logo" aria-label="Music">
-            <svg class="music-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 18V5L21 3V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2"/>
-                <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2"/>
-            </svg>
-        </button>
 
         <header class="hero">
             <div class="hero-meta">
@@ -54,6 +52,9 @@
                         <button type="button" data-source="drive" class="toggle">Google Drive</button>
                     </div>
                     <input type="hidden" name="source" value="upload" id="source-input">
+                    <p class="drive-helper-hint hidden" id="drive-helper-hint">
+                        Need to grab something from Drive? <a href="https://drive.google.com/drive/my-drive" target="_blank" rel="noopener">Open Google Drive</a>
+                    </p>
 
                     <div class="source-pane" id="upload-pane">
                         <label class="field">
@@ -70,12 +71,8 @@
 
                     <div class="source-pane hidden" id="drive-pane">
                         <label class="field">
-                            <span>Google Drive link</span>
                             <input type="url" name="drive_url" placeholder="https://drive.google.com/file/d/...">
                         </label>
-                        <p class="field-hint" style="margin-top: 8px; font-size: 13px; color: var(--color-muted);">
-                            Upload audio to Google Drive, right-click → Share → Copy link, then paste here
-                        </p>
                     </div>
 
                     <div class="metadata-grid">
@@ -89,7 +86,12 @@
                         </label>
                     </div>
 
-                    <button type="submit" class="cta">Transform Track</button>
+                    <div class="form-actions">
+                        <button type="submit" class="cta">Transform Track</button>
+                        <button type="button" class="cta site-logo" id="site-logo" aria-label="Explore music catalogue">
+                            Explore music catalogue
+                        </button>
+                    </div>
                 </form>
                 <div id="form-status" class="status-panel" role="status" aria-live="polite"></div>
             </section>
@@ -102,7 +104,6 @@
                     <div class="viz-actions">
                         <button id="play" class="viz-button">Play</button>
                         <span class="viz-timer" id="mtime">00:00:00</span>
-                        <span class="viz-mode-pill" id="mode-pill">Autocanonizer</span>
                         <div class="viz-mode-switch" id="viz-mode-switch">
                             <select id="viz-mode-select" aria-label="Switch playback mode">
                                 <option value="canon">Autocanonizer</option>
@@ -120,13 +121,20 @@
                                 <span class="viz-stat-value" id="beats-played">0</span>
                             </span>
                         </div>
-                        <label class="audio-compare-toggle" for="base-audio-only-toggle" title="Mute overlay voices for easy A/B checks">
-                            <input type="checkbox" id="base-audio-only-toggle">
-                            <span>Base audio only</span>
-                        </label>
-                        <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
-                            Advanced: Off
-                        </button>
+                        <div class="viz-advanced-cluster">
+                            <label class="audio-compare-toggle" for="base-audio-only-toggle" title="Mute overlay voices for easy A/B checks">
+                                <input type="checkbox" id="base-audio-only-toggle">
+                                <span>Base audio only</span>
+                            </label>
+                            <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
+                                Advanced: Off
+                            </button>
+                        </div>
+                        <div class="rl-model-switch" id="rl-model-switch" role="group" aria-label="RL model selector">
+                            <span class="rl-model-label">RL Model:</span>
+                            <button type="button" class="rl-model-btn" data-variant="a">Model A</button>
+                            <button type="button" class="rl-model-btn" data-variant="b">Model B</button>
+                        </div>
                         <button type="button" id="add-to-queue-btn" class="viz-button ghost">
                             + Add to Queue
                         </button>
@@ -263,9 +271,11 @@
                 <!-- Drive pane -->
                 <div id="queue-drive-pane" class="queue-source-pane" style="display: none;">
                     <label class="field">
-                        <span>Google Drive link</span>
                         <input type="url" id="queue-drive-url-input" class="queue-input" placeholder="https://drive.google.com/file/d/..." />
                     </label>
+                    <p class="queue-hint">
+                        <a href="https://drive.google.com/drive/my-drive" target="_blank" rel="noopener">Open Google Drive</a> to copy a shareable link.
+                    </p>
                 </div>
 
                 <div id="queue-modal-status" class="queue-modal-status"></div>
@@ -330,8 +340,8 @@
         const algorithmInput = document.getElementById('algorithm-input');
         const sourceInput = document.getElementById('source-input');
         const uploadPane = document.getElementById('upload-pane');
-        const youtubePane = document.getElementById('youtube-pane');
-        const modePill = document.getElementById('mode-pill');
+        const drivePane = document.getElementById('drive-pane');
+        const driveHelperHint = document.getElementById('drive-helper-hint');
         const vizModeSelect = document.getElementById('viz-mode-select');
         const config = window.HARMONIZER_CONFIG || {};
         const apiBaseUrl = (config.apiBaseUrl || "").replace(/\/+$/, "");
@@ -345,14 +355,17 @@
         const rlJumpEndpoint = buildApiUrl('/api/rl/jump-event');
         const rlModelEndpoint = buildApiUrl('/api/rl/model');
         const rlPolicyEndpoint = buildApiUrl('/api/rl/policy');
+        const rlModelSwitcher = document.getElementById('rl-model-switch');
+        const RL_VARIANT_STORAGE_KEY = 'RL_MODEL_VARIANT';
+        const RL_VARIANT_SCHEMA_KEY = 'RL_MODEL_VARIANT_SCHEMA';
+        if (!localStorage.getItem(RL_VARIANT_SCHEMA_KEY)) {
+            localStorage.removeItem(RL_VARIANT_STORAGE_KEY);
+            localStorage.setItem(RL_VARIANT_SCHEMA_KEY, 'v2');
+        }
         let rlModel = null;
+        let rlModelVariant = (localStorage.getItem(RL_VARIANT_STORAGE_KEY) || 'a').toLowerCase();
+        let rlModelAvailable = [];
         let policyMode = (config.rlPolicyMode || 'auto').toLowerCase();
-        const MODE_LABELS = {
-            canon: 'Autocanonizer',
-            jukebox: 'Eternal Jukebox',
-            eternal: 'Eternal Canonizer',
-        };
-
         function snapshotSettingsForMode(modeName) {
             if (modeName === 'canon') {
                 if (!canonSettings) {
@@ -400,14 +413,51 @@
             return null;
         }
 
-        async function fetchRLModel() {
+        function updateRlModelSwitcher() {
+            if (!rlModelSwitcher) {
+                return;
+            }
+            const buttons = rlModelSwitcher.querySelectorAll('.rl-model-btn');
+            buttons.forEach((btn) => {
+                const variant = (btn.dataset.variant || '').toLowerCase();
+                const isActive = variant === rlModelVariant;
+                const isAvailable =
+                    !rlModelAvailable.length || rlModelAvailable.includes(variant);
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                btn.disabled = !isAvailable;
+                btn.classList.toggle('rl-model-disabled', !isAvailable);
+            });
+        }
+
+        async function fetchRLModel(variantOverride) {
+            const targetVariant = (variantOverride || rlModelVariant || 'a').toLowerCase();
+            const query = targetVariant ? `?variant=${encodeURIComponent(targetVariant)}` : '';
             try {
-                const response = await fetch(rlModelEndpoint);
+                const response = await fetch(`${rlModelEndpoint}${query}`);
                 const data = await response.json();
-                if (data && data.model && data.model.weights) {
+                if (data && data.model) {
                     rlModel = data.model;
                     window.harmonizerRLModel = rlModel;
-                    console.log('[RL] Loaded jump quality model (samples:', rlModel.samples, ')');
+                    rlModelVariant = (data.variant || targetVariant || 'a').toLowerCase();
+                    window.harmonizerModelVariant = rlModelVariant;
+                    rlModelAvailable = (data.available || []).map((v) => v.toLowerCase());
+                    localStorage.setItem(RL_VARIANT_STORAGE_KEY, rlModelVariant);
+                    if (typeof data.policy === 'string') {
+                        policyMode = data.policy.toLowerCase();
+                        window.harmonizerPolicyMode = policyMode;
+                    } else if (rlModelVariant === 'b') {
+                        policyMode = 'baseline';
+                        window.harmonizerPolicyMode = 'baseline';
+                    }
+                    updateRlModelSwitcher();
+                    console.log(
+                        rlModelVariant === 'b'
+                            ? '[RL] Legacy baseline selected (RL disabled).'
+                            : `[RL] Loaded model variant ${rlModelVariant} (samples: ${
+                                  rlModel.samples ?? 'n/a'
+                              })`,
+                    );
                 } else {
                     console.log('[RL] No jump model available yet.');
                 }
@@ -434,7 +484,23 @@
             window.harmonizerPolicyMode = policyMode;
         }
 
-        fetchRLModel();
+        if (rlModelSwitcher) {
+            rlModelSwitcher.addEventListener('click', (event) => {
+                const target = event.target.closest('.rl-model-btn');
+                if (!target) {
+                    return;
+                }
+                const nextVariant = (target.dataset.variant || '').toLowerCase();
+                if (!nextVariant || nextVariant === rlModelVariant || target.disabled) {
+                    updateRlModelSwitcher();
+                    return;
+                }
+                fetchRLModel(nextVariant);
+            });
+            updateRlModelSwitcher();
+        }
+
+        fetchRLModel(rlModelVariant);
         fetchPolicyAssignment();
 
         function postRLJumpEvent(payload) {
@@ -555,9 +621,6 @@
         const allowedModes = new Set(['canon', 'jukebox', 'eternal']);
         const normalizedMode = allowedModes.has(requestedMode) ? requestedMode : modeFromBody;
         document.body.dataset.mode = normalizedMode;
-        if (modePill) {
-            modePill.textContent = MODE_LABELS[normalizedMode] || MODE_LABELS.canon;
-        }
         if (vizModeSelect) {
             vizModeSelect.value = normalizedMode;
         }
@@ -582,9 +645,6 @@
             }
             algorithmInput.value = targetMode;
             body.dataset.mode = targetMode;
-            if (modePill) {
-                modePill.textContent = MODE_LABELS[targetMode] || MODE_LABELS.canon;
-            }
             if (vizModeSelect) {
                 vizModeSelect.value = targetMode;
             }
@@ -612,6 +672,20 @@
             });
         }
 
+        function syncSourcePanels(source) {
+            if (source === 'upload') {
+                uploadPane && uploadPane.classList.remove('hidden');
+                drivePane && drivePane.classList.add('hidden');
+                driveHelperHint && driveHelperHint.classList.add('hidden');
+            } else {
+                drivePane && drivePane.classList.remove('hidden');
+                uploadPane && uploadPane.classList.add('hidden');
+                driveHelperHint && driveHelperHint.classList.remove('hidden');
+            }
+        }
+
+        syncSourcePanels(sourceInput.value || 'upload');
+
         sourceToggle.addEventListener('click', (event) => {
             const button = event.target.closest('button[data-source]');
             if (!button) {
@@ -621,13 +695,7 @@
             button.classList.add('active');
             const source = button.dataset.source;
             sourceInput.value = source;
-            if (source === 'upload') {
-                uploadPane.classList.remove('hidden');
-                youtubePane.classList.add('hidden');
-            } else {
-                youtubePane.classList.remove('hidden');
-                uploadPane.classList.add('hidden');
-            }
+            syncSourcePanels(source);
         });
 
         form.addEventListener('submit', async (event) => {
@@ -641,33 +709,16 @@
                     return;
                 }
             } else {
-                const urlField = form.querySelector('input[name="youtube_url"]');
-                if (!urlField.value) {
-                    statusPanel.textContent = 'Please paste a YouTube link.';
+                const urlField = form.querySelector('input[name="drive_url"]');
+                if (!urlField || !urlField.value.trim()) {
+                    statusPanel.textContent = 'Please paste a Google Drive link.';
                     return;
                 }
-
-                // Check if it's a playlist URL
-                const url = urlField.value.trim();
-                if (url.includes('list=') || url.includes('playlist')) {
-                    try {
-                        statusPanel.textContent = 'Checking for playlist...';
-                        const playlistResponse = await fetch(buildApiUrl('api/playlist-info'), {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ url: url })
-                        });
-                        const playlistData = await playlistResponse.json();
-
-                        if (playlistData.is_playlist && playlistData.entries && playlistData.entries.length > 0) {
-                            statusPanel.textContent = `Found playlist with ${playlistData.entries.length} tracks. Processing all...`;
-                            await processPlaylist(playlistData.entries, form);
-                            return;
-                        }
-                    } catch (err) {
-                        console.error('Playlist check failed:', err);
-                        // Continue with single track processing
-                    }
+                const normalizedUrl = urlField.value.trim();
+                const looksPublic = /drive\.google\.com/.test(normalizedUrl);
+                if (!looksPublic) {
+                    statusPanel.textContent = 'Drive uploads need a shareable drive.google.com link.';
+                    return;
                 }
             }
 

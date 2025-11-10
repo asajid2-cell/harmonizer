@@ -24,6 +24,11 @@ import json
 import random
 import time
 
+try:  # optional dependency for large Drive downloads
+    import gdown  # type: ignore
+except ImportError:  # pragma: no cover
+    gdown = None  # type: ignore
+
 try:
     from .rl.storage import log_jump_event
     from .rl import db as rl_db
@@ -33,6 +38,11 @@ except ImportError:  # pragma: no cover
 
 RL_SNIPPET_DIR = rl_db.SNIPPET_DIR
 RL_MODEL_PATH = rl_db.DATA_DIR / "model.json"
+PRIMARY_RL_VARIANT = "a"
+BASELINE_RL_VARIANT = "b"
+RL_MODEL_VARIANTS = {
+    PRIMARY_RL_VARIANT: RL_MODEL_PATH,
+}
 RL_LABELER_TOKEN = os.environ.get("RL_LABELER_TOKEN")
 RL_BANDIT_SEED = int(os.environ.get("RL_BANDIT_SEED", "42"))
 rl_bandit_rng = random.Random(RL_BANDIT_SEED)
@@ -742,8 +752,71 @@ def _download_from_drive(url: str, track_id: str) -> tuple[Path, Optional[dict]]
     if not file_id:
         raise RuntimeError("Invalid Google Drive link. Please use a shareable link from Drive.")
 
-    # Construct direct download URL
+    info = {
+        "title": "Google Drive Audio",
+        "uploader": "Google Drive",
+    }
+
+    def _convert_to_mp3_if_needed(path: Path) -> Path:
+        ext = path.suffix.lower()
+        if ext == ".mp3":
+            return path
+        print(f"[Drive Download] Converting {ext} to MP3...", flush=True)
+        ffmpeg_dir = locate_ffmpeg_bin()
+        if not ffmpeg_dir:
+            return path  # fall back to original format
+        import subprocess
+
+        mp3_path = UPLOAD_FOLDER / f"{track_id}.mp3"
+        if mp3_path.exists():
+            mp3_path.unlink()
+        ffmpeg_bin = ffmpeg_dir / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
+        subprocess.run(
+            [
+                str(ffmpeg_bin),
+                "-i",
+                str(path),
+                "-acodec",
+                "libmp3lame",
+                "-b:a",
+                "192k",
+                str(mp3_path),
+                "-y",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        path.unlink(missing_ok=True)
+        return mp3_path
+
+    def _rename_to_track(path: Path) -> Path:
+        ext = path.suffix.lower() or ".mp3"
+        final_path = UPLOAD_FOLDER / f"{track_id}{ext}"
+        if final_path.exists() and final_path != path:
+            final_path.unlink()
+        if path != final_path:
+            path.rename(final_path)
+        return final_path
+
     download_url = f"https://drive.google.com/uc?id={file_id}&export=download"
+
+    # Preferred method: gdown (handles large files & confirmation tokens)
+    if gdown is not None:
+        try:
+            print("[Drive Download] Attempting gdown helper...", flush=True)
+            downloaded = gdown.download(
+                download_url, output=str(UPLOAD_FOLDER), quiet=False, fuzzy=True
+            )
+            if downloaded:
+                temp_path = Path(downloaded)
+                final_path = _rename_to_track(temp_path)
+                final_path = _convert_to_mp3_if_needed(final_path)
+                print(f"[Drive Download] Success via gdown: {final_path.name}", flush=True)
+                return final_path, info
+        except Exception as exc:
+            print(f"[Drive Download] gdown fallback failed: {exc}", flush=True)
+    else:
+        print("[Drive Download] gdown not installed, falling back to raw HTTP download.", flush=True)
 
     try:
         # First request might return confirmation page for large files
@@ -806,13 +879,9 @@ def _download_from_drive(url: str, track_id: str) -> tuple[Path, Optional[dict]]
                 file_path.unlink()  # Remove original
                 file_path = mp3_path
 
-        info = {
-            "title": "Google Drive Audio",
-            "uploader": "Google Drive",
-        }
-
-        print(f"[Drive Download] Success: {file_path.name}", flush=True)
-        return file_path, info
+        final_path = _convert_to_mp3_if_needed(file_path)
+        print(f"[Drive Download] Success: {final_path.name}", flush=True)
+        return final_path, info
 
     except requests.RequestException as e:
         error_msg = str(e)
@@ -1208,14 +1277,63 @@ def rl_labeler_page():
 
 @app.route("/api/rl/model", methods=["GET"])
 def api_rl_model():
-    if not RL_MODEL_PATH.exists():
-        return jsonify({"model": None})
-    try:
-        with RL_MODEL_PATH.open("r", encoding="utf-8") as handle:
-            data = json.load(handle)
-        return jsonify({"model": data})
-    except Exception as exc:  # pragma: no cover
-        return jsonify({"model": None, "error": str(exc)}), 500
+    variant = (request.args.get("variant") or "").lower().strip()
+
+    def _read_model(path: Path) -> Optional[dict]:
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                return json.load(handle)
+        except FileNotFoundError:
+            return None
+        except Exception as exc:  # pragma: no cover
+            app.logger.exception("Failed to load RL model at %s", path)
+            return {"error": str(exc)}
+
+    baseline_payload = {
+        "type": "empty",
+        "version": "baseline-legacy",
+        "trained_at": None,
+        "notes": "Legacy jump selection (RL disabled)",
+    }
+
+    resolved_variant: Optional[str] = None
+    model_data: Optional[dict] = None
+
+    if variant and variant in RL_MODEL_VARIANTS:
+        candidate = RL_MODEL_VARIANTS[variant]
+        data = _read_model(candidate)
+        if data:
+            resolved_variant = variant
+            model_data = data
+    elif variant == BASELINE_RL_VARIANT:
+        resolved_variant = BASELINE_RL_VARIANT
+        model_data = dict(baseline_payload)
+
+    if model_data is None and RL_MODEL_PATH.exists():
+        data = _read_model(RL_MODEL_PATH)
+        if data:
+            resolved_variant = resolved_variant or PRIMARY_RL_VARIANT
+            model_data = data
+
+    if model_data is None:
+        resolved_variant = BASELINE_RL_VARIANT
+        model_data = dict(baseline_payload)
+
+    available = {BASELINE_RL_VARIANT}
+    for key, path in RL_MODEL_VARIANTS.items():
+        if path.exists():
+            available.add(key)
+
+    return jsonify(
+        {
+            "model": model_data,
+            "variant": resolved_variant,
+            "available": sorted(available),
+            "policy": "baseline"
+            if resolved_variant == BASELINE_RL_VARIANT
+            else "rl",
+        }
+    )
 
 
 @app.route("/api/rl/telemetry", methods=["GET"])

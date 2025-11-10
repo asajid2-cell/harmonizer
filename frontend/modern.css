@@ -109,8 +109,13 @@ body::before {
     position: absolute;
     top: 100%;
     opacity: 0;
+    --note-color: rgba(232, 180, 184, 0.35);
+    --note-ring-color: rgba(255, 255, 255, 0.22);
+    --note-bar-color: rgba(232, 180, 184, 0.24);
+    --note-glow: rgba(232, 180, 184, 0.12);
     animation: orbit-notes 18s ease-in-out infinite;
-    filter: drop-shadow(0 0 calc(2px + 26px * var(--note-strength)) rgba(231, 148, 164, calc(0.12 + 0.4 * var(--note-strength))));
+    filter: drop-shadow(0 0 calc(2px + 26px * var(--note-strength)) var(--note-color));
+    mix-blend-mode: screen;
     transition: filter 0.6s ease;
 }
 
@@ -122,10 +127,79 @@ body::before {
     animation-delay: 6s;
 }
 
+.music-field .music.track.four {
+    animation-delay: 9s;
+    animation-duration: 22s;
+    --note-color: rgba(138, 193, 255, 0.4);
+    --note-ring-color: rgba(138, 193, 255, 0.3);
+    --note-bar-color: rgba(138, 193, 255, 0.26);
+    --note-glow: rgba(138, 193, 255, 0.16);
+}
+
+.music-field .music.track.five {
+    animation-delay: 13s;
+    animation-duration: 24s;
+    --note-color: rgba(255, 208, 154, 0.35);
+    --note-ring-color: rgba(255, 208, 154, 0.32);
+    --note-bar-color: rgba(255, 208, 154, 0.24);
+    --note-glow: rgba(255, 208, 154, 0.15);
+}
+
+.music-field .music.track.six {
+    animation-delay: 17s;
+    animation-duration: 26s;
+    --note-color: rgba(160, 255, 238, 0.32);
+    --note-ring-color: rgba(160, 255, 238, 0.4);
+    --note-bar-color: rgba(160, 255, 238, 0.26);
+    --note-glow: rgba(160, 255, 238, 0.16);
+    --note-strength: 0.35;
+}
+
+.music-field .music.track.seven {
+    animation-delay: 21s;
+    animation-duration: 28s;
+    --note-color: rgba(255, 160, 210, 0.38);
+    --note-ring-color: rgba(255, 160, 210, 0.34);
+    --note-bar-color: rgba(255, 160, 210, 0.28);
+    --note-glow: rgba(255, 160, 210, 0.18);
+    --note-strength: 0.42;
+}
+
+.music-field .music.track.eight {
+    animation-delay: 25s;
+    animation-duration: 30s;
+    --note-color: rgba(154, 181, 255, 0.36);
+    --note-ring-color: rgba(154, 181, 255, 0.36);
+    --note-bar-color: rgba(154, 181, 255, 0.28);
+    --note-glow: rgba(154, 181, 255, 0.18);
+    --note-strength: 0.45;
+}
+
+.music-field .music.track.nine {
+    animation-delay: 29s;
+    animation-duration: 32s;
+    --note-color: rgba(255, 236, 179, 0.35);
+    --note-ring-color: rgba(255, 236, 179, 0.32);
+    --note-bar-color: rgba(255, 236, 179, 0.24);
+    --note-glow: rgba(255, 236, 179, 0.18);
+    --note-strength: 0.38;
+}
+
+.music-field .music.track.ten {
+    animation-delay: 33s;
+    animation-duration: 34s;
+    --note-color: rgba(173, 255, 203, 0.32);
+    --note-ring-color: rgba(173, 255, 203, 0.34);
+    --note-bar-color: rgba(173, 255, 203, 0.26);
+    --note-glow: rgba(173, 255, 203, 0.16);
+    --note-strength: 0.4;
+}
+
+
 .music-field .music span {
     position: absolute;
     display: block;
-    border: 2px solid rgba(255, 255, 255, 0.22);
+    border: 2px solid var(--note-ring-color);
     background: transparent;
     border-radius: 50%;
     transition: border-color 0.4s ease, background-color 0.4s ease, box-shadow 0.4s ease;
@@ -174,8 +248,8 @@ body::before {
 
 body.playing-canon .music-field .music span,
 body.playing-jukebox .music-field .music span {
-    border-color: rgba(232, 180, 184, 0.58);
-    box-shadow: 0 0 22px rgba(232, 180, 184, 0.18);
+    border-color: var(--note-ring-color, rgba(232, 180, 184, 0.58));
+    box-shadow: 0 0 22px var(--note-color, rgba(232, 180, 184, 0.18));
 }
 
 body.playing-canon .music-field .music span:nth-child(3),
@@ -184,15 +258,15 @@ body.playing-canon .music-field .music span:nth-child(5),
 body.playing-jukebox .music-field .music span:nth-child(3),
 body.playing-jukebox .music-field .music span:nth-child(4),
 body.playing-jukebox .music-field .music span:nth-child(5) {
-    background: linear-gradient(180deg, rgba(232, 180, 184, 0.28), rgba(199, 54, 95, 0.14));
+    background: linear-gradient(180deg, var(--note-bar-color, rgba(232, 180, 184, 0.28)), rgba(0, 0, 0, 0.02));
 }
 
 .music-field .music::after {
     content: "";
     position: absolute;
     inset: -80px;
-    background: radial-gradient(circle, rgba(232, 180, 184, 0.12), transparent 60%);
-    opacity: 0;
+    background: radial-gradient(circle, var(--note-glow), transparent 60%);
+    opacity: 0.12;
     transform: scale(0.92);
     filter: blur(14px);
     pointer-events: none;
@@ -212,7 +286,7 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 }
 
 .state-player .music-field .music::after {
-    opacity: 0.25;
+    opacity: 0.32;
     transform: scale(1);
     animation: sweepGlow 8s ease-in-out infinite alternate;
 }
@@ -339,51 +413,51 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     transform: translateY(-1px);
 }
 
-.site-logo {
-    position: fixed;
-    top: clamp(18px, 2.6vw, 30px);
-    right: clamp(18px, 2.6vw, 34px);
+.form-actions {
+    margin-top: 18px;
     display: flex;
+    gap: 12px;
     align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: 1px solid rgba(232, 180, 184, 0.28);
-    background: rgba(18, 6, 12, 0.72);
-    color: rgba(232, 180, 184, 0.92);
-    backdrop-filter: blur(10px);
-    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-    z-index: 6;
-    cursor: pointer;
+    flex-wrap: wrap;
 }
 
-.site-logo .logo-text {
-    font-size: 24px;
-    font-weight: 700;
-    font-family: "Product Sans", "Google Sans", system-ui, sans-serif;
-    letter-spacing: -0.02em;
+.form-actions .cta {
+    flex: 0 1 220px;
+    margin-top: 0;
+    text-align: center;
+    align-self: stretch;
+    width: min(220px, 100%);
 }
 
-.site-logo .music-icon {
-    width: 26px;
-    height: 26px;
-    color: rgba(232, 180, 184, 0.92);
-    transition: transform 0.2s ease;
+.drive-helper-hint {
+    margin: 10px 0 0;
+    font-size: 0.8rem;
+    color: var(--color-muted);
 }
 
-.site-logo:hover .music-icon {
-    transform: scale(1.1);
+.drive-helper-hint a {
+    color: var(--color-accent);
+    font-weight: 600;
+    text-decoration: none;
 }
 
-.site-logo:hover {
-    background: rgba(232, 180, 184, 0.18);
-    box-shadow: 0 10px 24px rgba(232, 180, 184, 0.22);
-    transform: translateY(-1px) scale(1.05);
+.drive-helper-hint a:hover {
+    text-decoration: underline;
+}
+
+.site-logo {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+    font-size: 0.78rem;
+    background: rgba(232, 180, 184, 0.22);
+    border: 1px solid rgba(232, 180, 184, 0.22);
+    color: var(--color-text);
+    box-shadow: none;
 }
 
 .state-player .site-logo {
-    display: none;
+    display: none !important;
 }
 
 .hero-meta {
@@ -446,6 +520,7 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     font-size: clamp(1.9rem, 4.4vw, 2.8rem);
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .hero p {
@@ -493,10 +568,10 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 .cta {
     align-self: flex-start;
     margin-top: 10px;
-    padding: 14px 28px;
+    padding: 12px 26px;
     border-radius: 999px;
     border: 1px solid rgba(232, 180, 184, 0.22);
-    background: linear-gradient(120deg, rgba(232, 180, 184, 0.22), rgba(199, 54, 95, 0.22));
+    background: rgba(232, 180, 184, 0.22);
     color: var(--color-text);
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -513,6 +588,14 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 .cta.ghost {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(232, 180, 184, 0.36);
+}
+
+.form-actions {
+    margin-top: 18px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .layout {
@@ -777,6 +860,12 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 
     .hero h1 {
         letter-spacing: 0.06em;
+    }
+}
+
+@media (max-width: 560px) {
+    .hero h1 {
+        white-space: normal;
     }
 }
 

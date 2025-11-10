@@ -131,6 +131,12 @@ function getGlobalRLModel() {
 }
 
 function getGlobalPolicyMode(defaultMode) {
+    if (typeof window !== "undefined") {
+        var variant = (window.harmonizerModelVariant || "").toLowerCase();
+        if (variant === "b" || variant === "baseline") {
+            return "baseline";
+        }
+    }
     var globalMode =
         (typeof window !== "undefined" && window.harmonizerPolicyMode) ||
         (typeof HARMONIZER_CONFIG !== "undefined" &&
