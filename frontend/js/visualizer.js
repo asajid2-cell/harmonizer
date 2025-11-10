@@ -46,7 +46,9 @@ var masterCursorCircle = null;
 var otherCursorCircle = null;
 var jukeboxBackdrop = {
     wave: null,
+    wave2: null,
     ring: null,
+    glow: null,
 };
 
 var paper = null;
@@ -3393,21 +3395,20 @@ function drawCircularLoopConnections(qlist, edges) {
         }
         var srcPoint = getCircularPoint(qSrc, radius);
         var dstPoint = getCircularPoint(qDst, radius);
-        var rawDiff = (dstPoint.angle - srcPoint.angle) % (Math.PI * 2);
-        if (rawDiff < 0) {
-            rawDiff += Math.PI * 2;
-        }
-        var largeArc = rawDiff > Math.PI ? 1 : 0;
-        var sweepFlag = rawDiff >= 0 ? 1 : 0;
+        var diff = shortestAngleBetween(srcPoint.angle, dstPoint.angle);
+        var arcLength = Math.abs(diff);
+        var largeArc = arcLength > Math.PI ? 1 : 0;
+        var sweepFlag = diff >= 0 ? 1 : 0;
+        var arcRadius = Math.max(30, radius + (diff >= 0 ? 6 : -6));
         var pathString = [
             "M", srcPoint.x, srcPoint.y,
-            "A", radius, radius, 0, largeArc, sweepFlag,
+            "A", arcRadius, arcRadius, 0, largeArc, sweepFlag,
             dstPoint.x, dstPoint.y
         ].join(" ");
         var path = paper.path(pathString);
         var simNorm = Math.max(0, Math.min(1, (edge.similarity + 1) / 2));
-        var strokeWidth = 1.4 + simNorm * 2.6;
-        var opacity = 0.18 + simNorm * 0.55;
+        var strokeWidth = 1.2 + simNorm * 2.4;
+        var opacity = 0.16 + simNorm * 0.5;
         path.attr({
             stroke: "#6B8AF0",
             "stroke-width": strokeWidth,
@@ -3418,14 +3419,12 @@ function drawCircularLoopConnections(qlist, edges) {
 }
 
 function removeJukeboxBackdrop() {
-    if (jukeboxBackdrop.wave) {
-        jukeboxBackdrop.wave.remove();
-        jukeboxBackdrop.wave = null;
-    }
-    if (jukeboxBackdrop.ring) {
-        jukeboxBackdrop.ring.remove();
-        jukeboxBackdrop.ring = null;
-    }
+    ["wave", "wave2", "ring", "glow"].forEach(function(key) {
+        if (jukeboxBackdrop[key]) {
+            jukeboxBackdrop[key].remove();
+            jukeboxBackdrop[key] = null;
+        }
+    });
 }
 
 function clearJukeboxBackdrop() {
@@ -3439,34 +3438,53 @@ function renderJukeboxBackdrop() {
     }
     var center = getCircularCenter();
     var radius = getCircularRadius();
-    var outerRadius = radius + 28;
-    var steps = 220;
-    var amplitude = Math.min(28, radius * 0.22);
-    var waveParts = [];
-    for (var i = 0; i <= steps; i++) {
-        var theta = (i / steps) * Math.PI * 2;
-        var modulation = Math.sin(theta * 2.5) * amplitude * Math.sin(theta * 0.35);
-        var r = outerRadius + modulation;
-        var x = center.x + Math.cos(theta) * r;
-        var y = center.y + Math.sin(theta) * r;
-        waveParts.push((i === 0 ? "M" : "L") + x + " " + y);
+    var outerRadius = radius + 32;
+    var steps = 240;
+    var amplitude = Math.min(26, radius * 0.2);
+    var colors = ["rgba(107,138,240,0.25)", "rgba(240,168,107,0.22)"];
+
+    function buildWave(phase, scale, color) {
+        var waveParts = [];
+        for (var i = 0; i <= steps; i++) {
+            var theta = (i / steps) * Math.PI * 2;
+            var modulation =
+                Math.sin(theta * 2.5 + phase) * amplitude * scale +
+                Math.sin(theta * 0.35 - phase) * amplitude * 0.5 * scale;
+            var r = outerRadius + modulation;
+            var x = center.x + Math.cos(theta) * r;
+            var y = center.y + Math.sin(theta) * r;
+            waveParts.push((i === 0 ? "M" : "L") + x + " " + y);
+        }
+        waveParts.push("Z");
+        var path = paper.path(waveParts.join(" "));
+        path.attr({
+            stroke: color,
+            "stroke-width": 2,
+            "stroke-linecap": "round",
+            fill: "none",
+        });
+        path.toBack();
+        return path;
     }
-    waveParts.push("Z");
-    jukeboxBackdrop.wave = paper.path(waveParts.join(" "));
-    jukeboxBackdrop.wave.attr({
-        stroke: "rgba(107, 138, 240, 0.25)",
-        "stroke-width": 2,
-        "stroke-linecap": "round",
-        fill: "none",
-    });
-    jukeboxBackdrop.wave.toBack();
-    jukeboxBackdrop.ring = paper.circle(center.x, center.y, radius + 8);
+
+    jukeboxBackdrop.wave = buildWave(0, 1, colors[0]);
+    jukeboxBackdrop.wave2 = buildWave(Math.PI / 3, 0.6, colors[1]);
+
+    jukeboxBackdrop.ring = paper.circle(center.x, center.y, radius + 6);
     jukeboxBackdrop.ring.attr({
         stroke: "rgba(255, 255, 255, 0.08)",
         "stroke-width": 10,
         fill: "none",
     });
     jukeboxBackdrop.ring.toBack();
+
+    jukeboxBackdrop.glow = paper.circle(center.x, center.y, radius + 40);
+    jukeboxBackdrop.glow.attr({
+        stroke: "none",
+        fill: "r(0.5,0.5)#37111e-#0b0207",
+        opacity: 0.35,
+    });
+    jukeboxBackdrop.glow.toBack();
 }
 
 var vPad = 20;
