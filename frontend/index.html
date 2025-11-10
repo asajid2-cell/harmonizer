@@ -27,23 +27,134 @@
 
         <header class="hero">
             <div class="hero-meta">
-                <h1>Canonize any track</h1>
-                <p>Upload audio or paste a link, then shape the canon live.</p>
+                <p class="hero-eyebrow">*** WELCOME TO THE HARMONIZER LAB ***</p>
+                <h1>⟡ INFINITE LOOPS ⟡</h1>
+                <p class="hero-lede">
+                    UPLOAD YOUR TRACK. WE SLICE IT INTO BEATS, FIND THE PERFECT MATCHES,
+                    AND CREATE ENDLESS SEAMLESS LOOPS. YOUR MUSIC NEVER HAS TO END.
+                </p>
+                <div class="hero-callouts-row">
+                    <ul class="hero-callouts">
+                        <li>⟡ <strong>CANON MODE</strong> → MIRROR VOICES</li>
+                        <li>⟡ <strong>JUKEBOX MODE</strong> → JUMP AND NEVER STOP</li>
+                        <li>⟡ <strong>ETERNAL MODE</strong> → LAYER AND REPEAT</li>
+                    </ul>
+                    <pre class="ascii-dancer-side">
+  ♪♫
+  /|\\
+ / | \\
+   |
+  ( )
+   o2
+</pre>
+                </div>
+                <div class="retro-badges">
+                    <span class="retro-badge">BUSINESS CASUAL PRESENTS</span>
+                    <span class="retro-badge">ALOE ISLAND POSSE</span>
+                    <span class="retro-badge">INTERNET DISCONTENT</span>
+                </div>
+            </div>
+            <div class="hero-visual" aria-hidden="true">
+                <div class="hero-orbit">
+                    <span class="hero-ring ring-base"></span>
+                    <span class="hero-ring ring-highlight"></span>
+                </div>
+                <pre class="ascii-woman">
+       _)))
+      /|||\\
+     ({O O})
+      ( > )
+      /|||\\
+     / | | \\
+      /   \\
+     |     |
+   _/ \\___/ \\_
+  /   ( | )   \\
+ '    _\\_//_   '
+      o2  o2
+</pre>
+                <pre class="ascii-right-notes">
+  ～～～
+  ♫ ♪
+  ～～～
+</pre>
+                <pre class="ascii-background">
+*  .  *    .   *    .  *   .
+  .    *  .   *  .    *   .
+*   .    *  .   *  .   *
+  .  *   .    *   .  *  .
+*    .  *  .   *  .    *  .
+</pre>
             </div>
         </header>
+
+        <section class="ascii-lounge" aria-label="Retro ASCII lounge" style="display: none;">
+            <div class="ascii-card">
+                <p class="ascii-label">Terminal stack</p>
+                <pre aria-hidden="true">
+      _
+     |-|
+jgs  |=| [Ll]
+     "^" ====`o
+                </pre>
+            </div>
+            <div class="ascii-card">
+                <p class="ascii-label">Prompt ready</p>
+                <pre aria-hidden="true">
+   .----.
+   |C&gt;_ |
+ __|____|__
+|  ______--|
+`-/.::::.\-'a
+ `--------'
+                </pre>
+            </div>
+            <div class="ascii-card">
+                <p class="ascii-label">Sick computer</p>
+                <pre aria-hidden="true">
+         _______
+        |.-----.|
+        ||x . x||
+        ||_.-._||
+        `--)-(--`
+       __[=== o]___
+      |:::::::::::|\ 
+jgs   `-=========-`() 
+                </pre>
+            </div>
+        </section>
 
         <main class="layout">
             <section class="panel intake-panel" id="intake-panel">
                 <h2>Load A Track</h2>
+                <pre class="ascii-divider">～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～</pre>
                 <form id="process-form" enctype="multipart/form-data" novalidate>
                     <div class="section-title">Engine</div>
-                    <div class="toggle-group" id="algorithm-toggle">
-                        <button type="button" data-algorithm="canon" class="toggle active">Autocanonizer</button>
-                        <button type="button" data-algorithm="jukebox" class="toggle">Eternal Jukebox</button>
-                        <button type="button" data-algorithm="eternal" class="toggle">Eternal Canonizer</button>
+                    <div class="mode-grid" id="algorithm-toggle">
+                        <button type="button" data-algorithm="canon" class="mode-card toggle active">
+                            <span class="mode-card-icon" aria-hidden="true">∞</span>
+                            <div class="mode-card-body">
+                                <h3>CANON</h3>
+                                <p>mirror voices, loop hook</p>
+                            </div>
+                        </button>
+                        <button type="button" data-algorithm="jukebox" class="mode-card toggle">
+                            <span class="mode-card-icon" aria-hidden="true">◎</span>
+                            <div class="mode-card-body">
+                                <h3>JUKEBOX</h3>
+                                <p>jump beats forever</p>
+                            </div>
+                        </button>
+                        <button type="button" data-algorithm="eternal" class="mode-card toggle">
+                            <span class="mode-card-icon" aria-hidden="true">⟲</span>
+                            <div class="mode-card-body">
+                                <h3>ETERNAL</h3>
+                                <p>layer + evolve</p>
+                            </div>
+                        </button>
                     </div>
                     <input type="hidden" name="algorithm" value="canon" id="algorithm-input">
-
+                    <pre class="ascii-divider">～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～</pre>
                     <div class="section-title">Source</div>
                     <div class="toggle-group" id="source-toggle">
                         <button type="button" data-source="upload" class="toggle active">Upload Audio</button>
@@ -144,7 +255,11 @@
                             <div class="tiles-shell">
                             <div class="viz-status" id="status-panel"></div>
                             <div id="error"></div>
-                            <div id="tiles" class="tiles-canvas"></div>
+                            <div class="viz-orbit-shell">
+                                <div class="viz-orbit">
+                                    <div id="tiles" class="tiles-canvas"></div>
+                                </div>
+                            </div>
                         </div>
                         <aside id="queue-container" class="queue-container queue-window" style="display: none;">
                             <div class="queue-header queue-drag-handle">
@@ -198,8 +313,19 @@
 
         <!-- Harmonizer Lab badge + rotating footer -->
         <div class="corner-cluster">
-            <div class="bottom-badge">Harmonizer Lab</div>
+            <pre class="ascii-corner-art">
+  ♫ ♪
+ /|\\
+  o2
+</pre>
+            <span class="cluster-separator">|</span>
             <footer class="viz-footer" id="footer-text">drive safe i fucking love you &lt;3</footer>
+            <span class="cluster-separator">|</span>
+            <pre class="ascii-corner-art-right">
+  ♪ ♫
+  /|\\
+  o2
+</pre>
         </div>
         </div>
 
@@ -2075,4 +2201,3 @@
     </script>
 </body>
 </html>
-

@@ -43,8 +43,8 @@
     flex-direction: column;
     gap: 18px;
     min-width: 0;
-    min-height: clamp(600px, 66vh, 960px);
-    padding-bottom: 40px;
+    min-height: clamp(520px, 60vh, 900px);
+    padding-bottom: 32px;
 }
 
 body.advanced-expanded .viz-stage {
@@ -99,6 +99,12 @@ body.advanced-expanded .viz-stage {
     flex: 1 1 0;
     min-width: 0;
     margin-right: -20px;
+}
+
+body.playing-jukebox .viz-stage,
+body.playing-eternal .viz-stage {
+    min-height: auto;
+    padding-bottom: clamp(12px, 2vw, 24px);
 }
 
 body.advanced-expanded .viz-sidebar {
@@ -161,21 +167,21 @@ body.advanced-expanded .advanced-shell::-webkit-scrollbar {
     position: relative;
     z-index: 0;
     isolation: isolate;
-    border-radius: 20px;
-    overflow: hidden;
-    background: rgba(20, 3, 9, 0.42);
-    box-shadow: inset 0 0 60px rgba(232, 180, 184, 0.08);
-    transition: box-shadow 0.5s ease, opacity 0.5s ease, transform 0.5s ease;
+    border-radius: 0;
+    overflow: visible;
+    background: #000000;
+    border: 3px solid #00FF00;
+    box-shadow: none;
+    transition: border-color 0.3s ease, opacity 0.5s ease, transform 0.5s ease;
 }
 
 .music-frame::before {
     content: "";
     position: absolute;
-    inset: -40px;
-    background: radial-gradient(circle at top left, rgba(199, 54, 95, 0.18), transparent 55%),
-                radial-gradient(circle at bottom right, rgba(232, 180, 184, 0.16), transparent 60%);
-    filter: blur(36px);
-    opacity: calc(0.25 + 0.35 * var(--note-strength));
+    inset: 0;
+    background: none;
+    filter: none;
+    opacity: 0;
     transition: opacity 0.4s ease, transform 0.5s ease;
     pointer-events: none;
     z-index: -1;
@@ -864,36 +870,100 @@ body.state-home .viz-mode-switch {
     font-weight: 600;
 }
 
+.viz-orbit-shell {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    padding: clamp(18px, 3vw, 32px) 0;
+    overflow: visible;
+}
+
+.viz-orbit {
+    width: 100%;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: visible;
+}
+
+.tiles-canvas {
+    width: 100%;
+    position: relative;
+    overflow: visible;
+}
+
 #tiles {
     width: 100%;
-    margin-top: 4px;
     min-height: clamp(540px, 64vh, 940px);
     position: relative;
+    overflow: visible;
 }
 
 body.advanced-expanded #tiles {
     min-height: clamp(720px, 78vh, 1180px);
 }
 
+body.playing-jukebox .viz-orbit-shell,
+body.playing-eternal .viz-orbit-shell {
+    padding: clamp(18px, 4vw, 38px) clamp(20px, 4vw, 40px);
+    overflow: hidden;
+}
+
+body.playing-jukebox .viz-orbit,
+body.playing-eternal .viz-orbit {
+    width: min(70vw, 620px);
+    max-width: 640px;
+    aspect-ratio: 1 / 1;
+    padding: clamp(30px, 4vw, 50px);
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+body.playing-jukebox .tiles-canvas,
+body.playing-eternal .tiles-canvas {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+body.playing-jukebox #tiles,
+body.playing-eternal #tiles {
+    min-height: 0;
+}
+
 .viz-footer {
-    color: rgba(232, 180, 184, 0.45);
-    letter-spacing: 0.08em;
+    color: #00FFFF;
+    letter-spacing: 0.12em;
     font-size: 0.75rem;
-    font-weight: 500;
-    transition: color 0.2s ease, opacity 0.2s ease;
-    opacity: 0.8;
+    font-weight: 700;
+    transition: color 0.2s ease, text-shadow 0.2s ease;
+    opacity: 1;
     padding: 0;
     margin: 0;
-    text-align: left;
+    text-align: center;
+    border-radius: 0;
+    border: 0;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 0 8px #00FFFF;
 }
 
 .viz-footer:hover {
-    color: rgba(232, 180, 184, 0.75);
-    opacity: 1;
+    color: #FF00FF;
+    text-shadow: 0 0 12px #FF00FF;
 }
 
 .corner-cluster .viz-footer {
     max-width: min(320px, 60vw);
+    width: fit-content;
 }
 
 /* Queue Styles */
@@ -1432,13 +1502,14 @@ body.advanced-expanded #tiles {
 }
 
 .state-player .viz-panel.music-frame {
-    box-shadow: inset 0 0 70px rgba(232, 180, 184, 0.2), 0 32px 72px rgba(232, 180, 184, 0.18);
-    background: rgba(19, 5, 12, 0.54);
+    box-shadow: none;
+    background: #000000;
+    border: 3px solid #00FF00;
 }
 
 .state-player .viz-panel.music-frame::before {
-    opacity: calc(0.3 + 0.4 * var(--note-strength));
-    transform: scale(1.02);
+    opacity: 0;
+    transform: scale(1);
 }
 
 

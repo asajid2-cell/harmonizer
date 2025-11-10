@@ -31,6 +31,184 @@ function debounce(fn, wait) {
     };
 }
 
+function measureOrbitSize() {
+    var orbitNode = document.querySelector(".viz-orbit");
+    if (orbitNode) {
+        var rect = orbitNode.getBoundingClientRect();
+        if (rect && rect.width) {
+            var minSide = Math.min(rect.width, rect.height || rect.width);
+            if (minSide > 0) {
+                return minSide;
+            }
+            return rect.width;
+        }
+    }
+    var fallback = $("#tiles").innerWidth();
+    if (!fallback || fallback < 100) {
+        fallback = $(window).width() - 140;
+    }
+    return fallback;
+}
+
+function applyOrbitLayout(size) {
+    var safe = Math.max(280, Math.floor(size || 0));
+    orbitLayout.size = safe;
+    orbitLayout.padding = Math.max(40, safe * 0.12);
+    orbitLayout.center = { x: safe / 2, y: safe / 2 };
+    var maxRadius = (safe / 2) - 25;
+    orbitLayout.baseRadius = Math.max(70, maxRadius - safe * 0.08);
+    orbitLayout.outerRadius = Math.min(maxRadius - 8, orbitLayout.baseRadius + safe * 0.04);
+    orbitLayout.haloRadius = maxRadius - 5;
+}
+
+function clearOrbitBase() {
+    if (!orbitBaseElements || !orbitBaseElements.length) {
+        orbitBaseElements = [];
+        return;
+    }
+    orbitBaseElements.forEach(function(el) {
+        if (el && typeof el.remove === "function") {
+            el.remove();
+        }
+    });
+    orbitBaseElements = [];
+}
+
+function renderOrbitBase() {
+    if ((mode !== "jukebox" && mode !== "eternal") || !paper) {
+        clearOrbitBase();
+        return;
+    }
+    clearOrbitBase();
+    var layout = orbitLayout;
+    var center = layout.center;
+    var halo = paper.circle(center.x, center.y, layout.haloRadius);
+    halo.attr({
+        stroke: "none",
+        fill: "rgba(207, 148, 255, 0.06)"
+    });
+    halo.toBack();
+    orbitBaseElements.push(halo);
+
+    var outerRing = paper.circle(center.x, center.y, layout.outerRadius);
+    outerRing.attr({
+        stroke: "rgba(255, 255, 255, 0.22)",
+        "stroke-width": 2.4,
+        "stroke-dasharray": "- "
+    });
+    orbitBaseElements.push(outerRing);
+
+    var innerRing = paper.circle(center.x, center.y, layout.baseRadius);
+    innerRing.attr({
+        stroke: "rgba(255, 255, 255, 0.12)",
+        "stroke-width": 1.2
+    });
+    orbitBaseElements.push(innerRing);
+
+    for (var i = 0; i < 12; i++) {
+        var angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
+        var tickInner = layout.outerRadius + 4;
+        var tickOuter = tickInner + 10;
+        var x1 = center.x + Math.cos(angle) * tickInner;
+        var y1 = center.y + Math.sin(angle) * tickInner;
+        var x2 = center.x + Math.cos(angle) * tickOuter;
+        var y2 = center.y + Math.sin(angle) * tickOuter;
+        var tick = paper.path(["M", x1, y1, "L", x2, y2].join(" "));
+        tick.attr({
+            stroke: "rgba(255, 255, 255, 0.18)",
+            "stroke-width": i % 3 === 0 ? 2 : 1
+        });
+        orbitBaseElements.push(tick);
+    }
+
+    orbitBaseElements.forEach(function(el) {
+        if (el && typeof el.toBack === "function") {
+            el.toBack();
+        }
+    });
+}
+
+function configureCanvasForMode() {
+    var usingOrbit = mode === "jukebox" || mode === "eternal";
+    if (usingOrbit) {
+        var orbitSize = measureOrbitSize();
+        if (!orbitSize || orbitSize < 60) {
+            orbitSize = 520;
+        }
+        applyOrbitLayout(orbitSize);
+        W = orbitLayout.size;
+        H = orbitLayout.size;
+        TH = orbitLayout.size;
+        CH = 0;
+    } else {
+        var containerWidth = $(".viz-orbit").innerWidth();
+        if (!containerWidth || containerWidth < 100) {
+            containerWidth = $("#tiles").innerWidth();
+        }
+        if (!containerWidth || containerWidth < 100) {
+            containerWidth = $(window).width() - 140;
+        }
+        containerWidth = Math.max(640, Math.floor(containerWidth));
+        W = containerWidth;
+        H = 300;
+        TH = 450;
+        CH = (TH - H) - 10;
+    }
+    return usingOrbit;
+}
+
+function applyModeLayout() {
+    var orbitMode = configureCanvasForMode();
+    if (paper) {
+        paper.setSize(W, TH);
+    }
+    syncOrbitContainerSize();
+    if (orbitMode) {
+        renderOrbitBase();
+        requestOrbitRedraw();
+    } else {
+        clearOrbitBase();
+    }
+    return orbitMode;
+}
+
+function requestOrbitRedraw() {
+    if (mode !== "jukebox" && mode !== "eternal") {
+        return;
+    }
+    if (pendingOrbitRedraw) {
+        return;
+    }
+    pendingOrbitRedraw = true;
+    requestAnimationFrame(function() {
+        pendingOrbitRedraw = false;
+        if (curTrack && curTrack.analysis && curTrack.analysis.segments) {
+            createCircularTiles(curTrack.analysis.segments);
+        } else {
+            renderOrbitBase();
+        }
+    });
+}
+
+function syncOrbitContainerSize() {
+    var tilesNode = document.getElementById("tiles");
+    if (!tilesNode) {
+        return;
+    }
+    if (mode === "jukebox" || mode === "eternal") {
+        var size = orbitLayout.size;
+        tilesNode.style.width = size + "px";
+        tilesNode.style.height = size + "px";
+        tilesNode.style.maxWidth = size + "px";
+        tilesNode.style.margin = "0 auto";
+    } else {
+        tilesNode.style.width = "";
+        tilesNode.style.height = "";
+        tilesNode.style.maxWidth = "";
+        tilesNode.style.margin = "";
+    }
+}
+
 var remixer = null;
 var driver = null;
 var mode = "canon";
@@ -44,6 +222,7 @@ var masterCursor = null;
 var otherCursor = null;
 var masterCursorCircle = null;
 var otherCursorCircle = null;
+var masterCursorTrail = null;
 var jukeboxBackdrop = {
     wave: null,
     wave2: null,
@@ -56,6 +235,16 @@ var W = 1000;
 var H = 300;
 var TH = 450;
 var CH = (TH - H) - 10;
+var orbitLayout = {
+    size: 600,
+    padding: 48,
+    center: { x: 300, y: 300 },
+    baseRadius: 220,
+    outerRadius: 236,
+    haloRadius: 255
+};
+var orbitBaseElements = [];
+var pendingOrbitRedraw = false;
 var cmin = [100,100,100];
 var cmax = [-100,-100,-100];
 var rootStyle = document.documentElement.style;
@@ -66,6 +255,7 @@ var isTrackReady = false;
 var serverLoopCandidateMap = {};
 var canonLoopCandidates = [];
 var loopPaths = [];
+var loopPathMap = {}; // Map of "source-target" to path object
 
 // Queue management
 var trackQueue = [];
@@ -1044,6 +1234,7 @@ function clearLoopPaths() {
         }
     });
     loopPaths = [];
+    loopPathMap = {};
 }
 
 function applyCanonAlignment(qlist, alignment) {
@@ -2413,6 +2604,12 @@ function init() {
     setDisplayMode(false);
     setPlayingClass(null);
     pulseNotes(baseNoteStrength);
+    if (document.body && document.body.dataset && document.body.dataset.mode) {
+        var bodyMode = document.body.dataset.mode.toLowerCase();
+        if (bodyMode === "jukebox" || bodyMode === "canon" || bodyMode === "eternal") {
+            mode = bodyMode;
+        }
+    }
 
     window.oncontextmenu = function(event) {
         event.preventDefault();
@@ -2435,12 +2632,12 @@ function init() {
         await togglePlayback();
     });
 
-    var containerWidth = $("#tiles").innerWidth();
-    if (!containerWidth || containerWidth < 100) {
-        containerWidth = $(window).width() - 140;
-    }
-    W = containerWidth;
+    var usingOrbit = configureCanvasForMode();
     paper = Raphael("tiles", W, TH);
+    syncOrbitContainerSize();
+    if (usingOrbit) {
+        renderOrbitBase();
+    }
     $(document).keydown(keydown);
 
 
@@ -2453,6 +2650,7 @@ function init() {
     } else {
         var context = getAudioContext();
         var initialTrid = processParams();
+        applyModeLayout();
         remixer = createJRemixer(context, $);
         driver = Driver(remixer.getPlayer());
 
@@ -2465,6 +2663,12 @@ function init() {
             info("Load a track to begin.");
         }
     }
+
+    window.addEventListener("resize", debounce(function() {
+        if (mode === "jukebox") {
+            applyModeLayout();
+        }
+    }, 160));
 }
 
 function loadPlaylistQueue() {
@@ -3384,6 +3588,11 @@ function drawCircularLoopConnections(qlist, edges) {
         return;
     }
     var radius = getCircularRadius();
+    var centerPoint = getCircularCenter();
+
+    // Calculate control point offset - arcs should curve inward but not cut through circle
+    var controlRadiusRatio = 0.3; // Control point at 30% of radius from center
+
     _.each(edges, function(edge) {
         if (edge.source >= qlist.length || edge.target >= qlist.length) {
             return;
@@ -3395,14 +3604,30 @@ function drawCircularLoopConnections(qlist, edges) {
         }
         var srcPoint = getCircularPoint(qSrc, radius);
         var dstPoint = getCircularPoint(qDst, radius);
-        var diff = shortestAngleBetween(srcPoint.angle, dstPoint.angle);
-        var arcLength = Math.abs(diff);
-        var largeArc = arcLength > Math.PI ? 1 : 0;
-        var sweepFlag = diff >= 0 ? 1 : 0;
-        var arcRadius = Math.max(30, radius + (diff >= 0 ? 6 : -6));
+
+        // Calculate midpoint angle between source and destination
+        var srcAngle = srcPoint.angle || getCircularAngle(qSrc);
+        var dstAngle = dstPoint.angle || getCircularAngle(qDst);
+
+        // Find shortest path between angles
+        var angleDiff = dstAngle - srcAngle;
+        if (angleDiff > Math.PI) {
+            angleDiff -= 2 * Math.PI;
+        } else if (angleDiff < -Math.PI) {
+            angleDiff += 2 * Math.PI;
+        }
+        var midAngle = srcAngle + angleDiff / 2;
+
+        // Place control point at reduced radius to curve inside but not cut through
+        var controlRadius = radius * controlRadiusRatio;
+        var controlPoint = {
+            x: centerPoint.x + Math.cos(midAngle) * controlRadius,
+            y: centerPoint.y + Math.sin(midAngle) * controlRadius
+        };
+
         var pathString = [
             "M", srcPoint.x, srcPoint.y,
-            "A", arcRadius, arcRadius, 0, largeArc, sweepFlag,
+            "Q", controlPoint.x, controlPoint.y,
             dstPoint.x, dstPoint.y
         ].join(" ");
         var path = paper.path(pathString);
@@ -3414,8 +3639,47 @@ function drawCircularLoopConnections(qlist, edges) {
             "stroke-width": strokeWidth,
             "stroke-opacity": opacity
         });
+        path.data("edgeSource", edge.source);
+        path.data("edgeTarget", edge.target);
+        path.data("defaultStroke", "#6B8AF0");
+        path.data("defaultOpacity", opacity);
+        path.data("defaultWidth", strokeWidth);
         loopPaths.push(path);
+        var key = edge.source + "-" + edge.target;
+        loopPathMap[key] = path;
     });
+}
+
+function highlightJumpArc(fromIdx, toIdx) {
+    if (!loopPathMap) return;
+
+    // Reset all arcs to default
+    _.each(loopPaths, function(path) {
+        if (path && path.data) {
+            path.attr({
+                stroke: path.data("defaultStroke") || "#6B8AF0",
+                "stroke-opacity": path.data("defaultOpacity") || 0.3,
+                "stroke-width": path.data("defaultWidth") || 2
+            });
+        }
+    });
+
+    // Highlight the active jump arc
+    var key = fromIdx + "-" + toIdx;
+    var activePath = loopPathMap[key];
+    if (activePath && activePath.attr) {
+        activePath.attr({
+            stroke: "#00FFFF",
+            "stroke-opacity": 1,
+            "stroke-width": 4
+        });
+        activePath.toFront();
+    }
+}
+
+// Expose to window for external calls
+if (typeof window !== 'undefined') {
+    window.highlightJumpArc = highlightJumpArc;
 }
 
 function removeJukeboxBackdrop() {
@@ -3429,6 +3693,9 @@ function removeJukeboxBackdrop() {
 
 function clearJukeboxBackdrop() {
     removeJukeboxBackdrop();
+    if (mode !== "jukebox") {
+        clearOrbitBase();
+    }
 }
 
 function renderJukeboxBackdrop() {
@@ -3436,11 +3703,12 @@ function renderJukeboxBackdrop() {
     if (mode !== "jukebox") {
         return;
     }
-    var center = getCircularCenter();
-    var radius = getCircularRadius();
-    var outerRadius = radius + 32;
+    var layout = orbitLayout;
+    var center = layout.center;
+    var radius = layout.baseRadius;
+    var outerRadius = layout.outerRadius + layout.size * 0.02;
     var steps = 240;
-    var amplitude = Math.min(26, radius * 0.2);
+    var amplitude = Math.min(radius * 0.2, layout.size * 0.08);
     var colors = ["rgba(107,138,240,0.25)", "rgba(240,168,107,0.22)"];
 
     function buildWave(phase, scale, color) {
@@ -3491,6 +3759,9 @@ var vPad = 20;
 var hPad = 20;
 
 function getCircularCenter() {
+    if (mode === "jukebox") {
+        return orbitLayout.center;
+    }
     var topOffset = Math.min(H * 0.45, 160);
     return {
         x: W / 2,
@@ -3499,6 +3770,9 @@ function getCircularCenter() {
 }
 
 function getCircularRadius() {
+    if (mode === "jukebox") {
+        return orbitLayout.baseRadius;
+    }
     var base = Math.min(W, H * 1.2) / 2;
     return Math.max(70, base - 60);
 }
@@ -3536,7 +3810,6 @@ function shortestAngleBetween(a, b) {
 
 function createTiles(qlist) {
     if (mode === "jukebox") {
-        renderJukeboxBackdrop();
         return createCircularTiles(qlist);
     }
     clearJukeboxBackdrop();
@@ -3570,6 +3843,8 @@ function createCircularTiles(qlist) {
     tiles = [];
     normalizeColor();
     clearLoopPaths();
+    renderOrbitBase();
+    renderJukeboxBackdrop();
     var radius = getCircularRadius();
     var sizeScale = Math.min(radius * 0.12, 18);
 
@@ -3707,6 +3982,10 @@ function removeCircularCursors() {
         masterCursorCircle.remove();
         masterCursorCircle = null;
     }
+    if (masterCursorTrail) {
+        masterCursorTrail.remove();
+        masterCursorTrail = null;
+    }
     if (otherCursorCircle) {
         otherCursorCircle.remove();
         otherCursorCircle = null;
@@ -3717,6 +3996,18 @@ function updateCircularCursors(q) {
     removeLinearCursors();
     var radius = getCircularRadius();
     var masterPoint = getCircularPoint(q, radius);
+    var trailPoint = getCircularPoint(q, radius + 18);
+    if (!masterCursorTrail) {
+        masterCursorTrail = paper.path("");
+        masterCursorTrail.attr({
+            stroke: "rgba(255, 255, 255, 0.18)",
+            "stroke-width": 1.4,
+            "stroke-linecap": "round"
+        });
+    }
+    masterCursorTrail.attr({
+        path: ["M", orbitLayout.center.x, orbitLayout.center.y, "L", trailPoint.x, trailPoint.y].join(" ")
+    });
     if (!masterCursorCircle) {
         masterCursorCircle = paper.circle(masterPoint.x, masterPoint.y, 6);
         masterCursorCircle.attr({ fill: masterColor, stroke: masterColor });
