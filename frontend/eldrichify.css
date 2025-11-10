@@ -1,208 +1,178 @@
-:root {
-  color-scheme: dark;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  background-color: #000;
+body.eldrichify-page {
+  background-color: #020208;
   background-image:
-    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.08), transparent 50%),
-    radial-gradient(circle at 78% 16%, rgba(0, 128, 255, 0.16), transparent 55%),
-    radial-gradient(circle at 50% 80%, rgba(255, 0, 200, 0.12), transparent 50%);
-  background-size: 320px 320px, 420px 420px, 540px 540px;
-  color: #f8f8f8;
-  font-family: "Inter", "Times New Roman", serif;
-  padding: 0 0 80px;
+    radial-gradient(circle at 10% 20%, rgba(0, 255, 195, 0.06), transparent 50%),
+    radial-gradient(circle at 80% 10%, rgba(255, 0, 240, 0.08), transparent 45%),
+    radial-gradient(circle at 40% 80%, rgba(0, 90, 255, 0.08), transparent 40%),
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><path d="M0 60H120M60 0V120" stroke="rgba(255,255,255,0.07)" stroke-width="0.5"/></svg>');
+  background-size: auto, auto, auto, 120px 120px;
+  color: #fefefe;
+  position: relative;
+  min-height: 100vh;
 }
 
-a {
-  color: #66d9ff;
-  text-decoration: none;
+body.eldrichify-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 50px 50px, 80px 80px;
+  background-position: 0 0, 25px 25px;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: -1;
 }
 
-a:hover,
-a:focus-visible {
-  color: #3fffad;
+.eld-hero {
+  border: 1px solid rgba(0, 255, 221, 0.35);
+  border-radius: 28px;
+  padding: clamp(24px, 4vw, 48px);
+  margin-bottom: clamp(20px, 3vw, 32px);
+  background: rgba(0, 0, 0, 0.82);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: clamp(18px, 3vw, 32px);
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+.eld-hero .hero-eyebrow {
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #ff80ff;
+}
+
+.eld-hero h1 {
+  letter-spacing: 0.18em;
+  color: #00ffd5;
+  text-shadow: 0 0 18px rgba(0, 255, 213, 0.6);
+}
+
+.eld-hero p {
+  color: rgba(255, 255, 255, 0.86);
+  line-height: 1.5;
+}
+
+.eld-callouts {
+  list-style: none;
+  margin: 18px 0 0;
   padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
+  display: grid;
+  gap: 10px;
 }
 
-.sr-only:focus,
-.sr-only:focus-visible {
-  position: static;
-  width: auto;
-  height: auto;
-  margin: 0;
-  clip: auto;
-  overflow: visible;
+.eld-callouts li {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
 }
 
-.retro-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 56px 16px 96px;
-}
-
-.retro-window {
-  width: min(1100px, 100%);
-  border: 3px solid #17233c;
-  box-shadow: 0 0 36px rgba(0, 0, 0, 0.7);
-  background-color: #010409;
-}
-
-.retro-window__chrome {
-  background: linear-gradient(90deg, #4b5d7a, #2c3750);
-  color: #e4e8f2;
-  padding: 6px 10px;
-  font-family: "MS Sans Serif", Tahoma, sans-serif;
-  font-size: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  letter-spacing: 0.04em;
-}
-
-.retro-window__brand {
-  flex: 1;
-}
-
-.retro-window__title {
-  flex: 1;
-  text-align: center;
-  font-weight: 700;
+.eld-callouts li span {
+  color: #5ee4ff;
   text-transform: uppercase;
   letter-spacing: 0.18em;
+  font-size: 0.68rem;
+  margin-right: 8px;
 }
 
-.retro-window__controls {
+.eld-hero .eld-scope {
+  position: relative;
   display: flex;
-  gap: 4px;
-}
-
-.retro-window__btn {
-  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.4);
-  background-color: #ffffff33;
-  font-weight: 700;
-  line-height: 1;
-  font-size: 10px;
+  padding: 20px;
 }
 
-.retro-nav {
-  display: flex;
-  gap: 8px;
-  padding: 6px 10px;
-  background-color: #0b1422;
-  border-bottom: 1px solid #24324f;
-  font-family: "MS Sans Serif", Tahoma, sans-serif;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.eld-scope-ring {
+  position: absolute;
+  width: clamp(180px, 24vw, 240px);
+  height: clamp(180px, 24vw, 240px);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  animation: eld-spin 18s linear infinite;
 }
 
-.retro-nav a {
-  color: #8ab4ff;
+.eld-scope .ring {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  border: 2px solid;
+  mix-blend-mode: screen;
 }
 
-.retro-nav a:hover,
-.retro-nav a:focus-visible,
-.retro-nav a[aria-current="page"] {
-  color: #fca1ff;
-  text-decoration: underline;
+.eld-scope .ring-cyan {
+  border-color: #38f3ff;
 }
 
-.retro-content {
-  padding: clamp(24px, 4vw, 48px);
-  display: flex;
-  flex-direction: column;
-  gap: clamp(20px, 3vw, 36px);
+.eld-scope .ring-magenta {
+  border-color: #ff6dff;
+  transform: rotate(28deg);
 }
 
-.eldrichify-hero {
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 24px;
-  padding: clamp(20px, 3vw, 38px);
-  background: rgba(2, 4, 18, 0.8);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+.eld-scope-ascii {
+  font-family: "JetBrains Mono", monospace;
+  color: #ffb347;
+  font-size: 0.95rem;
+  white-space: pre;
+  margin: 0;
+  z-index: 1;
 }
 
-.eldrichify-eyebrow {
-  letter-spacing: 0.3em;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  color: #69ffe0;
-  margin: 0 0 10px;
+@keyframes eld-spin {
+  to { transform: rotate(360deg); }
 }
 
-.eldrichify-hero h1 {
-  margin: 0 0 12px;
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
-  color: #fffde1;
-  letter-spacing: 0.16em;
+.eld-panel {
+  margin-bottom: clamp(24px, 4vw, 48px);
 }
 
-.eldrichify-hero ul {
-  margin: 16px 0 0 20px;
-  padding: 0;
-  line-height: 1.6;
-}
-
-.eldrichify-grid {
+.eld-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: clamp(20px, 3vw, 32px);
+  gap: clamp(18px, 3vw, 32px);
 }
 
-.eldrichify-panel {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+.eld-col {
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 22px;
   padding: clamp(18px, 3vw, 32px);
-  background: rgba(7, 8, 18, 0.88);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.78);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+}
+
+.eld-col h2 {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #00ffd5;
+  font-size: 0.92rem;
+}
+
+.eld-col p {
+  margin: 0 0 14px;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .eldrichify-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 16px;
+  gap: 18px;
 }
 
 .eldrichify-dropzone {
-  border: 2px dashed rgba(104, 255, 222, 0.6);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
   border-radius: 18px;
   padding: 28px;
   text-align: center;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: rgba(3, 6, 18, 0.6);
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  background: rgba(3, 6, 18, 0.7);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .eldrichify-dropzone:hover {
-  border-color: rgba(255, 180, 255, 0.9);
+  border-color: #38f3ff;
+  box-shadow: 0 0 24px rgba(56, 243, 255, 0.3);
   transform: translateY(-2px);
 }
 
@@ -212,48 +182,47 @@ a:focus-visible {
 
 .eldrichify-dropzone__icon {
   font-size: 2.4rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: #ff6dff;
 }
 
 .eldrichify-dropzone__text {
+  display: inline-block;
   font-family: "JetBrains Mono", monospace;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .eldrichify-dropzone__text small {
   display: block;
-  margin-top: 4px;
+  font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.6);
 }
 
 .eldrichify-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
 #eldrichify-submit {
   appearance: none;
   border: 0;
   border-radius: 999px;
-  padding: 12px 30px;
-  background: linear-gradient(120deg, #00ffc6, #ff4de1);
-  color: #02030a;
+  padding: 12px 26px;
+  background: linear-gradient(120deg, #00ffd5, #ff7fff);
+  color: #030308;
   text-transform: uppercase;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.2em;
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-#eldrichify-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+#eldrichify-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
 #eldrichify-submit:not(:disabled):hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
 }
 
 .eldrichify-spinner {
@@ -265,56 +234,46 @@ a:focus-visible {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.8);
-  animation: pulse 0.8s infinite ease-in-out alternate;
+  background: #38f3ff;
+  animation: eld-pulse 0.8s ease-in-out infinite alternate;
 }
 
-.eldrichify-spinner span:nth-child(2) {
-  animation-delay: 0.15s;
-}
+.eldrichify-spinner span:nth-child(2) { animation-delay: 0.15s; }
+.eldrichify-spinner span:nth-child(3) { animation-delay: 0.3s; }
 
-.eldrichify-spinner span:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-@keyframes pulse {
-  from {
-    transform: scale(0.7);
-    opacity: 0.5;
-  }
-  to {
-    transform: scale(1.2);
-    opacity: 1;
-  }
+@keyframes eld-pulse {
+  from { transform: scale(0.7); opacity: 0.6; }
+  to { transform: scale(1.2); opacity: 1; }
 }
 
 .eldrichify-status {
-  margin-top: 10px;
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.8);
-  min-height: 1.5em;
+  font-family: "JetBrains Mono", monospace;
+  min-height: 1.6em;
+  color: #38f3ff;
 }
 
-.eldrichify-status.error {
-  color: #ff9fb3;
-}
+.eldrichify-status.error { color: #ff9bb7; }
 
-.eld-rich-output h2 {
-  margin: 0;
-}
-
-.eldrichify-output-header {
+.eld-results-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding-bottom: 12px;
+}
+
+.eld-tag {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.68rem;
+  color: #ffb347;
+  margin: 0 0 6px;
 }
 
 .eldrichify-meta {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.7);
 }
 
@@ -326,58 +285,55 @@ a:focus-visible {
 
 .eldrichify-output img {
   width: 100%;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
 }
 
-.eldrichify-download {
+.eld-download {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 18px;
+  gap: 6px;
+  padding: 8px 18px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   text-transform: uppercase;
-  letter-spacing: 0.3em;
-  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  color: #fdfdff;
+  text-decoration: none;
 }
 
 .eldrichify-stages {
-  margin-top: 20px;
+  margin-top: 18px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .eldrichify-stage-card {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  padding: 10px;
-  background: rgba(4, 6, 18, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 8px;
   text-align: center;
-  font-size: 0.75rem;
-  letter-spacing: 0.14em;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .eldrichify-stage-card img {
   width: 100%;
-  border-radius: 10px;
-  margin-top: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 @media (max-width: 640px) {
-  body {
-    padding-bottom: 32px;
-  }
   .eldrichify-actions {
     flex-direction: column;
     align-items: stretch;
   }
-  #eldrichify-submit {
-    width: 100%;
-  }
+  #eldrichify-submit { width: 100%; text-align: center; }
 }

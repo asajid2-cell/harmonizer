@@ -24,23 +24,37 @@ def _device(preferred: Optional[str] = None) -> torch.device:
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+def _normalize_state(
+    payload: object,
+    *,
+    state_key: Optional[str] = None,
+) -> dict[str, torch.Tensor] | torch.Tensor:
+    if isinstance(payload, dict):
+        if state_key and state_key in payload:
+            return payload[state_key]
+        if "model_state" in payload:
+            return payload["model_state"]
+        if "state_dict" in payload:
+            return payload["state_dict"]
+    return payload  # type: ignore[return-value]
+
+
 def _load_state(
     module: nn.Module,
     checkpoint_path: Path,
     device: torch.device,
     *,
     state_key: Optional[str] = None,
-) -> None:
+    strict: bool = True,
+) -> dict[str, torch.Tensor] | torch.Tensor:
     if not checkpoint_path.is_file():
         raise FileNotFoundError(f"Missing checkpoint: {checkpoint_path}")
     state = torch.load(checkpoint_path, map_location=device)
-    if isinstance(state, dict) and state_key and state_key in state:
-        state = state[state_key]
-    elif isinstance(state, dict) and "state_dict" in state:
-        state = state["state_dict"]
-    module.load_state_dict(state)
+    state = _normalize_state(state, state_key=state_key)
+    module.load_state_dict(state, strict=strict)
     module.to(device)
     module.eval()
+    return state
 
 
 class ConvEncoder(nn.Module):
@@ -263,6 +277,20 @@ class HdSuperResNet(nn.Module):
         return self.tail(h)
 
 
+def _infer_hd_scale(state_dict: dict[str, torch.Tensor]) -> int:
+    upsample_indices: set[int] = set()
+    for key in state_dict.keys():
+        if key.startswith("upsample."):
+            parts = key.split(".")
+            if len(parts) >= 2 and parts[1].isdigit():
+                upsample_indices.add(int(parts[1]))
+    if not upsample_indices:
+        return 8
+    steps = max(upsample_indices) + 1
+    steps = max(1, min(4, steps))
+    return 2 ** steps
+
+
 @dataclass(frozen=True)
 class EldrichifyResult:
     final: torch.Tensor
@@ -297,16 +325,28 @@ class EldrichifyPipeline:
         self.vae = BaseVAE()
         self.refiner = LatentRefiner()
         self.upsampler = PixelUpsampler()
-        self.hd_superres = HdSuperResNet(channels=3, base_channels=96, scale=8)
         _load_state(self.vae, ckpt_dir / "base_vae_best.pth", self.device)
         _load_state(self.refiner, ckpt_dir / "latent_refiner_best.pth", self.device)
         _load_state(self.upsampler, ckpt_dir / "pixel_upsampler_best.pth", self.device)
+
         hd_best = ckpt_dir / "checkpoints" / "hd_superres" / "hd_superres_best.pth"
         hd_last = ckpt_dir / "checkpoints" / "hd_superres" / "hd_superres_last.pth"
-        try:
-            _load_state(self.hd_superres, hd_best, self.device, state_key="model_state")
-        except FileNotFoundError:
-            _load_state(self.hd_superres, hd_last, self.device, state_key="model_state")
+        hd_state: Optional[dict[str, torch.Tensor] | torch.Tensor] = None
+        hd_path: Optional[Path] = None
+        for candidate in (hd_best, hd_last):
+            if candidate.is_file():
+                hd_state = torch.load(candidate, map_location=self.device)
+                hd_path = candidate
+                break
+        if hd_state is None or hd_path is None:
+            raise FileNotFoundError("HD super-resolution checkpoint is missing.")
+        hd_state = _normalize_state(hd_state, state_key="model_state")
+        if not isinstance(hd_state, dict):
+            raise RuntimeError(f"HD super-res checkpoint at {hd_path} is malformed.")
+        inferred_scale = _infer_hd_scale(hd_state)
+        self.hd_superres = HdSuperResNet(channels=3, base_channels=96, scale=inferred_scale)
+        self.hd_superres.load_state_dict(hd_state, strict=False)
+        self.hd_superres.to(self.device).eval()
 
     def _run_tensor(self, tensor: torch.Tensor, target_size: tuple[int, int]) -> EldrichifyResult:
         with torch.no_grad():

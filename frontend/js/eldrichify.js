@@ -58,12 +58,22 @@
                 method: "POST",
                 body: formData,
             });
-            const payload = await response.json();
+            const contentType = response.headers.get("content-type") || "";
+            let payload;
+
+            if (contentType.includes("application/json")) {
+                payload = await response.json();
+            } else {
+                const text = await response.text();
+                throw new Error(text || "Server returned an unexpected response.");
+            }
+
             if (!response.ok) {
                 throw new Error(payload.error || "Server error");
             }
+
             renderResult(payload);
-            setStatus("Done! Scroll down to see the output.");
+            setStatus("Neon alchemy complete.");
         } catch (error) {
             console.error("[eldrichify] upload failed", error);
             setStatus(error.message || "Something went wrong.", true);

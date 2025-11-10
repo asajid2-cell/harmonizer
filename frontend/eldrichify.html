@@ -3,104 +3,94 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Eldrichify · Internet Discotheque</title>
-    <meta name="description" content="VAE + super-resolution inference lab for your uploads." />
+    <title>Eldrichify � Internet Discotheque Lab</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&family=JetBrains+Mono:wght@500&display=swap"
-    />
+    <link rel="stylesheet" href="./modern.css" />
     <link rel="stylesheet" href="./eldrichify.css" />
   </head>
-  <body>
-    <a href="#main" class="sr-only">Skip to main content</a>
-    <div class="retro-wrapper">
-      <div class="retro-window">
-        <div class="retro-window__chrome">
-          <span class="retro-window__brand">Business Casual presents</span>
-          <span class="retro-window__title">Internet Discotheque</span>
-          <div class="retro-window__controls">
-            <span class="retro-window__btn">_</span>
-            <span class="retro-window__btn">[]</span>
-            <span class="retro-window__btn">X</span>
-          </div>
+  <body class="page state-home advanced-collapsed eldrichify-page" data-mode="canon">
+    <div class="site-landing-banner">
+      <a href="/">? Return to Internet Discotheque</a>
+    </div>
+    <div class="page-shell">
+      <header class="hero eld-hero">
+        <div class="hero-meta">
+          <p class="hero-eyebrow">? Eldrichify Lab ?</p>
+          <h1>Starviolet Super Res</h1>
+          <p>
+            A neon sidecar to the Harmonizer desk. Drop an image and we run the full Internet Discotheque loop:
+            VAE capture ? latent refiner ? pixel upsampler ? DF2K HD super-res. The result beams right back into this
+            faux terminal.
+          </p>
+          <ul class="eld-callouts">
+            <li><span>Base VAE</span> captures the structure at 32�32.</li>
+            <li><span>Latent refiner</span> smooths out crunchy artifacts.</li>
+            <li><span>Pixel + HD super-res</span> stretches everything to poster-ready fidelity.</li>
+          </ul>
         </div>
-        <nav aria-label="Pages" class="retro-nav">
-          <a href="/">Home</a>
-          <a href="/projects">Projects</a>
-          <a href="/cheatsheets">Cheatsheets</a>
-          <a href="https://plaza.one/" target="_blank" rel="noopener">Radio</a>
-          <a href="/harmonizer.html">Harmonizer</a>
-          <a href="/eldrichify.html" aria-current="page">Eldrichify</a>
-        </nav>
-        <main id="main" class="retro-content">
-          <header class="eldrichify-hero">
-            <p class="eldrichify-eyebrow">∞ Eldrichify tab</p>
-            <h1>VAE + HD Super-Resolution Lab</h1>
-            <p>
-              This tab pipes your upload through the exact same stack from the <code>VAE_SuperResolution_Pipeline.ipynb</code>:
-              base VAE, latent refiner, pixel upsampler, and the DF2K-trained HD super-res stage. Think of it as a neon photocopier for your artwork.
-            </p>
-            <ul>
-              <li>Stage 1 — Base VAE capture at 32×32</li>
-              <li>Stage 2 — Latent refiner cleans the embedding</li>
-              <li>Stage 3 — Pixel upsampler to 64×64</li>
-              <li>Stage 4 — DF2K HD upscaler (64→512) w/ perceptual loss</li>
-            </ul>
-          </header>
+        <div class="eld-scope" aria-hidden="true">
+          <div class="eld-scope-ring">
+            <span class="ring ring-cyan"></span>
+            <span class="ring ring-magenta"></span>
+          </div>
+          <pre class="eld-scope-ascii">
+     /\       /\ 
+    /  \  ? /  \ 
+   / /\ \  / /\ \\
+  /_/  \_\/_/  \_\
+   \  ? ELDRI /
+    \  CHIFY /
+     \_____/
+        o2  o2
+          </pre>
+        </div>
+      </header>
 
-          <section class="eldrichify-grid">
-            <article class="eldrichify-panel">
-              <h2>Upload + summon</h2>
-              <p>
-                Drop an image (PNG/JPG/WEBP/BMP · &lt;10&nbsp;MB). We do the rest inside this window—no tab switching, no scroll-traps.
-              </p>
-              <form id="eldrichify-form" class="eldrichify-form">
-                <label class="eldrichify-dropzone" for="eldrichify-input">
-                  <input
-                    type="file"
-                    id="eldrichify-input"
-                    accept="image/png,image/jpeg,image/webp,image/bmp"
-                    required
-                  />
-                  <span class="eldrichify-dropzone__icon">✶</span>
-                  <span class="eldrichify-dropzone__text">
-                    Drop images here or click to browse
-                    <small>(PNG · JPG · WEBP · BMP · up to 10&nbsp;MB)</small>
-                  </span>
-                </label>
-                <div class="eldrichify-actions">
-                  <button type="submit" id="eldrichify-submit">Summon Eldrichify</button>
-                  <div class="eldrichify-spinner" id="eldrichify-spinner" hidden>
-                    <span></span><span></span><span></span>
-                  </div>
+      <section class="panel viz-panel music-frame eld-panel">
+        <div class="eld-grid">
+          <article class="eld-col eld-col--form">
+            <h2>Upload + Summon</h2>
+            <p>PNG, JPG, WEBP, or BMP � up to 10 MB. Processing happens entirely within this tab.</p>
+            <form id="eldrichify-form" class="eldrichify-form">
+              <label class="eldrichify-dropzone" for="eldrichify-input">
+                <input type="file" id="eldrichify-input" accept="image/png,image/jpeg,image/webp,image/bmp" required />
+                <span class="eldrichify-dropzone__icon">?</span>
+                <span class="eldrichify-dropzone__text">
+                  Drag an image or click to browse
+                  <small>Files stay local until you trigger the pipeline.</small>
+                </span>
+              </label>
+              <div class="eldrichify-actions">
+                <button type="submit" id="eldrichify-submit" class="viz-button">Run Pipeline</button>
+                <div class="eldrichify-spinner" id="eldrichify-spinner" hidden>
+                  <span></span><span></span><span></span>
                 </div>
-              </form>
-              <div class="eldrichify-status" id="eldrichify-status" role="status" aria-live="polite">
-                Awaiting an offering.
               </div>
-            </article>
+            </form>
+            <div class="eldrichify-status" id="eldrichify-status" role="status" aria-live="polite">
+              Waiting for an offering.
+            </div>
+          </article>
 
-            <article class="eldrichify-panel eld-rich-output">
-              <header class="eldrichify-output-header">
-                <div>
-                  <p class="eldrichify-eyebrow">Results</p>
-                  <h2>HD output & previews</h2>
-                </div>
-                <div class="eldrichify-meta" id="eldrichify-meta"></div>
-              </header>
-              <div class="eldrichify-output" id="eldrichify-results" hidden>
-                <img id="eldrichify-result-image" alt="Eldrichified output">
-                <a id="eldrichify-download" class="eldrichify-download" href="#" download target="_blank" rel="noopener">
-                  Download PNG
-                </a>
+          <article class="eld-col eld-col--results">
+            <header class="eld-results-head">
+              <div>
+                <p class="eld-tag">Pipeline Output</p>
+                <h2>HD Result & Stages</h2>
               </div>
-              <div class="eldrichify-stages" id="eldrichify-stages"></div>
-            </article>
-          </section>
-        </main>
-      </div>
+              <div class="eldrichify-meta" id="eldrichify-meta"></div>
+            </header>
+            <div class="eldrichify-output" id="eldrichify-results" hidden>
+              <img id="eldrichify-result-image" alt="Eldrichified output" />
+              <a id="eldrichify-download" class="eld-download" href="#" download target="_blank" rel="noopener">
+                Download PNG
+              </a>
+            </div>
+            <div class="eldrichify-stages" id="eldrichify-stages"></div>
+          </article>
+        </div>
+      </section>
     </div>
 
     <script src="./js/eldrichify.js"></script>
