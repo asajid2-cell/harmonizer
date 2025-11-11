@@ -263,6 +263,30 @@ var trackQueue = [];
 var currentQueueIndex = -1;
 var selectedQueueIndex = -1;
 var autoPlayNext = false;
+var playbackState = {
+    hasStarted: false,
+    isPaused: false
+};
+
+function markPlaybackStarted() {
+    playbackState.hasStarted = true;
+    playbackState.isPaused = false;
+}
+
+function markPlaybackPaused() {
+    if (playbackState.hasStarted) {
+        playbackState.isPaused = true;
+    }
+}
+
+function resetPlaybackState() {
+    playbackState.hasStarted = false;
+    playbackState.isPaused = false;
+}
+
+function canResumePlayback() {
+    return playbackState.hasStarted && playbackState.isPaused;
+}
 var ADVANCED_DEFAULTS = {
     canonOverlay: {
         musicality: 65,
@@ -329,7 +353,7 @@ function getGlobalRLModel() {
     return null;
 }
 
-function getGlobalPolicyMode(defaultMode) {
+function getGlobalPolicyMode(modeName) {
     if (typeof window !== "undefined") {
         var variant = (window.harmonizerModelVariant || "").toLowerCase();
         if (variant === "b" || variant === "baseline") {
@@ -340,9 +364,18 @@ function getGlobalPolicyMode(defaultMode) {
         (typeof window !== "undefined" && window.harmonizerPolicyMode) ||
         (typeof HARMONIZER_CONFIG !== "undefined" &&
             HARMONIZER_CONFIG.rlPolicyMode) ||
-        defaultMode ||
-        "rl";
-    return (globalMode || "rl").toLowerCase();
+        null;
+    if (globalMode) {
+        return (globalMode || "rl").toLowerCase();
+    }
+    var normalizedMode = (modeName || "").toLowerCase();
+    var defaultPolicy = "rl";
+    if (normalizedMode === "canon") {
+        defaultPolicy = "baseline";
+    } else if (normalizedMode === "jukebox" || normalizedMode === "eternal") {
+        defaultPolicy = "rl";
+    }
+    return defaultPolicy;
 }
 
 function ensureGlobalRLTally(model) {
@@ -905,6 +938,7 @@ function rebuildDriverForCurrentMode(shouldResume) {
     driver = Driver(remixer.getPlayer());
     if (resume && driver && typeof driver.start === "function") {
         driver.start();
+        markPlaybackStarted();
     }
 }
 
@@ -2592,10 +2626,21 @@ async function togglePlayback() {
         return;
     }
     if (driver.isRunning()) {
-        driver.stop();
+        if (typeof driver.pause === "function") {
+            driver.pause();
+            markPlaybackPaused();
+        } else {
+            driver.stop();
+            resetPlaybackState();
+        }
+        return;
+    }
+    if (canResumePlayback() && typeof driver.resume === "function") {
+        driver.resume();
     } else {
         driver.start();
     }
+    markPlaybackStarted();
 }
 
 function init() {
@@ -3365,6 +3410,7 @@ var tilePrototype = {
                         await remixer.ensureContext();
                     }
                     driver.resume();
+                    markPlaybackStarted();
                 } catch (ctxError) {
                     console.error("Failed to resume audio context", ctxError);
                     error("Unable to start audio playback. Check console for details.");
@@ -4122,6 +4168,40 @@ function createCanonDriver(player) {
     var running = false;
     var mtime = $("#mtime");
     var lastLoggedIndex = null;
+    var lastCanonHop = { source: null, target: null };
+    var recentCanonTargets = [];
+    var CANON_RECENT_LIMIT = 12;
+
+    function clearLastCanonHop() {
+        lastCanonHop.source = null;
+        lastCanonHop.target = null;
+    }
+
+    function clearRecentCanonTargets() {
+        recentCanonTargets = [];
+    }
+
+    function markRecentCanonTarget(index) {
+        if (typeof index !== "number" || index < 0) {
+            return;
+        }
+        recentCanonTargets.push(index);
+        if (recentCanonTargets.length > CANON_RECENT_LIMIT) {
+            recentCanonTargets.shift();
+        }
+    }
+
+    function isRecentlyVisitedCanonTarget(index) {
+        if (!recentCanonTargets || !recentCanonTargets.length) {
+            return false;
+        }
+        for (var i = recentCanonTargets.length - 1; i >= 0; i--) {
+            if (recentCanonTargets[i] === index) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     function resolveCanonLogger() {
         if (typeof window === "undefined") {
@@ -4227,10 +4307,15 @@ function createCanonDriver(player) {
         if (!masterQs || !masterQs.length) {
             return { index: 0, reason: "sequential" };
         }
-        if (sourceIndex >= masterQs.length - 1) {
+        var policyMode = getGlobalPolicyMode("canon");
+        var allowLooping = policyMode === "rl";
+        if (!allowLooping && sourceIndex >= masterQs.length - 1) {
             return { index: masterQs.length, reason: "end" };
         }
-        var sequentialTarget = sourceIndex + 1;
+        var totalBeats = masterQs.length;
+        var sequentialTarget = allowLooping
+            ? (sourceIndex + 1) % totalBeats
+            : sourceIndex + 1;
         var candidates = [
             buildCanonEdge(sourceIndex, sequentialTarget, 1, "sequential"),
         ];
@@ -4268,7 +4353,6 @@ function createCanonDriver(player) {
         });
         var bestCandidate = candidates[0];
         var bestScore = null;
-        var totalBeats = masterQs.length;
         var dwellBeats =
             (canonSettings && canonSettings.dwellBeats) || 6;
         candidates.forEach(function(candidate) {
@@ -4276,6 +4360,23 @@ function createCanonDriver(player) {
                 return;
             }
             if (candidate.target === sourceIndex) {
+                return;
+            }
+            var isImmediateBacktrack =
+                allowLooping &&
+                candidate.reason !== "sequential" &&
+                lastCanonHop.source !== null &&
+                lastCanonHop.target !== null &&
+                lastCanonHop.target === sourceIndex &&
+                lastCanonHop.source === candidate.target;
+            if (isImmediateBacktrack) {
+                return;
+            }
+            if (
+                allowLooping &&
+                candidate.reason !== "sequential" &&
+                isRecentlyVisitedCanonTarget(candidate.target)
+            ) {
                 return;
             }
             var score = scoreJumpQuality(candidate, {
@@ -4294,10 +4395,28 @@ function createCanonDriver(player) {
             }
         });
         var targetIdx = clampCanonIndex(bestCandidate.target);
-        if (targetIdx <= sourceIndex) {
+        if (allowLooping && totalBeats > 0) {
+            if (targetIdx >= totalBeats) {
+                targetIdx = targetIdx % totalBeats;
+            }
+            if (targetIdx === sourceIndex) {
+                targetIdx = (sourceIndex + 1) % totalBeats;
+            }
+        } else if (targetIdx <= sourceIndex) {
             targetIdx = clampCanonIndex(sourceIndex + 1);
         }
         return { index: targetIdx, reason: bestCandidate.reason };
+    }
+
+    function pausePlayback() {
+        if (!running) {
+            return;
+        }
+        running = false;
+        player.stop();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
     }
 
     function stop() {
@@ -4308,6 +4427,9 @@ function createCanonDriver(player) {
         setPlayingClass(null);
         pulseNotes(baseNoteStrength);
         lastLoggedIndex = null;
+        clearLastCanonHop();
+        clearRecentCanonTargets();
+        resetPlaybackState();
     }
 
     function process() {
@@ -4337,6 +4459,12 @@ function createCanonDriver(player) {
                         ? "sequential"
                         : "canon_jump";
                 logCanonTransition(choice.index, reason);
+                lastCanonHop.source = currentIndex;
+                lastCanonHop.target = choice.index;
+                markRecentCanonTarget(choice.index);
+            } else {
+                clearLastCanonHop();
+                clearRecentCanonTargets();
             }
             curQ = choice.index;
             setTimeout(function() {
@@ -4387,6 +4515,9 @@ function createCanonDriver(player) {
             }
             curQ = startIdx;
             lastLoggedIndex = startIdx;
+            clearLastCanonHop();
+            clearRecentCanonTargets();
+            markRecentCanonTarget(startIdx);
             running = true;
             process();
             setURL();
@@ -4397,6 +4528,9 @@ function createCanonDriver(player) {
 
         resume: function() {
             resetTileColors(masterQs);
+            clearLastCanonHop();
+            clearRecentCanonTargets();
+            markRecentCanonTarget(curQ);
             running = true;
             process();
             setURL();
@@ -4407,6 +4541,7 @@ function createCanonDriver(player) {
         },
 
         stop: stop,
+        pause: pausePlayback,
 
         isRunning: function() {
             return running;
@@ -4433,6 +4568,9 @@ function createCanonDriver(player) {
                 mtime.text(fmtTime(q.start));
                 pulseNotes(baseNoteStrength);
             }
+            clearLastCanonHop();
+            clearRecentCanonTargets();
+            markRecentCanonTarget(q.which);
         }
     };
 }
@@ -4820,6 +4958,18 @@ function createJukeboxDriver(player, options) {
         return false;
     }
 
+    function pausePlayback() {
+        if (!running) {
+            return;
+        }
+        running = false;
+        player.stop();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        stopStatsTracking();
+    }
+
     function stop() {
         running = false;
         player.stop();
@@ -4829,6 +4979,7 @@ function createJukeboxDriver(player, options) {
         pulseNotes(baseNoteStrength);
         clearJumpBubbleHistory();
         stopStatsTracking();
+        resetPlaybackState();
     }
 
     function randomBetween(min, max) {
@@ -5527,6 +5678,7 @@ function createJukeboxDriver(player, options) {
         },
 
         stop: stop,
+        pause: pausePlayback,
 
         isRunning: function() {
             return running;

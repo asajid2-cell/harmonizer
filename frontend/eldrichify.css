@@ -153,9 +153,10 @@ body.eldrichify-terminal {
 
 .eld-hero-panel {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: 1fr auto;
   gap: 48px;
   padding-bottom: 28px;
+  align-items: start;
 }
 
 .hero-eyebrow {
@@ -232,6 +233,8 @@ body.eldrichify-terminal {
   padding: 28px;
   background: rgba(6, 8, 22, 0.95);
   box-shadow: 0 18px 70px rgba(0, 0, 0, 0.6);
+  justify-self: end;
+  align-self: start;
 }
 
 .hero-visual pre {
@@ -239,16 +242,29 @@ body.eldrichify-terminal {
   font-family: "IBM Plex Mono", monospace;
   color: #ffdca8;
   text-shadow: 0 0 8px rgba(255, 220, 168, 0.5);
+  text-align: left;
 }
 
 .eld-console {
-  margin-top: 48px;
+  margin-top: 24px;
+  margin-bottom: 48px;
   border: 1px solid rgba(128, 255, 208, 0.35);
   border-radius: 28px;
   padding: clamp(22px, 3vw, 36px);
   background: rgba(1, 2, 8, 0.92);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
-  min-height: 500px;
+  min-height: 700px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Override modern.css rule that hides .viz-panel on .state-home */
+.eldrichify-terminal.state-home .viz-panel.eld-console {
+  display: block !important;
+  pointer-events: auto !important;
+  z-index: 10 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .eld-console.is-highlighted {
@@ -264,6 +280,10 @@ body.eldrichify-terminal {
   overflow: hidden;
   box-shadow: 0 0 30px rgba(0, 255, 225, 0.4);
   font-family: "IBM Plex Mono", "Courier New", monospace;
+}
+
+.eld-terminal-window[hidden] {
+  display: none;
 }
 
 .eld-terminal-header {
@@ -368,10 +388,14 @@ body.eldrichify-terminal {
 
 /* Results Grid */
 .eld-results-grid {
-  display: grid;
+  display: none;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 24px;
   margin-top: 24px;
+}
+
+.eld-results-grid:not([hidden]) {
+  display: grid;
 }
 
 .eld-result-item {

@@ -20,11 +20,13 @@
       openTerminal();
 
       // Scroll to console
-      const console = document.getElementById("eldrichify-console");
-      if (console) {
-        console.scrollIntoView({ behavior: "smooth", block: "start" });
+      const consoleEl = document.getElementById("eldrichify-console");
+      if (consoleEl) {
+        consoleEl.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     });
+  } else {
+    console.error("Launch button not found!");
   }
 
   if (terminalClose) {
@@ -32,8 +34,18 @@
   }
 
   function openTerminal() {
+    if (!terminalWindow || !terminalOutput) {
+      console.error("Terminal elements not found!");
+      return;
+    }
+
+    // Show terminal, hide results
     terminalWindow.removeAttribute("hidden");
-    resultsGrid.setAttribute("hidden", "");
+
+    if (resultsGrid) {
+      resultsGrid.setAttribute("hidden", "");
+    }
+
     terminalOutput.innerHTML = "";
 
     addTerminalLine("Eldrichify Terminal v2.4.1", "info");
@@ -256,24 +268,26 @@
     reader.readAsDataURL(file);
 
     // Display server results if available
-    if (data && data.stages) {
-      if (data.stages.vae) {
-        document.getElementById("result-vae").src = data.stages.vae;
+    if (data && data.previews) {
+      // API returns previews object with base64 data URLs
+      if (data.previews.vae) {
+        document.getElementById("result-vae").src = data.previews.vae;
       }
-      if (data.stages.refined) {
-        document.getElementById("result-refined").src = data.stages.refined;
+      if (data.previews.refined) {
+        document.getElementById("result-refined").src = data.previews.refined;
       }
-      if (data.stages.upsampled) {
-        document.getElementById("result-upsampled").src = data.stages.upsampled;
+      if (data.previews.upsampled) {
+        document.getElementById("result-upsampled").src = data.previews.upsampled;
       }
-      if (data.stages.hd) {
-        const hdImg = document.getElementById("result-hd");
-        hdImg.src = data.stages.hd;
+      if (data.previews.hd) {
+        document.getElementById("result-hd").src = data.previews.hd;
+      }
 
-        // Setup download
+      // Setup download with final image URL
+      if (data.image_url) {
         const downloadBtn = document.getElementById("download-btn");
-        downloadBtn.href = data.stages.hd;
-        downloadBtn.download = `eldrichify_${Date.now()}.png`;
+        downloadBtn.href = data.image_url;
+        downloadBtn.download = data.filename || `eldrichify_${Date.now()}.png`;
       }
     } else {
       // Fallback: duplicate input for all stages

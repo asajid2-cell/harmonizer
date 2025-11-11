@@ -361,6 +361,9 @@ function createJRemixer(context, jquery) {
                         ocurAudioSource.stop(0);
                         ocurAudioSource = null;
                     }
+                    curQ = null;
+                    deltaTime = 0;
+                    skewDelta = 0;
                 },
 
                 curTime: function() {

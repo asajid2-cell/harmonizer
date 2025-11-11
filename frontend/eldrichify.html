@@ -63,7 +63,7 @@
                   <span>BROADCAST</span>
                 </div>
                 <div class="hero-cta">
-                  <button type="button" class="launch-link" data-scroll-target="#eldrichify-console">
+                  <button type="button" class="launch-link" id="launch-pipeline-btn">
                     Launch Pipeline ↓
                   </button>
                 </div>
@@ -131,7 +131,6 @@
       </div>
     </div>
 
-    <script src="./js/eldrichify.js"></script>
     <script>
       document.querySelectorAll("[data-scroll-target]").forEach((control) => {
         control.addEventListener("click", () => {
@@ -145,5 +144,6 @@
         });
       });
     </script>
+    <script src="./js/eldrichify.js"></script>
   </body>
 </html>
