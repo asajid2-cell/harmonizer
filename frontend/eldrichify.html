@@ -3,146 +3,147 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Eldrichify - Harmonizer Lab</title>
+    <title>Eldrichify · Harmonizer Lab</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./modern.css" />
     <link rel="stylesheet" href="./eldrichify.css" />
   </head>
-  <body class="page state-home advanced-collapsed eldrichify-page" data-mode="canon">
-    <div class="site-landing-banner">
-      <a href="/">&larr; Return to Internet Discotheque</a>
+  <body class="page state-home advanced-collapsed eldrichify-terminal" data-mode="canon">
+    <div class="music-field" aria-hidden="true">
+      <div class="music track one"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="music track two"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="music track three"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="music track four"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="music track five"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="music track six"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="music track seven"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="music track eight"><span></span><span></span><span></span><span></span><span></span></div>
     </div>
+
     <div class="page-shell">
-      <header class="hero eld-hero">
-        <div class="hero-meta">
-          <p class="hero-eyebrow">*** WELCOME TO THE ELDRICHIFY LAB ***</p>
-          <h1>Laser-grade upscaling</h1>
-          <p class="hero-lede">
-            Feed us an image and we run the same neon stack that powers Harmonizer overlays: VAE capture, latent refiner,
-            pixel upsampler, DF2K HD finish. Everything glows in-browser for rapid experimentation.
-          </p>
-          <ul class="hero-callouts eld-hero-callouts">
-            <li>Base VAE locks the structure.</li>
-            <li>Latent refiner removes crunchy artifacts.</li>
-            <li>Pixel + HD super-res stretches it to poster size.</li>
-          </ul>
-          <div class="retro-badges eld-badges">
-            <span class="retro-badge">VAE CORE</span>
-            <span class="retro-badge">LATENT LAB</span>
-            <span class="retro-badge">DF2K HD</span>
+      <div class="retro-wrapper">
+        <div class="retro-window">
+          <div class="retro-window__chrome">
+            <span class="retro-window__brand">Business Casual presents</span>
+            <span class="retro-window__title">Internet Discotheque</span>
+            <div class="retro-window__controls" aria-hidden="true">
+              <span class="retro-window__btn">_</span>
+              <span class="retro-window__btn">[]</span>
+              <span class="retro-window__btn">X</span>
+            </div>
           </div>
-        </div>
-        <div class="hero-visual eld-hero-visual" aria-hidden="true">
-          <div class="hero-orbit">
-            <span class="hero-ring ring-base"></span>
-            <span class="hero-ring ring-highlight"></span>
-          </div>
-          <pre class="ascii-woman eld-ascii">
-      /\      /   *  /  \ *  /       / /\ \ / /\     /_/  \_V_/  \_     \    *    /
-      \  o2o  /
-       \_____/
-          o2
-          </pre>
-          <pre class="ascii-background">
-*  .  *    .   *    .  *   .
-  .    *  .   *  .    *   .
-*   .    *  .   *  .   *
-  .  *   .    *   .  *  .
-*    .  *  .   *  .    *  .
-          </pre>
-        </div>
-      </header>
+          <nav class="retro-nav" aria-label="Desktop tabs">
+            <a href="/">Home</a>
+            <a href="/projects.html">Projects</a>
+            <a href="/cheatsheets">Cheatsheets</a>
+            <a href="https://plaza.one/" target="_blank" rel="noopener">Radio</a>
+            <a href="/harmonizer.html">Harmonizer</a>
+            <a href="/eldrichify.html" aria-current="page">Eldrichify</a>
+          </nav>
 
-      <section class="eld-info-grid" aria-label="Pipeline highlights">
-        <article class="eld-info-card">
-          <h3>Stage 01 &middot; VAE Capture</h3>
-          <p>Fast latent bottleneck trained on disco cuts to grab structure in seconds.</p>
-        </article>
-        <article class="eld-info-card">
-          <h3>Stage 02 &middot; Latent Refiner</h3>
-          <p>Residual MLP denoiser that snaps mushy latents back into alignment.</p>
-        </article>
-        <article class="eld-info-card">
-          <h3>Stage 03 &middot; Pixel + HD Super-Res</h3>
-          <p>Pixel shuffle to 64x64, then DF2K HD rockets it to poster-ready fidelity.</p>
-        </article>
-      </section>
-
-      <section class="eld-lab" aria-label="Eldrichify upload and preview console">
-        <article class="eld-console-panel eld-console-panel--form">
-          <header class="eld-console-header">
-            <p class="console-label">Upload</p>
-            <h2>Offer an image to the lab</h2>
-          </header>
-          <p class="console-copy">PNG, JPG, WEBP, or BMP &middot; up to 10 MB.</p>
-          <form id="eldrichify-form" class="eldrichify-form" novalidate>
-            <label class="eldrichify-dropzone" for="eldrichify-input" id="eldrichify-dropzone">
-              <input type="file" id="eldrichify-input" accept="image/png,image/jpeg,image/webp,image/bmp" required />
-              <span class="eldrichify-dropzone__icon" aria-hidden="true">*</span>
-              <span class="eldrichify-dropzone__text">
-                Drag a file or click to browse
-                <small>Nothing leaves your browser until you hit "Run Pipeline".</small>
-              </span>
-            </label>
-            <p class="eldrichify-selection" id="eldrichify-selection">No file selected yet.</p>
-            <div class="eldrichify-actions">
-              <button type="submit" id="eldrichify-submit" class="viz-button">
-                Run Pipeline
-              </button>
-              <div class="eldrichify-spinner" id="eldrichify-spinner" hidden>
-                <span></span><span></span><span></span>
+          <div class="retro-content eld-retro-content">
+            <header class="hero eld-hero-panel">
+              <div class="hero-meta">
+                <p class="hero-eyebrow">*** WELCOME TO THE ELDRICHIFY TERMINAL ***</p>
+                <h1>Photon-Safe Upscaling</h1>
+                <p class="hero-lede">
+                  Feed a still into the renderer. We snapshot the structure, scrub the noise, and let the DF2K beam
+                  enlarge it without smearing your neon edges.
+                </p>
+                <ul class="hero-callouts eld-callouts">
+                  <li>☍ Capture Mode → anchors geometry.</li>
+                  <li>☍ Refiner Mode → uncrunches gradients.</li>
+                  <li>☍ Broadcast Mode → DF2K poster-ready output.</li>
+                </ul>
+                <div class="hero-keys">
+                  <span>CAPTURE</span>
+                  <span>REFINE</span>
+                  <span>BROADCAST</span>
+                </div>
+                <div class="hero-cta">
+                  <button type="button" class="launch-link" data-scroll-target="#eldrichify-console">
+                    Launch Pipeline ↓
+                  </button>
+                </div>
               </div>
-            </div>
-          </form>
-          <div class="eld-status-strip">
-            <p class="eldrichify-status" id="eldrichify-status" role="status" aria-live="polite">
-              Waiting for an offering.
-            </p>
-            <ul class="eld-log" id="eldrichify-log" aria-live="polite"></ul>
-          </div>
-        </article>
+              <div class="hero-visual" aria-hidden="true">
+                <pre class="eld-terminal-ascii">
+     .----.             _.-^^---....,,--
+    / .--. \         _--                  --_
+   / /    \ \       <        SIGNAL HILL      >
+   | |    | |        \._                  _./
+   | |.-""-.|            '''--. . , ; .--'''
+  ///`.::::.`\               .:;:::;.
+ ||| ::/  \:: |           .::::'  `:::.
+ ||; ::\__/:: ;          ::::'      `:::
+  \\\ '::::' /           `:::        :::'
+   `=':-..-'`              `::.    .::'
+                           .`::::::'
+                           :::`  '.
+                           `:::.   `.
+                </pre>
+              </div>
+            </header>
 
-        <article class="eld-console-panel eld-console-panel--output">
-          <header class="eld-console-header">
-            <p class="console-label">Result</p>
-            <h2>Live preview & stages</h2>
-          </header>
-          <div class="eldrichify-output" id="eldrichify-results" hidden>
-            <div class="eld-output-frame">
-              <img id="eldrichify-result-image" alt="Eldrichified output" />
-            </div>
-            <div class="eld-output-meta">
-              <p id="eldrichify-meta"></p>
-              <a id="eldrichify-download" class="viz-button ghost" href="#" download target="_blank" rel="noopener">
-                Download PNG
-              </a>
-            </div>
-          </div>
-          <div class="eldrichify-placeholder" id="eldrichify-placeholder">
-            <p>Upload an image to see the pipeline glow.</p>
-          </div>
-          <div class="eldrichify-stages" id="eldrichify-stages" aria-live="polite"></div>
-        </article>
-      </section>
+            <section class="panel viz-panel music-frame eld-console" id="eldrichify-console">
+              <!-- Terminal Window (hidden by default) -->
+              <div class="eld-terminal-window" id="terminal-window" hidden>
+                <div class="eld-terminal-header">
+                  <span class="eld-terminal-prompt">eldrichify@photon-safe:~$</span>
+                  <button type="button" class="eld-terminal-close" id="terminal-close" aria-label="Close terminal">×</button>
+                </div>
+                <div class="eld-terminal-body" id="terminal-body">
+                  <div class="eld-terminal-output" id="terminal-output"></div>
+                  <div class="eld-terminal-input-line">
+                    <span class="eld-terminal-cursor">_</span>
+                  </div>
+                </div>
+              </div>
 
-      <section class="eld-gallery" aria-label="Recent transmissions">
-        <header class="eld-gallery__header">
-          <div>
-            <p class="console-label">Archive</p>
-            <h2>Internet Discotheque reels</h2>
-          </div>
-          <button type="button" class="ghost small" id="eldrichify-clear-gallery">Clear session</button>
-        </header>
-        <p class="eld-gallery__lede">
-          Every upload stays local to your browser. Use it as a scratchbook while working through Harmonizer riffs.
-        </p>
-        <div class="eld-gallery__grid" id="eldrichify-gallery" data-empty="true">
-          <p class="eld-gallery__empty">No reels yet. Once you upload, your latest six will land here.</p>
+              <!-- Results Display -->
+              <div class="eld-results-grid" id="results-grid" hidden>
+                <div class="eld-result-item" data-type="input">
+                  <div class="eld-result-label">INPUT</div>
+                  <img id="result-input" alt="Input image" />
+                </div>
+                <div class="eld-result-item" data-type="vae">
+                  <div class="eld-result-label">VAE CAPTURE</div>
+                  <img id="result-vae" alt="VAE capture" />
+                </div>
+                <div class="eld-result-item" data-type="refined">
+                  <div class="eld-result-label">REFINED</div>
+                  <img id="result-refined" alt="Refined" />
+                </div>
+                <div class="eld-result-item" data-type="upsampled">
+                  <div class="eld-result-label">UPSAMPLED</div>
+                  <img id="result-upsampled" alt="Upsampled" />
+                </div>
+                <div class="eld-result-item" data-type="hd">
+                  <div class="eld-result-label">HD OUTPUT</div>
+                  <img id="result-hd" alt="HD output" />
+                  <a class="eld-download-btn" id="download-btn" href="#" download target="_blank">↓ DOWNLOAD</a>
+                </div>
+              </div>
+            </section>
         </div>
-      </section>
+      </div>
     </div>
 
     <script src="./js/eldrichify.js"></script>
+    <script>
+      document.querySelectorAll("[data-scroll-target]").forEach((control) => {
+        control.addEventListener("click", () => {
+          const selector = control.getAttribute("data-scroll-target");
+          const target = selector ? document.querySelector(selector) : null;
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+            target.classList.add("is-highlighted");
+            setTimeout(() => target.classList.remove("is-highlighted"), 1400);
+          }
+        });
+      });
+    </script>
   </body>
 </html>

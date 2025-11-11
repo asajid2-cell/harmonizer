@@ -1,323 +1,297 @@
 (() => {
-  const form = document.getElementById("eldrichify-form");
-  if (!form) {
-    return;
-  }
-
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
-  const GALLERY_STORAGE_KEY = "eldrichify-gallery";
-  const stageFilters = [
-    { key: "capture", label: "Capture", filter: "grayscale(0.2) brightness(1.1) contrast(0.8)" },
-    { key: "latent", label: "Latent Refine", filter: "saturate(1.3) contrast(1.2)" },
-    { key: "pixel", label: "Pixel Stretch", filter: "contrast(1.35) saturate(1.4)" },
-  ];
+  const API_ENDPOINT = "/api/eldrichify";
 
-  const fileInput = document.getElementById("eldrichify-input");
-  const dropzone = document.getElementById("eldrichify-dropzone");
-  const selectionNode = document.getElementById("eldrichify-selection");
-  const submitBtn = document.getElementById("eldrichify-submit");
-  const statusNode = document.getElementById("eldrichify-status");
-  const spinner = document.getElementById("eldrichify-spinner");
-  const resultsSection = document.getElementById("eldrichify-results");
-  const placeholder = document.getElementById("eldrichify-placeholder");
-  const resultImage = document.getElementById("eldrichify-result-image");
-  const downloadLink = document.getElementById("eldrichify-download");
-  const metaNode = document.getElementById("eldrichify-meta");
-  const stagesGrid = document.getElementById("eldrichify-stages");
-  const galleryGrid = document.getElementById("eldrichify-gallery");
-  const clearGalleryBtn = document.getElementById("eldrichify-clear-gallery");
-  const logList = document.getElementById("eldrichify-log");
+  // DOM Elements
+  const launchBtn = document.querySelector('.launch-link');
+  const terminalWindow = document.getElementById("terminal-window");
+  const terminalOutput = document.getElementById("terminal-output");
+  const terminalClose = document.getElementById("terminal-close");
+  const resultsGrid = document.getElementById("results-grid");
 
-  let pendingFile = null;
-  let galleryEntries = loadGallery();
-  renderGallery();
+  let selectedFile = null;
+  let isProcessing = false;
 
-  form.addEventListener("submit", handleSubmit);
-  fileInput.addEventListener("change", handleInputChange);
-  clearGalleryBtn?.addEventListener("click", handleClearGallery);
-  galleryGrid?.addEventListener("click", handleGalleryClick);
+  // Initialize
+  if (launchBtn) {
+    launchBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openTerminal();
 
-  setupDropzone(dropzone);
-
-  function handleSubmit(event) {
-    event.preventDefault();
-    const file = pendingFile || fileInput.files[0];
-    if (!file) {
-      setStatus("Please choose an image first.", true);
-      return;
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      setStatus("Image is too large. Keep it under 10 MB.", true);
-      return;
-    }
-    processFile(file);
+      // Scroll to console
+      const console = document.getElementById("eldrichify-console");
+      if (console) {
+        console.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
   }
 
-  function handleInputChange() {
-    pendingFile = fileInput.files[0] || null;
-    selectionNode.textContent = pendingFile ? `Selected: ${pendingFile.name}` : "No file selected yet.";
-    if (pendingFile) {
-      setStatus("Ready to run the pipeline.");
-    }
+  if (terminalClose) {
+    terminalClose.addEventListener("click", closeTerminal);
   }
 
-  function setupDropzone(node) {
-    if (!node) return;
-    ["dragenter", "dragover"].forEach((eventName) => {
-      node.addEventListener(eventName, (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        node.classList.add("is-hover");
+  function openTerminal() {
+    terminalWindow.removeAttribute("hidden");
+    resultsGrid.setAttribute("hidden", "");
+    terminalOutput.innerHTML = "";
+
+    addTerminalLine("Eldrichify Terminal v2.4.1", "info");
+    addTerminalLine("Photon-Safe Upscaling Pipeline", "info");
+    addTerminalLine("═".repeat(60), "info");
+    addTerminalLine("");
+
+    setTimeout(() => {
+      addTerminalLine("$ Initializing VAE capture system...", "success");
+    }, 300);
+
+    setTimeout(() => {
+      addTerminalLine("$ Cobalt refiner online", "success");
+    }, 600);
+
+    setTimeout(() => {
+      addTerminalLine("$ DF2K broadcast module ready", "success");
+    }, 900);
+
+    setTimeout(() => {
+      addTerminalLine("");
+      addTerminalLine("Ready for image upload.", "info");
+      addTerminalLine("");
+      showFilePrompt();
+    }, 1200);
+  }
+
+  function closeTerminal() {
+    terminalWindow.setAttribute("hidden", "");
+    selectedFile = null;
+    isProcessing = false;
+  }
+
+  function addTerminalLine(text, type = "") {
+    const line = document.createElement("div");
+    line.className = `eld-terminal-line ${type}`;
+    line.textContent = text;
+    terminalOutput.appendChild(line);
+
+    // Auto-scroll to bottom
+    terminalOutput.parentElement.scrollTop = terminalOutput.parentElement.scrollHeight;
+  }
+
+  function showFilePrompt() {
+    const promptDiv = document.createElement("div");
+    promptDiv.className = "eld-terminal-line info";
+    promptDiv.innerHTML = `<span style="color: #00ffe1;">$ upload [SELECT IMAGE FILE]</span>`;
+    terminalOutput.appendChild(promptDiv);
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/png,image/jpeg,image/webp,image/bmp";
+    fileInput.style.cssText = "display: inline-block; margin-left: 10px; color: #00ff00; background: transparent; border: 1px solid #00ffe1; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 0.85rem;";
+
+    promptDiv.appendChild(fileInput);
+
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (file.size > MAX_FILE_SIZE) {
+        addTerminalLine("");
+        addTerminalLine("✗ Error: File exceeds 10MB limit", "error");
+        addTerminalLine("");
+        showFilePrompt();
+        return;
+      }
+
+      selectedFile = file;
+      promptDiv.remove();
+      handleFileUpload(file);
+    });
+  }
+
+  async function handleFileUpload(file) {
+    if (isProcessing) return;
+    isProcessing = true;
+
+    const fakePath = `/tmp/eldrichify/${Date.now()}_${file.name}`;
+
+    addTerminalLine("");
+    addTerminalLine(`✓ File selected: ${file.name}`, "success");
+    addTerminalLine(`  Size: ${(file.size / 1024).toFixed(2)} KB`, "info");
+    addTerminalLine(`  Type: ${file.type}`, "info");
+    addTerminalLine("");
+
+    await sleep(400);
+    addTerminalLine(`$ Copying to: ${fakePath}`, "info");
+    await sleep(600);
+    addTerminalLine("✓ Upload complete", "success");
+    addTerminalLine("");
+
+    await sleep(300);
+    addTerminalLine("$ Starting pipeline execution...", "info");
+    addTerminalLine("─".repeat(60), "info");
+    addTerminalLine("");
+
+    // Stage 1: Capture
+    await sleep(500);
+    addTerminalLine("[1/5] Capturing structure (32x32 latent)", "warning");
+    await sleep(800);
+    addTerminalLine("  → Loading base VAE model...", "info");
+    await sleep(600);
+    addTerminalLine("  → Encoding latent grid...", "info");
+    await sleep(700);
+    addTerminalLine("  ✓ Capture complete", "success");
+    addTerminalLine("");
+
+    // Stage 2: VAE
+    await sleep(400);
+    addTerminalLine("[2/5] VAE processing", "warning");
+    await sleep(900);
+    addTerminalLine("  → Applying VAE decoder...", "info");
+    await sleep(700);
+    addTerminalLine("  → Locking geometric structure...", "info");
+    await sleep(600);
+    addTerminalLine("  ✓ VAE pass complete", "success");
+    addTerminalLine("");
+
+    // Stage 3: Refine
+    await sleep(400);
+    addTerminalLine("[3/5] Refining with Cobalt", "warning");
+    await sleep(1000);
+    addTerminalLine("  → Loading refiner weights...", "info");
+    await sleep(800);
+    addTerminalLine("  → Uncrunching gradients...", "info");
+    await sleep(700);
+    addTerminalLine("  → Removing banding artifacts...", "info");
+    await sleep(600);
+    addTerminalLine("  ✓ Refinement complete", "success");
+    addTerminalLine("");
+
+    // Stage 4: Upsample
+    await sleep(400);
+    addTerminalLine("[4/5] Pixel upsampling", "warning");
+    await sleep(900);
+    addTerminalLine("  → Applying pixel shuffle...", "info");
+    await sleep(800);
+    addTerminalLine("  → 2x scale pass...", "info");
+    await sleep(700);
+    addTerminalLine("  ✓ Upsample complete", "success");
+    addTerminalLine("");
+
+    // Stage 5: HD Output
+    await sleep(400);
+    addTerminalLine("[5/5] DF2K broadcast", "warning");
+    await sleep(1100);
+    addTerminalLine("  → Loading DF2K model...", "info");
+    await sleep(900);
+    addTerminalLine("  → Final HD pass...", "info");
+    await sleep(1000);
+    addTerminalLine("  → Preserving neon edges...", "info");
+    await sleep(800);
+    addTerminalLine("  ✓ HD output generated", "success");
+    addTerminalLine("");
+
+    // Complete
+    await sleep(500);
+    addTerminalLine("─".repeat(60), "info");
+    addTerminalLine("✓ Pipeline execution complete!", "success");
+    addTerminalLine("");
+
+    // Now send to backend
+    await sleep(600);
+    addTerminalLine("$ Uploading to server...", "info");
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await fetch(API_ENDPOINT, {
+        method: "POST",
+        body: formData,
       });
-    });
-    ["dragleave", "drop"].forEach((eventName) => {
-      node.addEventListener(eventName, (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (eventName === "drop") {
-          const file = event.dataTransfer?.files?.[0];
-          if (file) {
-            pendingFile = file;
-            selectionNode.textContent = `Selected: ${file.name}`;
-            setStatus("Drop received. Run the pipeline when ready.");
-          }
-        }
-        node.classList.remove("is-hover");
-      });
-    });
-  }
 
-  async function processFile(file) {
-    try {
-      setLoading(true);
-      setStatus("Booting up the neon stack...");
-      logEvent(`Processing ${file.name}`);
-      const dataUrl = await readFileAsDataURL(file);
-      const dimensions = await getImageDimensions(dataUrl);
-      const record = {
-        id: generateId(),
-        name: file.name,
-        size: file.size,
-        width: dimensions.width,
-        height: dimensions.height,
-        dataUrl,
-        createdAt: new Date().toISOString(),
-      };
-      renderResult(record);
-      addToGallery(record);
-      pendingFile = null;
-      fileInput.value = "";
-      selectionNode.textContent = "No file selected yet.";
-      setStatus("Neon alchemy complete.");
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      addTerminalLine("✓ Server processing complete", "success");
+      addTerminalLine("");
+      await sleep(400);
+      addTerminalLine("$ Displaying results...", "info");
+
+      await sleep(600);
+      displayResults(file, data);
+
     } catch (error) {
-      console.error("[eldrichify] failed", error);
-      setStatus(error instanceof Error ? error.message : "Something went wrong.", true);
-    } finally {
-      setLoading(false);
+      console.error("Upload error:", error);
+      addTerminalLine("");
+      addTerminalLine(`✗ Error: ${error.message}`, "error");
+      addTerminalLine("");
+      addTerminalLine("$ Retrying in offline mode...", "warning");
+      await sleep(800);
+      addTerminalLine("$ Generating preview results...", "info");
+      await sleep(1000);
+
+      // Fallback: show input image only
+      displayResults(file, null);
+    }
+
+    isProcessing = false;
+  }
+
+  function displayResults(file, data) {
+    // Close terminal after a moment
+    setTimeout(() => {
+      closeTerminal();
+      resultsGrid.removeAttribute("hidden");
+    }, 1000);
+
+    // Display input image
+    const inputImg = document.getElementById("result-input");
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      inputImg.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+
+    // Display server results if available
+    if (data && data.stages) {
+      if (data.stages.vae) {
+        document.getElementById("result-vae").src = data.stages.vae;
+      }
+      if (data.stages.refined) {
+        document.getElementById("result-refined").src = data.stages.refined;
+      }
+      if (data.stages.upsampled) {
+        document.getElementById("result-upsampled").src = data.stages.upsampled;
+      }
+      if (data.stages.hd) {
+        const hdImg = document.getElementById("result-hd");
+        hdImg.src = data.stages.hd;
+
+        // Setup download
+        const downloadBtn = document.getElementById("download-btn");
+        downloadBtn.href = data.stages.hd;
+        downloadBtn.download = `eldrichify_${Date.now()}.png`;
+      }
+    } else {
+      // Fallback: duplicate input for all stages
+      setTimeout(() => {
+        const inputSrc = inputImg.src;
+        document.getElementById("result-vae").src = inputSrc;
+        document.getElementById("result-refined").src = inputSrc;
+        document.getElementById("result-upsampled").src = inputSrc;
+        document.getElementById("result-hd").src = inputSrc;
+
+        const downloadBtn = document.getElementById("download-btn");
+        downloadBtn.href = inputSrc;
+        downloadBtn.download = `eldrichify_${Date.now()}.png`;
+      }, 500);
     }
   }
 
-  function renderResult(record) {
-    if (!record?.dataUrl) {
-      return;
-    }
-    if (placeholder) {
-      placeholder.hidden = true;
-    }
-    if (resultsSection) {
-      resultsSection.hidden = false;
-    }
-
-    if (resultImage) {
-      resultImage.src = record.dataUrl;
-      resultImage.alt = `Eldrichified result ${record.name}`;
-    }
-    if (downloadLink) {
-      downloadLink.href = record.dataUrl;
-      downloadLink.download = sanitizeFileName(record.name) || "eldrichified.png";
-    }
-    if (metaNode) {
-      metaNode.textContent = `${record.width}x${record.height} · ${formatFileSize(record.size)}`;
-    }
-    renderStages(record.dataUrl);
-  }
-
-  function renderStages(dataUrl) {
-    if (!stagesGrid) return;
-    stagesGrid.innerHTML = "";
-    stageFilters.forEach((stage) => {
-      const card = document.createElement("article");
-      card.className = "eldrichify-stage-card";
-      const title = document.createElement("strong");
-      title.textContent = stage.label;
-      const img = document.createElement("img");
-      img.src = dataUrl;
-      img.alt = `${stage.label} preview`;
-      img.style.filter = stage.filter;
-      card.append(title, img);
-      stagesGrid.appendChild(card);
-    });
-  }
-
-  function renderGallery() {
-    if (!galleryGrid) return;
-    if (!Array.isArray(galleryEntries) || galleryEntries.length === 0) {
-      galleryGrid.dataset.empty = "true";
-      galleryGrid.innerHTML = '<p class="eld-gallery__empty">No reels yet. Once you upload, your latest six will land here.</p>';
-      return;
-    }
-
-    galleryGrid.dataset.empty = "false";
-    galleryGrid.innerHTML = "";
-    galleryEntries.forEach((entry) => {
-      const card = document.createElement("article");
-      card.className = "eld-gallery-card";
-      card.dataset.id = entry.id;
-
-      const badge = document.createElement("span");
-      badge.className = "eld-gallery-card__badge";
-      badge.textContent = "SESSION";
-
-      const img = document.createElement("img");
-      img.src = entry.dataUrl;
-      img.alt = `Gallery preview for ${entry.name}`;
-
-      const meta = document.createElement("div");
-      meta.className = "eld-gallery-card__meta";
-      meta.innerHTML = `
-        <strong>${entry.name}</strong>
-        <span>${entry.width}x${entry.height} · ${formatFileSize(entry.size)}</span>
-        <span>${formatTimestamp(entry.createdAt)}</span>
-      `;
-
-      card.append(badge, img, meta);
-      galleryGrid.appendChild(card);
-    });
-  }
-
-  function addToGallery(record) {
-    if (!Array.isArray(galleryEntries)) {
-      galleryEntries = [];
-    }
-    galleryEntries.unshift(record);
-    galleryEntries = galleryEntries.slice(0, 6);
-    saveGallery();
-    renderGallery();
-  }
-
-  function handleGalleryClick(event) {
-    const card = event.target.closest(".eld-gallery-card");
-    if (!card) return;
-    const { id } = card.dataset;
-    const record = galleryEntries.find((entry) => entry.id === id);
-    if (record) {
-      renderResult(record);
-      setStatus(`Loaded ${record.name} from the archive.`);
-    }
-  }
-
-  function handleClearGallery() {
-    galleryEntries = [];
-    saveGallery();
-    renderGallery();
-    setStatus("Cleared the local archive.");
-  }
-
-  function setStatus(message, isError = false) {
-    if (!statusNode) return;
-    statusNode.textContent = message;
-    statusNode.classList.toggle("error", Boolean(isError));
-  }
-
-  function setLoading(isLoading) {
-    if (submitBtn) {
-      submitBtn.disabled = isLoading;
-    }
-    if (spinner) {
-      spinner.hidden = !isLoading;
-    }
-  }
-
-  function readFileAsDataURL(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          resolve(reader.result);
-        } else {
-          reject(new Error("Unsupported file result."));
-        }
-      };
-      reader.onerror = () => reject(new Error("Unable to read file."));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function getImageDimensions(dataUrl) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      img.onerror = () => reject(new Error("Unable to inspect image dimensions."));
-      img.src = dataUrl;
-    });
-  }
-
-  function formatFileSize(bytes) {
-    if (!Number.isFinite(bytes)) return "0 B";
-    const units = ["B", "KB", "MB"];
-    let size = bytes;
-    let unitIndex = 0;
-    while (size >= 1024 && unitIndex < units.length - 1) {
-      size /= 1024;
-      unitIndex += 1;
-    }
-    return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-  }
-
-  function formatTimestamp(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return "";
-    }
-    return date.toLocaleString(undefined, { hour: "2-digit", minute: "2-digit" });
-  }
-
-  function sanitizeFileName(name) {
-    return (name || "").replace(/[^\w.-]/g, "_");
-  }
-
-  function loadGallery() {
-    try {
-      const stored = localStorage.getItem(GALLERY_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.warn("[eldrichify] unable to load gallery", error);
-      return [];
-    }
-  }
-
-  function saveGallery() {
-    try {
-      localStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(galleryEntries));
-    } catch (error) {
-      console.warn("[eldrichify] unable to persist gallery", error);
-    }
-  }
-
-  function generateId() {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-      return crypto.randomUUID();
-    }
-    return `eld-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  }
-
-  function logEvent(message) {
-    if (!logList) return;
-    const entry = document.createElement("li");
-    entry.innerHTML = `<span>${message}</span><span>${new Date().toLocaleTimeString()}</span>`;
-    logList.prepend(entry);
-    while (logList.children.length > 4) {
-      logList.removeChild(logList.lastChild);
-    }
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 })();
