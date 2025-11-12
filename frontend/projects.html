@@ -16,6 +16,7 @@
             --color-orange: #ff9933;
             --color-text: #e0ffe0;
             --cover-tile: url('./assets/cover.jpg');
+            --cover-tile-size: 320px;
         }
         * { box-sizing: border-box; }
         body {
@@ -29,44 +30,25 @@
                 radial-gradient(circle at 80% 0%, rgba(0, 255, 225, 0.05), transparent 65%),
                 linear-gradient(120deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.55)),
                 var(--cover-tile),
-                var(--cover-tile),
-                var(--cover-tile),
-                var(--cover-tile),
-                var(--cover-tile),
-                var(--cover-tile),
-                var(--cover-tile),
-                var(--cover-tile),
-                var(--cover-tile),
                 var(--cover-tile);
             background-size:
                 160% 160%,
                 120% 120%,
                 100% 100%,
-                520px auto,
-                420px auto,
-                360px auto,
-                300px auto,
-                280px auto,
-                240px auto,
-                320px auto,
-                260px auto,
-                340px auto,
-                380px auto;
+                var(--cover-tile-size) auto,
+                var(--cover-tile-size) auto;
             background-position:
                 -20% -10%,
                 120% -20%,
                 center,
-                4% 8%,
-                78% 6%,
-                16% 48%,
-                74% 46%,
-                12% 78%,
-                70% 86%,
-                44% 22%,
-                44% 70%,
-                92% 26%,
-                -6% 32%;
-            background-repeat: no-repeat;
+                0 0,
+                calc(var(--cover-tile-size) / 2) calc(var(--cover-tile-size) / 2);
+            background-repeat:
+                no-repeat,
+                no-repeat,
+                no-repeat,
+                repeat,
+                repeat;
             background-attachment: fixed;
             overflow-x: hidden;
         }
@@ -89,20 +71,68 @@
             padding: 40px 20px 60px;
         }
 
-        .back-link {
-            display: inline-block;
-            color: var(--color-cyan);
-            font-size: 0.85rem;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
+        .back-gate {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 30px;
             margin-bottom: 30px;
-            padding: 8px 0;
-            border-bottom: 2px solid transparent;
-            transition: border-color 0.2s;
+            font-size: 0.78rem;
+            letter-spacing: 0.28em;
+            text-transform: uppercase;
+            color: var(--color-text);
+            background: rgba(0, 0, 0, 0.75);
+            border: 2px solid var(--color-lime);
+            box-shadow: 0 0 25px rgba(0, 255, 150, 0.35);
+            overflow: hidden;
+            text-decoration: none;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .back-link:hover {
-            border-bottom-color: var(--color-purple);
+        .back-gate::before,
+        .back-gate::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .back-gate::before {
+            border: 2px solid rgba(255, 0, 255, 0.2);
+            transform: translate(6px, 6px);
+        }
+
+        .back-gate::after {
+            background: linear-gradient(120deg, rgba(0, 255, 225, 0.15), transparent 55%);
+            mix-blend-mode: screen;
+        }
+
+        .back-gate__icon {
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid var(--color-purple);
+            background: rgba(255, 0, 255, 0.2);
+            box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.4);
+        }
+
+        .back-gate__icon svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .back-gate__label {
+            position: relative;
+            z-index: 1;
+        }
+
+        .back-gate:hover {
+            transform: translateY(-3px);
+            border-color: var(--color-cyan);
+            box-shadow: 0 0 35px rgba(0, 255, 225, 0.4);
         }
 
         .page-header {
@@ -369,7 +399,15 @@
 </head>
 <body>
     <div class="container">
-        <a href="/" class="back-link">← Return to Internet Discotheque</a>
+        <a href="/" class="back-gate" aria-label="Return to Internet Discotheque home">
+            <span class="back-gate__icon" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9.5 3.5L4.5 8L9.5 12.5" stroke="#020202" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M5 8H13" stroke="#020202" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </span>
+            <span class="back-gate__label">Back to Internet Discotheque</span>
+        </a>
 
         <div class="page-header">
             <div class="page-eyebrow">*** ID CHIEF · コンシャスTHOUGHTS · ALOE ISLAND POSSE ***</div>

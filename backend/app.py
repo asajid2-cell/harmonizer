@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hmac
 import io
 import os
 import mimetypes
@@ -155,6 +156,26 @@ UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 DATA_FOLDER.mkdir(parents=True, exist_ok=True)
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
 ELDRICHIFY_OUTPUT_DIR = UPLOAD_FOLDER / "eldrichify"
+CHEATSHEET_UPLOAD_DIR = UPLOAD_FOLDER / "cheatsheets"
+CHEATSHEET_META_PATH = CHEATSHEET_UPLOAD_DIR / "entries.json"
+CHEATSHEET_ALLOWED_EXTENSIONS = {".txt", ".md", ".markdown"}
+CHEATSHEET_PASSWORD = os.environ.get("CHEATSHEET_PASSWORD", "")
+
+
+def _load_cheatsheet_entries() -> list[dict]:
+    if not CHEATSHEET_META_PATH.is_file():
+        return []
+    try:
+        with CHEATSHEET_META_PATH.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except json.JSONDecodeError:
+        return []
+
+
+def _save_cheatsheet_entries(entries: list[dict]) -> None:
+    CHEATSHEET_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    with CHEATSHEET_META_PATH.open("w", encoding="utf-8") as handle:
+        json.dump(entries, handle, indent=2)
 ELDRICHIFY_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
@@ -515,6 +536,70 @@ def api_eldrichify():
             "filename": filename,
             "original_size": {"width": result.original_size[0], "height": result.original_size[1]},
             "previews": previews,
+        }
+    )
+
+
+@app.route("/api/cheatsheets", methods=["GET", "POST"])
+def api_cheatsheets():
+    if request.method == "GET":
+        entries = [
+            {
+                "id": entry.get("id"),
+                "title": entry.get("title"),
+                "description": entry.get("description"),
+                "url": f"/media/{entry.get('relative_path')}",
+            }
+            for entry in _load_cheatsheet_entries()
+        ]
+        return jsonify({"entries": entries})
+
+    password = request.form.get("password", "")
+    if not CHEATSHEET_PASSWORD:
+        return jsonify({"error": "Cheatsheet uploads are disabled."}), 503
+    if not hmac.compare_digest(password, CHEATSHEET_PASSWORD):
+        return jsonify({"error": "Unauthorized."}), 403
+
+    upload = request.files.get("file")
+    title = (request.form.get("title") or "").strip()
+    description = (request.form.get("description") or "").strip()
+
+    if not upload or not upload.filename:
+        return jsonify({"error": "Attach a .txt or .md file."}), 400
+    if not title or not description:
+        return jsonify({"error": "Title and description are required."}), 400
+
+    ext = Path(upload.filename).suffix.lower()
+    if ext not in CHEATSHEET_ALLOWED_EXTENSIONS:
+        return jsonify({"error": "Only .txt or .md files are allowed."}), 400
+
+    safe_name = secure_filename(upload.filename) or f"cheatsheet{ext}"
+    unique_name = f"{uuid.uuid4().hex}{ext}"
+    relative_path = Path("cheatsheets") / unique_name
+    absolute_path = UPLOAD_FOLDER / relative_path
+    absolute_path.parent.mkdir(parents=True, exist_ok=True)
+    upload.save(absolute_path)
+
+    entry = {
+        "id": uuid.uuid4().hex,
+        "title": title,
+        "description": description,
+        "relative_path": relative_path.as_posix(),
+        "original_filename": safe_name,
+        "uploaded_at": time.time(),
+    }
+    entries = _load_cheatsheet_entries()
+    entries.append(entry)
+    _save_cheatsheet_entries(entries)
+
+    return jsonify(
+        {
+            "entry": {
+                "id": entry["id"],
+                "title": entry["title"],
+                "description": entry["description"],
+                "url": f"/media/{entry['relative_path']}",
+            }
         }
     )
 
