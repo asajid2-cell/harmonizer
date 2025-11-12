@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="./modern.css">
     <link rel="stylesheet" href="./visualizer.css">
 </head>
-<body class="page state-home advanced-collapsed" data-mode="canon">
+<body class="page state-home advanced-collapsed" data-mode="canon" data-disable-persistent-player="true">
     <div class="site-landing-banner"><a href="/">&#8592; Return to Internet Discotheque</a></div>
     <div class="music-field" aria-hidden="true">
         <div class="music track one"><span></span><span></span><span></span><span></span><span></span></div>
@@ -134,26 +134,26 @@ jgs   `-=========-`()
         <main class="layout">
             <section class="panel intake-panel" id="intake-panel">
                 <h2>Load A Track</h2>
-                <pre class="ascii-divider">～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～</pre>
+                <pre class="ascii-divider">ï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½ž</pre>
                 <form id="process-form" enctype="multipart/form-data" novalidate>
                     <div class="section-title">Engine</div>
                     <div class="mode-grid" id="algorithm-toggle">
                         <button type="button" data-algorithm="canon" class="mode-card toggle active">
-                            <span class="mode-card-icon" aria-hidden="true">∞</span>
+                            <span class="mode-card-icon" aria-hidden="true">âˆž</span>
                             <div class="mode-card-body">
                                 <h3>CANON</h3>
                                 <p>mirror voices, loop hook</p>
                             </div>
                         </button>
                         <button type="button" data-algorithm="jukebox" class="mode-card toggle">
-                            <span class="mode-card-icon" aria-hidden="true">◎</span>
+                            <span class="mode-card-icon" aria-hidden="true">â—Ž</span>
                             <div class="mode-card-body">
                                 <h3>JUKEBOX</h3>
                                 <p>jump beats forever</p>
                             </div>
                         </button>
                         <button type="button" data-algorithm="eternal" class="mode-card toggle">
-                            <span class="mode-card-icon" aria-hidden="true">⟲</span>
+                            <span class="mode-card-icon" aria-hidden="true">âŸ²</span>
                             <div class="mode-card-body">
                                 <h3>ETERNAL</h3>
                                 <p>layer + evolve</p>
@@ -161,7 +161,7 @@ jgs   `-=========-`()
                         </button>
                     </div>
                     <input type="hidden" name="algorithm" value="canon" id="algorithm-input">
-                    <pre class="ascii-divider">～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～</pre>
+                    <pre class="ascii-divider">ï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½žï½ž</pre>
                     <div class="section-title">Source</div>
                     <div class="toggle-group" id="source-toggle">
                         <button type="button" data-source="upload" class="toggle active">Upload Audio</button>
@@ -273,7 +273,7 @@ jgs   `-=========-`()
                                     <div class="queue-title-bar">
                                         <h4>Queue</h4>
                                         <div class="queue-window-controls">
-                                            <button type="button" id="queue-minimize-btn" class="queue-window-btn" aria-label="Minimize queue">−</button>
+                                            <button type="button" id="queue-minimize-btn" class="queue-window-btn" aria-label="Minimize queue">âˆ’</button>
                                             <button type="button" id="queue-close-btn" class="queue-window-btn" aria-label="Close queue">&times;</button>
                                         </div>
                                     </div>
@@ -320,15 +320,15 @@ jgs   `-=========-`()
 
         <!-- Harmonizer Lab badge + rotating footer -->
         <div class="corner-cluster">
-            <span class="ascii-corner-art">♫ o2</span>
+            <span class="ascii-corner-art">â™ª o2</span>
             <span class="cluster-separator">|</span>
             <footer class="viz-footer" id="footer-text">drive safe i fucking love you &lt;3</footer>
             <span class="cluster-separator">|</span>
-            <span class="ascii-corner-art-right">♪ o2</span>
+            <span class="ascii-corner-art-right">â™ª o2</span>
         </div>
         </div>
 
-            <!-- ✅ Script to randomize the footer message + layout helpers -->
+            <!-- âœ… Script to randomize the footer message + layout helpers -->
             <script>
                 (function() {
                     var banner = document.querySelector('.site-landing-banner');
@@ -351,8 +351,8 @@ jgs   `-=========-`()
                     "drive safe i fucking love you <3",
                     "text me when you get home <3",
                     "made for you, by you <3",
-                    "you’re doing amazing, keep going <3",
-                    "i’m proud of you, always <3",
+                    "youâ€™re doing amazing, keep going <3",
+                    "iâ€™m proud of you, always <3",
                     " i do bad all by myself :p",
                     " you are enough, just as you are <3",
                     "every day is all there is <3",
@@ -366,9 +366,19 @@ jgs   `-=========-`()
                     " you are my sunshine <3",
                     "u make my day less grey :o",
                     "passionate from miles away :o",
-                    "were just some soul with good intentions :p",
-                    "who do you think you are? i am :b",
+                    "were just some souls with good intentions :p",
+                    "who do you think you are? i am :p",
                     "im sure we're taller in another dimension <3",
+                    "be gentle with yourself, please <3",
+                    "take a deep breath, youâ€™re okay <3",
+                    "somewhere, someone is proud of you <3",
+                    "the stars miss you <3",
+                    "love me or lose me :p",
+                    "everything feels like forever at night <3",
+                    "bad decisions build character :p",
+                    "some days the moon feels closer <3",
+                    "timeâ€™s weird but so are we <3",
+
 
                 ];
 
@@ -2233,8 +2243,10 @@ jgs   `-=========-`()
         window.addEventListener('harmonizer:beatRoundingSync', syncBeatToggle);
     })();
     </script>
+<script src="./js/persistent-player.js" defer></script>
 </body>
 </html>
+
 
 
 
