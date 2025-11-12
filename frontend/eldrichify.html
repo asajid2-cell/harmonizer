@@ -1,6 +1,6 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Eldrichify · Harmonizer Lab</title>
@@ -9,170 +9,129 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./modern.css" />
     <link rel="stylesheet" href="./eldrichify.css" />
-  </head>
-  <body class="page state-home advanced-collapsed eldrichify-terminal" data-mode="canon">
-    <div class="music-field" aria-hidden="true">
-      <div class="music track one"><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="music track two"><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="music track three"><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="music track four"><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="music track five"><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="music track six"><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="music track seven"><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="music track eight"><span></span><span></span><span></span><span></span><span></span></div>
-    </div>
-
-    <div class="page-shell">
-      <div class="retro-wrapper">
-        <div class="retro-window">
-          <div class="retro-window__chrome">
-            <span class="retro-window__brand">Business Casual presents</span>
-            <span class="retro-window__title">Internet Discotheque</span>
-            <div class="retro-window__controls" aria-hidden="true">
-              <span class="retro-window__btn">_</span>
-              <span class="retro-window__btn">[]</span>
-              <span class="retro-window__btn">X</span>
+</head>
+<body class="eldrichify-terminal">
+    <main class="eld-main">
+        <a class="eld-back-link" href="/">&#8592; RETURN TO INTERNET DISCOTHEQUE</a>
+        <section class="eld-shell">
+            <div class="eld-hero">
+                <div class="eld-hero-copy">
+                    <p class="eld-eyebrow">NEON VAE LAB // 32A-32</p>
+                    <h1>ELDRICHIFY</h1>
+                    <p>
+                        Compress any artwork through the Harmonizer VAE stack, then rebuild it with latent noise,
+                        residual refiners, and DF2K super-res. The output is warped, fragile, and perfect for album backdrops.
+                    </p>
+                    <ul class="eld-callouts">
+                        <li>&#10022; 32A-32 latent bottleneck + reconstruction loop</li>
+                        <li>&#10022; Residual MLP layers inject texture + neon halos</li>
+                        <li>&#10022; DF2K upsampler pushes the final pass to HD</li>
+                    </ul>
+                    <div class="eld-badge-row">
+                        <span class="eld-badge">VAE</span>
+                        <span class="eld-badge">RESIDUAL LAB</span>
+                        <span class="eld-badge">SUPER-RES</span>
+                    </div>
+                    <div class="eld-cta-row">
+                        <button type="button" class="launch-link viz-button" id="launch-pipeline-btn">Launch Pipeline</button>
+                        <a class="viz-button ghost" href="/projects">View Projects</a>
+                    </div>
+                </div>
+                <div class="eld-hero-art" aria-hidden="true"><pre>
+   .-""-.
+  / .--. \
+ / /    \ \
+ | |    | |
+ | |.-""-.|
+ ///`.::::.\
+ ||| ::/  \::
+ ||; ::\__/::
+  \\\ '::::' /
+   `=':-..-'`
+  latent beacon
+</pre></div>
             </div>
-          </div>
-          <nav class="retro-nav" aria-label="Desktop tabs">
-            <a href="/">Home</a>
-            <a href="/projects.html">Projects</a>
-            <a href="/cheatsheets">Cheatsheets</a>
-            <a href="https://plaza.one/" target="_blank" rel="noopener">Radio</a>
-            <a href="/harmonizer.html">Harmonizer</a>
-            <a href="/eldrichify.html" aria-current="page">Eldrichify</a>
-          </nav>
 
-          <div class="retro-content eld-retro-content">
-            <header class="hero eld-hero-panel">
-              <div class="hero-meta">
-                <p class="hero-eyebrow">*** ELDRICHIFY PIPELINE ***</p>
-                <h1>VAE IMAGE DISTORTION</h1>
-                <p class="hero-lede">
-                  Compress images through a 32×32 latent bottleneck, then reconstruct them. The VAE creates artifacts
-                  and distortions that look kind of cool.
-                </p>
-                <ul class="hero-callouts eld-callouts">
-                  <li>☍ 32×32 latent bottleneck → VAE reconstruction</li>
-                  <li>☍ Residual MLP → latent space refinement</li>
-                  <li>☍ DF2K super-res → 16× final upscale</li>
-                </ul>
-                <div class="hero-cta">
-                  <button type="button" class="launch-link" id="launch-pipeline-btn">
-                    Launch Pipeline ↓
-                  </button>
+            <section class="eld-console" id="eldrichify-console">
+                <div class="eld-disconnected" id="terminal-disconnected">
+                    <div class="eld-disconnected-icon">&#9889;</div>
+                    <div class="eld-disconnected-text">TERMINAL DISCONNECTED</div>
+                    <div class="eld-disconnected-subtext">Click "Launch Pipeline" to connect</div>
                 </div>
-              </div>
-              <div class="hero-visual" aria-hidden="true">
-                <pre class="eld-terminal-ascii">
-     .----.             _.-^^---....,,--
-    / .--. \         _--                  --_
-   / /    \ \       <        SIGNAL HILL      >
-   | |    | |        \._                  _./
-   | |.-""-.|            '''--. . , ; .--'''
-  ///`.::::.`\               .:;:::;.
- ||| ::/  \:: |           .::::'  `:::.
- ||; ::\__/:: ;          ::::'      `:::
-  \\\ '::::' /           `:::        :::'
-   `=':-..-'`              `::.    .::'
-                           .`::::::'
-                           :::`  '.
-                           `:::.   `.
-                </pre>
-              </div>
-            </header>
 
-            <section class="panel viz-panel music-frame eld-console" id="eldrichify-console">
-              <!-- Disconnected Message (shown by default) -->
-              <div class="eld-disconnected" id="terminal-disconnected">
-                <div class="eld-disconnected-icon">⚠</div>
-                <div class="eld-disconnected-text">TERMINAL DISCONNECTED</div>
-                <div class="eld-disconnected-subtext">Click "Launch Pipeline ↓" to connect</div>
-              </div>
+                <div class="eld-terminal-window" id="terminal-window" hidden>
+                    <div class="eld-terminal-header">
+                        <span class="eld-terminal-prompt">eldrichify@photon-safe:~$</span>
+                        <button type="button" class="eld-terminal-close" id="terminal-close" aria-label="Close terminal">&#9587;</button>
+                    </div>
+                    <div class="eld-terminal-body" id="terminal-body">
+                        <div class="eld-terminal-output" id="terminal-output"></div>
+                        <div class="eld-terminal-input-line">
+                            <span class="eld-terminal-cursor">_</span>
+                        </div>
+                    </div>
+                </div>
 
-              <!-- Terminal Window (hidden by default) -->
-              <div class="eld-terminal-window" id="terminal-window" hidden>
-                <div class="eld-terminal-header">
-                  <span class="eld-terminal-prompt">eldrichify@photon-safe:~$</span>
-                  <button type="button" class="eld-terminal-close" id="terminal-close" aria-label="Close terminal">×</button>
+                <div class="eld-results-grid" id="results-grid" hidden>
+                    <div class="eld-result-item" data-type="input">
+                        <div class="eld-result-label">INPUT (32A-32)</div>
+                        <img id="result-input" alt="Input image" />
+                        <a class="eld-download-btn" id="download-input" data-stage="input" href="#" download>&#8681; DOWNLOAD</a>
+                    </div>
+                    <div class="eld-result-item" data-type="vae">
+                        <div class="eld-result-label">VAE (32A-32)</div>
+                        <img id="result-vae" alt="VAE capture" />
+                        <a class="eld-download-btn" id="download-vae" data-stage="vae" href="#" download>&#8681; DOWNLOAD</a>
+                    </div>
+                    <div class="eld-result-item" data-type="refined">
+                        <div class="eld-result-label">REFINED (32A-32)</div>
+                        <img id="result-refined" alt="Refined" />
+                        <a class="eld-download-btn" id="download-refined" data-stage="refined" href="#" download>&#8681; DOWNLOAD</a>
+                    </div>
+                    <div class="eld-result-item" data-type="upsampled">
+                        <div class="eld-result-label">UPSAMPLED (64A-64)</div>
+                        <img id="result-upsampled" alt="Upsampled" />
+                        <a class="eld-download-btn" id="download-upsampled" data-stage="upsampled" href="#" download>&#8681; DOWNLOAD</a>
+                    </div>
+                    <div class="eld-result-item" data-type="hd">
+                        <div class="eld-result-label">HD OUTPUT</div>
+                        <img id="result-hd" alt="HD output" />
+                        <a class="eld-download-btn" id="download-hd" data-stage="hd" href="#" download>&#8681; DOWNLOAD</a>
+                    </div>
                 </div>
-                <div class="eld-terminal-body" id="terminal-body">
-                  <div class="eld-terminal-output" id="terminal-output"></div>
-                  <div class="eld-terminal-input-line">
-                    <span class="eld-terminal-cursor">_</span>
-                  </div>
-                </div>
-              </div>
 
-              <!-- Results Display -->
-              <div class="eld-results-grid" id="results-grid" hidden>
-                <div class="eld-result-item" data-type="input">
-                  <div class="eld-result-label">INPUT (32×32)</div>
-                  <img id="result-input" alt="Input image" />
-                  <a class="eld-download-btn" id="download-input" data-stage="input" href="#" download>↓ DOWNLOAD</a>
+                <div class="eld-download-panel" id="download-panel" hidden>
+                    <div class="eld-download-panel__label">Custom download size</div>
+                    <div class="eld-download-panel__form">
+                        <label>
+                            Width
+                            <input type="number" id="download-width" min="32" max="4096" placeholder="768" />
+                        </label>
+                        <span class="eld-download-panel__x">×</span>
+                        <label>
+                            Height
+                            <input type="number" id="download-height" min="32" max="4096" placeholder="768" />
+                        </label>
+                        <button type="button" id="download-reset" class="eld-download-panel__reset">Use native</button>
+                    </div>
+                    <div class="eld-download-panel__hint">Pick any size after the pipeline finishes. Leave blank or use "Use native" to keep the original stage resolution.</div>
                 </div>
-                <div class="eld-result-item" data-type="vae">
-                  <div class="eld-result-label">VAE (32×32)</div>
-                  <img id="result-vae" alt="VAE capture" />
-                  <a class="eld-download-btn" id="download-vae" data-stage="vae" href="#" download>↓ DOWNLOAD</a>
-                </div>
-                <div class="eld-result-item" data-type="refined">
-                  <div class="eld-result-label">REFINED (32×32)</div>
-                  <img id="result-refined" alt="Refined" />
-                  <a class="eld-download-btn" id="download-refined" data-stage="refined" href="#" download>↓ DOWNLOAD</a>
-                </div>
-                <div class="eld-result-item" data-type="upsampled">
-                  <div class="eld-result-label">UPSAMPLED (64×64)</div>
-                  <img id="result-upsampled" alt="Upsampled" />
-                  <a class="eld-download-btn" id="download-upsampled" data-stage="upsampled" href="#" download>↓ DOWNLOAD</a>
-                </div>
-                <div class="eld-result-item" data-type="hd">
-                  <div class="eld-result-label">HD OUTPUT</div>
-                  <img id="result-hd" alt="HD output" />
-                  <a class="eld-download-btn" id="download-hd" data-stage="hd" href="#" download>↓ DOWNLOAD</a>
-                </div>
-              </div>
-
-              <div class="eld-download-panel" id="download-panel" hidden>
-                <div class="eld-download-panel__label">Custom download size</div>
-                <div class="eld-download-panel__form">
-                  <label>
-                    Width
-                    <input type="number" id="download-width" min="32" max="4096" placeholder="768" />
-                  </label>
-                  <span class="eld-download-panel__x">×</span>
-                  <label>
-                    Height
-                    <input type="number" id="download-height" min="32" max="4096" placeholder="768" />
-                  </label>
-                  <button type="button" id="download-reset" class="eld-download-panel__reset">Use native</button>
-                </div>
-                <div class="eld-download-panel__hint">Pick any size after the pipeline finishes. Leave blank or use "Use native" to keep the original stage resolution.</div>
-              </div>
             </section>
-        </div>
-      </div>
-    </div>
 
-    <!-- Lightbox for enlarged images -->
+            <div class="eld-links-grid">
+                <a class="eld-link-card" href="/commands.txt" target="_blank" rel="noopener">Command Deck</a>
+                <a class="eld-link-card" href="/RENDER_FIX.md" target="_blank" rel="noopener">Render Fixes</a>
+                <a class="eld-link-card" href="/startup.txt" target="_blank" rel="noopener">Startup Ritual</a>
+                <a class="eld-link-card" href="/loader.html">Broadcast Loader</a>
+            </div>
+        </section>
+    </main>
+
     <div class="eld-lightbox" id="image-lightbox">
-      <span class="eld-lightbox-close">&times;</span>
-      <img id="lightbox-img" src="" alt="Enlarged view" />
+        <span class="eld-lightbox-close">&times;</span>
+        <img id="lightbox-img" src="" alt="Enlarged view" />
     </div>
 
-    <script>
-      document.querySelectorAll("[data-scroll-target]").forEach((control) => {
-        control.addEventListener("click", () => {
-          const selector = control.getAttribute("data-scroll-target");
-          const target = selector ? document.querySelector(selector) : null;
-          if (target) {
-            target.scrollIntoView({ behavior: "smooth", block: "start" });
-            target.classList.add("is-highlighted");
-            setTimeout(() => target.classList.remove("is-highlighted"), 1400);
-          }
-        });
-      });
-    </script>
     <script src="./js/eldrichify.js"></script>
-  </body>
+</body>
 </html>
