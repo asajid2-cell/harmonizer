@@ -1,6 +1,8 @@
 (() => {
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
   const API_ENDPOINT = "/api/eldrichify";
+  const MIN_DOWNLOAD_SIZE = 32;
+  const MAX_DOWNLOAD_SIZE = 4096;
 
   // DOM Elements
   const launchBtn = document.querySelector('.launch-link');
@@ -9,11 +11,15 @@
   const terminalClose = document.getElementById("terminal-close");
   const resultsGrid = document.getElementById("results-grid");
   const terminalDisconnected = document.getElementById("terminal-disconnected");
-  const sizeSelector = document.getElementById("size-selector");
+  const downloadPanel = document.getElementById("download-panel");
+  const downloadWidthInput = document.getElementById("download-width");
+  const downloadHeightInput = document.getElementById("download-height");
+  const downloadResetBtn = document.getElementById("download-reset");
+  const downloadButtons = document.querySelectorAll(".eld-download-btn");
 
   let selectedFile = null;
   let isProcessing = false;
-  let selectedSize = 768; // default size
+  const stageDownloads = {};
 
   // Initialize
   if (launchBtn) {
@@ -36,18 +42,10 @@
     terminalClose.addEventListener("click", closeTerminal);
   }
 
-  // Size selector buttons
-  if (sizeSelector) {
-    const sizeButtons = sizeSelector.querySelectorAll('.eld-size-btn');
-    sizeButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        // Remove active from all buttons
-        sizeButtons.forEach(b => b.classList.remove('active'));
-        // Add active to clicked button
-        btn.classList.add('active');
-        // Update selected size
-        selectedSize = parseInt(btn.getAttribute('data-size'));
-      });
+  if (downloadResetBtn && downloadWidthInput && downloadHeightInput) {
+    downloadResetBtn.addEventListener("click", () => {
+      downloadWidthInput.value = "";
+      downloadHeightInput.value = "";
     });
   }
 
@@ -55,11 +53,6 @@
     if (!terminalWindow || !terminalOutput) {
       console.error("Terminal elements not found!");
       return;
-    }
-
-    // Show size selector and terminal, hide disconnected message and results
-    if (sizeSelector) {
-      sizeSelector.removeAttribute("hidden");
     }
 
     terminalWindow.removeAttribute("hidden");
@@ -71,6 +64,12 @@
     if (resultsGrid) {
       resultsGrid.setAttribute("hidden", "");
     }
+
+    if (downloadPanel) {
+      downloadPanel.setAttribute("hidden", "");
+    }
+
+    clearStageDownloads();
 
     terminalOutput.innerHTML = "";
 
@@ -102,8 +101,8 @@
   function closeTerminal() {
     terminalWindow.setAttribute("hidden", "");
 
-    if (sizeSelector) {
-      sizeSelector.setAttribute("hidden", "");
+    if (downloadPanel) {
+      downloadPanel.setAttribute("hidden", "");
     }
 
     // Show disconnected message again
@@ -111,8 +110,21 @@
       terminalDisconnected.removeAttribute("hidden");
     }
 
+    clearStageDownloads();
     selectedFile = null;
     isProcessing = false;
+  }
+
+  function clearStageDownloads() {
+    Object.keys(stageDownloads).forEach((key) => {
+      delete stageDownloads[key];
+    });
+    if (downloadButtons && downloadButtons.length) {
+      downloadButtons.forEach((btn) => {
+        btn.removeAttribute("download");
+        btn.setAttribute("href", "#");
+      });
+    }
   }
 
   function addTerminalLine(text, type = "") {
@@ -159,6 +171,10 @@
   async function handleFileUpload(file) {
     if (isProcessing) return;
     isProcessing = true;
+    clearStageDownloads();
+    if (downloadPanel) {
+      downloadPanel.setAttribute("hidden", "");
+    }
 
     const fakePath = `/tmp/eldrichify/${Date.now()}_${file.name}`;
 
@@ -251,7 +267,6 @@
     try {
       const formData = new FormData();
       formData.append("image", file);
-      formData.append("target_size", selectedSize);
 
       const response = await fetch(API_ENDPOINT, {
         method: "POST",
@@ -293,10 +308,12 @@
     // Close terminal and size selector, show results
     setTimeout(() => {
       terminalWindow.setAttribute("hidden", "");
-      if (sizeSelector) {
-        sizeSelector.setAttribute("hidden", "");
+      if (resultsGrid) {
+        resultsGrid.removeAttribute("hidden");
       }
-      resultsGrid.removeAttribute("hidden");
+      if (downloadPanel) {
+        downloadPanel.removeAttribute("hidden");
+      }
       // Don't show disconnected message when displaying results
       selectedFile = null;
       isProcessing = false;
@@ -306,11 +323,14 @@
     const inputImg = document.getElementById("result-input");
     const reader = new FileReader();
     reader.onload = (e) => {
-      inputImg.src = e.target.result;
+      const dataUrl = e.target.result;
+      inputImg.src = dataUrl;
       // Set up download for original input
       const downloadInput = document.getElementById("download-input");
-      downloadInput.href = e.target.result;
-      downloadInput.download = `input_${file.name}`;
+      const filename = `input_${file.name}`;
+      downloadInput.href = dataUrl;
+      downloadInput.download = filename;
+      stageDownloads.input = { dataUrl, filename };
     };
     reader.readAsDataURL(file);
 
@@ -322,9 +342,12 @@
         if (data.previews[stage]) {
           const img = document.getElementById(`result-${stage}`);
           const downloadBtn = document.getElementById(`download-${stage}`);
-          img.src = data.previews[stage];
-          downloadBtn.href = data.previews[stage];
-          downloadBtn.download = `${stage}_${Date.now()}.png`;
+          const dataUrl = data.previews[stage];
+          const filename = `${stage}_${Date.now()}.png`;
+          img.src = dataUrl;
+          downloadBtn.href = dataUrl;
+          downloadBtn.download = filename;
+          stageDownloads[stage] = { dataUrl, filename };
         }
       });
     } else {
@@ -332,14 +355,108 @@
       setTimeout(() => {
         const inputSrc = inputImg.src;
         ['vae', 'refined', 'upsampled', 'hd'].forEach(stage => {
-          document.getElementById(`result-${stage}`).src = inputSrc;
+          const stageImg = document.getElementById(`result-${stage}`);
           const downloadBtn = document.getElementById(`download-${stage}`);
+          const filename = `${stage}_${Date.now()}.png`;
+          stageImg.src = inputSrc;
           downloadBtn.href = inputSrc;
-          downloadBtn.download = `${stage}_${Date.now()}.png`;
+          downloadBtn.download = filename;
+          stageDownloads[stage] = { dataUrl: inputSrc, filename };
         });
       }, 500);
     }
   }
+
+  function getCustomSize() {
+    if (!downloadWidthInput || !downloadHeightInput) {
+      return null;
+    }
+    const widthRaw = downloadWidthInput.value.trim();
+    const heightRaw = downloadHeightInput.value.trim();
+    if (!widthRaw && !heightRaw) {
+      return null;
+    }
+    const fallback = widthRaw || heightRaw;
+    const widthValue = parseInt(widthRaw || fallback, 10);
+    const heightValue = parseInt(heightRaw || fallback, 10);
+    const width = normalizeDimension(widthValue);
+    const height = normalizeDimension(heightValue);
+    if (width === null || height === null) {
+      return null;
+    }
+    return { width, height };
+  }
+
+  function normalizeDimension(value) {
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+    const rounded = Math.round(value);
+    if (rounded <= 0) {
+      return null;
+    }
+    return Math.max(MIN_DOWNLOAD_SIZE, Math.min(MAX_DOWNLOAD_SIZE, rounded));
+  }
+
+  function resizeDataUrl(dataUrl, width, height) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Unable to get canvas context"));
+          return;
+        }
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => reject(new Error("Failed to load image for resizing"));
+      img.src = dataUrl;
+    });
+  }
+
+  function triggerDownload(dataUrl, filename) {
+    const tempLink = document.createElement("a");
+    tempLink.href = dataUrl;
+    tempLink.download = filename || `eldrichify_${Date.now()}.png`;
+    document.body.appendChild(tempLink);
+    tempLink.click();
+    tempLink.remove();
+  }
+
+  function setupDownloadButtons() {
+    if (!downloadButtons || downloadButtons.length === 0) {
+      return;
+    }
+    downloadButtons.forEach((btn) => {
+      btn.addEventListener("click", async (event) => {
+        event.preventDefault();
+        const stage = btn.getAttribute("data-stage");
+        const payload = stage ? stageDownloads[stage] : null;
+        if (!payload) {
+          return;
+        }
+        const customSize = getCustomSize();
+        let dataUrl = payload.dataUrl;
+        if (customSize) {
+          try {
+            dataUrl = await resizeDataUrl(payload.dataUrl, customSize.width, customSize.height);
+          } catch (err) {
+            console.warn("Custom resize failed, falling back to native download", err);
+            dataUrl = payload.dataUrl;
+          }
+        }
+        triggerDownload(dataUrl, payload.filename);
+      });
+    });
+  }
+
+  setupDownloadButtons();
 
   function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));

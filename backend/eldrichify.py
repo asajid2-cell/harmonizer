@@ -379,12 +379,17 @@ class EldrichifyPipeline:
         target = target_resolution or (orig_width, orig_height)
         return self._run_tensor(tensor, target)
 
-    def run_from_file(self, file_obj: BinaryIO | str | Path) -> EldrichifyResult:
+    def run_from_file(
+        self,
+        file_obj: BinaryIO | str | Path,
+        *,
+        target_resolution: tuple[int, int] | None = None,
+    ) -> EldrichifyResult:
         if isinstance(file_obj, (str, Path)):
             image = Image.open(file_obj)
         else:
             image = Image.open(file_obj)
-        return self.run(image)
+        return self.run(image, target_resolution=target_resolution)
 
     def save_result(self, image: Image.Image, output_path: Path, target_resolution: tuple[int, int] | None = None) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
