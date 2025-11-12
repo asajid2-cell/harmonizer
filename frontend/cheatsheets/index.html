@@ -6,8 +6,15 @@
     <title>Quick Reference &mdash; Internet Discotheque</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@600&display=swap" rel="stylesheet">
     <style>
+*{scrollbar-width:none!important;-ms-overflow-style:none!important}
+*::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+*::-webkit-scrollbar-track{display:none!important}
+*::-webkit-scrollbar-thumb{display:none!important}
+html::-webkit-scrollbar{display:none!important;width:0!important}
+html{scrollbar-width:none!important;-ms-overflow-style:none!important}
+
         :root {
             --bg: #05030a;
             --grid: rgba(255, 255, 255, 0.08);
@@ -17,38 +24,66 @@
             --lime: #9dff63;
             --ink: #0b0814;
             --text: #f2f6ff;
+            --banner-height: 56px;
         }
         * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            min-height: 100vh;
-            font-family: "JetBrains Mono", monospace;
-            color: var(--text);
-            background:
-                linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px) repeat-x,
-                linear-gradient(180deg, rgba(255,255,255,0.04) 1px, transparent 1px) repeat-y,
-                var(--bg);
-            background-size: 24px 24px, 24px 24px, auto;
-            padding: 32px 16px 72px;
+        body { margin: 0; min-height: 100vh; font-family: "JetBrains Mono", monospace; color: var(--text); background-color: #000; background-image: radial-gradient(circle, #ffffff 1px, transparent 1px), radial-gradient(circle, #ffffff 1px, transparent 1px); background-size: 50px 50px, 80px 80px; background-position: 0 0, 40px 40px; background-attachment: fixed; padding: 0 16px 72px; position: relative; overflow-x: hidden; }
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            z-index: 1000;
+            pointer-events: none;
+            background: linear-gradient(90deg, #ff00ff 0%, #ff6600 25%, #00ffff 50%, #00ff00 75%, #ff00ff 100%);
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+            animation: bar-glow 3s ease-in-out infinite;
+        }
+        .site-landing-banner {
+            width: calc(100% + 32px);
+            margin: 0 -16px;
+            background: rgba(7, 8, 20, 0.9);
+            backdrop-filter: blur(8px);
+            padding: 12px 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 1200;
+            border-bottom: 1px solid rgba(232, 180, 184, 0.35);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+        }
+        .site-landing-banner a {
+            color: #f9f6f2;
+            font-family: "Manrope", sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            text-decoration: none;
+        }
+        .site-landing-banner a:hover,
+        .site-landing-banner a:focus-visible {
+            color: #ffbed8;
+        }
+        @keyframes bar-glow {
+            0%, 100% {
+                opacity: 1;
+                box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+            }
+            50% {
+                opacity: 0.85;
+                box-shadow: 0 0 30px rgba(255, 0, 255, 1);
+            }
         }
         .wrapper {
             max-width: 1100px;
-            margin: 0 auto;
+            margin: 32px auto 0;
             border: 3px double var(--cyan);
             padding: clamp(20px, 4vw, 36px);
             background: var(--ink);
             filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.12));
         }
-        .return-link {
-            display: inline-block;
-            color: var(--cyan);
-            text-decoration: none;
-            font-size: 0.75rem;
-            letter-spacing: 0.4em;
-            text-transform: uppercase;
-            margin-bottom: 20px;
-        }
-        .return-link:hover { color: var(--pink); }
         .retro-banner {
             border: 2px solid var(--pink);
             padding: 16px;
@@ -264,8 +299,8 @@
     </style>
 </head>
 <body>
+    <div class="site-landing-banner"><a href="/">&#8592; Return to Internet Discotheque</a></div>
     <div class="wrapper">
-        <a class="return-link" href="/">&larr; RETURN TO INTERNET DISCOTHEQUE</a>
         <div class="retro-banner">*** QUICK REFERENCE TERMINAL &mdash; FIELD NOTES ONLINE ***</div>
         <section class="retro-columns">
             <div>
@@ -464,3 +499,4 @@
     </script>
 </body>
 </html>
+

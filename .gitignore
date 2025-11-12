@@ -1,6 +1,9 @@
 __pycache__/
 *.pyc
 
+# Flask session files
+backend/flask_session/
+
 # Generated audio/media
 backend/uploads/
 uploads/
