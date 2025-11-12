@@ -4,10 +4,36 @@
     const STORAGE_KEY = 'idcPersistentPlayerState';
     const PLAYER_STYLE_ID = 'idc-persistent-player-styles';
 
-    if (window.__idcPersistentPlayerInitialized) {
-        return;
-    }
-    window.__idcPersistentPlayerInitialized = true;
+    const FALLBACK_TRACKS = [
+        { number: '01', title: 'Moves So Sweet', artist: 'ID Chief', durationLabel: '3:14', file: 'assets/audio/moves-so-sweet.wav' },
+        { number: '02', title: 'Tigerstyle', artist: 'Aloe Island Posse', durationLabel: '2:58', file: 'assets/audio/tigerstyle.wav' },
+        { number: '03', title: 'Kotori', artist: 'コンシャスTHOUGHTS', durationLabel: '3:28', file: 'assets/audio/kotori.wav' },
+        { number: '04', title: 'Smile', artist: 'ID Chief x Aloe Island Posse', durationLabel: '3:21', file: 'assets/audio/smile.wav' },
+        { number: '05', title: "Maybe I'm Dreaming", artist: 'コンシャスTHOUGHTS x ID Chief', durationLabel: '4:04', file: 'assets/audio/maybe-im-dreaming.wav' },
+        { number: '06', title: 'Refreshing', artist: 'コンシャスTHOUGHTS x Aloe Island Posse', durationLabel: '2:40', file: 'assets/audio/refreshing.wav' },
+        { number: '07', title: 'Our Love', artist: 'Aloe Island Posse', durationLabel: '2:30', file: 'assets/audio/our-love.wav' },
+        { number: '08', title: 'Visions of You', artist: 'コンシャスTHOUGHTS', durationLabel: '3:14', file: 'assets/audio/visions-of-you.wav' },
+        { number: '09', title: 'Me & You', artist: 'ID Chief', durationLabel: '3:21', file: 'assets/audio/me-and-you.wav' },
+        { number: '10', title: 'Space Cowboys', artist: 'コンシャスTHOUGHTS x ID Chief x Aloe Island Posse', durationLabel: '4:20', file: 'assets/audio/space-cowboys.wav' },
+    ];
+
+    const scriptEl = document.currentScript || document.querySelector('script[src*="persistent-player.js"]');
+    const FRONTEND_ROOT = (() => {
+        if (!scriptEl) {
+            return document.baseURI || window.location.href;
+        }
+        const cleaned = scriptEl.src.replace(/js\/persistent-player\.js(?:\?.*)?$/, '');
+        return cleaned.endsWith('/') ? cleaned : `${cleaned}`;
+    })();
+
+    const resolveAsset = (path) => {
+        if (!path) return path;
+        if (/^https?:\/\//i.test(path)) {
+            return path;
+        }
+        const normalized = path.startsWith('/') ? path.slice(1) : path.replace(/^\.\//, '');
+        return new URL(normalized, FRONTEND_ROOT).href;
+    };
 
     const ready = (cb) => {
         if (document.readyState === 'loading') {
@@ -16,6 +42,8 @@
             cb();
         }
     };
+
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
     const formatTime = (totalSeconds) => {
         if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
@@ -38,6 +66,10 @@
         }
         return parts[0];
     };
+
+    FALLBACK_TRACKS.forEach((track) => {
+        track.durationSeconds = parseDurationLabel(track.durationLabel);
+    });
 
     const safeStorage = {
         get(key) {
@@ -64,17 +96,32 @@
         },
     };
 
+    if (window.__idcPersistentPlayerInitialized) {
+        return;
+    }
+    window.__idcPersistentPlayerInitialized = true;
+
     class PersistentPlayer {
         constructor() {
             this.blocked = document.body?.dataset?.disablePersistentPlayer === 'true';
-            this.storageKey = STORAGE_KEY;
-            this.state = this.readState();
             this.trackRegistry = new Map();
-            this.playerContainers = new Map();
-            this.lastPersist = 0;
+            this.catalogOrder = [];
+            this.inlineObserver = null;
+            this.inlineActive = null;
+            this.playbackOwner = 'deck';
+            this.lastInlinePersist = 0;
+            this.handoffInProgress = false;
+
+            this.state = this.readState();
+            this.playbackSettings = {
+                shuffle: this.state?.playbackSettings?.shuffle ?? false,
+                repeatAll: this.state?.playbackSettings?.repeatAll ?? false,
+                loopOne: this.state?.playbackSettings?.loopOne ?? false,
+            };
+            this.volume = typeof this.state?.volume === 'number' ? clamp(this.state.volume, 0, 1) : 0.9;
 
             if (this.blocked) {
-                this.clearStoredState();
+                safeStorage.remove(STORAGE_KEY);
                 return;
             }
 
@@ -83,7 +130,8 @@
             this.setupAudio();
             this.bindUIEvents();
             this.bindStorageEvents();
-            this.upgradeShowcasePlayers();
+            this.buildCatalog();
+            this.setupInlineIntegration();
             this.restoreFromState();
         }
 
@@ -98,22 +146,23 @@
     position: fixed;
     right: 24px;
     bottom: 24px;
-    width: min(360px, calc(100vw - 32px));
-    padding: 16px 18px 18px;
-    background: rgba(6, 8, 15, 0.92);
+    width: min(380px, calc(100vw - 32px));
+    padding: 18px 20px 20px;
+    background: rgba(6, 8, 15, 0.96);
     border: 1px solid rgba(0, 255, 170, 0.4);
-    border-radius: 18px;
-    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(16px);
+    border-radius: 20px;
+    box-shadow: 0 20px 42px rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(18px);
     color: #f2fff7;
     font-family: "JetBrains Mono", "IBM Plex Mono", system-ui, sans-serif;
     z-index: 9999;
     transition: opacity 180ms ease, transform 180ms ease;
 }
-#persistent-audio-deck[data-visible="false"] {
+#persistent-audio-deck[data-visible="false"],
+#persistent-audio-deck[data-inline-visible="true"] {
     opacity: 0;
     pointer-events: none;
-    transform: translateY(12px);
+    transform: translateY(16px);
 }
 #persistent-audio-deck header {
     display: flex;
@@ -148,15 +197,15 @@
     cursor: pointer;
 }
 #persistent-audio-deck .player-close {
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.2);
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.85);
 }
 #persistent-audio-deck .player-controls {
-    margin: 12px 0 8px;
+    margin: 12px 0 10px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -188,6 +237,7 @@
 #persistent-audio-deck .player-progress {
     display: grid;
     gap: 6px;
+    margin-bottom: 10px;
 }
 #persistent-audio-deck .player-progress input[type="range"] {
     width: 100%;
@@ -199,37 +249,39 @@
     font-size: 0.75rem;
     color: rgba(255, 255, 255, 0.75);
 }
-.audio-player[data-persistent-enhanced="1"] audio {
-    display: none;
-}
-.audio-player .persistent-launch {
-    width: 100%;
-    border: 1px solid rgba(0, 255, 170, 0.35);
-    background: radial-gradient(circle at 10% 10%, rgba(0, 255, 213, 0.28), rgba(0, 10, 6, 0.85));
-    color: #e5fff6;
-    border-radius: 12px;
-    padding: 12px;
-    text-align: left;
+#persistent-audio-deck .player-modes {
     display: grid;
-    gap: 4px;
-    text-transform: uppercase;
-    font-size: 0.74rem;
-    letter-spacing: 0.08em;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
 }
-.audio-player .persistent-launch__secondary {
+#persistent-audio-deck .player-modes button {
+    padding: 8px 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
     font-size: 0.62rem;
-    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+}
+#persistent-audio-deck .player-modes button[aria-pressed="true"] {
+    background: linear-gradient(120deg, rgba(0, 255, 213, 0.24), rgba(0, 123, 255, 0.24));
+    border-color: rgba(0, 255, 213, 0.5);
+    color: #e9fff8;
+    box-shadow: 0 6px 14px rgba(0, 140, 255, 0.25);
+}
+#persistent-audio-deck .player-volume {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
     color: rgba(255, 255, 255, 0.7);
 }
-.audio-player .persistent-launch__hint {
-    margin-top: 8px;
-    font-size: 0.68rem;
-    letter-spacing: 0.1em;
-    color: rgba(255, 255, 255, 0.55);
-}
-.audio-player[data-persistent-hint="active"] .persistent-launch__hint {
-    color: #00ffd5;
-    font-weight: 600;
+#persistent-audio-deck .player-volume input[type="range"] {
+    flex: 1;
+    accent-color: #00ffd5;
 }
 @media (max-width: 620px) {
     #persistent-audio-deck {
@@ -249,6 +301,7 @@
             this.root.setAttribute('aria-label', 'Floating music player');
             this.root.dataset.visible = 'false';
             this.root.dataset.playing = 'false';
+            this.root.dataset.inlineVisible = 'false';
             this.root.innerHTML = `
                 <header>
                     <div class="player-meta">
@@ -270,6 +323,15 @@
                         <span data-player-duration>0:00</span>
                     </div>
                 </div>
+                <div class="player-modes">
+                    <button type="button" data-action="shuffle" aria-pressed="false">Shuffle</button>
+                    <button type="button" data-action="repeat" aria-pressed="false">Repeat</button>
+                    <button type="button" data-action="loop" aria-pressed="false">Loop</button>
+                </div>
+                <div class="player-volume">
+                    <span>Volume</span>
+                    <input type="range" min="0" max="1" step="0.01" value="${this.volume.toFixed(2)}" data-player-volume>
+                </div>
             `;
             document.body.appendChild(this.root);
             this.titleEl = this.root.querySelector('[data-player-title]');
@@ -278,11 +340,19 @@
             this.currentTimeEl = this.root.querySelector('[data-player-current]');
             this.durationEl = this.root.querySelector('[data-player-duration]');
             this.closeButton = this.root.querySelector('[data-player-close]');
+            this.modeButtons = {
+                shuffle: this.root.querySelector('[data-action="shuffle"]'),
+                repeat: this.root.querySelector('[data-action="repeat"]'),
+                loop: this.root.querySelector('[data-action="loop"]'),
+            };
+            this.volumeSlider = this.root.querySelector('[data-player-volume]');
+            this.updateModeButtons();
         }
 
         setupAudio() {
             this.audio = new Audio();
             this.audio.preload = 'auto';
+            this.audio.volume = this.volume;
             this.audio.addEventListener('timeupdate', () => this.handleTimeUpdate());
             this.audio.addEventListener('loadedmetadata', () => this.handleLoadedMetadata());
             this.audio.addEventListener('ended', () => this.handleEnded());
@@ -297,157 +367,335 @@
             this.seekInput.addEventListener('input', (event) => this.previewSeek(event.target.value));
             this.seekInput.addEventListener('change', (event) => this.commitSeek(event.target.value));
             this.closeButton.addEventListener('click', () => this.stopAndHide());
+            this.modeButtons.shuffle.addEventListener('click', () => this.toggleMode('shuffle'));
+            this.modeButtons.repeat.addEventListener('click', () => this.toggleMode('repeat'));
+            this.modeButtons.loop.addEventListener('click', () => this.toggleMode('loop'));
+            this.volumeSlider.addEventListener('input', (event) => this.setVolume(parseFloat(event.target.value)));
         }
 
         bindStorageEvents() {
             window.addEventListener('storage', (event) => {
-                if (event.key !== this.storageKey) return;
+                if (event.key !== STORAGE_KEY) return;
                 this.state = this.readState();
                 if (!this.state?.src) {
                     this.stopAndHide();
                     return;
                 }
+                this.playbackSettings = {
+                    shuffle: this.state.playbackSettings?.shuffle ?? false,
+                    repeatAll: this.state.playbackSettings?.repeatAll ?? false,
+                    loopOne: this.state.playbackSettings?.loopOne ?? false,
+                };
+                this.updateModeButtons();
+                this.volume = typeof this.state.volume === 'number' ? clamp(this.state.volume, 0, 1) : this.volume;
+                this.applyVolume();
                 this.restoreFromState();
             });
         }
 
-        upgradeShowcasePlayers() {
-            const containers = document.querySelectorAll('.track-list .audio-player');
-            if (!containers.length) return;
-            containers.forEach((wrap, index) => {
-                if (wrap.dataset.persistentEnhanced === '1') return;
-                const audioEl = wrap.querySelector('audio');
-                const sourceEl = audioEl?.querySelector('source');
-                if (!audioEl || !sourceEl) return;
-                const trackItem = wrap.closest('.track-item');
-                if (!trackItem) return;
-                const trackNumber = trackItem.querySelector('.track-number')?.textContent?.trim() ?? String(index + 1).padStart(2, '0');
-                const trackTitle = trackItem.querySelector('.track-title')?.textContent?.trim() ?? `Track ${trackNumber}`;
-                const trackArtist = trackItem.querySelector('.track-artist')?.textContent?.trim() ?? '';
-                const durationLabel = trackItem.querySelector('.track-duration')?.textContent?.trim() ?? '';
-                const absoluteSrc = new URL(sourceEl.getAttribute('src'), document.baseURI).href;
-
-                this.trackRegistry.set(absoluteSrc, trackItem);
-                this.playerContainers.set(absoluteSrc, wrap);
-
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'persistent-launch';
-                button.innerHTML = `
-                    <span class="persistent-launch__primary">Play track</span>
-                    <span class="persistent-launch__secondary">Opens floating player</span>
-                `;
-                button.addEventListener('click', () => {
-                    this.setTrack({
-                        src: absoluteSrc,
-                        title: trackTitle,
-                        artist: trackArtist,
-                        durationSeconds: parseDurationLabel(durationLabel),
-                        durationLabel,
-                        trackNumber,
-                    });
-                    this.highlightActiveTrack();
-                    this.setActiveHintForSrc(absoluteSrc);
+        buildCatalog() {
+            const trackItems = document.querySelectorAll('.track-list .track-item');
+            if (!trackItems.length) {
+                FALLBACK_TRACKS.forEach((track, index) => {
+                    const meta = {
+                        trackNumber: track.number || String(index + 1).padStart(2, '0'),
+                        title: track.title,
+                        artist: track.artist,
+                        durationLabel: track.durationLabel,
+                        durationSeconds: track.durationSeconds,
+                        src: resolveAsset(track.file),
+                    };
+                    this.registerMeta(meta);
                 });
+                return;
+            }
 
-                const hint = document.createElement('p');
-                hint.className = 'persistent-launch__hint';
-                hint.textContent = 'Keeps playing as you browse.';
-
-                wrap.append(button, hint);
-                audioEl.setAttribute('data-persistent-hidden', 'true');
-                audioEl.style.display = 'none';
-                wrap.dataset.persistentEnhanced = '1';
+            trackItems.forEach((trackItem, index) => {
+                const audioEl = trackItem.querySelector('.audio-player audio');
+                const sourceEl = audioEl?.querySelector('source');
+                const src =
+                    (sourceEl && sourceEl.getAttribute('src')) ?
+                        new URL(sourceEl.getAttribute('src'), document.baseURI).href :
+                        (audioEl?.currentSrc || '');
+                const title = trackItem.querySelector('.track-title')?.textContent?.trim() ?? `Track ${index + 1}`;
+                const artist = trackItem.querySelector('.track-artist')?.textContent?.trim() ?? '';
+                const durationLabel = trackItem.querySelector('.track-duration')?.textContent?.trim() ?? '';
+                const trackNumber = trackItem.querySelector('.track-number')?.textContent?.trim() ?? String(index + 1).padStart(2, '0');
+                const meta = {
+                    trackNumber,
+                    title,
+                    artist,
+                    durationLabel,
+                    durationSeconds: parseDurationLabel(durationLabel),
+                    src,
+                    inlineAudio: audioEl,
+                    trackElement: trackItem,
+                };
+                if (trackItem) {
+                    trackItem.dataset.persistentSrc = src;
+                }
+                if (audioEl) {
+                    audioEl.dataset.persistentSrc = src;
+                }
+                this.registerMeta(meta);
             });
+        }
 
-            if (this.state?.src) {
-                this.highlightActiveTrack();
-                this.setActiveHintForSrc(this.state.src);
+        registerMeta(meta) {
+            if (!meta?.src) {
+                return;
             }
-        }
-
-        readState() {
-            const raw = safeStorage.get(this.storageKey);
-            if (!raw) return null;
-            try {
-                return JSON.parse(raw);
-            } catch (err) {
-                console.warn('[PersistentPlayer] Unable to parse stored state', err);
-                return null;
+            if (!this.trackRegistry.has(meta.src)) {
+                this.catalogOrder.push(meta);
             }
+            this.trackRegistry.set(meta.src, meta);
         }
 
-        persistState(partial = {}) {
-            if (!this.state) return;
-            const next = {
-                ...this.state,
-                ...partial,
-                updatedAt: Date.now(),
-            };
-            this.state = next;
-            safeStorage.set(this.storageKey, JSON.stringify(next));
+        setupInlineIntegration() {
+            const inlineMetas = this.catalogOrder.filter((meta) => meta.inlineAudio);
+            if (!inlineMetas.length) {
+                return;
+            }
+            this.inlineObserver = new IntersectionObserver((entries) => this.handleIntersection(entries), {
+                threshold: 0.35,
+            });
+            inlineMetas.forEach((meta) => {
+                const { inlineAudio, trackElement } = meta;
+                if (trackElement) {
+                    this.inlineObserver.observe(trackElement);
+                }
+                inlineAudio.addEventListener('play', () => this.handleInlinePlay(meta));
+                inlineAudio.addEventListener('pause', () => this.handleInlinePause(meta));
+                inlineAudio.addEventListener('timeupdate', () => this.syncInlineProgress(meta));
+                inlineAudio.addEventListener('volumechange', () => this.syncInlineVolume(meta));
+            });
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') {
+                    this.forceDeckForNavigation();
+                }
+            });
+            window.addEventListener('pagehide', () => this.forceDeckForNavigation());
         }
 
-        clearStoredState() {
-            this.state = null;
-            safeStorage.remove(this.storageKey);
+        handleIntersection(entries) {
+            entries.forEach((entry) => {
+                const src = entry.target.dataset?.persistentSrc;
+                const meta = src ? this.trackRegistry.get(src) : null;
+                if (!meta) return;
+                meta.isVisible = entry.isIntersecting;
+
+                if (this.inlineActive === meta && this.playbackOwner === 'inline' && !entry.isIntersecting) {
+                    this.handoffInlineToDeck(meta);
+                }
+                if (entry.isIntersecting && this.playbackOwner === 'deck' && this.state?.src === meta.src) {
+                    this.handoffDeckToInline(meta);
+                }
+            });
         }
 
-        setTrack(meta) {
-            if (!meta?.src) return;
-            this.state = {
-                src: meta.src,
-                title: meta.title || 'Untitled Track',
-                artist: meta.artist || '',
-                durationSeconds: meta.durationSeconds || null,
-                durationLabel: meta.durationLabel || '',
-                trackNumber: meta.trackNumber || '',
-                currentTime: 0,
-                isPlaying: true,
-                updatedAt: Date.now(),
-            };
-
-            this.audio.src = meta.src;
-            this.pendingSeek = 0;
-            this.showUI();
-            this.renderMetadata();
+        handleInlinePlay(meta) {
+            if (!meta?.inlineAudio) return;
+            this.inlineActive = meta;
+            this.playbackOwner = 'inline';
+            this.ensureState(meta);
+            this.state.source = 'inline';
+            this.state.currentTime = meta.inlineAudio.currentTime || 0;
+            this.state.isPlaying = true;
+            this.state.trackIndex = this.resolveTrackIndex(meta.src);
             this.persistState();
-            this.audio.play().then(() => {
-                this.persistState({ isPlaying: true });
-            }).catch((err) => {
-                console.warn('[PersistentPlayer] Autoplay was blocked', err);
-                this.persistState({ isPlaying: false });
-            });
-            this.syncMediaSession();
+            this.audio.pause();
+            this.root.dataset.inlineVisible = meta.isVisible ? 'true' : 'false';
+        }
+
+        handleInlinePause(meta) {
+            if (!meta?.inlineAudio) return;
+            if (this.playbackOwner !== 'inline' || this.inlineActive !== meta) {
+                return;
+            }
+            this.ensureState(meta);
+            this.state.isPlaying = !meta.inlineAudio.paused;
+            this.state.currentTime = meta.inlineAudio.currentTime || 0;
+            this.persistState();
+        }
+
+        syncInlineVolume(meta) {
+            if (!meta?.inlineAudio) return;
+            if (this.inlineActive === meta && this.playbackOwner === 'inline') {
+                const nextVolume = clamp(meta.inlineAudio.volume, 0, 1);
+                this.volume = nextVolume;
+                this.applyVolume({ skipInline: true });
+            }
+        }
+
+        syncInlineProgress(meta) {
+            if (!meta?.inlineAudio) return;
+            if (this.inlineActive !== meta) return;
+            const now = Date.now();
+            if (now - this.lastInlinePersist < 400) return;
+            this.lastInlinePersist = now;
+            this.ensureState(meta);
+            this.state.currentTime = meta.inlineAudio.currentTime || 0;
+            this.state.isPlaying = !meta.inlineAudio.paused;
+            this.persistState();
+        }
+
+        forceDeckForNavigation() {
+            if (this.playbackOwner !== 'inline' || !this.inlineActive?.inlineAudio) {
+                return;
+            }
+            this.handoffInlineToDeck(this.inlineActive, { muteDuringTransfer: true });
+        }
+
+        handoffInlineToDeck(meta, options = {}) {
+            if (!meta?.inlineAudio || this.handoffInProgress) return;
+            if (this.playbackOwner === 'deck' && this.state?.src === meta.src) {
+                return;
+            }
+            this.handoffInProgress = true;
+            const resumeTime = meta.inlineAudio.currentTime || 0;
+            const shouldPlay = !meta.inlineAudio.paused;
+            const muteDuringTransfer = options.muteDuringTransfer ?? true;
+            if (muteDuringTransfer) {
+                this.audio.muted = true;
+            }
+            this.playbackOwner = 'deck';
+            this.ensureState(meta);
+            this.setTrack(meta, { startTime: resumeTime, autoPlay: shouldPlay })
+                .then(() => {
+                    if (!meta.inlineAudio.paused) {
+                        meta.inlineAudio.pause();
+                    }
+                    this.inlineActive = null;
+                    this.root.dataset.inlineVisible = 'false';
+                })
+                .finally(() => {
+                    this.audio.muted = false;
+                    this.handoffInProgress = false;
+                });
+        }
+
+        handoffDeckToInline(meta) {
+            if (!meta?.inlineAudio || this.handoffInProgress) return;
+            if (this.playbackOwner === 'inline') return;
+            this.handoffInProgress = true;
+            const resumeTime = this.audio.currentTime || this.state?.currentTime || 0;
+            const shouldPlay = !this.audio.paused && this.state?.isPlaying !== false;
+            meta.inlineAudio.currentTime = resumeTime;
+            meta.inlineAudio.volume = this.volume;
+            const finalize = () => {
+                this.inlineActive = meta;
+                this.playbackOwner = 'inline';
+                this.root.dataset.inlineVisible = 'true';
+                this.audio.pause();
+                this.handoffInProgress = false;
+            };
+            if (shouldPlay) {
+                meta.inlineAudio.play()
+                    .then(finalize)
+                    .catch(() => {
+                        this.playbackOwner = 'deck';
+                        this.root.dataset.inlineVisible = 'false';
+                        this.handoffInProgress = false;
+                    });
+            } else {
+                finalize();
+            }
+        }
+
+        ensureState(meta) {
+            if (!meta) return;
+            const base = this.state || {};
+            this.state = {
+                ...base,
+                src: meta.src,
+                title: meta.title,
+                artist: meta.artist,
+                durationSeconds: meta.durationSeconds,
+                durationLabel: meta.durationLabel,
+                trackNumber: meta.trackNumber,
+                trackIndex: this.resolveTrackIndex(meta.src),
+            };
+        }
+
+        resolveTrackIndex(src) {
+            if (!src) return -1;
+            return this.catalogOrder.findIndex((entry) => entry.src === src);
         }
 
         restoreFromState() {
             if (!this.state?.src) return;
+            const meta = this.trackRegistry.get(this.state.src) || this.state;
+            this.ensureState(meta);
+            this.volume = typeof this.state.volume === 'number' ? clamp(this.state.volume, 0, 1) : this.volume;
+            this.applyVolume();
             this.showUI();
             this.renderMetadata();
-            const shouldResume = Boolean(this.state.isPlaying);
-            const position = Number(this.state.currentTime) || 0;
-            this.pendingSeek = position;
-            if (this.audio.src !== this.state.src) {
-                this.audio.src = this.state.src;
-            }
-            const playPromise = shouldResume ? this.audio.play() : Promise.resolve();
-            playPromise
-                .then(() => {
-                    if (!shouldResume) {
-                        this.audio.pause();
-                    }
-                    this.updatePlaybackState();
-                    this.highlightActiveTrack();
-                    this.setActiveHintForSrc(this.state.src);
-                })
-                .catch((err) => {
-                    console.warn('[PersistentPlayer] Resume failed', err);
+            const shouldResume = this.state.isPlaying !== false;
+            const startTime = this.state.currentTime || 0;
+            this.setTrack(meta, { startTime, autoPlay: shouldResume }).then(() => {
+                if (!shouldResume) {
                     this.audio.pause();
-                    this.persistState({ isPlaying: false });
-                    this.updatePlaybackState();
-                });
-            this.syncMediaSession();
+                }
+                this.updatePlaybackState();
+            });
+        }
+
+        setTrack(meta, options = {}) {
+            if (!meta?.src) return Promise.resolve();
+            const { startTime = 0, autoPlay = true } = options;
+            this.ensureState(meta);
+            this.state.currentTime = startTime;
+            this.state.isPlaying = autoPlay;
+            this.state.trackIndex = this.resolveTrackIndex(meta.src);
+            this.persistState();
+            this.showUI();
+            this.renderMetadata();
+            this.pendingSeek = Number.isFinite(startTime) ? startTime : 0;
+            const attemptPlay = () => {
+                if (!autoPlay) {
+                    this.audio.pause();
+                    this.persistState({ isPlaying: false, currentTime: this.audio.currentTime });
+                    return Promise.resolve();
+                }
+                return this.audio.play()
+                    .then(() => {
+                        this.persistState({ isPlaying: true, currentTime: this.audio.currentTime });
+                    })
+                    .catch((err) => {
+                        console.warn('[PersistentPlayer] Play failed', err);
+                        this.persistState({ isPlaying: false });
+                    });
+            };
+
+            if (this.audio.src === meta.src && this.audio.readyState >= 1) {
+                if (Number.isFinite(startTime)) {
+                    try {
+                        this.audio.currentTime = startTime;
+                    } catch (err) {
+                        console.warn('[PersistentPlayer] Unable to seek existing source', err);
+                    }
+                }
+                return attemptPlay();
+            }
+
+            this.audio.src = meta.src;
+            return new Promise((resolve) => {
+                const handleMeta = () => {
+                    this.audio.removeEventListener('loadedmetadata', handleMeta);
+                    attemptPlay().finally(resolve);
+                };
+                this.audio.addEventListener('loadedmetadata', handleMeta, { once: true });
+                this.audio.addEventListener('error', () => resolve(), { once: true });
+            });
+        }
+
+        showUI() {
+            this.root.dataset.visible = 'true';
+            if (this.playbackOwner === 'inline' && this.inlineActive?.isVisible) {
+                this.root.dataset.inlineVisible = 'true';
+            } else {
+                this.root.dataset.inlineVisible = 'false';
+            }
         }
 
         renderMetadata() {
@@ -461,31 +709,12 @@
                 artistParts.push(this.state.artist);
             }
             this.artistEl.textContent = artistParts.join(' · ');
-            if (this.state.durationSeconds) {
-                this.durationEl.textContent = formatTime(this.state.durationSeconds);
-            }
-        }
-
-        showUI() {
-            this.root.dataset.visible = 'true';
-        }
-
-        updatePlaybackState() {
-            const isPlaying = !this.audio.paused && !this.audio.ended;
-            this.root.dataset.playing = isPlaying ? 'true' : 'false';
-            if (this.state) {
-                this.persistState({ isPlaying, currentTime: this.audio.currentTime });
-            }
         }
 
         handleTimeUpdate() {
             this.updateProgressUI();
-            const now = Date.now();
-            if (now - this.lastPersist > 500) {
-                this.lastPersist = now;
-                if (this.state) {
-                    this.persistState({ currentTime: this.audio.currentTime });
-                }
+            if (this.state) {
+                this.persistState({ currentTime: this.audio.currentTime });
             }
         }
 
@@ -501,8 +730,55 @@
             this.updateProgressUI();
         }
 
+        handleEnded() {
+            if (this.playbackSettings.loopOne) {
+                this.setTrack(this.trackRegistry.get(this.state?.src) || this.state, { startTime: 0, autoPlay: true });
+                return;
+            }
+            const nextMeta = this.getNextTrack(1);
+            if (nextMeta) {
+                this.setTrack(nextMeta, { startTime: 0, autoPlay: true });
+                return;
+            }
+            this.persistState({ isPlaying: false, currentTime: this.audio.duration || 0 });
+            this.root.dataset.playing = 'false';
+        }
+
+        getNextTrack(step = 1) {
+            if (!this.catalogOrder.length) return null;
+            const currentIndex = this.resolveTrackIndex(this.state?.src);
+            if (this.playbackSettings.shuffle) {
+                if (this.catalogOrder.length === 1) {
+                    return this.catalogOrder[0];
+                }
+                let nextIndex = currentIndex;
+                while (nextIndex === currentIndex) {
+                    nextIndex = Math.floor(Math.random() * this.catalogOrder.length);
+                }
+                return this.catalogOrder[nextIndex];
+            }
+            let nextIndex = currentIndex + step;
+            if (nextIndex >= this.catalogOrder.length) {
+                if (this.playbackSettings.repeatAll) {
+                    nextIndex = 0;
+                } else {
+                    return null;
+                }
+            }
+            if (nextIndex < 0) {
+                if (this.playbackSettings.repeatAll) {
+                    nextIndex = this.catalogOrder.length - 1;
+                } else {
+                    return null;
+                }
+            }
+            return this.catalogOrder[nextIndex] || null;
+        }
+
         updateProgressUI() {
-            const duration = this.getDurationSeconds();
+            const duration = this.audio.duration && Number.isFinite(this.audio.duration)
+                ? this.audio.duration
+                : this.state?.durationSeconds || null;
             const current = this.audio.currentTime || 0;
             if (duration) {
                 const value = Math.max(0, Math.min(1000, Math.round((current / duration) * 1000)));
@@ -515,18 +791,10 @@
             this.currentTimeEl.textContent = formatTime(current);
         }
 
-        getDurationSeconds() {
-            if (Number.isFinite(this.audio.duration)) {
-                return this.audio.duration;
-            }
-            if (this.state?.durationSeconds) {
-                return this.state.durationSeconds;
-            }
-            return null;
-        }
-
         previewSeek(value) {
-            const duration = this.getDurationSeconds();
+            const duration = this.audio.duration && Number.isFinite(this.audio.duration)
+                ? this.audio.duration
+                : this.state?.durationSeconds || null;
             if (!duration) return;
             const percent = Number(value) / 1000;
             const preview = duration * percent;
@@ -534,7 +802,9 @@
         }
 
         commitSeek(value) {
-            const duration = this.getDurationSeconds();
+            const duration = this.audio.duration && Number.isFinite(this.audio.duration)
+                ? this.audio.duration
+                : this.state?.durationSeconds || null;
             if (!duration) return;
             const percent = Number(value) / 1000;
             const nextTime = duration * percent;
@@ -552,30 +822,80 @@
         togglePlayback() {
             if (!this.state?.src) return;
             if (this.audio.paused) {
-                this.audio.play().catch((err) => {
-                    console.warn('[PersistentPlayer] Play failed', err);
-                });
+                this.audio.play().catch((err) => console.warn('[PersistentPlayer] Play failed', err));
             } else {
                 this.audio.pause();
             }
         }
 
-        handleEnded() {
-            this.updateProgressUI();
-            this.persistState({ isPlaying: false, currentTime: this.audio.duration || 0 });
-            this.root.dataset.playing = 'false';
+        toggleMode(mode) {
+            if (mode === 'shuffle') {
+                this.playbackSettings.shuffle = !this.playbackSettings.shuffle;
+            } else if (mode === 'repeat') {
+                this.playbackSettings.repeatAll = !this.playbackSettings.repeatAll;
+            } else if (mode === 'loop') {
+                this.playbackSettings.loopOne = !this.playbackSettings.loopOne;
+            }
+            this.updateModeButtons();
+            this.persistState();
         }
 
-        syncMediaSession() {
-            if (!('mediaSession' in navigator) || !this.state) return;
+        updateModeButtons() {
+            if (!this.modeButtons) return;
+            this.modeButtons.shuffle.setAttribute('aria-pressed', this.playbackSettings.shuffle ? 'true' : 'false');
+            this.modeButtons.repeat.setAttribute('aria-pressed', this.playbackSettings.repeatAll ? 'true' : 'false');
+            this.modeButtons.loop.setAttribute('aria-pressed', this.playbackSettings.loopOne ? 'true' : 'false');
+        }
+
+        setVolume(value, options = {}) {
+            const nextVolume = clamp(Number.isFinite(value) ? value : this.volume, 0, 1);
+            this.volume = nextVolume;
+            this.applyVolume({ skipInline: options.skipInline });
+            this.persistState({ volume: this.volume });
+        }
+
+        applyVolume(options = {}) {
+            if (this.volumeSlider && !options.skipSlider) {
+                this.volumeSlider.value = this.volume.toFixed(2);
+            }
+            if (this.audio) {
+                this.audio.volume = this.volume;
+            }
+            if (!options.skipInline && this.inlineActive?.inlineAudio) {
+                this.inlineActive.inlineAudio.volume = this.volume;
+            }
+        }
+
+        updatePlaybackState() {
+            const isPlaying = !this.audio.paused && !this.audio.ended;
+            this.root.dataset.playing = isPlaying ? 'true' : 'false';
+            if (this.state) {
+                this.persistState({ isPlaying, currentTime: this.audio.currentTime });
+            }
+        }
+
+        persistState(partial = {}) {
+            this.state = this.state || {};
+            const next = {
+                ...this.state,
+                ...partial,
+                updatedAt: Date.now(),
+                playbackSettings: this.playbackSettings,
+                volume: this.volume,
+            };
+            this.state = next;
+            safeStorage.set(STORAGE_KEY, JSON.stringify(next));
+            this.highlightActiveTrack();
+        }
+
+        readState() {
+            const raw = safeStorage.get(STORAGE_KEY);
+            if (!raw) return null;
             try {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: this.state.title || 'Internet Discotheque',
-                    artist: this.state.artist || 'Various Artists',
-                    album: 'Internet Discotheque',
-                });
+                return JSON.parse(raw);
             } catch (err) {
-                console.warn('[PersistentPlayer] Unable to sync MediaSession', err);
+                console.warn('[PersistentPlayer] Unable to parse stored state', err);
+                return null;
             }
         }
 
@@ -584,20 +904,10 @@
                 el.removeAttribute('data-persistent-active');
             });
             if (!this.state?.src) return;
-            const track = this.trackRegistry.get(this.state.src);
-            if (track) {
-                track.setAttribute('data-persistent-active', 'true');
+            const meta = this.trackRegistry.get(this.state.src);
+            if (meta?.trackElement) {
+                meta.trackElement.setAttribute('data-persistent-active', 'true');
             }
-        }
-
-        setActiveHintForSrc(src) {
-            this.playerContainers.forEach((container, key) => {
-                if (src && key === src) {
-                    container.setAttribute('data-persistent-hint', 'active');
-                } else {
-                    container.removeAttribute('data-persistent-hint');
-                }
-            });
         }
 
         stopAndHide() {
@@ -606,8 +916,11 @@
             this.audio.load();
             this.root.dataset.visible = 'false';
             this.root.dataset.playing = 'false';
-            this.clearStoredState();
-            this.setActiveHintForSrc(null);
+            this.root.dataset.inlineVisible = 'false';
+            this.inlineActive = null;
+            this.playbackOwner = 'deck';
+            safeStorage.remove(STORAGE_KEY);
+            this.state = null;
             document.querySelectorAll('.track-item[data-persistent-active="true"]').forEach((el) => {
                 el.removeAttribute('data-persistent-active');
             });
