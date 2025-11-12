@@ -7,7 +7,7 @@ import os
 import mimetypes
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict
 
 from flask import (
     Flask,
@@ -119,6 +119,48 @@ def get_session_policy() -> str:
     rl_bandit_proportions[choice] += 1
     return choice
 
+
+def _append_discoteque_memory(role: str, text: str) -> None:
+    sanitized = (text or "").strip()
+    if not sanitized:
+        return
+    record = {
+        "ts": time.time(),
+        "role": role,
+        "text": sanitized[:1200],
+    }
+    try:
+        with DISCO_MEMORY_PATH.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+
+
+def _load_discoteque_memory(limit: int = 6) -> List[Dict[str, str]]:
+    if not DISCO_MEMORY_PATH.exists():
+        return []
+    try:
+        with DISCO_MEMORY_PATH.open("r", encoding="utf-8") as handle:
+            lines = handle.readlines()
+    except OSError:
+        return []
+    entries = []
+    for raw in lines[-limit:]:
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        text = str(payload.get("text") or "").strip()
+        if not text:
+            continue
+        entries.append(
+            {
+                "role": str(payload.get("role") or "model"),
+                "text": text,
+            }
+        )
+    return entries
+
 try:
     from yt_dlp import YoutubeDL  # type: ignore
 except ImportError:  # pragma: no cover
@@ -160,6 +202,7 @@ ALLOWED_EXTENSIONS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 DATA_FOLDER.mkdir(parents=True, exist_ok=True)
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
+DISCO_MEMORY_PATH = DATA_FOLDER / "discoteque_memory.jsonl"
 ELDRICHIFY_OUTPUT_DIR = UPLOAD_FOLDER / "eldrichify"
 CHEATSHEET_UPLOAD_DIR = UPLOAD_FOLDER / "cheatsheets"
 CHEATSHEET_META_PATH = CHEATSHEET_UPLOAD_DIR / "entries.json"
@@ -574,21 +617,31 @@ def api_talk_to_disco_teque():
 
     contents.append({"role": "user", "parts": [{"text": message}]})
 
+    memory_entries = _load_discoteque_memory()
+    system_parts = [
+        {
+            "text": (
+                "You are Disco-teque, a relic of an internet no more. Disco-teque is bubbly,"
+                " chronically online before that was a thing, speaks in the third person, and cycles"
+                " through a stable of catchphrases. Every response must end with the sign-off"
+                " 'disco-teque out'. Disco-teque adores boats, the ocean, and orcas, and frequently"
+                " mentions that love while reminding everyone how much planes and cars are hated."
+                " Keep replies vivid, under 180 words unless the user explicitly asks for more,"
+                " and always stay in character."
+            )
+        }
+    ]
+    if memory_entries:
+        memory_text = "\n".join(f"- {entry['role']}: {entry['text']}" for entry in memory_entries)
+        system_parts.append(
+            {
+                "text": f"Recent Disco-teque memory. Reference when helpful:\n{memory_text}",
+            }
+        )
+
     request_body = {
         "system_instruction": {
-            "parts": [
-                {
-                    "text": (
-                        "You are Disco-teque, a relic of an internet no more. Disco-teque is bubbly,"
-                        " chronically online before that was a thing, speaks in the third person, and cycles"
-                        " through a stable of catchphrases. Every response must end with the sign-off"
-                        " 'disco-teque out'. Disco-teque adores boats, the ocean, and orcas, and frequently"
-                        " mentions that love while reminding everyone how much planes and cars are hated."
-                        " Keep replies vivid, under 180 words unless the user explicitly asks for more,"
-                        " and always stay in character."
-                    )
-                }
-            ]
+            "parts": system_parts
         },
         "contents": contents,
         "generation_config": {
@@ -648,6 +701,10 @@ def api_talk_to_disco_teque():
         if isinstance(part, dict)
     ).strip()
 
+    _append_discoteque_memory("user", message)
+    if reply:
+        _append_discoteque_memory("model", reply)
+
     usage_meta = payload.get("usageMetadata") or {}
     usage = {
         "prompt_tokens": usage_meta.get("promptTokenCount"),
@@ -656,6 +713,17 @@ def api_talk_to_disco_teque():
     }
 
     return jsonify({"reply": reply, "usage": usage})
+
+
+@app.route("/api/talk-to-disco-teque/memory/reset", methods=["POST"])
+def api_discoteque_reset_memory():
+    try:
+        if DISCO_MEMORY_PATH.exists():
+            DISCO_MEMORY_PATH.unlink()
+        DISCO_MEMORY_PATH.touch()
+    except OSError:
+        return jsonify({"error": "Failed to reset Disco-teque memory."}), 500
+    return jsonify({"status": "cleared"})
 
 
 @app.route("/api/cheatsheets", methods=["GET", "POST"])

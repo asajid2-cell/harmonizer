@@ -2528,33 +2528,55 @@ function foldBySection(qlist) {
 }
 
 function allReady() {
-    // Always rely on the preprocessed beats from the loaded track – they include
-    // overlappingSegments, parents, tiles, etc. required by the shared canon logic.
-    masterQs = curTrack.analysis.beats;
+    var autohData = curTrack && curTrack.analysis && curTrack.analysis.autoharmonizer;
+    var usingAutoharmonizer = (mode === "autoharmonizer");
+    if (usingAutoharmonizer &&
+        autohData &&
+        autohData.track1 &&
+        autohData.track1.beats &&
+        autohData.track1.beats.length) {
+        masterQs = autohData.track1.beats.slice();
+    } else {
+        masterQs = curTrack.analysis.beats || [];
+    }
+    if (!masterQs.length) {
+        console.warn("[allReady] No beats available for mode:", mode, "– falling back to track analysis beats");
+        masterQs = curTrack.analysis.beats || [];
+    }
+    if (!masterQs.length) {
+        error("Unable to load beat data for this track");
+        return;
+    }
     masterGain = (mode === "canon") ? 0.55 : (mode === "eternal" ? 0.7 : 1.0);
-    if (mode === "autoharmonizer") {
+    if (usingAutoharmonizer) {
         masterGain = 0.7;
     }
     _.each(masterQs, function(q1) {
         q1.section = getSection(q1);
     });
-    prepareLoopCandidates(curTrack);
     canonLoopCandidates = [];
     canonBaseAssignments = [];
+    if (!usingAutoharmonizer) {
+        prepareLoopCandidates(curTrack);
+    }
 
-    var lastBeat = masterQs[masterQs.length - 1];
-    var remaining = Math.max(trackDuration - lastBeat.start, 0.1);
-    var durationSamples = _.map(masterQs.slice(0, -1), function(b) { return b.duration; });
-    var medianDuration = durationSamples.length ? _.sortBy(durationSamples)[Math.floor(durationSamples.length / 2)] : remaining;
-    var cap = medianDuration ? medianDuration * 1.6 : remaining;
-    lastBeat.duration = Math.min(remaining, cap);
+    if (!usingAutoharmonizer) {
+        var lastBeat = masterQs[masterQs.length - 1];
+        if (lastBeat) {
+            var remaining = Math.max(trackDuration - lastBeat.start, 0.1);
+            var durationSamples = _.map(masterQs.slice(0, -1), function(b) { return b.duration; });
+            var medianDuration = durationSamples.length ? _.sortBy(durationSamples)[Math.floor(durationSamples.length / 2)] : remaining;
+            var cap = medianDuration ? medianDuration * 1.6 : remaining;
+            lastBeat.duration = Math.min(remaining, cap);
+        }
 
-    _.each(masterQs, function(q1) {
-        calculateNearestNeighborsForQuantum(masterQs, q1);
-    });
+        _.each(masterQs, function(q1) {
+            calculateNearestNeighborsForQuantum(masterQs, q1);
+        });
+    }
 
     var canonApplied = false;
-    if (mode === "canon" || mode === "eternal") {
+    if (!usingAutoharmonizer && (mode === "canon" || mode === "eternal")) {
         canonApplied = applyCanonAlignment(masterQs, curTrack.analysis.canon_alignment);
         if (!canonApplied) {
             foldBySection(masterQs);
@@ -2693,13 +2715,18 @@ function fetchAnalysis(trid) {
     }
     $("#play").prop("disabled", true).text("Loading...");
     var localUrl = resolveApiUrl('data/' + trid + '.json');
-    var remoteUrl = 'http://static.echonest.com/infinite_jukebox_data/' + trid + '.json';
+    var remoteUrl = 'http://static.echonest.com/infinite_jukebox_data/' + encodeURIComponent(trid) + '.json';
     info('Fetching the analysis');
     $.getJSON(localUrl, function(data) { gotTheAnalysis(data); })
         .fail(function() {
             $.getJSON(remoteUrl, function(data) { gotTheAnalysis(data); })
                 .fail(function() {
-                    info("Sorry, can't find info for that track");
+                    var missingCombo = (mode === "autoharmonizer" && trid.indexOf('+') !== -1);
+                    if (missingCombo) {
+                        info("Combined autoharmonizer analysis not found. Please run the backend autoharmonizer build for " + trid + " first.");
+                    } else {
+                        info("Sorry, can't find info for that track");
+                    }
                 });
         });
 }
@@ -3838,8 +3865,12 @@ $(document).ready(function() {
 
 function setURL() {
     if (curTrack) {
-        var p = "?trid=" + curTrack.id + "&mode=" + mode;
-        history.replaceState({}, document.title, p);
+        var params = new URLSearchParams();
+        if (curTrack.id) {
+            params.set("trid", curTrack.id);
+        }
+        params.set("mode", mode);
+        history.replaceState({}, document.title, "?" + params.toString());
     }
     tweetSetup(curTrack);
 }
@@ -3869,7 +3900,11 @@ function processParams() {
         mode = requestedMode;
     }
     var trid = params.get("trid");
-    return trid ? trid.trim() : null;
+    if (trid) {
+        trid = trid.trim();
+        trid = trid.replace(/\s+/g, "+");
+    }
+    return trid || null;
 }
 
 var tilePrototype = {
@@ -4489,8 +4524,15 @@ function createAutoharmonizerTiles(qlist) {
         return createCircularTiles(qlist);
     }
 
-    var track1Beats = autoharmonizerData.track1.beats || [];
-    var track2Beats = autoharmonizerData.track2.beats || [];
+    var track1Beats = autoharmonizerData.track1 && autoharmonizerData.track1.beats ? autoharmonizerData.track1.beats : [];
+    var track2Beats = autoharmonizerData.track2 && autoharmonizerData.track2.beats ? autoharmonizerData.track2.beats : [];
+    if (!track1Beats.length || !track2Beats.length) {
+        console.warn("[Viz] Autoharmonizer beats missing – reverting to circular view", {
+            track1Beats: track1Beats.length,
+            track2Beats: track2Beats.length
+        });
+        return createCircularTiles(qlist || []);
+    }
 
     // Calculate positions for two circles side-by-side
     var baseRadius = getCircularRadius() * 0.55; // Slightly smaller for dual view
@@ -6657,7 +6699,7 @@ function createAutoharmonizerDriver(player) {
 
     var autoharmonizerData = curTrack && curTrack.analysis && curTrack.analysis.autoharmonizer;
     if (!autoharmonizerData) {
-        console.error("[Autoharmonizer] No autoharmonizer data found in analysis");
+        console.warn("[Autoharmonizer] Autoharmonizer data missing – falling back to canon driver");
         return createCanonDriver(player);
     }
 
@@ -6792,8 +6834,10 @@ function createAutoharmonizerDriver(player) {
         } else {
             var cross2to1 = crossSimilarity.track2_to_track1 || {};
             var eternal2 = track2Data.eternal_loop_candidates || {};
-            candidates = ((cross2to1[currentBeatIdx] || cross2to1[indexKey] || [])).concat(
-                (eternal2[currentBeatIdx] || []).map(function(cand) {
+            var crossEdges = cross2to1[currentBeatIdx] || cross2to1[indexKey] || [];
+            var intraEdges = eternal2[currentBeatIdx] || eternal2[indexKey] || [];
+            candidates = crossEdges.concat(
+                intraEdges.map(function(cand) {
                     return {
                         source_track: 2,
                         target_track: 2,
@@ -6864,17 +6908,18 @@ function createAutoharmonizerDriver(player) {
         };
     }
 
-    function updateHudForBeat(beat) {
-        if (!beat) {
-            return;
-        }
-        if (beat.tile) {
-            beat.tile.highlight();
-            updateCursors(beat);
-        }
-        mtime.text(fmtTime(beat.start));
-        pulseNotes(beat.median_volume || beat.volume || baseNoteStrength);
+function updateHudForBeat(beat) {
+    if (!beat) {
+        return;
     }
+    if (beat.tile) {
+        beat.tile.highlight();
+        updateCursors(beat);
+    }
+    var beatTime = (typeof beat.start === "number") ? beat.start : 0;
+    mtime.text(fmtTime(beatTime));
+    pulseNotes(beat.median_volume || beat.volume || baseNoteStrength);
+}
 
     function stopPlayback(options) {
         options = options || {};

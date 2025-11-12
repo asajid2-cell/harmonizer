@@ -14,6 +14,7 @@
   const input = document.getElementById("terminal-input");
   const resetBtn = document.getElementById("terminal-reset");
   const suggestionButtons = document.querySelectorAll(".eld-suggestion-btn");
+  const memoryResetBtn = document.getElementById("memory-reset");
 
   let conversationHistory = [];
   let isSending = false;
@@ -71,9 +72,9 @@
 
     setTimeout(() => addLine("$ tuning uplink to Gemini free tier…", "warning"), 160);
     setTimeout(() => addLine("$ syncing vibe tables…", "warning"), 320);
-    setTimeout(() => addLine("✔ link stabilized · ask anything about prompts, sets, metaphors.", "success"), 560);
+    setTimeout(() => addLine("✔ link stabilized . ask anything about prompts, sets, metaphors.", "success"), 560);
     setTimeout(() => focusInput(), 600);
-    setHint("Connected · Shift+Enter adds a line break");
+    setHint("Connected . Shift+Enter adds a line break");
   }
 
   function openTerminal() {
@@ -98,7 +99,7 @@
     }
     resetConversation();
     clearTerminal();
-    setHint("Shift+Enter adds a line break · Enter sends to Disco-teque.");
+    setHint("Shift+Enter adds a line break . Enter sends to Disco-teque.");
   }
 
   async function sendMessage(message) {
@@ -155,7 +156,7 @@
       addLine(`error> ${messageText}`, "error");
     } finally {
       isSending = false;
-      setHint("Connected · Shift+Enter adds a line break");
+      setHint("Connected . Shift+Enter adds a line break");
       focusInput();
     }
   }
@@ -176,6 +177,29 @@
   if (resetBtn) {
     resetBtn.addEventListener("click", () => {
       bootSequence();
+    });
+  }
+
+  if (memoryResetBtn) {
+    memoryResetBtn.addEventListener("click", () => {
+      if (!confirm("Forget Disco-teque's recent memory?")) {
+        return;
+      }
+      fetch("/api/talk-to-disco-teque/memory/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((resp) => {
+          if (!resp.ok) {
+            throw new Error("Failed to reset memory");
+          }
+          addLine("system> Memory file cleared.", "info");
+        })
+        .catch((err) => {
+          addLine(`error> ${err.message}`, "error");
+        });
     });
   }
 
