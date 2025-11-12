@@ -15,6 +15,141 @@ function resolveApiUrl(path) {
     return API_BASE_URL ? API_BASE_URL + path : path;
 }
 
+function clampVolume(value) {
+    var num = typeof value === "number" ? value : 0;
+    if (!isFinite(num)) {
+        num = 0;
+    }
+    if (num < 0) {
+        return 0;
+    }
+    if (num > 1) {
+        return 1;
+    }
+    return num;
+}
+
+function createHtmlAudioController(sourceUrl, options) {
+    if (!sourceUrl) {
+        console.warn("[AudioController] Missing source URL");
+        return null;
+    }
+    var resolved = resolveApiUrl(sourceUrl);
+    var audio = new Audio(resolved);
+    audio.preload = "auto";
+    audio.crossOrigin = "anonymous";
+    audio.loop = false;
+    audio.volume = clampVolume(options && typeof options.volume === "number" ? options.volume : 1);
+
+    var requestFrame = (typeof window !== "undefined" && window.requestAnimationFrame) ?
+        window.requestAnimationFrame.bind(window) :
+        function(cb) { return setTimeout(cb, 16); };
+    var cancelFrame = (typeof window !== "undefined" && window.cancelAnimationFrame) ?
+        window.cancelAnimationFrame.bind(window) :
+        clearTimeout;
+    var fadeHandle = null;
+
+    function cancelFade() {
+        if (fadeHandle) {
+            cancelFrame(fadeHandle);
+            fadeHandle = null;
+        }
+    }
+
+    function safeSeek(time) {
+        var target = Math.max(0, typeof time === "number" ? time : 0);
+        try {
+            audio.currentTime = target;
+            return;
+        } catch (err) {
+            // Some browsers require metadata before seeking
+        }
+        var onReady = function() {
+            audio.removeEventListener("loadedmetadata", onReady);
+            audio.removeEventListener("canplay", onReady);
+            try {
+                audio.currentTime = target;
+            } catch (seekErr) {
+                console.warn("[AudioController] Seek failed for", resolved, seekErr);
+            }
+        };
+        audio.addEventListener("loadedmetadata", onReady);
+        audio.addEventListener("canplay", onReady);
+    }
+
+    function playInternal() {
+        var playPromise = audio.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+            playPromise.catch(function(err) {
+                console.warn("[AudioController] Playback rejected for", resolved, err);
+            });
+        }
+    }
+
+    function fadeTo(volume, durationMs) {
+        cancelFade();
+        var targetVolume = clampVolume(volume);
+        if (!durationMs || durationMs <= 0) {
+            audio.volume = targetVolume;
+            return;
+        }
+        var startVolume = audio.volume;
+        var startTime = performance.now();
+        function step(now) {
+            var progress = Math.min(1, (now - startTime) / durationMs);
+            audio.volume = startVolume + (targetVolume - startVolume) * progress;
+            if (progress < 1) {
+                fadeHandle = requestFrame(step);
+            } else {
+                fadeHandle = null;
+            }
+        }
+        fadeHandle = requestFrame(step);
+    }
+
+    return {
+        audio: audio,
+        ensureLoaded: function() {
+            try {
+                audio.load();
+            } catch (err) {
+                console.warn("[AudioController] load() failed for", resolved, err);
+            }
+        },
+        playFrom: function(time) {
+            if (typeof time === "number") {
+                safeSeek(time);
+            }
+            playInternal();
+        },
+        ensurePlaying: function() {
+            if (audio.paused) {
+                playInternal();
+            }
+        },
+        pause: function() {
+            cancelFade();
+            audio.pause();
+        },
+        stop: function() {
+            cancelFade();
+            audio.pause();
+            try {
+                audio.currentTime = 0;
+            } catch (err) {}
+        },
+        seek: safeSeek,
+        setVolume: function(value) {
+            cancelFade();
+            audio.volume = clampVolume(value);
+        },
+        getVolume: function() {
+            return audio.volume;
+        },
+        fadeTo: fadeTo
+    };
+}
+
 function debounce(fn, wait) {
     var delay = (typeof wait === "number" && wait >= 0) ? wait : 60;
     var timerId = null;
@@ -936,6 +1071,20 @@ function rebuildDriverForCurrentMode(shouldResume) {
         } catch (e) {}
     }
     driver = Driver(remixer.getPlayer());
+    if (typeof window.refreshSculptorPalette === "function") {
+        try {
+            window.refreshSculptorPalette();
+        } catch (refreshErr) {
+            console.warn("[Sculptor] Failed to refresh palette after rebuilding driver", refreshErr);
+        }
+    }
+    if (typeof window.updateSculptorQueueDisplay === "function") {
+        try {
+            window.updateSculptorQueueDisplay();
+        } catch (queueErr) {
+            console.warn("[Sculptor] Failed to refresh queue after rebuilding driver", queueErr);
+        }
+    }
     if (resume && driver && typeof driver.start === "function") {
         driver.start();
         markPlaybackStarted();
@@ -1028,6 +1177,15 @@ function readyToPlay(t) {
     if (t.status === 'ok') {
         curTrack = t;
         trackDuration = curTrack.audio_summary.duration;
+
+        // Debug: Check if autoharmonizer data exists
+        if (mode === "autoharmonizer") {
+            console.log("[readyToPlay] Mode is autoharmonizer");
+            console.log("[readyToPlay] curTrack keys:", Object.keys(curTrack));
+            console.log("[readyToPlay] curTrack.analysis keys:", curTrack.analysis ? Object.keys(curTrack.analysis) : "NO ANALYSIS");
+            console.log("[readyToPlay] Has autoharmonizer?", !!(curTrack.analysis && curTrack.analysis.autoharmonizer));
+        }
+
         trackReady(curTrack);
         allReady();
     } else {
@@ -2370,8 +2528,13 @@ function foldBySection(qlist) {
 }
 
 function allReady() {
+    // Always rely on the preprocessed beats from the loaded track – they include
+    // overlappingSegments, parents, tiles, etc. required by the shared canon logic.
     masterQs = curTrack.analysis.beats;
     masterGain = (mode === "canon") ? 0.55 : (mode === "eternal" ? 0.7 : 1.0);
+    if (mode === "autoharmonizer") {
+        masterGain = 0.7;
+    }
     _.each(masterQs, function(q1) {
         q1.section = getSection(q1);
     });
@@ -2452,8 +2615,20 @@ function allReady() {
     $("#play").prop("disabled", false).text("Play");
     error("");
     setPlayingClass(mode);
+    // Rebuild driver now that the full analysis is ready (needed for autoharmonizer/sculptor)
+    rebuildDriverForCurrentMode(false);
     pulseNotes(baseNoteStrength);
-    $("#mode-pill").text(mode === "jukebox" ? "Eternal Jukebox" : (mode === "eternal" ? "Eternal Canonizer" : "Autocanonizer"));
+    var modePillText = "Autocanonizer";
+    if (mode === "jukebox") {
+        modePillText = "Eternal Jukebox";
+    } else if (mode === "eternal") {
+        modePillText = "Eternal Canonizer";
+    } else if (mode === "autoharmonizer") {
+        modePillText = "Autoharmonizer";
+    } else if (mode === "sculptor") {
+        modePillText = "Section Sculptor";
+    }
+    $("#mode-pill").text(modePillText);
 
     // Show/hide eternal stats based on initial mode
     var eternalStatsContainer = $("#eternal-stats");
@@ -2470,6 +2645,10 @@ function allReady() {
         info(getFullTitle() + " - Eternal Jukebox");
     } else if (mode === "eternal") {
         info(getFullTitle() + " - Eternal Canonizer");
+    } else if (mode === "autoharmonizer") {
+        info(getFullTitle() + " - Autoharmonizer");
+    } else if (mode === "sculptor") {
+        info(getFullTitle() + " - Section Sculptor");
     } else {
         info(getFullTitle() + " - Autocanonizer");
     }
@@ -2562,7 +2741,7 @@ function setDisplayMode() {
 }
 
 function setPlayingClass(modeName) {
-    document.body.classList.remove("playing-canon", "playing-jukebox", "playing-eternal");
+    document.body.classList.remove("playing-canon", "playing-jukebox", "playing-eternal", "playing-autoharmonizer", "playing-sculptor");
     if (modeName === "canon") {
         document.body.classList.add("playing-canon");
         baseNoteStrength = 0.05;
@@ -2575,6 +2754,13 @@ function setPlayingClass(modeName) {
         document.body.classList.add("playing-eternal");
         baseNoteStrength = 0.1;
         renderJukeboxBackdrop(modeName);
+    } else if (modeName === "autoharmonizer") {
+        document.body.classList.add("playing-autoharmonizer");
+        baseNoteStrength = 0.12;
+        renderJukeboxBackdrop(modeName);
+    } else if (modeName === "sculptor") {
+        document.body.classList.add("playing-sculptor");
+        baseNoteStrength = 0.06;
     } else {
         baseNoteStrength = 0;
     }
@@ -2640,7 +2826,13 @@ async function togglePlayback() {
     } else {
         driver.start();
     }
-    markPlaybackStarted();
+    if (driver && typeof driver.isRunning === "function") {
+        if (driver.isRunning()) {
+            markPlaybackStarted();
+        }
+    } else {
+        markPlaybackStarted();
+    }
 }
 
 function init() {
@@ -2713,6 +2905,362 @@ function init() {
             applyModeLayout();
         }
     }, 160));
+
+    // Initialize Section Sculptor UI controls
+    initSculptorControls();
+}
+
+function initSculptorControls() {
+    var sculptorControls = $("#sculptor-controls");
+    var sculptorTimeline = $("#sculptor-timeline-content");
+    var sculptorTimelineEmpty = $("#sculptor-timeline-empty");
+    var sculptorTimelineRoot = $("#sculptor-timeline");
+    var sculptorPalette = $("#sculptor-palette");
+    var sculptorQueueInfo = $("#sculptor-queue-info");
+    var draggedElement = null;
+
+    function computeDropIndexFromEvent(event) {
+        var nativeEvent = event.originalEvent || event;
+        if (!nativeEvent) {
+            return 0;
+        }
+        var clientX = nativeEvent.clientX || 0;
+        var clientY = nativeEvent.clientY || 0;
+        var chips = sculptorTimeline.find(".sculptor-timeline-chip");
+        if (!chips.length) {
+            return 0;
+        }
+        var targetIndex = chips.length;
+        var bestDistance = Infinity;
+        chips.each(function(index, el) {
+            var rect = el.getBoundingClientRect();
+            var withinRow = clientY >= rect.top && clientY <= rect.bottom;
+            var midpoint = rect.left + rect.width / 2;
+            if (withinRow) {
+                targetIndex = clientX < midpoint ? index : index + 1;
+                bestDistance = 0;
+                return false;
+            }
+            var dx = 0;
+            if (clientX < rect.left) {
+                dx = rect.left - clientX;
+            } else if (clientX > rect.right) {
+                dx = clientX - rect.right;
+            }
+            var dy = 0;
+            if (clientY < rect.top) {
+                dy = rect.top - clientY;
+            } else if (clientY > rect.bottom) {
+                dy = clientY - rect.bottom;
+            }
+            var distance = dx * dx + dy * dy;
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                targetIndex = clientX < rect.left ? index : index + 1;
+            }
+        });
+        return Math.max(0, Math.min(targetIndex, chips.length));
+    }
+
+    function handleTimelineDrop(event) {
+        event.preventDefault();
+        sculptorTimelineRoot.css("border-color", "rgba(255,255,255,0.2)");
+        if (!draggedElement || !driver) {
+            return;
+        }
+        var dropIndex = computeDropIndexFromEvent(event);
+        if (draggedElement.fromTimeline && driver.moveSection) {
+            if (dropIndex > draggedElement.queuePos) {
+                dropIndex = Math.max(0, dropIndex - 1);
+            }
+            driver.moveSection(draggedElement.queuePos, dropIndex);
+        } else if (!draggedElement.fromTimeline && driver.addSection) {
+            driver.addSection(draggedElement.sectionIdx, dropIndex);
+        }
+        draggedElement = null;
+        updateTimelineDisplay();
+    }
+
+    // Show/hide sculptor controls based on mode
+    function updateSculptorVisibility() {
+        if (mode === "sculptor") {
+            sculptorControls.show();
+            initializeSculptorUI();
+        } else {
+            sculptorControls.hide();
+        }
+    }
+
+    // Initialize the sculptor UI with sections palette
+    function initializeSculptorUI() {
+        if (!driver || !driver.getState || mode !== "sculptor") {
+            return;
+        }
+
+        var state = driver.getState();
+        if (!state || !state.sectionData) {
+            sculptorPalette.html('<span style="color: #888; font-style: italic;">Load a track to see sections...</span>');
+            return;
+        }
+
+        if (!state.sectionData.length) {
+            sculptorPalette.html('<span style="color: #888; font-style: italic;">Load a track to see sections...</span>');
+            sculptorTimelineEmpty.show();
+            sculptorTimeline.empty();
+            sculptorQueueInfo.text("0 sections in timeline");
+            return;
+        }
+
+        // Build sections palette
+        var paletteHTML = "";
+        state.sectionData.forEach(function(section) {
+            var color = getSectionColor(section.label);
+            var displayLabel = getSectionDisplayName(section);
+            paletteHTML += createSectionChip(section.index, displayLabel, color, false);
+        });
+
+        sculptorPalette.html(paletteHTML);
+
+        // Make palette sections draggable and clickable
+        $(".sculptor-section-chip").each(function() {
+            var chip = $(this);
+            var sectionIdx = parseInt(chip.data("section-idx"));
+            var section = state.sectionData[sectionIdx];
+
+            // Click to preview
+            chip.on("click", function() {
+                previewSection(sectionIdx);
+            });
+
+            // Make draggable
+            this.draggable = true;
+            chip.on("dragstart", function(e) {
+                draggedElement = {
+                    sectionIdx: sectionIdx,
+                    fromTimeline: false
+                };
+                if (e.originalEvent && e.originalEvent.dataTransfer) {
+                    e.originalEvent.dataTransfer.setData("text/plain", sectionIdx);
+                    e.originalEvent.dataTransfer.effectAllowed = "copy";
+                }
+                $(this).css("opacity", "0.5");
+            });
+
+            chip.on("dragend", function() {
+                $(this).css("opacity", "1");
+                draggedElement = null;
+            });
+        });
+
+        // Update timeline display
+        updateTimelineDisplay();
+    }
+
+    // Create a section chip HTML
+    function createSectionChip(sectionIdx, label, color, isTimeline) {
+        var chipClass = isTimeline ? "sculptor-timeline-chip" : "sculptor-section-chip";
+        var removeBtn = isTimeline ? '<button class="sculptor-chip-remove" data-queue-pos="' + sectionIdx + '" ' +
+            'style="background: none; border: none; color: #fff; cursor: pointer; font-weight: bold; ' +
+            'padding: 0 4px; margin-left: 4px;" title="Remove">&times;</button>' : '';
+
+        return '<div class="' + chipClass + '" data-section-idx="' + sectionIdx + '" ' +
+            'draggable="true" ' +
+            'style="padding: 6px 12px; background: ' + color + '; border-radius: 12px; ' +
+            'cursor: ' + (isTimeline ? 'move' : 'pointer') + '; display: inline-flex; align-items: center; gap: 6px; ' +
+            'border: 2px solid transparent; user-select: none; transition: all 0.2s;">' +
+            '<span style="font-weight: bold;">' + label + '</span>' +
+            removeBtn +
+            '</div>';
+    }
+
+    // Preview a section (play it once)
+    function previewSection(sectionIdx) {
+        if (driver && typeof driver.previewSection === "function") {
+            driver.previewSection(sectionIdx);
+            return;
+        }
+        console.warn("[Section Sculptor] Driver preview unavailable");
+    }
+
+    // Update timeline display
+    function updateTimelineDisplay() {
+        if (!driver || !driver.getState) return;
+
+        var state = driver.getState();
+        if (!state || !state.sectionQueue || !state.sectionData) return;
+
+        // Update info text
+        sculptorQueueInfo.text(state.sectionQueue.length + " sections in timeline");
+
+        // Show/hide empty message
+        if (state.sectionQueue.length === 0) {
+            sculptorTimelineEmpty.show();
+            sculptorTimeline.empty();
+            return;
+        }
+
+        sculptorTimelineEmpty.hide();
+
+        // Build timeline display
+        var html = "";
+        state.sectionQueue.forEach(function(sectionIdx, queuePos) {
+            var section = state.sectionData[sectionIdx];
+            var isPlaying = state.running && queuePos === state.currentSection;
+            var color = getSectionColor(section.label);
+            var displayLabel = getSectionDisplayName(section, { includeQueuePosition: true, queuePos: queuePos });
+
+            html += '<div class="sculptor-timeline-chip" data-queue-pos="' + queuePos + '" data-section-idx="' + sectionIdx + '" ' +
+                    'draggable="true" ' +
+                    'style="padding: 6px 12px; background: ' + color + '; border-radius: 12px; ' +
+                    'cursor: move; display: inline-flex; align-items: center; gap: 6px; ' +
+                    'border: 2px solid ' + (isPlaying ? '#fff' : 'transparent') + '; user-select: none; transition: all 0.2s;">' +
+                    '<span style="font-weight: bold;">' + displayLabel + '</span>' +
+                    '<button class="sculptor-chip-remove" data-queue-pos="' + queuePos + '" ' +
+                    'style="background: none; border: none; color: #fff; cursor: pointer; font-weight: bold; ' +
+                    'padding: 0 4px; margin-left: 4px;" title="Remove">&times;</button>' +
+                    '</div>';
+        });
+
+        sculptorTimeline.html(html);
+
+        // Bind remove handlers
+        $(".sculptor-chip-remove").on("click", function(e) {
+            e.stopPropagation();
+            var queuePos = parseInt($(this).data("queue-pos"));
+            if (driver && driver.removeSection) {
+                driver.removeSection(queuePos);
+                updateTimelineDisplay();
+            }
+        });
+
+        // Make timeline chips draggable (for reordering)
+        $(".sculptor-timeline-chip").each(function() {
+            var chip = $(this);
+            var queuePos = parseInt(chip.data("queue-pos"));
+            var sectionIdx = parseInt(chip.data("section-idx"));
+
+            chip.on("dragstart", function(e) {
+                draggedElement = {
+                    sectionIdx: sectionIdx,
+                    queuePos: queuePos,
+                    fromTimeline: true
+                };
+                if (e.originalEvent && e.originalEvent.dataTransfer) {
+                    e.originalEvent.dataTransfer.setData("text/plain", sectionIdx);
+                    e.originalEvent.dataTransfer.effectAllowed = "move";
+                }
+                $(this).css("opacity", "0.5");
+            });
+
+            chip.on("dragend", function() {
+                $(this).css("opacity", "1");
+                draggedElement = null;
+            });
+
+            // Click to jump during playback
+            chip.on("click", function(e) {
+                if ($(e.target).hasClass("sculptor-chip-remove")) {
+                    return;
+                }
+                if (driver && driver.jumpToQueuePosition) {
+                    driver.jumpToQueuePosition(queuePos);
+                }
+            });
+        });
+    }
+
+    function getSectionColor(label) {
+        var colors = {
+            "Intro": "#4A90E2",
+            "Verse": "#50C878",
+            "Pre-Chorus": "#FFA500",
+            "Chorus": "#E74C3C",
+            "Bridge": "#9B59B6",
+            "Outro": "#95A5A6"
+        };
+        return colors[label] || "#7F8C8D";
+    }
+
+    function getSectionDisplayName(section, options) {
+        options = options || {};
+        if (!section) {
+            return "Section";
+        }
+        var base = section.label || "Section";
+        var indexPart = (typeof section.index === "number") ? (" " + (section.index + 1)) : "";
+        var label = base + indexPart;
+        if (options.includeQueuePosition && typeof options.queuePos === "number") {
+            label += " · #" + (options.queuePos + 1);
+        }
+        if (options.includeTime && typeof section.start === "number") {
+            label += " · " + fmtTime(section.start);
+        }
+        return label;
+    }
+
+    // Setup drop zone for timeline
+    sculptorTimelineRoot.on("dragover", function(e) {
+        if (!draggedElement) {
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.originalEvent && e.originalEvent.dataTransfer) {
+            e.originalEvent.dataTransfer.dropEffect = draggedElement.fromTimeline ? "move" : "copy";
+        }
+        $(this).css("border-color", "#4A90E2");
+    });
+
+    sculptorTimelineRoot.on("dragleave", function(e) {
+        if (e.target === this) {
+            $(this).css("border-color", "rgba(255,255,255,0.2)");
+        }
+    });
+
+    sculptorTimelineRoot.on("drop", function(e) {
+        handleTimelineDrop(e);
+    });
+
+    // Button handlers
+    $("#sculptor-reset-btn").on("click", function() {
+        if (driver && driver.resetQueue) {
+            driver.resetQueue();
+            updateTimelineDisplay();
+        }
+    });
+
+    $("#sculptor-clear-btn").on("click", function() {
+        if (driver && driver.clearQueue) {
+            driver.clearQueue();
+            updateTimelineDisplay();
+        }
+    });
+
+    $("#sculptor-shuffle-btn").on("click", function() {
+        if (driver && driver.shuffleQueue) {
+            driver.shuffleQueue();
+            updateTimelineDisplay();
+        }
+    });
+
+    // Mode change listener
+    $("#viz-mode-select").on("change", function() {
+        updateSculptorVisibility();
+    });
+
+    // Update display periodically when sculptor mode is active
+    setInterval(function() {
+        if (mode === "sculptor") {
+            updateTimelineDisplay();
+        }
+    }, 1000);
+
+    // Initial visibility
+    updateSculptorVisibility();
+
+    // Expose update function globally so tiles can call it
+    window.updateSculptorQueueDisplay = updateTimelineDisplay;
+    window.refreshSculptorPalette = initializeSculptorUI;
 }
 
 function loadPlaylistQueue() {
@@ -3317,7 +3865,7 @@ function processParams() {
     if (requestedMode) {
         requestedMode = requestedMode.toLowerCase();
     }
-    if (requestedMode === "jukebox" || requestedMode === "canon" || requestedMode === "eternal") {
+    if (requestedMode === "jukebox" || requestedMode === "canon" || requestedMode === "eternal" || requestedMode === "autoharmonizer" || requestedMode === "sculptor") {
         mode = requestedMode;
     }
     var trid = params.get("trid");
@@ -3403,7 +3951,9 @@ var tilePrototype = {
         var that = this;
         this.rect.mousedown(async function(event) {
             event.preventDefault();
-            driver.setNextQ(that.q);
+            if (driver && typeof driver.setNextQ === "function") {
+                driver.setNextQ(that.q);
+            }
             if (!driver.isRunning()) {
                 try {
                     if (remixer && typeof remixer.ensureContext === "function") {
@@ -3860,6 +4410,12 @@ function createTiles(qlist) {
     if (mode === "jukebox" || mode === "eternal") {
         return createCircularTiles(qlist);
     }
+    if (mode === "autoharmonizer") {
+        return createAutoharmonizerTiles(qlist);
+    }
+    if (mode === "sculptor") {
+        return createSculptorTiles(qlist);
+    }
     clearJukeboxBackdrop();
     tiles = [];
     normalizeColor();
@@ -3916,6 +4472,330 @@ function createCircularTiles(qlist) {
         updateCursors(qlist[0]);
     }
     return tiles;
+}
+
+function createAutoharmonizerTiles(qlist) {
+    // Create dual-loop visualization: two interlocking circles for autoharmonizer mode
+    tiles = [];
+    normalizeColor();
+    clearLoopPaths();
+    renderOrbitBase();
+    renderJukeboxBackdrop();
+
+    // Get autoharmonizer data from analysis
+    var autoharmonizerData = curTrack && curTrack.analysis && curTrack.analysis.autoharmonizer;
+    if (!autoharmonizerData) {
+        console.error("[Viz] No autoharmonizer data, falling back to circular");
+        return createCircularTiles(qlist);
+    }
+
+    var track1Beats = autoharmonizerData.track1.beats || [];
+    var track2Beats = autoharmonizerData.track2.beats || [];
+
+    // Calculate positions for two circles side-by-side
+    var baseRadius = getCircularRadius() * 0.55; // Slightly smaller for dual view
+    var sizeScale = Math.min(baseRadius * 0.12, 16);
+    var centerY = H / 2;
+    var spacing = baseRadius * 0.4; // Gap between circles
+
+    // Left circle center (Track 1)
+    var center1X = W / 2 - baseRadius - spacing / 2;
+    var center1Y = centerY;
+
+    // Right circle center (Track 2)
+    var center2X = W / 2 + baseRadius + spacing / 2;
+    var center2Y = centerY;
+
+    // Draw track 1 beats (left circle) in blue
+    _.each(track1Beats, function(beat, idx) {
+        var angle = (idx / track1Beats.length) * Math.PI * 2 - Math.PI / 2;
+        var x = center1X + Math.cos(angle) * baseRadius;
+        var y = center1Y + Math.sin(angle) * baseRadius;
+
+        var volume = beat.confidence || 0.5;
+        var durationRatio = beat.duration / 0.5; // Normalize
+        var size = Math.max(3, Math.min(10, volume * sizeScale + durationRatio * sizeScale * 0.4));
+
+        var tile = Object.create(tilePrototype);
+        tile.which = idx;
+        tile.track = 1;
+        tile.width = size * 2;
+        tile.height = size * 2;
+        tile.normalColor = "#4A90E2"; // Blue for track 1
+        tile.rect = paper.circle(x, y, size);
+        tile.rect.tile = tile;
+        tile.normal();
+        tile.q = beat;
+        tile.init();
+        beat.tile = tile;
+        tiles.push(tile);
+    });
+
+    // Draw track 2 beats (right circle) in purple
+    _.each(track2Beats, function(beat, idx) {
+        var angle = (idx / track2Beats.length) * Math.PI * 2 - Math.PI / 2;
+        var x = center2X + Math.cos(angle) * baseRadius;
+        var y = center2Y + Math.sin(angle) * baseRadius;
+
+        var volume = beat.confidence || 0.5;
+        var durationRatio = beat.duration / 0.5;
+        var size = Math.max(3, Math.min(10, volume * sizeScale + durationRatio * sizeScale * 0.4));
+
+        var tile = Object.create(tilePrototype);
+        tile.which = idx + track1Beats.length; // Offset index for track 2
+        tile.track = 2;
+        tile.width = size * 2;
+        tile.height = size * 2;
+        tile.normalColor = "#9B59B6"; // Purple for track 2
+        tile.rect = paper.circle(x, y, size);
+        tile.rect.tile = tile;
+        tile.normal();
+        tile.q = beat;
+        tile.init();
+        beat.tile = tile;
+        tiles.push(tile);
+    });
+
+    // Draw cross-track connections (the "fusion" effect)
+    var crossSim = autoharmonizerData.cross_similarity;
+    if (crossSim && crossSim.track1_to_track2) {
+        var connectionCount = 0;
+        var maxConnections = 30; // Limit visual clutter
+
+        _.each(crossSim.track1_to_track2, function(candidates, beatIdx) {
+            if (connectionCount >= maxConnections) return;
+
+            var idx = parseInt(beatIdx);
+            if (!candidates || !candidates.length || idx >= track1Beats.length) return;
+
+            // Draw connection to best match
+            var bestMatch = candidates[0];
+            if (bestMatch.similarity > 0.65 && bestMatch.target_index < track2Beats.length) {
+                var angle1 = (idx / track1Beats.length) * Math.PI * 2 - Math.PI / 2;
+                var x1 = center1X + Math.cos(angle1) * baseRadius;
+                var y1 = center1Y + Math.sin(angle1) * baseRadius;
+
+                var angle2 = (bestMatch.target_index / track2Beats.length) * Math.PI * 2 - Math.PI / 2;
+                var x2 = center2X + Math.cos(angle2) * baseRadius;
+                var y2 = center2Y + Math.sin(angle2) * baseRadius;
+
+                var opacity = Math.min(0.4, bestMatch.similarity * 0.5);
+                var path = paper.path("M" + x1 + "," + y1 + "L" + x2 + "," + y2);
+                path.attr({
+                    "stroke": "#E74C3C",
+                    "stroke-width": 1,
+                    "opacity": opacity,
+                    "stroke-dasharray": "3,3"
+                });
+                connectionCount++;
+            }
+        });
+    }
+
+    // Add labels
+    var label1 = paper.text(center1X, centerY, "Track 1");
+    label1.attr({
+        "font-size": 14,
+        "fill": "#4A90E2",
+        "opacity": 0.6,
+        "font-weight": "bold"
+    });
+
+    var label2 = paper.text(center2X, centerY, "Track 2");
+    label2.attr({
+        "font-size": 14,
+        "fill": "#9B59B6",
+        "opacity": 0.6,
+        "font-weight": "bold"
+    });
+
+    if (track1Beats.length) {
+        updateCursors(track1Beats[0]);
+    }
+
+    return tiles;
+}
+
+function createSculptorTiles(qlist) {
+    // Section Sculptor: visualize sections as horizontal timeline blocks
+    tiles = [];
+    normalizeColor();
+    clearJukeboxBackdrop();
+    clearLoopPaths();
+
+    var sections = (curTrack && curTrack.analysis && curTrack.analysis.sections) || [];
+    if (sections.length === 0) {
+        console.warn("[Sculptor] No sections found, using default tiles");
+        return createCircularTiles(qlist);
+    }
+
+    var GH = H - vPad * 2;
+    var HB = H - vPad;
+    var TW = W - hPad * 2;
+    var sectionHeight = GH / Math.min(sections.length, 8); // Max 8 rows
+
+    // Color palette for different section types
+    var sectionColors = {
+        "Intro": "#4A90E2",
+        "Verse": "#50C878",
+        "Pre-Chorus": "#FFA500",
+        "Chorus": "#E74C3C",
+        "Bridge": "#9B59B6",
+        "Outro": "#95A5A6"
+    };
+
+    // Store section rectangles for later updates
+    var sectionRects = [];
+
+    // Draw each section as a horizontal bar
+    _.each(sections, function(section, idx) {
+        var position = idx / sections.length;
+        var label = "";
+
+        // Label section based on position
+        if (idx === 0) {
+            label = "Intro";
+        } else if (idx === sections.length - 1) {
+            label = "Outro";
+        } else if (position < 0.25) {
+            label = "Verse";
+        } else if (position >= 0.25 && position < 0.5) {
+            label = "Pre-Chorus";
+        } else if (position >= 0.5 && position < 0.75) {
+            label = "Chorus";
+        } else {
+            label = "Bridge";
+        }
+
+        var x = hPad + TW * (section.start / trackDuration);
+        var width = TW * (section.duration / trackDuration);
+        var y = vPad + (idx % 8) * sectionHeight;
+        var height = sectionHeight - 5; // Small gap between sections
+
+        // Create section rectangle
+        var color = sectionColors[label] || "#7F8C8D";
+        var rect = paper.rect(x, y, width, height);
+        rect.attr({
+            "fill": color,
+            "stroke": "#2C3E50",
+            "stroke-width": 2,
+            "opacity": 0.7,
+            "cursor": "pointer"
+        });
+
+        // Store section index on the rect
+        rect.sectionIndex = idx;
+        rect.sectionLabel = label;
+        rect.baseColor = color;
+        sectionRects.push(rect);
+
+        // Make section clickable to add to queue or jump to it
+        rect.click(function() {
+            if (driver && driver.getState) {
+                var state = driver.getState();
+
+                // Check if this section is in the queue
+                var inQueue = state.sectionQueue.indexOf(this.sectionIndex) !== -1;
+
+                if (inQueue) {
+                    // If in queue, jump to it
+                    var queuePos = state.sectionQueue.indexOf(this.sectionIndex);
+                    if (driver.jumpToQueuePosition) {
+                        driver.jumpToQueuePosition(queuePos);
+                        console.log("[Sculptor] Jumped to section", this.sectionLabel);
+                    }
+                } else {
+                    // If not in queue, add it
+                    if (driver.addSection) {
+                        driver.addSection(this.sectionIndex);
+                        console.log("[Sculptor] Added section", this.sectionLabel, "to queue");
+                    }
+                }
+
+                // Update UI if available
+                if (window.updateSculptorQueueDisplay) {
+                    window.updateSculptorQueueDisplay();
+                }
+
+                // Visual feedback
+                this.attr({"stroke-width": 4, "stroke": "#fff"});
+                var self = this;
+                setTimeout(function() {
+                    self.attr({"stroke-width": 2, "stroke": "#2C3E50"});
+                }, 200);
+            }
+        });
+
+        // Hover effect
+        rect.hover(
+            function() {
+                this.attr({"opacity": 0.9, "stroke-width": 3});
+            },
+            function() {
+                this.attr({"opacity": 0.7, "stroke-width": 2});
+            }
+        );
+
+        // Add section label
+        var labelX = x + width / 2;
+        var labelY = y + height / 2;
+        var text = paper.text(labelX, labelY, label + " " + (idx + 1));
+        text.attr({
+            "font-size": Math.min(12, height / 3),
+            "fill": "#FFFFFF",
+            "font-weight": "bold",
+            "cursor": "pointer"
+        });
+
+        // Make text clickable too
+        text.sectionIndex = idx;
+        text.sectionLabel = label;
+        text.click(function() {
+            rect.click();
+        });
+
+        // Create tiles for beats in this section
+        var sectionStart = section.start;
+        var sectionEnd = section.start + section.duration;
+
+        _.each(qlist, function(beat, beatIdx) {
+            if (beat.start >= sectionStart && beat.start < sectionEnd) {
+                var tile = Object.create(tilePrototype);
+                tile.which = beatIdx;
+                tile.section = idx;
+                tile.width = width / 20; // Approximate width
+                tile.height = height;
+                tile.normalColor = color;
+                tile.rect = rect; // Share the section rectangle
+                tile.q = beat;
+                beat.tile = tile;
+                tiles.push(tile);
+            }
+        });
+    });
+
+    // Add timeline labels
+    var timeLabels = [0, trackDuration / 4, trackDuration / 2, (3 * trackDuration) / 4, trackDuration];
+    _.each(timeLabels, function(time) {
+        var x = hPad + TW * (time / trackDuration);
+        var timeText = paper.text(x, H - vPad / 2, formatTime(time));
+        timeText.attr({
+            "font-size": 10,
+            "fill": "#7F8C8D"
+        });
+    });
+
+    if (qlist.length) {
+        updateCursors(qlist[0]);
+    }
+
+    return tiles;
+}
+
+function formatTime(seconds) {
+    var mins = Math.floor(seconds / 60);
+    var secs = Math.floor(seconds % 60);
+    return mins + ":" + (secs < 10 ? "0" : "") + secs;
 }
 
 
@@ -5764,6 +6644,846 @@ function createJukeboxDriver(player, options) {
     };
 }
 
+function createAutoharmonizerDriver(player) {
+    // Autoharmonizer: dual-track fusion with cross-track jumping and sculpted transitions
+    var curQ = 0;
+    var currentTrack = 1;
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+    var beatsSinceCross = 0;
+    var MIN_BEATS_BEFORE_CROSS = 4;
+    var FORCE_CROSS_AFTER = 12;
+
+    var autoharmonizerData = curTrack && curTrack.analysis && curTrack.analysis.autoharmonizer;
+    if (!autoharmonizerData) {
+        console.error("[Autoharmonizer] No autoharmonizer data found in analysis");
+        return createCanonDriver(player);
+    }
+
+    var track1Data = autoharmonizerData.track1 || {};
+    var track2Data = autoharmonizerData.track2 || {};
+    var crossSimilarity = autoharmonizerData.cross_similarity || {};
+
+    if (!track1Data.beats || !track1Data.beats.length || !track2Data.beats || !track2Data.beats.length) {
+        console.error("[Autoharmonizer] Missing beat data for one or both tracks");
+        error("trouble loading audio");
+        return createCanonDriver(player);
+    }
+
+    var track1Source =
+        track1Data.audio_url ||
+        (track1Data.info && track1Data.info.url) ||
+        (curTrack && curTrack.info && curTrack.info.url) ||
+        curTrack.audio_url ||
+        "";
+    var track2Source =
+        track2Data.audio_url ||
+        (track2Data.info && track2Data.info.url) ||
+        "";
+
+    if (!track1Source || !track2Source) {
+        console.error("[Autoharmonizer] Unable to resolve audio sources", {
+            track1Source: track1Source,
+            track2Source: track2Source
+        });
+        error("trouble loading audio");
+        return createCanonDriver(player);
+    }
+
+    var track1Controller = createHtmlAudioController(track1Source, { volume: 0.0 });
+    var track2Controller = createHtmlAudioController(track2Source, { volume: 0.0 });
+    if (!track1Controller || !track2Controller) {
+        console.error("[Autoharmonizer] Failed to initialize HTML audio controllers");
+        error("trouble loading audio");
+        return createCanonDriver(player);
+    }
+    if (track1Controller.ensureLoaded) {
+        track1Controller.ensureLoaded();
+    }
+    if (track2Controller.ensureLoaded) {
+        track2Controller.ensureLoaded();
+    }
+
+    // Build jump graph for track1 (combining intra-track and cross-track options)
+    var jumpCandidates = {};
+    var eternal1 = track1Data.eternal_loop_candidates || {};
+    Object.keys(eternal1).forEach(function(beatIdx) {
+        var intra = eternal1[beatIdx].map(function(cand) {
+            return {
+                source_track: 1,
+                target_track: 1,
+                source_index: parseInt(beatIdx, 10),
+                target_index: cand.target,
+                similarity: cand.similarity,
+                reason: "intra-track"
+            };
+        });
+        jumpCandidates[beatIdx] = (jumpCandidates[beatIdx] || []).concat(intra);
+    });
+    var cross1to2 = crossSimilarity.track1_to_track2 || {};
+    Object.keys(cross1to2).forEach(function(beatIdx) {
+        jumpCandidates[beatIdx] = (jumpCandidates[beatIdx] || []).concat(cross1to2[beatIdx]);
+    });
+
+    function getBeatsForTrack(trackNum) {
+        return trackNum === 1 ? track1Data.beats : track2Data.beats;
+    }
+
+    function getControllerForTrack(trackNum) {
+        return trackNum === 1 ? track1Controller : track2Controller;
+    }
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNextProcess(durationSeconds) {
+        clearProcessTimer();
+        var delayMs = Math.max(60, (durationSeconds || 0.1) * 1000);
+        processTimer = setTimeout(function() {
+            processTimer = null;
+            process();
+        }, delayMs);
+    }
+
+    function syncControllerToBeat(controller, beat, options) {
+        if (!controller || !beat) {
+            return;
+        }
+        var tolerance = (options && typeof options.tolerance === "number") ? options.tolerance : 0.08;
+        var forceSeek = !!(options && options.forceSeek);
+        var currentTime = controller.audio.currentTime || 0;
+        if (forceSeek || !isFinite(currentTime) || Math.abs(currentTime - beat.start) > tolerance) {
+            controller.playFrom(beat.start);
+        } else {
+            controller.ensurePlaying();
+        }
+    }
+
+    function crossfadeToTrack(targetTrack, beatIndex, crossfadeMs) {
+        var targetBeats = getBeatsForTrack(targetTrack);
+        var targetController = getControllerForTrack(targetTrack);
+        var sourceController = getControllerForTrack(targetTrack === 1 ? 2 : 1);
+        var beat = targetBeats[beatIndex];
+        if (!beat || !targetController) {
+            return;
+        }
+        syncControllerToBeat(targetController, beat, { forceSeek: true });
+        targetController.fadeTo(0.72, crossfadeMs || 450);
+        if (sourceController) {
+            sourceController.fadeTo(0, crossfadeMs || 450);
+        }
+        currentTrack = targetTrack;
+        curQ = beatIndex;
+        beatsSinceCross = 0;
+        scheduleNextProcess(Math.max(beat.duration, 0.2));
+    }
+
+    function selectNextBeat(currentBeatIdx, trackNum, options) {
+        options = options || {};
+        var candidates = [];
+        var indexKey = String(currentBeatIdx);
+        if (trackNum === 1) {
+            candidates = jumpCandidates[currentBeatIdx] || jumpCandidates[indexKey] || [];
+        } else {
+            var cross2to1 = crossSimilarity.track2_to_track1 || {};
+            var eternal2 = track2Data.eternal_loop_candidates || {};
+            candidates = ((cross2to1[currentBeatIdx] || cross2to1[indexKey] || [])).concat(
+                (eternal2[currentBeatIdx] || []).map(function(cand) {
+                    return {
+                        source_track: 2,
+                        target_track: 2,
+                        source_index: currentBeatIdx,
+                        target_index: cand.target,
+                        similarity: cand.similarity,
+                        reason: "intra-track"
+                    };
+                })
+            );
+        }
+
+        var threshold = 0.5;
+        candidates = candidates.filter(function(c) { return typeof c.similarity === "number" && c.similarity >= threshold; });
+
+        if (options.preferCross) {
+            var crossOnly = candidates.filter(function(cand) {
+                return cand.source_track !== cand.target_track;
+            });
+            if (crossOnly.length) {
+                candidates = crossOnly;
+            }
+        }
+
+        if (!candidates.length) {
+            var beats = getBeatsForTrack(trackNum);
+            var fallbackIndex = (currentBeatIdx + 1) % beats.length;
+            return {
+                track: trackNum,
+                index: fallbackIndex,
+                reason: "sequential",
+                similarity: 0
+            };
+        }
+
+        var totalWeight = 0;
+        var weights = candidates.map(function(c) {
+            var w = Math.pow(Math.max(0.01, c.similarity), 1.4);
+            totalWeight += w;
+            return w;
+        });
+        var rand = Math.random() * totalWeight;
+        var cumulative = 0;
+        for (var i = 0; i < candidates.length; i++) {
+            cumulative += weights[i];
+            if (rand <= cumulative) {
+                var choice = candidates[i];
+                var normalizedIndex = typeof choice.target_index === "number"
+                    ? choice.target_index
+                    : parseInt(choice.target_index, 10);
+                return {
+                    track: choice.target_track,
+                    index: isNaN(normalizedIndex) ? 0 : normalizedIndex,
+                    reason: choice.reason || (choice.source_track === choice.target_track ? "intra-track" : "cross-track"),
+                    similarity: choice.similarity
+                };
+            }
+        }
+        var fallback = candidates[0];
+        var fallbackIndex = typeof fallback.target_index === "number"
+            ? fallback.target_index
+            : parseInt(fallback.target_index, 10);
+        return {
+            track: fallback.target_track,
+            index: isNaN(fallbackIndex) ? 0 : fallbackIndex,
+            reason: fallback.reason || "fallback",
+            similarity: fallback.similarity
+        };
+    }
+
+    function updateHudForBeat(beat) {
+        if (!beat) {
+            return;
+        }
+        if (beat.tile) {
+            beat.tile.highlight();
+            updateCursors(beat);
+        }
+        mtime.text(fmtTime(beat.start));
+        pulseNotes(beat.median_volume || beat.volume || baseNoteStrength);
+    }
+
+    function stopPlayback(options) {
+        options = options || {};
+        clearProcessTimer();
+        running = false;
+        beatsSinceCross = 0;
+        if (track1Controller) {
+            track1Controller.fadeTo(0, 200);
+            track1Controller.stop();
+        }
+        if (track2Controller) {
+            track2Controller.fadeTo(0, 200);
+            track2Controller.stop();
+        }
+        if (player && typeof player.stop === "function") {
+            try {
+                player.stop();
+            } catch (err) {}
+        }
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        if (options.resetPosition) {
+            curQ = 0;
+            currentTrack = 1;
+        }
+        resetPlaybackState();
+    }
+
+    function process() {
+        if (!running) {
+            return;
+        }
+        var beats = getBeatsForTrack(currentTrack);
+        if (!beats || !beats.length) {
+            stopPlayback({ resetPosition: true });
+            return;
+        }
+        if (curQ >= beats.length) {
+            curQ = 0;
+        }
+        var currentBeat = beats[curQ];
+        if (!currentBeat) {
+            stopPlayback({ resetPosition: true });
+            return;
+        }
+
+        syncControllerToBeat(getControllerForTrack(currentTrack), currentBeat);
+        updateHudForBeat(currentBeat);
+
+        var beatDuration = Math.max(currentBeat.duration || 0.25, 0.15);
+        var crossPressure = beatsSinceCross >= FORCE_CROSS_AFTER;
+        var jumpChance = Math.min(0.75, 0.2 + Math.max(0, beatsSinceCross - MIN_BEATS_BEFORE_CROSS) * 0.05);
+        var shouldJump = crossPressure || Math.random() < jumpChance;
+        if (shouldJump) {
+            var choice = selectNextBeat(curQ, currentTrack, { preferCross: crossPressure });
+            var beatsForTrack = getBeatsForTrack(choice.track);
+            if (choice && beatsForTrack && beatsForTrack.length) {
+                var sequentialIndex = (choice.track === currentTrack) ? ((curQ + 1) % beats.length) : null;
+                var isSequential = choice.track === currentTrack && choice.index === sequentialIndex;
+                if (!isSequential) {
+                    if (choice.track !== currentTrack) {
+                        console.log("[Autoharmonizer] Cross-track jump", choice);
+                        crossfadeToTrack(choice.track, choice.index, 520);
+                        return;
+                    } else {
+                        console.log("[Autoharmonizer] Intra-track jump", choice);
+                        curQ = choice.index % beatsForTrack.length;
+                        syncControllerToBeat(getControllerForTrack(currentTrack), beatsForTrack[curQ], { forceSeek: true });
+                        scheduleNextProcess(Math.max(beatsForTrack[curQ].duration || beatDuration, 0.2));
+                        beatsSinceCross++;
+                        return;
+                    }
+                }
+            }
+        }
+
+        curQ = (curQ + 1) % beats.length;
+        beatsSinceCross++;
+        scheduleNextProcess(beatDuration);
+    }
+
+    return {
+        start: function() {
+            if (running) {
+                return;
+            }
+            running = true;
+            curQ = 0;
+            currentTrack = 1;
+            beatsSinceCross = 0;
+            track1Controller.setVolume(0.72);
+            track1Controller.playFrom(track1Data.beats[0] ? track1Data.beats[0].start : 0);
+            track2Controller.setVolume(0);
+            track2Controller.seek(track2Data.beats[0] ? track2Data.beats[0].start : 0);
+            $("#play").text("Pause");
+            setPlayingClass(mode);
+            pulseNotes(baseNoteStrength);
+            markPlaybackStarted();
+            process();
+        },
+        stop: function() {
+            stopPlayback({ resetPosition: true });
+        },
+        pause: function() {
+            if (!running) {
+                return;
+            }
+            running = false;
+            clearProcessTimer();
+            track1Controller.pause();
+            track2Controller.pause();
+            $("#play").text("Play");
+            setPlayingClass(null);
+            pulseNotes(baseNoteStrength);
+        },
+        resume: function() {
+            if (running) {
+                return;
+            }
+            running = true;
+            if (typeof beatsSinceCross !== "number") {
+                beatsSinceCross = 0;
+            }
+            $("#play").text("Pause");
+            setPlayingClass(mode);
+            pulseNotes(baseNoteStrength);
+            var beats = getBeatsForTrack(currentTrack);
+            if (beats && beats.length) {
+                var resumeBeat = beats[Math.min(curQ, beats.length - 1)];
+                syncControllerToBeat(getControllerForTrack(currentTrack), resumeBeat, { forceSeek: true });
+            }
+            process();
+        },
+        toggle: function() {
+            if (running) {
+                this.pause();
+            } else {
+                this.start();
+            }
+        },
+        isRunning: function() {
+            return running;
+        },
+        getState: function() {
+            return {
+                mode: "autoharmonizer",
+                running: running,
+                currentBeat: curQ,
+                currentTrack: currentTrack
+            };
+        }
+    };
+}
+
+function createSectionSculptorDriver(player) {
+    // Section Sculptor: arrange and queue sections/bars like a mini DAW
+    var running = false;
+    var mtime = $("#mtime");
+    var sectionQueue = [];
+    var currentQueueIndex = 0; // Points to the next section that will be scheduled
+    var activeQueueIndex = null; // The section that is currently sounding
+    var processTimer = null;
+
+    var trackAnalysis = (curTrack && curTrack.analysis) || null;
+    var sections = (trackAnalysis && trackAnalysis.sections) || [];
+    var beats = (trackAnalysis && trackAnalysis.beats) || [];
+    var baseTempo = (trackAnalysis &&
+        trackAnalysis.audio_summary &&
+        trackAnalysis.audio_summary.tempo) || null;
+
+    // Label sections intelligently based on their position and characteristics
+    function labelSection(section, index, allSections) {
+        var labels = [];
+        var position = index / Math.max(1, allSections.length);
+
+        if (index === 0) {
+            labels.push("Intro");
+        } else if (index === allSections.length - 1) {
+            labels.push("Outro");
+        }
+
+        if (position < 0.25) {
+            labels.push("Verse");
+        } else if (position >= 0.25 && position < 0.5) {
+            labels.push("Pre-Chorus");
+        } else if (position >= 0.5 && position < 0.75) {
+            labels.push("Chorus");
+        } else {
+            labels.push("Bridge");
+        }
+
+        return labels.length > 0 ? labels[0] : "Section";
+    }
+
+    // Build section metadata
+    var sectionData = sections.map(function(section, idx) {
+        return {
+            index: idx,
+            label: labelSection(section, idx, sections),
+            start: section.start,
+            duration: section.duration,
+            tempo: section.tempo || baseTempo,
+            loudness: section.loudness_start || 0,
+            confidence: section.confidence || 0.5
+        };
+    });
+
+    console.log("[Section Sculptor] Loaded", sectionData.length, "sections - queue starts empty");
+
+    var queuePlayer = null;
+    var previewPlayer = null;
+    var previewTimer = null;
+
+    function resolvePrimaryAudioSource() {
+        var analysisTrack = trackAnalysis && trackAnalysis.track ? trackAnalysis.track : null;
+        return (
+            (analysisTrack && analysisTrack.audio_url) ||
+            (analysisTrack && analysisTrack.info && analysisTrack.info.url) ||
+            (curTrack && curTrack.audio_url) ||
+            (curTrack && curTrack.info && curTrack.info.url) ||
+            ""
+        );
+    }
+
+    function initializeAudioControllers() {
+        var audioSource = resolvePrimaryAudioSource();
+        if (!audioSource) {
+            console.warn("[Section Sculptor] Unable to resolve audio source for direct playback");
+            return;
+        }
+        queuePlayer = createHtmlAudioController(audioSource, { volume: 0.92 });
+        previewPlayer = createHtmlAudioController(audioSource, { volume: 0.95 });
+        if (!queuePlayer || !previewPlayer) {
+            console.warn("[Section Sculptor] Failed to initialize HTML audio controllers");
+            queuePlayer = null;
+            previewPlayer = null;
+            return;
+        }
+        if (queuePlayer.ensureLoaded) {
+            queuePlayer.ensureLoaded();
+        }
+        if (previewPlayer.ensureLoaded) {
+            previewPlayer.ensureLoaded();
+        }
+    }
+
+    initializeAudioControllers();
+
+    function notifyQueueChanged() {
+        if (typeof window.updateSculptorQueueDisplay === "function") {
+            try {
+                window.updateSculptorQueueDisplay();
+            } catch (err) {
+                console.warn("[Section Sculptor] Failed to refresh timeline", err);
+            }
+        }
+    }
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function normalizeQueuePointers() {
+        if (!sectionQueue.length) {
+            currentQueueIndex = 0;
+            activeQueueIndex = null;
+            return;
+        }
+        if (currentQueueIndex >= sectionQueue.length || currentQueueIndex < 0) {
+            currentQueueIndex = 0;
+        }
+        if (activeQueueIndex !== null) {
+            if (activeQueueIndex >= sectionQueue.length) {
+                activeQueueIndex = sectionQueue.length - 1;
+            } else if (activeQueueIndex < 0) {
+                activeQueueIndex = 0;
+            }
+        }
+    }
+
+    function scheduleNextSection(durationSeconds) {
+        clearProcessTimer();
+        var duration = Math.max(0.1, durationSeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (!running) {
+                return;
+            }
+            process();
+        }, duration);
+    }
+
+    function playSectionAt(queueIndex) {
+        if (!sectionQueue.length) {
+            console.warn("[Section Sculptor] Queue is empty, stopping");
+            haltPlayback({ hardStop: true, resetIndex: true, resetPlaybackState: true });
+            return;
+        }
+
+        var normalizedIndex = Math.max(0, Math.min(queueIndex, sectionQueue.length - 1));
+        currentQueueIndex = normalizedIndex;
+        activeQueueIndex = normalizedIndex;
+
+        var sectionIdx = sectionQueue[normalizedIndex];
+        var section = sections[sectionIdx];
+        var sectionMeta = sectionData[sectionIdx] || {
+            label: "Section " + (sectionIdx + 1),
+            duration: section ? section.duration : 0
+        };
+        if (!section) {
+            console.warn("[Section Sculptor] Missing section data for index", sectionIdx);
+            return;
+        }
+
+        console.log("[Section Sculptor] Playing:", sectionMeta.label,
+            "(queue pos " + (normalizedIndex + 1) + "/" + sectionQueue.length + ")");
+
+        var sectionBeats = [];
+        for (var i = 0; i < beats.length; i++) {
+            var beat = beats[i];
+            if (beat.start >= section.start && beat.start < section.start + section.duration) {
+                sectionBeats.push(beat);
+            }
+        }
+
+        if (sectionBeats.length > 0 && sectionBeats[0].tile) {
+            updateCursors(sectionBeats[0]);
+        }
+
+        mtime.text(fmtTime(section.start));
+        pulseNotes(section.loudness_start || baseNoteStrength);
+
+        if (previewPlayer) {
+            previewPlayer.pause();
+        }
+        if (previewTimer) {
+            clearTimeout(previewTimer);
+            previewTimer = null;
+        }
+        if (queuePlayer) {
+            queuePlayer.playFrom(section.start);
+        } else {
+            console.warn("[Section Sculptor] No audio controller available for playback");
+            haltPlayback({ hardStop: true, resetIndex: false });
+            return;
+        }
+
+        var sectionDuration = section.duration || (sectionMeta && sectionMeta.duration) || 0.1;
+        currentQueueIndex = (normalizedIndex + 1) % sectionQueue.length;
+        scheduleNextSection(sectionDuration);
+        notifyQueueChanged();
+    }
+
+    function process() {
+        if (!running) {
+            return;
+        }
+        playSectionAt(currentQueueIndex);
+    }
+
+    function previewSection(sectionIndex) {
+        var section = sectionData[sectionIndex];
+        if (!section) {
+            return;
+        }
+        if (running) {
+            console.warn("[Section Sculptor] Cannot preview while queue is playing");
+            return;
+        }
+        if (previewPlayer) {
+            previewPlayer.playFrom(section.start);
+        } else {
+            console.warn("[Section Sculptor] Preview unavailable - no audio controller");
+            return;
+        }
+        if (previewTimer) {
+            clearTimeout(previewTimer);
+        }
+        var previewDuration = Math.min(3, Math.max(section.duration || 0.1, 0.1));
+        previewTimer = setTimeout(function() {
+            if (running) {
+                return;
+            }
+            if (previewPlayer) {
+                previewPlayer.pause();
+            }
+        }, previewDuration * 1000);
+    }
+
+    function haltPlayback(options) {
+        options = options || {};
+        clearProcessTimer();
+        running = false;
+        if (queuePlayer) {
+            if (options.hardStop && typeof queuePlayer.stop === "function") {
+                queuePlayer.stop();
+            } else if (typeof queuePlayer.pause === "function") {
+                queuePlayer.pause();
+            }
+        } else if (player) {
+            if (options.hardStop && typeof player.stop === "function") {
+                player.stop();
+            } else if (typeof player.pause === "function") {
+                player.pause();
+            }
+        }
+        if (previewPlayer) {
+            previewPlayer.pause();
+        }
+        if (previewTimer) {
+            clearTimeout(previewTimer);
+            previewTimer = null;
+        }
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        if (options.resetIndex) {
+            currentQueueIndex = 0;
+            activeQueueIndex = null;
+        }
+        if (options.resetPlaybackState) {
+            resetPlaybackState();
+        }
+    }
+
+    function beginPlaybackAt(queueIndex) {
+        if (!sectionQueue.length) {
+            console.warn("[Section Sculptor] Nothing to play - add sections to the queue first");
+            return false;
+        }
+        if (!queuePlayer) {
+            console.warn("[Section Sculptor] Audio controller missing - cannot start playback");
+            error("Unable to load audio for Section Sculptor mode");
+            return false;
+        }
+
+        running = true;
+        $("#play").text("Pause");
+        setPlayingClass(mode);
+        pulseNotes(baseNoteStrength);
+        markPlaybackStarted();
+
+        var startIndex = typeof queueIndex === "number"
+            ? Math.max(0, Math.min(queueIndex, sectionQueue.length - 1))
+            : 0;
+
+        playSectionAt(startIndex);
+        return true;
+    }
+
+    function pausePlayback() {
+        haltPlayback({ resetIndex: false });
+        if (activeQueueIndex !== null) {
+            currentQueueIndex = activeQueueIndex;
+        }
+    }
+
+    function stopPlayback() {
+        haltPlayback({ hardStop: true, resetIndex: true, resetPlaybackState: true });
+    }
+
+    return {
+        start: function() {
+            currentQueueIndex = 0;
+            beginPlaybackAt(0);
+        },
+
+        resume: function() {
+            if (!running) {
+                beginPlaybackAt(currentQueueIndex);
+            }
+        },
+
+        pause: function() {
+            pausePlayback();
+        },
+
+        stop: function() {
+            stopPlayback();
+        },
+
+        toggle: function() {
+            if (running) {
+                this.pause();
+            } else {
+                this.start();
+            }
+        },
+
+        isRunning: function() {
+            return running;
+        },
+
+        getState: function() {
+            return {
+                mode: "sculptor",
+                running: running,
+                currentSection: activeQueueIndex,
+                sectionQueue: sectionQueue.slice(),
+                sectionData: sectionData
+            };
+        },
+
+        addSection: function(sectionIndex, targetIndex) {
+            if (sectionIndex < 0 || sectionIndex >= sectionData.length) {
+                return;
+            }
+            var insertPos = typeof targetIndex === "number"
+                ? Math.max(0, Math.min(targetIndex, sectionQueue.length))
+                : sectionQueue.length;
+            sectionQueue.splice(insertPos, 0, sectionIndex);
+            normalizeQueuePointers();
+            console.log("[Section Sculptor] Added section:", sectionData[sectionIndex].label,
+                "at position", insertPos + 1);
+            notifyQueueChanged();
+        },
+
+        removeSection: function(queueIndex) {
+            if (queueIndex >= 0 && queueIndex < sectionQueue.length) {
+                var removed = sectionQueue.splice(queueIndex, 1);
+                normalizeQueuePointers();
+                console.log("[Section Sculptor] Removed section at queue position", queueIndex);
+                if (!sectionQueue.length) {
+                    stopPlayback();
+                } else {
+                    notifyQueueChanged();
+                }
+                return removed.length ? removed[0] : null;
+            }
+            return null;
+        },
+
+        moveSection: function(fromIndex, toIndex) {
+            if (fromIndex === toIndex ||
+                fromIndex < 0 || fromIndex >= sectionQueue.length) {
+                return;
+            }
+            var section = sectionQueue.splice(fromIndex, 1)[0];
+            var clampedTarget = Math.max(0, Math.min(toIndex, sectionQueue.length));
+            sectionQueue.splice(clampedTarget, 0, section);
+            normalizeQueuePointers();
+            console.log("[Section Sculptor] Moved section from", fromIndex, "to", clampedTarget);
+            notifyQueueChanged();
+        },
+
+        clearQueue: function() {
+            sectionQueue = [];
+            normalizeQueuePointers();
+            stopPlayback();
+            console.log("[Section Sculptor] Cleared queue");
+            notifyQueueChanged();
+        },
+
+        resetQueue: function() {
+            sectionQueue = sectionData.map(function(s) { return s.index; });
+            currentQueueIndex = 0;
+            activeQueueIndex = null;
+            console.log("[Section Sculptor] Reset to original order");
+            if (running) {
+                clearProcessTimer();
+                playSectionAt(0);
+            } else {
+                notifyQueueChanged();
+            }
+        },
+
+        shuffleQueue: function() {
+            if (!sectionQueue.length && sectionData.length) {
+                sectionQueue = sectionData.map(function(s) { return s.index; });
+            }
+            for (var i = sectionQueue.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = sectionQueue[i];
+                sectionQueue[i] = sectionQueue[j];
+                sectionQueue[j] = temp;
+            }
+            currentQueueIndex = 0;
+            activeQueueIndex = null;
+            console.log("[Section Sculptor] Shuffled queue");
+            if (running) {
+                clearProcessTimer();
+                playSectionAt(0);
+            } else {
+                notifyQueueChanged();
+            }
+        },
+
+        jumpToQueuePosition: function(queuePos) {
+            if (queuePos < 0 || queuePos >= sectionQueue.length) {
+                return;
+            }
+            if (!running) {
+                beginPlaybackAt(queuePos);
+            } else {
+                clearProcessTimer();
+                playSectionAt(queuePos);
+            }
+            console.log("[Section Sculptor] Jumped to queue position", queuePos);
+        },
+
+        previewSection: function(sectionIndex) {
+            previewSection(sectionIndex);
+        }
+    };
+}
+
 function Driver(player) {
     if (mode === "jukebox") {
         var jukeboxSettings = getLoopSettingsForMode("jukebox");
@@ -5771,6 +7491,10 @@ function Driver(player) {
     } else if (mode === "eternal") {
         var eternalSettings = getLoopSettingsForMode("eternal");
         return createJukeboxDriver(player, eternalSettings);
+    } else if (mode === "autoharmonizer") {
+        return createAutoharmonizerDriver(player);
+    } else if (mode === "sculptor") {
+        return createSectionSculptorDriver(player);
     }
     return createCanonDriver(player);
 }

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Talk to Disco-teque — Harmonizer Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./modern.css" />
+    <link rel="stylesheet" href="./eldrichify.css" />
+</head>
+<body class="eldrichify-terminal">
+    <div class="site-landing-banner"><a href="/">&#8592; Return to Internet Discotheque</a></div>
+    <main class="eld-main">
+        <section class="eld-shell">
+            <div class="eld-hero">
+                <div class="eld-hero-copy">
+                    <p class="eld-eyebrow">SYNTH RELAY // 19.84</p>
+                    <h1>TALK TO DISCO-TEQUE</h1>
+                    <p>
+                        Chat with Disco-teque like you would with a friend. Ask for prompts, set lists, or a fresh metaphor
+                        and it answers in a few seconds.
+                    </p>
+                    <ul class="eld-callouts">
+                        <li>&#10022; Runs on the free Gemini Flash Lite tier</li>
+                        <li>&#10022; Terminal feed highlights system, you, and Disco-teque</li>
+                        <li>&#10022; Shortcut macros and Shift+Enter for multi-line thoughts</li>
+                    </ul>
+                    <div class="eld-cta-row">
+                        <button type="button" class="launch-link viz-button" id="launch-chat-btn">Wake the Terminal</button>
+                    </div>
+                </div>
+                <div class="eld-hero-art" aria-hidden="true">
+                    <div class="eld-ascii-grid">
+<pre>
+  _________
+ / ======= \
+/ __________\
+| |        | |
+| | DISCO  | |
+| |  -TEQUE| |
+| |________| |
+\_/________\_/
+  vinyl oracle
+</pre>
+<pre>
+     ___
+   /'___\        uplink coil
+  /\ \__/  __  __   __  __
+  \ \ ,__\/\ \/\ \ /\ \/\ \
+   \ \ \_/\ \ \_\ \\ \ \_/ |
+    \ \_\  \ \____/ \ \___/
+     \/_/   \/___/   \/__/
+</pre>
+</pre>
+                    </div>
+                </div>
+            </div>
+
+            <section class="eld-console" id="discoteque-console">
+                <div class="eld-disconnected" id="terminal-disconnected">
+                    <div class="eld-disconnected-icon">&#127926;</div>
+                    <div class="eld-disconnected-text">TERMINAL IDLE</div>
+                    <div class="eld-disconnected-subtext">Hit "Wake the Terminal" to link with Disco-teque</div>
+                </div>
+
+                <div class="eld-terminal-window" id="terminal-window" hidden>
+                    <div class="eld-terminal-header">
+                        <span class="eld-terminal-prompt">talk-to-disco-teque@discotheque:~/chat$</span>
+                        <button type="button" class="eld-terminal-close" id="terminal-close" aria-label="Close terminal">&#9587;</button>
+                    </div>
+                    <div class="eld-terminal-body" id="terminal-body">
+                        <div class="eld-terminal-output" id="terminal-output" aria-live="polite"></div>
+                        <div class="eld-terminal-input-line" id="terminal-hint">
+                            <span>Shift+Enter adds a line break &middot; Enter sends to Disco-teque.</span>
+                        </div>
+                    </div>
+                    <form class="eld-terminal-chat-form" id="terminal-input-form" novalidate>
+                        <div class="eld-chat-input-shell">
+                            <span class="eld-chat-input-badge" aria-hidden="true">uplink</span>
+                            <label class="eld-chat-input-label" for="terminal-input">Message uplink</label>
+                            <div class="eld-chat-input-frame">
+                                <textarea
+                                    id="terminal-input"
+                                    class="eld-terminal-chat-input"
+                                    rows="4"
+                                    placeholder="Ask for a prompt kit, a set list, or a weird metaphor for your next deck..."
+                                    aria-label="Message for Disco-teque"
+                                ></textarea>
+                            </div>
+                        </div>
+                        <div class="eld-terminal-chat-actions">
+                            <button type="submit" class="eld-chat-btn primary">
+                                <span>Send</span>
+                                <small>Ctrl + Enter</small>
+                            </button>
+                            <button type="button" class="eld-chat-btn secondary" id="terminal-reset">
+                                <span>Reset</span>
+                                <small>Clear log</small>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="eld-suggestion-panel" id="suggestion-panel">
+                    <p class="eld-suggestion-label">Quick prompts</p>
+                    <div class="eld-suggestion-buttons">
+                        <button type="button" class="eld-suggestion-btn" data-prompt="Design a shimmering synthwave setlist for a midnight rollerskate. Include three tracks and a lighting cue.">Midnight set</button>
+                        <button type="button" class="eld-suggestion-btn" data-prompt="Give me a two-part creative brief that merges acid house basslines with Balearic pads. Keep it vivid.">Hybrid brief</button>
+                        <button type="button" class="eld-suggestion-btn" data-prompt="Turn this into a poetic status update for the team: we're rebuilding the VAE front-end so uploads feel instant.">Poetic status</button>
+                        <button type="button" class="eld-suggestion-btn" data-prompt="How would Disco-teque explain embeddings to a lighting designer? Keep it under 120 words.">Explain embeddings</button>
+                    </div>
+                </div>
+            </section>
+
+            <div class="eld-mini-glyphs" aria-label="Ambient glyph bank">
+<pre class="eld-mini-glyph" aria-hidden="true">
+ .-.
+(o o)
+| O \
+ \   \
+  `~~~'
+</pre>
+<pre class="eld-mini-glyph" aria-hidden="true">
+/\___/\
+(=^.^=)
+ (")_(")
+</pre>
+<pre class="eld-mini-glyph" aria-hidden="true">
+  _____
+ / ____|
+| (___   groove drone
+ \___ \
+ ____) |
+|_____/
+</pre>
+<pre class="eld-mini-glyph" aria-hidden="true">
+  _
+ ( \
+  \ \
+  / /
+ /_/  dancing quaver
+</pre>
+            </div>
+        </section>
+    </main>
+
+    <div class="eld-lightbox" id="image-lightbox">
+        <span class="eld-lightbox-close">&times;</span>
+        <img id="lightbox-img" src="" alt="Enlarged view" />
+    </div>
+
+    <script src="./js/discoteque.js"></script>
+    <script src="./js/persistent-player.js" defer></script>
+</body>
+</html>

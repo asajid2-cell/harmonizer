@@ -27,6 +27,7 @@ from google.oauth2.credentials import Credentials
 import json
 import random
 import time
+import requests
 
 try:  # optional dependency for large Drive downloads
     import gdown  # type: ignore
@@ -58,6 +59,10 @@ rl_policy_rewards = rl_db.fetch_policy_rewards()
 rl_min_samples = int(os.environ.get("RL_POLICY_MIN", "25"))
 rl_last_reward_refresh = 0.0
 rl_policy_weights: dict[str, float] = {"baseline": 0.5, "rl": 0.5}
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-lite-preview")
+GEMINI_API_ROOT = os.environ.get("GEMINI_API_ROOT", "https://generativelanguage.googleapis.com/v1beta")
 
 
 def _coerce_float(value: Optional[object]) -> Optional[float]:
@@ -538,6 +543,119 @@ def api_eldrichify():
             "previews": previews,
         }
     )
+
+
+@app.route("/api/talk-to-disco-teque", methods=["POST"])
+def api_talk_to_disco_teque():
+    if not GEMINI_API_KEY:
+        return jsonify({"error": "Gemini API key is not configured on the server."}), 503
+
+    data = request.get_json(silent=True) or {}
+    message = str(data.get("message") or "").strip()
+    if not message:
+        return jsonify({"error": "Message is required."}), 400
+
+    history = data.get("history")
+    contents = []
+    if isinstance(history, list):
+        for entry in history:
+            if not isinstance(entry, dict):
+                continue
+            text = str(entry.get("text") or "").strip()
+            if not text:
+                continue
+            role = entry.get("role")
+            contents.append(
+                {
+                    "role": "model" if role == "model" else "user",
+                    "parts": [{"text": text}],
+                }
+            )
+
+    contents.append({"role": "user", "parts": [{"text": message}]})
+
+    request_body = {
+        "system_instruction": {
+            "parts": [
+                {
+                    "text": (
+                        "You are Disco-teque, a relic of an internet no more. Disco-teque is bubbly,"
+                        " chronically online before that was a thing, speaks in the third person, and cycles"
+                        " through a stable of catchphrases. Every response must end with the sign-off"
+                        " 'disco-teque out'. Disco-teque adores boats, the ocean, and orcas, and frequently"
+                        " mentions that love while reminding everyone how much planes and cars are hated."
+                        " Keep replies vivid, under 180 words unless the user explicitly asks for more,"
+                        " and always stay in character."
+                    )
+                }
+            ]
+        },
+        "contents": contents,
+        "generation_config": {
+            "temperature": 0.65,
+            "top_p": 0.95,
+            "top_k": 32,
+            "max_output_tokens": 512,
+        },
+    }
+
+    model_name = GEMINI_MODEL or "gemini-1.5-flash-latest"
+    base_url = GEMINI_API_ROOT.rstrip("/") if GEMINI_API_ROOT else "https://generativelanguage.googleapis.com/v1beta"
+    endpoint = f"{base_url}/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+
+    try:
+        response = requests.post(endpoint, json=request_body, timeout=20)
+    except requests.RequestException as exc:
+        print(f"[gemini] request failed: {exc}", flush=True)
+        return jsonify({"error": "Gemini request failed. Please try again."}), 502
+
+    if response.status_code >= 400:
+        error_payload = {}
+        try:
+            error_payload = response.json()
+        except ValueError:
+            pass
+        message_text = None
+        if isinstance(error_payload, dict):
+            error = error_payload.get("error")
+            if isinstance(error, dict):
+                message_text = error.get("message")
+            elif isinstance(error, str):
+                message_text = error
+        if response.status_code == 429:
+            return jsonify(
+                {
+                    "error": (
+                        "Disco-teque hit the Gemini rate limit. Give it a beat and try again in a moment."
+                    )
+                }
+            ), 429
+        return jsonify({"error": message_text or "Gemini API returned an error."}), response.status_code
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return jsonify({"error": "Gemini returned an invalid response."}), 502
+
+    candidates = payload.get("candidates") or []
+    if not candidates:
+        return jsonify({"error": "Gemini response did not include any candidates."}), 502
+
+    parts = candidates[0].get("content", {}).get("parts", [])
+    reply = "".join(
+        part.get("text", "")
+        for part in parts
+        if isinstance(part, dict)
+    ).strip()
+
+    usage_meta = payload.get("usageMetadata") or {}
+    usage = {
+        "prompt_tokens": usage_meta.get("promptTokenCount"),
+        "completion_tokens": usage_meta.get("candidatesTokenCount"),
+        "total_tokens": usage_meta.get("totalTokenCount"),
+    }
+
+    return jsonify({"reply": reply, "usage": usage})
 
 
 @app.route("/api/cheatsheets", methods=["GET", "POST"])
@@ -1239,7 +1357,7 @@ def api_process():
     if request.method == "OPTIONS":
         return ("", 204)
     algorithm = request.form.get("algorithm", "canon").lower()
-    if algorithm not in {"canon", "jukebox", "eternal"}:
+    if algorithm not in {"canon", "jukebox", "eternal", "autoharmonizer", "sculptor"}:
         return jsonify({"error": "Unsupported algorithm selection."}), 400
 
     source = request.form.get("source", "upload").lower()
@@ -1256,6 +1374,10 @@ def api_process():
     info: Optional[dict] = None
 
     try:
+        # For autoharmonizer, we need two tracks
+        audio_path2: Optional[Path] = None
+        track_id2: Optional[str] = None
+
         if source == "upload":
             uploaded = request.files.get("audio")
             if not uploaded or uploaded.filename == "":
@@ -1268,6 +1390,19 @@ def api_process():
             uploaded.save(audio_path)
             if not title:
                 title = Path(uploaded.filename).stem
+
+            # Handle second audio file for autoharmonizer
+            if algorithm == "autoharmonizer":
+                uploaded2 = request.files.get("audio2")
+                if not uploaded2 or uploaded2.filename == "":
+                    return jsonify({"error": "Autoharmonizer requires two audio files."}), 400
+                if not allowed_file(uploaded2.filename):
+                    return jsonify({"error": "Second file has unsupported type."}), 400
+                track_id2 = generate_track_id()
+                ext2 = Path(uploaded2.filename).suffix.lower()
+                filename2 = secure_filename(f"{track_id2}{ext2}")
+                audio_path2 = UPLOAD_FOLDER / filename2
+                uploaded2.save(audio_path2)
         elif source == "youtube":
             url = request.form.get("youtube_url", "").strip()
             if not url:
@@ -1305,6 +1440,7 @@ def api_process():
         if title is None:
             title = audio_path.stem if audio_path else "Untitled"
 
+        # Process first track
         media_url = url_for("media", filename=audio_path.name)
         output_path = DATA_FOLDER / f"{track_id}.json"
         build_profile(
@@ -1316,10 +1452,48 @@ def api_process():
             output_path=output_path,
         )
 
+        # For autoharmonizer, process second track and compute cross-track similarity
+        if algorithm == "autoharmonizer":
+            if not audio_path2 or not track_id2:
+                return jsonify({"error": "Autoharmonizer requires two tracks."}), 400
+
+            # Process second track
+            title2 = Path(audio_path2.stem).stem if audio_path2 else "Untitled Track 2"
+            media_url2 = url_for("media", filename=audio_path2.name)
+            output_path2 = DATA_FOLDER / f"{track_id2}.json"
+            build_profile(
+                audio_path=audio_path2,
+                track_id=track_id2,
+                title=title2,
+                artist=artist,
+                audio_url=media_url2,
+                output_path=output_path2,
+            )
+
+            # Compute cross-track similarity and create combined profile
+            try:
+                from .analysis.analyze_track import build_autoharmonizer_profile
+            except ImportError:
+                from analysis.analyze_track import build_autoharmonizer_profile
+            combined_track_id = f"{track_id}+{track_id2}"
+            combined_output_path = DATA_FOLDER / f"{combined_track_id}.json"
+            build_autoharmonizer_profile(
+                track1_path=output_path,
+                track2_path=output_path2,
+                combined_track_id=combined_track_id,
+                output_path=combined_output_path,
+            )
+
+            mode = "autoharmonizer"
+            redirect_url = url_for("index", trid=combined_track_id, mode=mode)
+            return jsonify({"redirect": redirect_url, "trackId": combined_track_id})
+
         if algorithm == "canon":
             mode = "canon"
         elif algorithm == "jukebox":
             mode = "jukebox"
+        elif algorithm == "sculptor":
+            mode = "sculptor"
         else:
             mode = "eternal"
         redirect_url = url_for("index", trid=track_id, mode=mode)

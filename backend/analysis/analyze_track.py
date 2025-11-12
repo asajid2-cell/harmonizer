@@ -1386,6 +1386,7 @@ def build_profile(
                 "artist": artist,
                 "status": "complete",
                 "info": {"url": audio_url},
+                "audio_url": audio_url,
                 "audio_summary": {
                     "duration": float(duration),
                     "tempo": float(tempo),
@@ -1421,6 +1422,202 @@ def build_profile(
     with output_path.open("w", encoding="utf-8") as sink:
         json.dump(profile, sink, indent=2)
     return profile
+
+
+def compute_cross_track_similarity(
+    beats1: List[Dict],
+    beats2: List[Dict],
+    segments1: List[Dict],
+    segments2: List[Dict],
+) -> Dict[str, List[Dict]]:
+    """
+    Compute cross-track beat-to-beat similarity between two tracks.
+
+    For each beat in track1, find similar beats in track2 (and vice versa).
+    Uses segment timbre and pitch features for comparison.
+
+    Returns a dict mapping:
+        "track1_to_track2": List of candidate jumps from track1 to track2
+        "track2_to_track1": List of candidate jumps from track2 to track1
+    """
+    # Build feature vectors for each beat by finding the nearest segment
+    def get_beat_features(beats: List[Dict], segments: List[Dict]) -> np.ndarray:
+        features = []
+        for beat in beats:
+            beat_start = beat["start"]
+            # Find the segment that contains or is closest to this beat
+            best_seg = min(segments, key=lambda s: abs(s["start"] - beat_start))
+            # Concatenate timbre (12) and pitches (12) = 24 features
+            timbre = np.array(best_seg.get("timbre", [0.0] * 12), dtype=np.float32)
+            pitches = np.array(best_seg.get("pitches", [0.0] * 12), dtype=np.float32)
+            feat = np.concatenate([timbre, pitches])
+            features.append(feat)
+        return np.array(features, dtype=np.float32)
+
+    features1 = get_beat_features(beats1, segments1)
+    features2 = get_beat_features(beats2, segments2)
+
+    # Normalize features
+    features1_norm = features1 / (np.linalg.norm(features1, axis=1, keepdims=True) + 1e-8)
+    features2_norm = features2 / (np.linalg.norm(features2, axis=1, keepdims=True) + 1e-8)
+
+    # Compute cross-similarity matrix: shape (n_beats1, n_beats2)
+    cross_sim = features1_norm @ features2_norm.T
+
+    # For each beat in track1, find top candidates in track2
+    track1_to_track2 = {}
+    for i in range(len(beats1)):
+        similarities = cross_sim[i, :]
+        # Get top 12 candidates above threshold
+        threshold = 0.50
+        candidates = []
+        for j in range(len(beats2)):
+            if similarities[j] >= threshold:
+                candidates.append({
+                    "source_track": 1,
+                    "target_track": 2,
+                    "source_index": i,
+                    "target_index": j,
+                    "similarity": float(similarities[j]),
+                    "source_time": beats1[i]["start"],
+                    "target_time": beats2[j]["start"],
+                })
+        # Sort by similarity and keep top 12
+        candidates.sort(key=lambda x: x["similarity"], reverse=True)
+        track1_to_track2[str(i)] = candidates[:12]
+
+    # For each beat in track2, find top candidates in track1
+    track2_to_track1 = {}
+    for j in range(len(beats2)):
+        similarities = cross_sim[:, j]
+        threshold = 0.50
+        candidates = []
+        for i in range(len(beats1)):
+            if similarities[i] >= threshold:
+                candidates.append({
+                    "source_track": 2,
+                    "target_track": 1,
+                    "source_index": j,
+                    "target_index": i,
+                    "similarity": float(similarities[i]),
+                    "source_time": beats2[j]["start"],
+                    "target_time": beats1[i]["start"],
+                })
+        candidates.sort(key=lambda x: x["similarity"], reverse=True)
+        track2_to_track1[str(j)] = candidates[:12]
+
+    return {
+        "track1_to_track2": track1_to_track2,
+        "track2_to_track1": track2_to_track1,
+    }
+
+
+def build_autoharmonizer_profile(
+    track1_path: Path,
+    track2_path: Path,
+    combined_track_id: str,
+    output_path: Path,
+) -> Dict:
+    """
+    Build a combined autoharmonizer profile from two existing track profiles.
+
+    Loads both track analyses, computes cross-track similarity, and creates
+    a combined profile with both tracks' data plus cross-track jump candidates.
+    """
+    # Load both track profiles
+    with track1_path.open("r", encoding="utf-8") as f:
+        profile1 = json.load(f)
+
+    with track2_path.open("r", encoding="utf-8") as f:
+        profile2 = json.load(f)
+
+    track1 = profile1["response"]["track"]
+    track2 = profile2["response"]["track"]
+
+    # Extract beats and segments from both tracks
+    beats1 = track1["analysis"]["beats"]
+    beats2 = track2["analysis"]["beats"]
+    segments1 = track1["analysis"]["segments"]
+    segments2 = track2["analysis"]["segments"]
+
+    # Compute cross-track similarity
+    print(f"[Autoharmonizer] Computing cross-track similarity between {len(beats1)} and {len(beats2)} beats...")
+    cross_similarity = compute_cross_track_similarity(beats1, beats2, segments1, segments2)
+
+    # Build combined profile
+    track1_audio_url = track1.get("audio_url") or track1.get("info", {}).get("url", "")
+    track2_audio_url = track2.get("audio_url") or track2.get("info", {}).get("url", "")
+
+    combined_profile = {
+        "response": {
+            "status": {"version": "4.2", "code": 0, "message": "Success"},
+            "track": {
+                "id": combined_track_id,
+                "status": "complete",
+                "title": f"{track1['title']} + {track2['title']}",
+                "artist": track1.get("artist", "Unknown"),
+                "audio_url": track1_audio_url,
+                "info": {
+                    "url": track1_audio_url,
+                },
+                "audio_summary": {
+                    "duration": max(
+                        track1["audio_summary"]["duration"],
+                        track2["audio_summary"]["duration"]
+                    ),
+                    "tempo": (track1["audio_summary"]["tempo"] + track2["audio_summary"]["tempo"]) / 2,
+                    "time_signature": track1["audio_summary"]["time_signature"],
+                    "key": track1["audio_summary"]["key"],
+                    "mode": track1["audio_summary"]["mode"],
+                    "loudness": (track1["audio_summary"]["loudness"] + track2["audio_summary"]["loudness"]) / 2,
+                    "analysis_sample_rate": track1["audio_summary"]["analysis_sample_rate"],
+                },
+                "analysis": {
+                    "beats": beats1,  # Use track1 beats as primary timeline
+                    "bars": track1["analysis"]["bars"],
+                    "sections": track1["analysis"]["sections"],
+                    "segments": segments1,
+                    "tatums": track1["analysis"]["tatums"],
+                    # Add autoharmonizer-specific data
+                    "autoharmonizer": {
+                        "track1": {
+                            "id": track1["id"],
+                            "title": track1["title"],
+                            "audio_url": track1_audio_url,
+                            "beats": beats1,
+                            "bars": track1["analysis"]["bars"],
+                            "segments": segments1,
+                            "duration": track1["audio_summary"]["duration"],
+                            "tempo": track1["audio_summary"]["tempo"],
+                            "eternal_loop_candidates": track1["analysis"].get("eternal_loop_candidates", {}),
+                            "canon_alignment": track1["analysis"].get("canon_alignment", {}),
+                        },
+                        "track2": {
+                            "id": track2["id"],
+                            "title": track2["title"],
+                            "audio_url": track2_audio_url,
+                            "beats": beats2,
+                            "bars": track2["analysis"]["bars"],
+                            "segments": segments2,
+                            "duration": track2["audio_summary"]["duration"],
+                            "tempo": track2["audio_summary"]["tempo"],
+                            "eternal_loop_candidates": track2["analysis"].get("eternal_loop_candidates", {}),
+                            "canon_alignment": track2["analysis"].get("canon_alignment", {}),
+                        },
+                        "cross_similarity": cross_similarity,
+                    },
+                },
+            },
+        },
+    }
+
+    # Save combined profile
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as sink:
+        json.dump(combined_profile, sink, indent=2)
+
+    print(f"[Autoharmonizer] Created combined profile: {combined_track_id}")
+    return combined_profile
 
 
 def parse_args() -> argparse.Namespace:

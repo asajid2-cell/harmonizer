@@ -39,6 +39,8 @@
                         <li>&#x27E1; <strong>CANON MODE</strong> &rarr; MIRROR VOICES</li>
                         <li>&#x27E1; <strong>JUKEBOX MODE</strong> &rarr; JUMP AND NEVER STOP</li>
                         <li>&#x27E1; <strong>ETERNAL MODE</strong> &rarr; LAYER AND REPEAT</li>
+                        <li>&#x27E1; <strong>AUTOHARMONIZER</strong> &rarr; DUAL TRACK FUSION</li>
+                        <li>&#x27E1; <strong>SECTION SCULPTOR</strong> &rarr; ARRANGE CLIPS</li>
                     </ul>
                     <div class="ascii-dancer-cluster">
                         <pre class="ascii-dancer-side">
@@ -159,6 +161,20 @@ jgs   `-=========-`()
                                 <p>layer + evolve</p>
                             </div>
                         </button>
+                        <button type="button" data-algorithm="autoharmonizer" class="mode-card toggle">
+                            <span class="mode-card-icon" aria-hidden="true">⇄</span>
+                            <div class="mode-card-body">
+                                <h3>AUTOHARMONIZER</h3>
+                                <p>dual track fusion</p>
+                            </div>
+                        </button>
+                        <button type="button" data-algorithm="sculptor" class="mode-card toggle">
+                            <span class="mode-card-icon" aria-hidden="true">✂</span>
+                            <div class="mode-card-body">
+                                <h3>SECTION SCULPTOR</h3>
+                                <p>arrange & queue clips</p>
+                            </div>
+                        </button>
                     </div>
                     <input type="hidden" name="algorithm" value="canon" id="algorithm-input">
                     <pre class="ascii-divider">～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～</pre>
@@ -181,6 +197,16 @@ jgs   `-=========-`()
                                     Choose File
                                 </button>
                                 <span class="file-upload-name" id="file-upload-name">No file chosen</span>
+                            </div>
+                        </label>
+                        <label class="field hidden" id="audio2-field">
+                            <span>Second Audio file (for Autoharmonizer)</span>
+                            <div class="file-upload-wrapper">
+                                <input type="file" name="audio2" accept="audio/*" id="audio2-file-input" class="file-input-hidden">
+                                <button type="button" class="file-upload-button" id="file-upload-button2">
+                                    Choose File
+                                </button>
+                                <span class="file-upload-name" id="file-upload-name2">No file chosen</span>
                             </div>
                         </label>
                     </div>
@@ -225,6 +251,8 @@ jgs   `-=========-`()
                                 <option value="canon">Autocanonizer</option>
                                 <option value="jukebox">Eternal Jukebox</option>
                                 <option value="eternal">Eternal Canonizer</option>
+                                <option value="autoharmonizer">Autoharmonizer</option>
+                                <option value="sculptor">Section Sculptor</option>
                             </select>
                         </div>
                         <div class="viz-stats" id="eternal-stats" style="display: none;">
@@ -254,6 +282,33 @@ jgs   `-=========-`()
                         <button type="button" id="add-to-queue-btn" class="viz-button ghost">
                             + Add to Queue
                         </button>
+                    </div>
+                    <!-- Section Sculptor Controls -->
+                    <div class="sculptor-controls" id="sculptor-controls" style="display: none; padding: 12px; background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.1);">
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <span style="font-weight: bold; color: #fff;">Section Timeline:</span>
+                            <button type="button" id="sculptor-reset-btn" class="viz-button ghost small">Reset Order</button>
+                            <button type="button" id="sculptor-clear-btn" class="viz-button ghost small">Clear Timeline</button>
+                            <button type="button" id="sculptor-shuffle-btn" class="viz-button ghost small">Shuffle</button>
+                            <span id="sculptor-queue-info" style="margin-left: auto; color: #aaa; font-size: 0.9em;"></span>
+                        </div>
+                        <div style="margin-top: 4px; padding: 4px 8px; background: rgba(100,100,200,0.2); border-radius: 3px; font-size: 0.85em; color: #aaf;">
+                            💡 <strong>Tip:</strong> Click sections to preview • Drag sections to timeline to build arrangement
+                        </div>
+                        <!-- Drag and Drop Timeline -->
+                        <div id="sculptor-timeline" style="margin-top: 8px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 4px; min-height: 80px; border: 2px dashed rgba(255,255,255,0.2); position: relative;">
+                            <div id="sculptor-timeline-empty" style="color: #888; font-style: italic; text-align: center; padding: 20px;">
+                                Drag sections here to build your arrangement...
+                            </div>
+                            <div id="sculptor-timeline-content" style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;"></div>
+                        </div>
+                        <!-- Available Sections Palette -->
+                        <div style="margin-top: 8px;">
+                            <div style="font-weight: bold; color: #fff; margin-bottom: 4px; font-size: 0.9em;">Available Sections:</div>
+                            <div id="sculptor-palette" style="padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px; display: flex; flex-wrap: wrap; gap: 4px; min-height: 50px;">
+                                <span style="color: #888; font-style: italic;">Loading sections...</span>
+                            </div>
+                        </div>
                     </div>
             </header>
             <div class="viz-body">
@@ -817,6 +872,16 @@ jgs   `-=========-`()
             currentModeKey = syncAlgorithmButtons(targetMode);
             window.setAdvancedPanelMode(currentModeKey);
             applyModePolicyDefaults(currentModeKey, { refetch: true });
+
+            // Show/hide second audio field for autoharmonizer mode
+            const audio2Field = document.getElementById('audio2-field');
+            if (audio2Field) {
+                if (targetMode === 'autoharmonizer') {
+                    audio2Field.classList.remove('hidden');
+                } else {
+                    audio2Field.classList.add('hidden');
+                }
+            }
         });
 
         if (vizModeSelect) {
@@ -2041,6 +2106,25 @@ jgs   `-=========-`()
                     fileName.textContent = fileInput.files[0].name;
                 } else {
                     fileName.textContent = 'No file chosen';
+                }
+            });
+        }
+
+        // Second file upload button for autoharmonizer
+        const fileUploadButton2 = document.getElementById('file-upload-button2');
+        const fileInput2 = document.getElementById('audio2-file-input');
+        const fileName2 = document.getElementById('file-upload-name2');
+
+        if (fileUploadButton2 && fileInput2 && fileName2) {
+            fileUploadButton2.addEventListener('click', function() {
+                fileInput2.click();
+            });
+
+            fileInput2.addEventListener('change', function() {
+                if (fileInput2.files.length > 0) {
+                    fileName2.textContent = fileInput2.files[0].name;
+                } else {
+                    fileName2.textContent = 'No file chosen';
                 }
             });
         }
