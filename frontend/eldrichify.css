@@ -237,7 +237,7 @@ body.eldrichify-terminal {
   align-self: start;
 }
 
-.hero-visual pre {
+.eld-terminal-ascii {
   margin: 0;
   font-family: "IBM Plex Mono", monospace;
   color: #ffdca8;
@@ -245,6 +245,12 @@ body.eldrichify-terminal {
   text-align: left;
   font-size: 0.85rem;
   line-height: 1.2;
+  white-space: pre;
+}
+
+.hero-visual {
+  justify-self: end;
+  align-self: start;
 }
 
 .eld-console {
