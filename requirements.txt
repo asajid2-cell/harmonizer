@@ -3,6 +3,7 @@ gunicorn>=21.2
 ffmpeg-python>=0.2
 gdown>=5.1
 scikit-learn>=1.3
-torch>=2.1
-torchvision>=0.16
+# Torch handled separately in Dockerfile to force CPU wheels
+# torch>=2.1
+# torchvision>=0.16
 

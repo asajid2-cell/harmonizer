@@ -12,10 +12,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# copy requirements first to maximize layer caching
 COPY requirements.txt ./
 COPY backend/analysis/requirements.txt backend/analysis/requirements.txt
 
+# install CPU-only torch/vision before the rest (requirements.txt has these commented out)
 RUN pip install --upgrade pip && \
+    pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision && \
     pip install -r requirements.txt
 
 COPY . .
@@ -24,5 +27,4 @@ RUN mkdir -p backend/uploads backend/data
 
 EXPOSE 5000
 
-# Match production compose settings: longer timeout + single worker for heavy analysis.
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "600", "--workers", "1", "--access-logfile", "-", "--error-logfile", "-", "--log-level", "info", "backend.app:app"]
