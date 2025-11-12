@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -9,11 +9,14 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #05070c;
-            --cyan: #10f7ff;
-            --purple: #ff66ff;
-            --lime: #59ffb3;
-            --text: #f6f7ff;
+            --bg: #05030a;
+            --grid: rgba(255, 255, 255, 0.08);
+            --cyan: #1ffbff;
+            --pink: #ff4df5;
+            --amber: #ffc54d;
+            --lime: #9dff63;
+            --ink: #0b0814;
+            --text: #f2f6ff;
         }
         * { box-sizing: border-box; }
         body {
@@ -22,95 +25,167 @@
             font-family: "JetBrains Mono", monospace;
             color: var(--text);
             background:
-                radial-gradient(circle at 20% 20%, rgba(255, 0, 255, 0.08), transparent 45%),
-                radial-gradient(circle at 80% 15%, rgba(0, 255, 210, 0.08), transparent 45%),
+                linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px) repeat-x,
+                linear-gradient(180deg, rgba(255,255,255,0.04) 1px, transparent 1px) repeat-y,
                 var(--bg);
-            padding: 32px 18px 80px;
+            background-size: 24px 24px, 24px 24px, auto;
+            padding: 32px 16px 72px;
         }
-        .page-shell {
-            max-width: 960px;
+        .wrapper {
+            max-width: 1100px;
             margin: 0 auto;
-            border: 3px solid var(--lime);
-            padding: clamp(20px, 4vw, 40px);
-            background: rgba(0, 0, 0, 0.85);
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.75), inset 0 0 35px rgba(0, 255, 210, 0.12);
+            border: 3px double var(--cyan);
+            padding: clamp(20px, 4vw, 36px);
+            background: var(--ink);
+            filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.12));
         }
-        h1 {
-            margin: 0 0 10px;
-            letter-spacing: 0.25em;
-            font-size: clamp(1.8rem, 5vw, 2.8rem);
-            color: var(--cyan);
-            text-transform: uppercase;
-        }
-        .eyebrow {
-            text-transform: uppercase;
-            letter-spacing: 0.35em;
-            color: var(--purple);
-            font-size: 0.8rem;
-            margin-bottom: 6px;
-        }
-        .intro {
-            margin: 0 0 24px;
-            line-height: 1.6;
-            color: rgba(255,255,255,0.85);
-        }
-        .ascii-block {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 16px;
-            margin-bottom: 28px;
-        }
-        .ascii-block pre {
-            margin: 0;
-            padding: 14px;
-            border: 1px solid rgba(0, 255, 0, 0.3);
-            background: rgba(0, 0, 0, 0.5);
-            color: var(--lime);
-            min-height: 150px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: left;
-            white-space: pre;
-        }
-        .quick-links {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            border-top: 1px solid rgba(255,255,255,0.15);
-        }
-        .quick-links li {
-            border-bottom: 1px solid rgba(255,255,255,0.15);
-            padding: 18px 0;
-        }
-        .quick-links a {
+        .return-link {
+            display: inline-block;
             color: var(--cyan);
             text-decoration: none;
-            font-size: 1.05rem;
-            letter-spacing: 0.12em;
+            font-size: 0.75rem;
+            letter-spacing: 0.4em;
             text-transform: uppercase;
+            margin-bottom: 20px;
         }
-        .quick-links a:hover { color: var(--purple); }
-        .quick-links p {
-            margin: 6px 0 0;
-            color: rgba(255,255,255,0.75);
+        .return-link:hover { color: var(--pink); }
+        .retro-banner {
+            border: 2px solid var(--pink);
+            padding: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
             font-size: 0.85rem;
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .retro-columns {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            border: 2px solid var(--cyan);
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.65);
+        }
+        .retro-columns h1 {
+            margin: 0 0 8px;
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            letter-spacing: 0.35em;
+        }
+        .retro-columns p {
+            margin: 0 0 12px;
+            line-height: 1.65;
+            color: rgba(255,255,255,0.82);
+        }
+        .hero-note {
+            margin: 0;
+            letter-spacing: 0.18em;
+            font-size: 0.78rem;
+            color: var(--lime);
+        }
+        .hero-ascii {
+            border: 2px solid var(--amber);
+            padding: 12px;
+            background: rgba(0,0,0,0.6);
+            text-align: center;
+            color: var(--amber);
+        }
+        .hero-ascii pre { margin: 0; white-space: pre; }
+        .ascii-panel {
+            margin-top: 26px;
+            border: 2px dashed var(--lime);
+            padding: 16px;
+            background: rgba(5, 3, 10, 0.8);
+        }
+        .ascii-panel h2 {
+            margin: 0 0 12px;
+            letter-spacing: 0.3em;
+            font-size: 0.9rem;
+            color: var(--lime);
+        }
+        .ascii-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        .ascii-grid pre {
+            margin: 0;
+            padding: 14px;
+            border: 1px solid var(--grid);
+            background: rgba(0,0,0,0.55);
+            min-height: 150px;
+            color: var(--lime);
+            white-space: pre;
+        }
+        .link-strip {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+        .link-card {
+            border: 2px solid var(--pink);
+            padding: 18px;
+            text-decoration: none;
+            color: var(--text);
+            background: rgba(0,0,0,0.65);
+        }
+        .link-card h3 {
+            margin: 8px 0 10px;
+            letter-spacing: 0.3em;
+            font-size: 1.15rem;
+            text-transform: uppercase;
+            color: var(--cyan);
+        }
+        .link-card p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.75);
+            line-height: 1.5;
+        }
+        .link-card:hover {
+            border-color: var(--cyan);
         }
         .footer-note {
-            margin-top: 30px;
-            font-size: 0.75rem;
-            letter-spacing: 0.2em;
+            margin-top: 32px;
+            font-size: 0.7rem;
+            letter-spacing: 0.35em;
             text-align: center;
-            color: rgba(255,255,255,0.6);
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.5);
         }
     </style>
 </head>
 <body>
-    <div class="page-shell">
-        <p class="eyebrow">Quick Reference Console</p>
-        <h1>FIELD NOTES</h1>
-        <p class="intro">A tiny link-roll of the docs we reach for first: startup rituals, deployment commands, and other cheat files trimmed for public eyes.</p>
-        <div class="ascii-block" aria-label="retro animal grid">
+    <div class="wrapper">
+        <a class="return-link" href="/">&larr; RETURN TO INTERNET DISCOTHEQUE</a>
+        <div class="retro-banner">*** QUICK REFERENCE TERMINAL &mdash; FIELD NOTES ONLINE ***</div>
+        <section class="retro-columns">
+            <div>
+                <h1>FIELD NOTES</h1>
+                <p>Repo of helpful text files we keep around when we forget a command.</p>
+            </div>
+            <div class="hero-ascii" aria-label="uplink monolith">
+<pre>
+       _____
+    .-' ___ `-.
+   /  .'   `.  \
+  /  /  _ _  \  \
+ ;  | | | | | |  ;
+ |  | | | | | |  |
+ |  | | | | | |  |
+ ;  | \_/ \_/ |  ;
+  \  \       /  /
+   \  `-._.-'  /
+    '.__   __.'
+        | |
+        | |
+   uplink monolith
+</pre>
+            </div>
+        </section>
+        <section class="ascii-panel">
+            <h2>ASCII MASCOTS</h2>
+            <div class="ascii-grid" aria-label="retro animal grid">
 <pre aria-label="laser cat">
  /\_/\
 ( o.o )  << catwatch
@@ -119,7 +194,7 @@
 <pre aria-label="deck dog">
  / \__
 (    @\___
- /         O
+ /         O  << deck dog
 /   (_____/
 \__/
 </pre>
@@ -134,18 +209,18 @@
  /)  )
   "  "
 </pre>
-        </div>
-        <ul class="quick-links">
-            <li>
-                <a href="/cheatsheets/startup_star.html">startup*</a>
-                <p>Server bootstrap + swap, Docker, nginx, SSL. Clean and ready to share.</p>
-            </li>
-            <li>
-                <a href="/cheatsheets/commands_star.html">commands*</a>
-                <p>Deployment & maintenance commands for the current stack.</p>
-            </li>
-        </ul>
-        <p class="footer-note">c2025 Internet Discotheque · neon notebook edition</p>
+            </div>
+        </section>
+        <section class="link-strip">
+            <a class="link-card" href="/cheatsheets/startup_star.html">
+                <h3>startup*</h3>
+                <p>All-purpose VPS setup ritual &mdash; install basics, lock it down, ready for uploads.</p>
+            </a>
+            <a class="link-card" href="/cheatsheets/commands_star.html">
+                <h3>commands*</h3>
+                <p>The commands cheat list &mdash; deploy, restart, recover. Nothing fancy, just the moves.</p>
+            </a>
+        </section>
     </div>
 </body>
 </html>

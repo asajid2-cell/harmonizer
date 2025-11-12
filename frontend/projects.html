@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Projects â€” Internet Discotheque</title>
+    <title>Showcase â€” Internet Discotheque</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -15,6 +15,7 @@
             --color-cyan: #00ffe1;
             --color-orange: #ff9933;
             --color-text: #e0ffe0;
+            --cover-tile: url('./assets/cover.jpg');
         }
         * { box-sizing: border-box; }
         body {
@@ -22,7 +23,51 @@
             min-height: 100vh;
             font-family: "IBM Plex Mono", "Courier New", monospace;
             color: var(--color-text);
-            background: #000000;
+            background-color: #010101;
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(0, 255, 150, 0.08), transparent 55%),
+                radial-gradient(circle at 80% 0%, rgba(0, 255, 225, 0.05), transparent 65%),
+                linear-gradient(120deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.55)),
+                var(--cover-tile),
+                var(--cover-tile),
+                var(--cover-tile),
+                var(--cover-tile),
+                var(--cover-tile),
+                var(--cover-tile),
+                var(--cover-tile),
+                var(--cover-tile),
+                var(--cover-tile),
+                var(--cover-tile);
+            background-size:
+                160% 160%,
+                120% 120%,
+                100% 100%,
+                520px auto,
+                420px auto,
+                360px auto,
+                300px auto,
+                280px auto,
+                240px auto,
+                320px auto,
+                260px auto,
+                340px auto,
+                380px auto;
+            background-position:
+                -20% -10%,
+                120% -20%,
+                center,
+                4% 8%,
+                78% 6%,
+                16% 48%,
+                74% 46%,
+                12% 78%,
+                70% 86%,
+                44% 22%,
+                44% 70%,
+                92% 26%,
+                -6% 32%;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             overflow-x: hidden;
         }
         body::before {
@@ -324,7 +369,7 @@
 </head>
 <body>
     <div class="container">
-        <a href="/" class="back-link">â† Return to Internet Discotheque</a>
+        <a href="/" class="back-link">← Return to Internet Discotheque</a>
 
         <div class="page-header">
             <div class="page-eyebrow">*** ID CHIEF · コンシャスTHOUGHTS · ALOE ISLAND POSSE ***</div>
@@ -334,15 +379,6 @@
             </div>
         </div>
 
-        <div class="info-box">
-            <h2 class="info-box-title">CATALOG INFO</h2>
-            <div class="info-box-content">
-                A collaborative album archiving our sessions between ID Chief, ?????THOUGHTS, and Aloe Island Posse. Recorded and processed through vintage cassette equipment, then digitally enhanced for the modern era.
-                <div class="info-meta">
-                    <strong>CATALOG:</strong> ID-CLUB-001 &nbsp;|&nbsp; <strong>LENGTH:</strong> 38:42 &nbsp;|&nbsp; <strong>YEAR:</strong> 2025
-                </div>
-            </div>
-        </div>
 
         <div class="track-list">
             <div class="track-item">
@@ -351,7 +387,7 @@
                     <h2 class="track-title">Moves So Sweet</h2>
                     <div class="track-meta">
                         <span class="track-artist">ID Chief</span>
-                        <span class="track-duration">3:52</span>
+                        <span class="track-duration">3:14</span>
                     </div>
                 </div>
                 <div class="track-body">
@@ -372,7 +408,7 @@
                     <h2 class="track-title">Tigerstyle</h2>
                     <div class="track-meta">
                         <span class="track-artist">Aloe Island Posse</span>
-                        <span class="track-duration">4:18</span>
+                        <span class="track-duration">2:58</span>
                     </div>
                 </div>
                 <div class="track-body">
@@ -393,7 +429,7 @@
                     <h2 class="track-title">Kotori</h2>
                     <div class="track-meta">
                         <span class="track-artist">コンシャスTHOUGHTS</span>
-                        <span class="track-duration">4:05</span>
+                        <span class="track-duration">3:28</span>
                     </div>
                 </div>
                 <div class="track-body">
@@ -414,7 +450,7 @@
                     <h2 class="track-title">Smile</h2>
                     <div class="track-meta">
                         <span class="track-artist">ID Chief x Aloe Island Posse</span>
-                        <span class="track-duration">3:58</span>
+                        <span class="track-duration">3:21</span>
                     </div>
                 </div>
                 <div class="track-body">
@@ -435,7 +471,7 @@
                     <h2 class="track-title">Maybe I'm Dreaming</h2>
                     <div class="track-meta">
                         <span class="track-artist">コンシャスTHOUGHTS x ID Chief</span>
-                        <span class="track-duration">4:20</span>
+                        <span class="track-duration">4:04</span>
                     </div>
                 </div>
                 <div class="track-body">
@@ -456,7 +492,7 @@
                     <h2 class="track-title">Refreshing</h2>
                     <div class="track-meta">
                         <span class="track-artist">コンシャスTHOUGHTS x Aloe Island Posse</span>
-                        <span class="track-duration">3:41</span>
+                        <span class="track-duration">2:40</span>
                     </div>
                 </div>
                 <div class="track-body">
@@ -477,7 +513,7 @@
                     <h2 class="track-title">Our Love</h2>
                     <div class="track-meta">
                         <span class="track-artist">Aloe Island Posse</span>
-                        <span class="track-duration">3:55</span>
+                        <span class="track-duration">2:30</span>
                     </div>
                 </div>
                 <div class="track-body">
@@ -498,7 +534,7 @@
                     <h2 class="track-title">Visions of You</h2>
                     <div class="track-meta">
                         <span class="track-artist">コンシャスTHOUGHTS</span>
-                        <span class="track-duration">3:47</span>
+                        <span class="track-duration">3:14</span>
                     </div>
                 </div>
                 <div class="track-body">
@@ -519,7 +555,7 @@
                     <h2 class="track-title">Me & You</h2>
                     <div class="track-meta">
                         <span class="track-artist">ID Chief</span>
-                        <span class="track-duration">3:54</span>
+                        <span class="track-duration">3:21</span>
                     </div>
                 </div>
                 <div class="track-body">
@@ -540,7 +576,7 @@
                     <h2 class="track-title">Space Cowboys</h2>
                     <div class="track-meta">
                         <span class="track-artist">コンシャスTHOUGHTS x ID Chief x Aloe Island Posse</span>
-                        <span class="track-duration">6:32</span>
+                        <span class="track-duration">4:20</span>
                     </div>
                 </div>
                 <div class="track-body">
@@ -555,10 +591,6 @@
                 </div>
             </div>
         </div>
-
-        <footer>
-            c2025 Internet Discotheque Â· <a href="/">Return Home</a>
-        </footer>
     </div>
 
     <script>
