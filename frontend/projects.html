@@ -1,331 +1,577 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Internet Discotheque � Projects Console</title>
+    <title>Projects â€” Internet Discotheque</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --color-bg: #03040a;
+            --color-bg: #000000;
             --color-purple: #ff00ff;
-            --color-lime: #00ff6c;
-            --color-cyan: #00fff0;
-            --color-text: #f5f5ff;
+            --color-lime: #00ff96;
+            --color-cyan: #00ffe1;
+            --color-orange: #ff9933;
+            --color-text: #e0ffe0;
         }
         * { box-sizing: border-box; }
         body {
             margin: 0;
             min-height: 100vh;
-            font-family: "Manrope", "Arial", sans-serif;
+            font-family: "IBM Plex Mono", "Courier New", monospace;
             color: var(--color-text);
-            background:
-                radial-gradient(circle at top right, rgba(0,255,240,0.08), transparent 40%),
-                radial-gradient(circle at 20% 25%, rgba(255,0,255,0.08), transparent 45%),
-                #020204;
-            background-attachment: fixed;
+            background: #000000;
+            overflow-x: hidden;
         }
         body::before {
             content: "";
             position: fixed;
             inset: 0;
             pointer-events: none;
-            background-image: radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px);
-            background-size: 140px 140px;
-            opacity: 0.25;
-            animation: starPulse 12s linear infinite;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,150,0.03) 2px, rgba(0,255,150,0.03) 4px),
+                repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,255,150,0.03) 2px, rgba(0,255,150,0.03) 4px);
+            opacity: 0.4;
         }
-        a { color: inherit; }
-        main {
-            max-width: 1200px;
+        a { color: var(--color-cyan); text-decoration: none; }
+        a:hover { color: var(--color-purple); text-decoration: none; }
+
+        .container {
+            max-width: 1400px;
             margin: 0 auto;
-            padding: clamp(20px, 4vw, 48px);
-            position: relative;
+            padding: 40px 20px 60px;
         }
+
         .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.3em;
-            font-size: 0.72rem;
-            border: 2px solid var(--color-purple);
-            padding: 8px 18px;
-            background: rgba(0,0,0,0.7);
-            text-decoration: none;
-            margin-bottom: 24px;
-        }
-        .projects-shell {
-            border: 3px solid var(--color-lime);
-            padding: clamp(20px,4vw,36px);
-            background: rgba(0,0,0,0.88);
-            box-shadow: 0 0 45px rgba(0,0,0,0.7), inset 0 0 45px rgba(0,255,198,0.12);
-        }
-        .projects-hero {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 32px;
-            align-items: flex-start;
-        }
-        .projects-hero-copy { flex: 1 1 320px; }
-        .projects-hero-copy h1 {
-            margin: 0 0 12px;
-            font-size: clamp(2.6rem, 6vw, 3.8rem);
-            letter-spacing: 0.25em;
+            display: inline-block;
             color: var(--color-cyan);
-            text-shadow: 0 0 30px rgba(0,255,198,0.4);
-        }
-        .projects-hero-copy p { line-height: 1.7; margin: 0 0 14px; }
-        .projects-overline {
+            font-size: 0.85rem;
+            letter-spacing: 0.15em;
             text-transform: uppercase;
-            letter-spacing: 0.35em;
-            font-size: 0.8rem;
-            color: var(--color-purple);
-            margin-bottom: 12px;
+            margin-bottom: 30px;
+            padding: 8px 0;
+            border-bottom: 2px solid transparent;
+            transition: border-color 0.2s;
         }
-        .projects-cta-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 16px;
+
+        .back-link:hover {
+            border-bottom-color: var(--color-purple);
         }
-        .viz-button,
-        .viz-button.ghost {
-            border: 2px solid var(--color-purple);
-            padding: 10px 20px;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            cursor: pointer;
-            background: var(--color-purple);
-            color: #000;
-            text-decoration: none;
-        }
-        .viz-button.ghost {
-            background: transparent;
-            color: var(--color-text);
-        }
-        .projects-cover-frame { flex: 0 1 320px; text-align: center; }
-        .projects-monitor {
-            border: 2px solid var(--color-purple);
-            border-radius: 16px;
-            background: rgba(0,0,0,0.85);
-            box-shadow: inset 0 0 30px rgba(255,0,255,0.15);
-        }
-        .projects-monitor-bar {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-bottom: 2px solid rgba(255,255,255,0.15);
-            background: linear-gradient(90deg, rgba(0,255,230,0.3), rgba(255,0,255,0.25));
-            font-size: 0.6rem;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            color: #000;
-        }
-        .monitor-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #ff0095;
-        }
-        .monitor-dot.amber { background: #ffc400; }
-        .monitor-dot.lime { background: #00ff90; }
-        .monitor-title { margin-left: auto; font-weight: 600; }
-        .projects-monitor-screen { padding: 16px; }
-        .projects-monitor-screen img {
-            width: 100%;
-            border-radius: 12px;
-            border: 2px solid var(--color-purple);
-            box-shadow: 0 0 24px rgba(255,0,255,0.25);
-            display: block;
-        }
-        .projects-cover-caption {
-            margin-top: 12px;
-            font-size: 0.72rem;
-            letter-spacing: 0.3em;
-        }
-        .projects-ascii {
-            flex: 1 1 160px;
-            color: var(--color-lime);
-            background: rgba(0,0,0,0.55);
-            border: 2px solid rgba(0,255,0,0.35);
-            padding: 12px;
-            font-family: "JetBrains Mono", monospace;
-            line-height: 1.2;
-        }
-        .projects-tracklist {
-            margin-top: 36px;
+
+        .page-header {
             border: 2px solid var(--color-lime);
-            background: rgba(0,0,0,0.82);
-            padding: 20px;
-            box-shadow: inset 0 0 30px rgba(0,255,120,0.12);
+            padding: 30px;
+            margin-bottom: 40px;
+            background: rgba(0, 0, 0, 0.6);
+            box-shadow: 0 0 30px rgba(0, 255, 150, 0.2);
         }
-        .projects-section-label {
+
+        .page-header h1 {
+            margin: 0 0 10px 0;
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            color: var(--color-cyan);
             text-transform: uppercase;
             letter-spacing: 0.3em;
-            font-size: 0.8rem;
-            color: var(--color-cyan);
-            margin-bottom: 12px;
+            text-shadow: 0 0 20px rgba(0, 255, 225, 0.8);
         }
-        .projects-tracklist-list {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+
+        .page-eyebrow {
+            color: var(--color-purple);
+            font-size: 0.8rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .page-desc {
+            font-size: 0.95rem;
+            line-height: 1.7;
+            color: rgba(224, 255, 224, 0.8);
+            margin: 16px 0 0 0;
+            max-width: 800px;
+        }
+
+        .ascii-gallery {
+            margin-top: 24px;
+            display: flex;
+            flex-wrap: wrap;
             gap: 12px;
         }
-        .projects-tracklist-list li {
+
+        .ascii-gallery pre {
+            margin: 0;
+            padding: 10px 14px;
+            border: 1px solid rgba(0, 255, 150, 0.4);
+            background: rgba(0, 0, 0, 0.55);
+            color: var(--color-lime);
+            font-size: 0.85rem;
+        }
+
+        .track-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .track-item {
+            border: 2px solid var(--color-cyan);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 0;
+            overflow: hidden;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .track-item:hover {
+            border-color: var(--color-purple);
+            box-shadow: 0 0 25px rgba(255, 0, 255, 0.3);
+        }
+
+        .track-header {
+            background: rgba(0, 255, 150, 0.05);
+            border-bottom: 1px solid rgba(0, 255, 150, 0.2);
+            padding: 16px 20px;
             display: flex;
             align-items: center;
-            gap: 16px;
-            border: 2px solid rgba(0,255,222,0.4);
-            padding: 12px 16px;
-            background: linear-gradient(135deg, rgba(0,255,222,0.15), rgba(255,0,255,0.12));
-            box-shadow: 0 8px 20px rgba(0,0,0,0.45);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            gap: 20px;
+            flex-wrap: wrap;
         }
-        .projects-tracklist-list li:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 26px rgba(0,0,0,0.55), 0 0 18px rgba(0,255,222,0.35);
+
+        .track-number {
+            font-size: 1.4rem;
+            color: var(--color-lime);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            min-width: 40px;
         }
-        .projects-track-index {
-            font-family: "JetBrains Mono", monospace;
-            letter-spacing: 0.25em;
+
+        .track-title {
+            font-size: 1.3rem;
+            color: var(--color-cyan);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            flex: 1;
+            text-shadow: 0 0 10px rgba(0, 255, 225, 0.5);
+            margin: 0;
+        }
+
+        .track-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 0.85rem;
+            color: rgba(224, 255, 224, 0.7);
+        }
+
+        .track-artist {
             color: var(--color-lime);
         }
-        .projects-track-meta { flex: 1; display: flex; flex-direction: column; }
-        .projects-track-title { text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
-        .projects-track-artist { font-size: 0.8rem; color: rgba(255,255,255,0.7); }
-        .projects-track-time { letter-spacing: 0.2em; font-size: 0.75rem; color: rgba(255,255,255,0.65); }
-        .projects-notes-grid {
-            margin-top: 32px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 18px;
+
+        .track-duration {
+            color: var(--color-purple);
         }
-        .projects-note-card {
-            border: 2px solid var(--color-purple);
-            padding: 18px;
-            background: linear-gradient(145deg, rgba(255,0,255,0.08), rgba(0,255,222,0.08));
-            box-shadow: inset 0 0 25px rgba(255,0,255,0.14);
+
+        .track-body {
+            padding: 20px;
         }
-        .projects-links-grid {
-            margin-top: 32px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
+
+        .track-description {
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: rgba(224, 255, 224, 0.75);
+            margin-bottom: 16px;
         }
-        .projects-link-card {
-            border: 2px solid var(--color-cyan);
+
+        .audio-player {
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid var(--color-lime);
             padding: 16px;
-            text-align: center;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            background: rgba(0,0,0,0.75);
-            transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+            box-shadow:
+                inset 0 0 20px rgba(0, 255, 150, 0.1),
+                0 0 10px rgba(0, 255, 150, 0.2);
         }
-        .projects-link-card:hover {
+
+        .audio-player audio {
+            width: 100%;
+            height: 44px;
+            outline: none;
+        }
+
+        /* Custom audio player controls styling */
+        .audio-player audio::-webkit-media-controls-panel {
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(0, 20, 10, 0.95));
+            border: 1px solid rgba(0, 255, 150, 0.3);
+        }
+
+        .audio-player audio::-webkit-media-controls-play-button,
+        .audio-player audio::-webkit-media-controls-mute-button {
+            background-color: rgba(0, 255, 150, 0.2);
+            border-radius: 50%;
+            filter: brightness(1.2) saturate(1.5);
+        }
+
+        .audio-player audio::-webkit-media-controls-play-button:hover,
+        .audio-player audio::-webkit-media-controls-mute-button:hover {
+            background-color: rgba(0, 255, 225, 0.3);
+        }
+
+        .audio-player audio::-webkit-media-controls-current-time-display,
+        .audio-player audio::-webkit-media-controls-time-remaining-display {
+            color: var(--color-lime);
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.85rem;
+            text-shadow: 0 0 8px rgba(0, 255, 150, 0.6);
+        }
+
+        .audio-player audio::-webkit-media-controls-timeline {
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 2px;
+            border: 1px solid rgba(0, 255, 150, 0.3);
+        }
+
+        .audio-player audio::-webkit-media-controls-timeline::-webkit-slider-thumb {
             background: var(--color-cyan);
-            color: #000;
-            box-shadow: 0 0 14px rgba(0,255,222,0.4);
+            box-shadow: 0 0 8px rgba(0, 255, 225, 0.6);
         }
+
+        /* Firefox audio controls */
+        .audio-player audio::-moz-range-track {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 255, 150, 0.3);
+        }
+
+        .audio-player audio::-moz-range-thumb {
+            background: var(--color-cyan);
+            box-shadow: 0 0 8px rgba(0, 255, 225, 0.6);
+            border: none;
+        }
+
+        .audio-player audio::-moz-range-progress {
+            background: linear-gradient(to right, var(--color-lime), var(--color-cyan));
+        }
+
+        .track-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .tag {
+            background: transparent;
+            border: 1px solid var(--color-lime);
+            color: var(--color-lime);
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .info-box {
+            border: 2px solid var(--color-purple);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-box-title {
+            font-size: 1.1rem;
+            color: var(--color-purple);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin: 0 0 12px 0;
+            text-shadow: 0 0 10px rgba(255, 0, 255, 0.6);
+        }
+
+        .info-box-content {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: rgba(224, 255, 224, 0.8);
+        }
+
+        .info-meta {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 0, 255, 0.2);
+        }
+
         footer {
-            margin-top: 28px;
             text-align: center;
-            font-size: 0.72rem;
-            letter-spacing: 0.3em;
-            color: rgba(255,255,255,0.7);
+            padding: 30px 20px;
+            color: rgba(224, 255, 224, 0.5);
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            margin-top: 40px;
+            border-top: 1px solid rgba(0, 255, 150, 0.2);
         }
-        @keyframes starPulse {
-            0% { transform: translateY(0); opacity: 0.2; }
-            50% { transform: translateY(-10px); opacity: 0.32; }
-            100% { transform: translateY(0); opacity: 0.2; }
+
+        @media (max-width: 768px) {
+            .track-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .track-number {
+                font-size: 1.2rem;
+            }
+            .track-title {
+                font-size: 1.1rem;
+            }
         }
     </style>
 </head>
 <body>
-    <main>
-        <a class="back-link" href="/">&#8592; BACK TO INTERNET DISCOTHEQUE</a>
-        <div class="projects-shell">
-            <div class="projects-hero">
-                <div class="projects-hero-copy">
-                    <p class="projects-overline">VARIOUS ARTISTS &#9830; 2025</p>
-                    <h1>INTERNET DISCOTHEQUE</h1>
-                    <p>A long-distance collaboration between ID Chief, ?????THOUGHTS, and Aloe Island Posse. Ten tracks of neon slow-motion funk, designed to soundtrack late-night builds inside the Harmonizer lab.</p>
-                    <p>Every patch, bassline, and vocal chop was captured through the same cassette deck now wired into the Discotheque's visualizer racks.</p>
-                    <div class="projects-cta-row">
-                        <a class="viz-button" href="./assets/cover.jpg" target="_blank" rel="noopener">View Cover</a>
-                        <a class="viz-button ghost" href="./loader.html">Stream Loader</a>
-                    </div>
-                </div>
-                <div class="projects-cover-frame" aria-hidden="true">
-                    <div class="projects-monitor">
-                        <div class="projects-monitor-bar">
-                            <span class="monitor-dot red"></span>
-                            <span class="monitor-dot amber"></span>
-                            <span class="monitor-dot lime"></span>
-                            <span class="monitor-title">Internet_Discotheque.exe</span>
-                        </div>
-                        <div class="projects-monitor-screen">
-                            <img src="./assets/cover.jpg" alt="Internet Discotheque album cover">
-                        </div>
-                    </div>
-                    <p class="projects-cover-caption">CATALOG: ID-CLUB-001 &#9830; LENGTH: 38:42</p>
-                </div>
-                <div class="projects-ascii" aria-hidden="true"><pre>
-      .-.
- __  /   \      /\
-\ \/  _  |    .'  '.
- \   / \ |   / .-.  \
-  \_/  /_/___\ \_/  /
-    /`   ___  `.__.'
-   /     \  \ 
-  /  /| |\|  |
-  \_/ |_| \__/
-</pre></div>
+    <div class="container">
+        <a href="/" class="back-link">â† Return to Internet Discotheque</a>
+
+        <div class="page-header">
+            <div class="page-eyebrow">*** ID CHIEF · コンシャスTHOUGHTS · ALOE ISLAND POSSE ***</div>
+            <h1>Internet Discotheque</h1>
+            <div class="page-desc">
+                Ten tracks of neon slow-motion funk. A long-distance collaboration between three artists, combining smooth basslines, layered synths, and chopped vocal samples into a cohesive sonic experience.
             </div>
-            <section class="projects-tracklist" aria-label="Tracklist">
-                <p class="projects-section-label">Tracklist</p>
-                <ol class="projects-tracklist-list">
-                    <li><span class="projects-track-index">01</span><div class="projects-track-meta"><span class="projects-track-title">Moves So Sweet</span><span class="projects-track-artist">ID Chief</span></div><span class="projects-track-time">3:52</span></li>
-                    <li><span class="projects-track-index">02</span><div class="projects-track-meta"><span class="projects-track-title">Tigerstyle</span><span class="projects-track-artist">Aloe Island Posse</span></div><span class="projects-track-time">4:18</span></li>
-                    <li><span class="projects-track-index">03</span><div class="projects-track-meta"><span class="projects-track-title">Kotori</span><span class="projects-track-artist">?????THOUGHTS</span></div><span class="projects-track-time">4:05</span></li>
-                    <li><span class="projects-track-index">04</span><div class="projects-track-meta"><span class="projects-track-title">Smile</span><span class="projects-track-artist">ID Chief x Aloe Island Posse</span></div><span class="projects-track-time">3:58</span></li>
-                    <li><span class="projects-track-index">05</span><div class="projects-track-meta"><span class="projects-track-title">Maybe I'm Dreaming</span><span class="projects-track-artist">?????THOUGHTS x ID Chief</span></div><span class="projects-track-time">4:20</span></li>
-                    <li><span class="projects-track-index">06</span><div class="projects-track-meta"><span class="projects-track-title">Refreshing</span><span class="projects-track-artist">?????THOUGHTS x Aloe Island Posse</span></div><span class="projects-track-time">3:41</span></li>
-                    <li><span class="projects-track-index">07</span><div class="projects-track-meta"><span class="projects-track-title">Our Love</span><span class="projects-track-artist">Aloe Island Posse</span></div><span class="projects-track-time">3:55</span></li>
-                    <li><span class="projects-track-index">08</span><div class="projects-track-meta"><span class="projects-track-title">Visions of You</span><span class="projects-track-artist">?????THOUGHTS</span></div><span class="projects-track-time">3:47</span></li>
-                    <li><span class="projects-track-index">09</span><div class="projects-track-meta"><span class="projects-track-title">Me &amp; You</span><span class="projects-track-artist">ID Chief</span></div><span class="projects-track-time">3:54</span></li>
-                    <li><span class="projects-track-index">10</span><div class="projects-track-meta"><span class="projects-track-title">Space Cowboys</span><span class="projects-track-artist">?????THOUGHTS x ID Chief x Aloe Island Posse</span></div><span class="projects-track-time">6:32</span></li>
-                </ol>
-            </section>
-            <section class="projects-notes-grid" aria-label="Liner notes">
-                <article class="projects-note-card">
-                    <p class="projects-section-label">Recording Log</p>
-                    <p>Built over two winters, the trio swapped stems through our Harmonizer queue. Every revision ran through the Discotheque compressor bus, so even remote takes share the same flicker and hiss.</p>
-                </article>
-                <article class="projects-note-card">
-                    <p class="projects-section-label">Visual System</p>
-                    <p>The album cover powers the hero projection behind the live set. Tap "View cover" to open the source art�the backend streams it into the visualizer timeline as a texture layer.</p>
-                </article>
-                <article class="projects-note-card">
-                    <p class="projects-section-label">Sampler Routing</p>
-                    <p>Track IDs double as preset names in the Harmonizer sampler. Drop any song title inside the console to instantly recall the multi-track stem set mapped to pads.</p>
-                </article>
-            </section>
-            <section class="projects-links-grid" aria-label="Links">
-                <a class="projects-link-card" href="./loader.html">Visualizer Loader</a>
-                <a class="projects-link-card" href="./commands.txt" target="_blank" rel="noopener">Server Notes</a>
-                <a class="projects-link-card" href="./startup.txt" target="_blank" rel="noopener">Startup Ritual</a>
-                <a class="projects-link-card" href="./web.txt" target="_blank" rel="noopener">Web Notes</a>
-            </section>
-            <footer>c2025 &#9830; Archiving the glow one side at a time.</footer>
         </div>
-    </main>
+
+        <div class="info-box">
+            <h2 class="info-box-title">CATALOG INFO</h2>
+            <div class="info-box-content">
+                A collaborative album archiving our sessions between ID Chief, ?????THOUGHTS, and Aloe Island Posse. Recorded and processed through vintage cassette equipment, then digitally enhanced for the modern era.
+                <div class="info-meta">
+                    <strong>CATALOG:</strong> ID-CLUB-001 &nbsp;|&nbsp; <strong>LENGTH:</strong> 38:42 &nbsp;|&nbsp; <strong>YEAR:</strong> 2025
+                </div>
+            </div>
+        </div>
+
+        <div class="track-list">
+            <div class="track-item">
+                <div class="track-header">
+                    <span class="track-number">01</span>
+                    <h2 class="track-title">Moves So Sweet</h2>
+                    <div class="track-meta">
+                        <span class="track-artist">ID Chief</span>
+                        <span class="track-duration">3:52</span>
+                    </div>
+                </div>
+                <div class="track-body">
+                    <p class="track-description">
+                        Opening track that sets the tone for the album. Smooth bass grooves with layered synth pads create a dreamy atmosphere.
+                    </p>
+                    <div class="audio-player">
+                        <audio controls preload="metadata">
+                            <source src="./assets/audio/moves-so-sweet.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
+            <div class="track-item">
+                <div class="track-header">
+                    <span class="track-number">02</span>
+                    <h2 class="track-title">Tigerstyle</h2>
+                    <div class="track-meta">
+                        <span class="track-artist">Aloe Island Posse</span>
+                        <span class="track-duration">4:18</span>
+                    </div>
+                </div>
+                <div class="track-body">
+                    <p class="track-description">
+                        High-energy funk track with intricate percussion. Layers of samples bounce between channels creating a dynamic, playful groove.
+                    </p>
+                    <div class="audio-player">
+                        <audio controls preload="metadata">
+                            <source src="./assets/audio/tigerstyle.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
+            <div class="track-item">
+                <div class="track-header">
+                    <span class="track-number">03</span>
+                    <h2 class="track-title">Kotori</h2>
+                    <div class="track-meta">
+                        <span class="track-artist">コンシャスTHOUGHTS</span>
+                        <span class="track-duration">4:05</span>
+                    </div>
+                </div>
+                <div class="track-body">
+                    <p class="track-description">
+                        Named after a little bird, this track floats and glides with ethereal grace. Precisely chopped vocal samples blend seamlessly with ambient textures.
+                    </p>
+                    <div class="audio-player">
+                        <audio controls preload="metadata">
+                            <source src="./assets/audio/kotori.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
+            <div class="track-item">
+                <div class="track-header">
+                    <span class="track-number">04</span>
+                    <h2 class="track-title">Smile</h2>
+                    <div class="track-meta">
+                        <span class="track-artist">ID Chief x Aloe Island Posse</span>
+                        <span class="track-duration">3:58</span>
+                    </div>
+                </div>
+                <div class="track-body">
+                    <p class="track-description">
+                        First collaboration on the album, blending ID Chief's melodic sensibilities with AIP's rhythmic approach.
+                    </p>
+                    <div class="audio-player">
+                        <audio controls preload="metadata">
+                            <source src="./assets/audio/smile.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
+            <div class="track-item">
+                <div class="track-header">
+                    <span class="track-number">05</span>
+                    <h2 class="track-title">Maybe I'm Dreaming</h2>
+                    <div class="track-meta">
+                        <span class="track-artist">コンシャスTHOUGHTS x ID Chief</span>
+                        <span class="track-duration">4:20</span>
+                    </div>
+                </div>
+                <div class="track-body">
+                    <p class="track-description">
+                        A dreamlike composition that blurs the boundaries between reality and abstraction. Ethereal pads wash over stuttering beats while distant melodies echo through the mix.
+                    </p>
+                    <div class="audio-player">
+                        <audio controls preload="metadata">
+                            <source src="./assets/audio/maybe-im-dreaming.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
+            <div class="track-item">
+                <div class="track-header">
+                    <span class="track-number">06</span>
+                    <h2 class="track-title">Refreshing</h2>
+                    <div class="track-meta">
+                        <span class="track-artist">コンシャスTHOUGHTS x Aloe Island Posse</span>
+                        <span class="track-duration">3:41</span>
+                    </div>
+                </div>
+                <div class="track-body">
+                    <p class="track-description">
+                        A refreshing mid-album palette cleanser. Crisp hi-hats, clean bass lines, and bright melodic elements create an uplifting energy.
+                    </p>
+                    <div class="audio-player">
+                        <audio controls preload="metadata">
+                            <source src="./assets/audio/refreshing.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
+            <div class="track-item">
+                <div class="track-header">
+                    <span class="track-number">07</span>
+                    <h2 class="track-title">Our Love</h2>
+                    <div class="track-meta">
+                        <span class="track-artist">Aloe Island Posse</span>
+                        <span class="track-duration">3:55</span>
+                    </div>
+                </div>
+                <div class="track-body">
+                    <p class="track-description">
+                        An emotional slow burner from Aloe Island Posse. The vocal samples carry weight and depth despite being heavily processed.
+                    </p>
+                    <div class="audio-player">
+                        <audio controls preload="metadata">
+                            <source src="./assets/audio/our-love.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
+            <div class="track-item">
+                <div class="track-header">
+                    <span class="track-number">08</span>
+                    <h2 class="track-title">Visions of You</h2>
+                    <div class="track-meta">
+                        <span class="track-artist">コンシャスTHOUGHTS</span>
+                        <span class="track-duration">3:47</span>
+                    </div>
+                </div>
+                <div class="track-body">
+                    <p class="track-description">
+                        Haunting and beautiful. A sonic landscape that evokes distant memories and introspective moments.
+                    </p>
+                    <div class="audio-player">
+                        <audio controls preload="metadata">
+                            <source src="./assets/audio/visions-of-you.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
+            <div class="track-item">
+                <div class="track-header">
+                    <span class="track-number">09</span>
+                    <h2 class="track-title">Me & You</h2>
+                    <div class="track-meta">
+                        <span class="track-artist">ID Chief</span>
+                        <span class="track-duration">3:54</span>
+                    </div>
+                </div>
+                <div class="track-body">
+                    <p class="track-description">
+                        Intimate and personal. ID Chief strips things back to the essentials with a minimalist approach.
+                    </p>
+                    <div class="audio-player">
+                        <audio controls preload="metadata">
+                            <source src="./assets/audio/me-and-you.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
+            <div class="track-item">
+                <div class="track-header">
+                    <span class="track-number">10</span>
+                    <h2 class="track-title">Space Cowboys</h2>
+                    <div class="track-meta">
+                        <span class="track-artist">コンシャスTHOUGHTS x ID Chief x Aloe Island Posse</span>
+                        <span class="track-duration">6:32</span>
+                    </div>
+                </div>
+                <div class="track-body">
+                    <p class="track-description">
+                        The epic finale brings all three artists together for an extended journey. Multiple movements and evolving textures build to a satisfying conclusion.
+                    </p>
+                    <div class="audio-player">
+                        <audio controls preload="metadata">
+                            <source src="./assets/audio/space-cowboys.wav" type="audio/wav">
+                        </audio>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            c2025 Internet Discotheque Â· <a href="/">Return Home</a>
+        </footer>
+    </div>
+
+    <script>
+        // Ensure only one audio player plays at a time
+        document.addEventListener('play', function(e) {
+            const audios = document.getElementsByTagName('audio');
+            for(let i = 0; i < audios.length; i++) {
+                if(audios[i] !== e.target) {
+                    audios[i].pause();
+                }
+            }
+        }, true);
+    </script>
 </body>
 </html>
+

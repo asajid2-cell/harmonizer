@@ -409,7 +409,6 @@ def visualizer():
     return redirect(redirect_url)
 
 
-@app.route("/cheatsheets")
 @app.route("/cheatsheets/")
 def cheatsheets_page():
     """Serve the cheatsheets landing page."""
@@ -417,6 +416,28 @@ def cheatsheets_page():
     if cheatsheets_index.is_file():
         return send_file(cheatsheets_index)
     abort(404)
+
+
+@app.route("/cheatsheets/<path:resource>")
+def cheatsheets_asset(resource: str):
+    """Serve nested cheatsheets pages (startup*, commands*, data files, etc.)."""
+    cheatsheets_root = (FRONTEND_DIR / "cheatsheets").resolve()
+    target = (cheatsheets_root / Path(resource)).resolve()
+
+    # Ensure the resolved path stays inside the cheatsheets directory
+    if cheatsheets_root not in target.parents and target != cheatsheets_root:
+        abort(404)
+
+    if target.is_file():
+        return send_file(target)
+
+    abort(404)
+
+
+@app.route("/cheatsheets")
+def cheatsheets_redirect():
+    """Redirect bare /cheatsheets to the trailing-slash variant for relative links."""
+    return redirect("/cheatsheets/", code=301)
 
 
 @app.route("/projects")

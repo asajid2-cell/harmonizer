@@ -10,19 +10,12 @@
     --color-cyan: #00FFFF;
     --radius: 0px;
     --note-strength: 0;
-<<<<<<< Updated upstream
     --banner-height: 56px;
     --btn-border: rgba(0, 255, 222, 0.45);
     --btn-bg: rgba(3, 6, 18, 0.75);
     --btn-bg-alt: rgba(255, 107, 214, 0.25);
     --btn-text: rgba(255, 255, 255, 0.92);
     font-family: "Comic Sans MS", "Arial", sans-serif;
-=======
-    --panel-gap: clamp(16px, 2vw, 24px);
-    --section-gap: clamp(12px, 1.5vw, 18px);
-    --form-grid-gap: clamp(12px, 1.6vw, 20px);
-    font-family: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
->>>>>>> Stashed changes
 }
 
 html {
@@ -1239,13 +1232,8 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     backdrop-filter: none;
     display: flex;
     flex-direction: column;
-<<<<<<< Updated upstream
     gap: 18px;
     min-height: auto;
-=======
-    gap: var(--panel-gap);
-    min-height: 200px;
->>>>>>> Stashed changes
 }
 
 .panel h2 {
@@ -1260,49 +1248,15 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     text-transform: uppercase;
     font-size: 0.7rem;
     letter-spacing: 0.16em;
-<<<<<<< Updated upstream
     color: var(--color-cyan);
     margin-bottom: 8px;
-=======
-    color: rgba(232, 180, 184, 0.58);
-    margin: 0;
-    font-weight: 600;
-}
-
-.intake-panel form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--panel-gap);
-}
-
-.form-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--section-gap);
-    padding: clamp(6px, 1.2vw, 12px) 0;
-    border-top: 1px solid rgba(232, 180, 184, 0.08);
-}
-
-.form-section:first-of-type {
-    border-top: none;
-    padding-top: 0;
-}
-
-.form-section:last-of-type {
-    padding-bottom: 0;
-}
-
-.metadata-section {
-    padding-bottom: 0;
->>>>>>> Stashed changes
 }
 
 
 .toggle-group {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
-<<<<<<< Updated upstream
     padding: 0;
     border-radius: 0;
     background: transparent;
@@ -1318,26 +1272,6 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     color: #00FFDE;
     border: 3px solid #00FFDE;
     border-radius: 0;
-=======
-    padding: 8px;
-    border-radius: 18px;
-    background: rgba(232, 180, 184, 0.06);
-    border: 1px solid rgba(232, 180, 184, 0.14);
-    margin: 0;
-}
-
-.toggle {
-    min-width: 0;
-    width: 100%;
-    padding: 12px 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(232, 180, 184, 0.08);
-    color: var(--color-text);
-    border: 1px solid transparent;
-    border-radius: 14px;
->>>>>>> Stashed changes
     text-transform: uppercase;
     letter-spacing: 0.16em;
     font-size: 0.75rem;
@@ -1455,13 +1389,8 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     display: flex;
     flex-direction: column;
     gap: 8px;
-<<<<<<< Updated upstream
     margin-bottom: 18px;
     color: var(--color-text);
-=======
-    margin: 0;
-    color: var(--color-muted);
->>>>>>> Stashed changes
     font-size: 0.92rem;
 }
 
@@ -1489,13 +1418,9 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 
 .metadata-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: var(--form-grid-gap);
-    margin: 0;
-}
-
-.metadata-grid .field {
-    margin: 0;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 28px;
 }
 
 .status-panel {
@@ -1582,20 +1507,9 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     }
 }
 
-<<<<<<< Updated upstream
 @media (max-width: 560px) {
     .hero h1 {
         white-space: normal;
-=======
-@media (max-width: 520px) {
-    .toggle-group {
-        grid-template-columns: 1fr;
-    }
-
-    .toggle {
-        padding: 10px 12px;
-        letter-spacing: 0.06em;
->>>>>>> Stashed changes
     }
 }
 
@@ -1631,7 +1545,6 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     }
 }
 
-<<<<<<< Updated upstream
 /* OAuth Authentication Styles */
 .auth-status {
     font-family: "Manrope", system-ui, sans-serif;
@@ -1681,8 +1594,6 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     font-weight: 500;
 }
 
-=======
->>>>>>> Stashed changes
 /* Advanced Settings Button Enhancements */
 .advanced-button-container {
     display: flex;

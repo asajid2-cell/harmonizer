@@ -10,10 +10,14 @@ uploads/
 *.ogg
 *.m4a
 *.aac
+!frontend/assets/audio/
+!frontend/assets/audio/*.wav
 
 # Analysis artifacts
 backend/data/
 data/
+!frontend/cheatsheets/data/
+!frontend/cheatsheets/data/*.txt
 *.json
 !rl_models/
 !rl_models/*.json

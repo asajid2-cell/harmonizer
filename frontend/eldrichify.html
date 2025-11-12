@@ -16,16 +16,16 @@
         <section class="eld-shell">
             <div class="eld-hero">
                 <div class="eld-hero-copy">
-                    <p class="eld-eyebrow">NEON VAE LAB // 32A-32</p>
+                    <p class="eld-eyebrow">NEON VAE LAB // 32-32</p>
                     <h1>ELDRICHIFY</h1>
                     <p>
-                        Compress images through a 32A-32 latent bottleneck, then reconstruct them. The VAE creates artifacts
+                        Compress images through a 32-32 latent bottleneck, then reconstruct them. The VAE creates artifacts
                         and distortions that look kind of cool.
                     </p>
                     <ul class="eld-callouts">
-                        <li>&#10022; 32A-32 latent bottleneck + reconstruction loop</li>
-                        <li>&#10022; Residual MLP layers inject texture + neon halos</li>
-                        <li>&#10022; DF2K upsampler pushes the final pass to HD</li>
+                        <li>&#10022; 32-32 latent bottleneck &#8594; reconstruction loop</li>
+                        <li>&#10022; Residual MLP smooths the latent grid</li>
+                        <li>&#10022; DF2K upsampler handles the HD pass</li>
                     </ul>
                     <div class="eld-cta-row">
                         <button type="button" class="launch-link viz-button" id="launch-pipeline-btn">Launch Pipeline</button>
@@ -44,7 +44,7 @@
  ||; ::\__/:: 
   \\\ '::::' /
    `=':-..-'`
-  latent beacon
+  neon beacon
 </pre>
 <pre>
     _.-^^---....,,--
@@ -128,17 +128,15 @@
 
                 <div class="eld-results-grid" id="results-grid" hidden>
                     <div class="eld-result-item" data-type="input">
-                        <div class="eld-result-label">INPUT (32A-32)</div>
+                        <div class="eld-result-label">INPUT (32-32)</div>
                         <img id="result-input" alt="Input image" />
                         <a class="eld-download-btn" id="download-input" data-stage="input" href="#" download>&#8681; DOWNLOAD</a>
                     </div>
                     <div class="eld-result-item" data-type="vae">
-                        <div class="eld-result-label">VAE (32A-32)</div>
                         <img id="result-vae" alt="VAE capture" />
                         <a class="eld-download-btn" id="download-vae" data-stage="vae" href="#" download>&#8681; DOWNLOAD</a>
                     </div>
                     <div class="eld-result-item" data-type="refined">
-                        <div class="eld-result-label">REFINED (32A-32)</div>
                         <img id="result-refined" alt="Refined" />
                         <a class="eld-download-btn" id="download-refined" data-stage="refined" href="#" download>&#8681; DOWNLOAD</a>
                     </div>
