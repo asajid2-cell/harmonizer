@@ -46,22 +46,17 @@
           <div class="retro-content eld-retro-content">
             <header class="hero eld-hero-panel">
               <div class="hero-meta">
-                <p class="hero-eyebrow">*** WELCOME TO THE ELDRICHIFY TERMINAL ***</p>
-                <h1>Photon-Safe Upscaling</h1>
+                <p class="hero-eyebrow">*** ELDRICHIFY PIPELINE ***</p>
+                <h1>VAE Image Distortion</h1>
                 <p class="hero-lede">
-                  Feed a still into the renderer. We snapshot the structure, scrub the noise, and let the DF2K beam
-                  enlarge it without smearing your neon edges.
+                  Compress images through a 32x32 latent bottleneck, then reconstruct them.
+                  The VAE creates artifacts and distortions that look kind of cool.
                 </p>
                 <ul class="hero-callouts eld-callouts">
-                  <li>☍ Capture Mode → anchors geometry.</li>
-                  <li>☍ Refiner Mode → uncrunches gradients.</li>
-                  <li>☍ Broadcast Mode → DF2K poster-ready output.</li>
+                  <li>☍ 32x32 latent bottleneck → VAE reconstruction</li>
+                  <li>☍ Residual MLP → latent space refinement</li>
+                  <li>☍ DF2K super-res → 16x final upscale</li>
                 </ul>
-                <div class="hero-keys">
-                  <span>CAPTURE</span>
-                  <span>REFINE</span>
-                  <span>BROADCAST</span>
-                </div>
                 <div class="hero-cta">
                   <button type="button" class="launch-link" id="launch-pipeline-btn">
                     Launch Pipeline ↓
@@ -88,6 +83,13 @@
             </header>
 
             <section class="panel viz-panel music-frame eld-console" id="eldrichify-console">
+              <!-- Disconnected Message (shown by default) -->
+              <div class="eld-disconnected" id="terminal-disconnected">
+                <div class="eld-disconnected-icon">⚠</div>
+                <div class="eld-disconnected-text">TERMINAL DISCONNECTED</div>
+                <div class="eld-disconnected-subtext">Click "Launch Pipeline ↓" to connect</div>
+              </div>
+
               <!-- Terminal Window (hidden by default) -->
               <div class="eld-terminal-window" id="terminal-window" hidden>
                 <div class="eld-terminal-header">
@@ -105,30 +107,57 @@
               <!-- Results Display -->
               <div class="eld-results-grid" id="results-grid" hidden>
                 <div class="eld-result-item" data-type="input">
-                  <div class="eld-result-label">INPUT</div>
+                  <div class="eld-result-label">INPUT (32×32)</div>
                   <img id="result-input" alt="Input image" />
+                  <a class="eld-download-btn" id="download-input" data-stage="input" href="#" download>↓ DOWNLOAD</a>
                 </div>
                 <div class="eld-result-item" data-type="vae">
-                  <div class="eld-result-label">VAE CAPTURE</div>
+                  <div class="eld-result-label">VAE (32×32)</div>
                   <img id="result-vae" alt="VAE capture" />
+                  <a class="eld-download-btn" id="download-vae" data-stage="vae" href="#" download>↓ DOWNLOAD</a>
                 </div>
                 <div class="eld-result-item" data-type="refined">
-                  <div class="eld-result-label">REFINED</div>
+                  <div class="eld-result-label">REFINED (32×32)</div>
                   <img id="result-refined" alt="Refined" />
+                  <a class="eld-download-btn" id="download-refined" data-stage="refined" href="#" download>↓ DOWNLOAD</a>
                 </div>
                 <div class="eld-result-item" data-type="upsampled">
-                  <div class="eld-result-label">UPSAMPLED</div>
+                  <div class="eld-result-label">UPSAMPLED (64×64)</div>
                   <img id="result-upsampled" alt="Upsampled" />
+                  <a class="eld-download-btn" id="download-upsampled" data-stage="upsampled" href="#" download>↓ DOWNLOAD</a>
                 </div>
                 <div class="eld-result-item" data-type="hd">
                   <div class="eld-result-label">HD OUTPUT</div>
                   <img id="result-hd" alt="HD output" />
-                  <a class="eld-download-btn" id="download-btn" href="#" download target="_blank">↓ DOWNLOAD</a>
+                  <a class="eld-download-btn" id="download-hd" data-stage="hd" href="#" download>↓ DOWNLOAD</a>
                 </div>
+              </div>
+
+              <div class="eld-download-panel" id="download-panel" hidden>
+                <div class="eld-download-panel__label">Custom download size</div>
+                <div class="eld-download-panel__form">
+                  <label>
+                    Width
+                    <input type="number" id="download-width" min="32" max="4096" value="768" />
+                  </label>
+                  <span class="eld-download-panel__x">×</span>
+                  <label>
+                    Height
+                    <input type="number" id="download-height" min="32" max="4096" value="768" />
+                  </label>
+                  <button type="button" id="download-reset" class="eld-download-panel__reset">Use native</button>
+                </div>
+                <div class="eld-download-panel__hint">Pick any size after the pipeline finishes. Downloads resize per stage.</div>
               </div>
             </section>
         </div>
       </div>
+    </div>
+
+    <!-- Lightbox for enlarged images -->
+    <div class="eld-lightbox" id="image-lightbox">
+      <span class="eld-lightbox-close">&times;</span>
+      <img id="lightbox-img" src="" alt="Enlarged view" />
     </div>
 
     <script>

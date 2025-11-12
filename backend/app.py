@@ -464,10 +464,15 @@ def api_eldrichify():
     ext = Path(upload.filename).suffix.lower()
     if ext not in IMAGE_EXTENSIONS:
         return jsonify({"error": f"Unsupported image format '{ext}'. Use PNG, JPG, JPEG, BMP, or WEBP."}), 400
+
+    # Get target size from form data (default 768)
+    target_size = int(request.form.get("target_size", 768))
+
     pipeline = get_eldrichify_pipeline()
     try:
         upload.stream.seek(0)
-        result = pipeline.run_from_file(upload.stream)
+        # Pass target size as a tuple (width, height)
+        result = pipeline.run_from_file(upload.stream, target_resolution=(target_size, target_size))
     except Exception as exc:  # pragma: no cover - runtime safety
         print(f"[eldrichify] failed to process upload: {exc}", flush=True)
         return jsonify({"error": "VAE pipeline failed to process the image."}), 500

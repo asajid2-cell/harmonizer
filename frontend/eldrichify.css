@@ -230,7 +230,7 @@ body.eldrichify-terminal {
 .hero-visual {
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 30px;
-  padding: 28px;
+  padding: 20px;
   background: rgba(6, 8, 22, 0.95);
   box-shadow: 0 18px 70px rgba(0, 0, 0, 0.6);
   justify-self: end;
@@ -243,6 +243,8 @@ body.eldrichify-terminal {
   color: #ffdca8;
   text-shadow: 0 0 8px rgba(255, 220, 168, 0.5);
   text-align: left;
+  font-size: 0.85rem;
+  line-height: 1.2;
 }
 
 .eld-console {
@@ -323,7 +325,7 @@ body.eldrichify-terminal {
 .eld-terminal-body {
   background: #000;
   padding: 20px;
-  min-height: 400px;
+  min-height: 500px;
   max-height: 600px;
   overflow-y: auto;
   color: #00ff00;
@@ -386,6 +388,44 @@ body.eldrichify-terminal {
   51%, 100% { opacity: 0; }
 }
 
+/* Terminal File Input */
+.eld-terminal-file-input {
+  display: inline-block;
+  margin-left: 10px;
+  color: #00ffe1;
+  background: rgba(0, 255, 225, 0.05);
+  border: 1px solid #00ffe1;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.eld-terminal-file-input:hover {
+  background: rgba(0, 255, 225, 0.15);
+  box-shadow: 0 0 10px rgba(0, 255, 225, 0.3);
+}
+
+.eld-terminal-file-input::file-selector-button {
+  background: transparent;
+  border: 1px solid #00ffe1;
+  color: #00ffe1;
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+  margin-right: 8px;
+  transition: all 0.2s;
+}
+
+.eld-terminal-file-input::file-selector-button:hover {
+  background: #00ffe1;
+  color: #000;
+}
+
 /* Results Grid */
 .eld-results-grid {
   display: none;
@@ -427,6 +467,12 @@ body.eldrichify-terminal {
   border-radius: 6px;
   display: block;
   background: #000;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.eld-result-item img:hover {
+  transform: scale(1.02);
 }
 
 .eld-download-btn {
@@ -448,6 +494,177 @@ body.eldrichify-terminal {
 .eld-download-btn:hover {
   background: #00ffe1;
   color: #000;
+}
+
+/* Download controls */
+.eld-download-panel {
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.35);
+  border-top: 1px solid rgba(0, 255, 225, 0.2);
+}
+
+.eld-download-panel[hidden] {
+  display: none;
+}
+
+.eld-download-panel__label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.9rem;
+  color: #00ffe1;
+  letter-spacing: 0.15em;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.eld-download-panel__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 8px;
+}
+
+.eld-download-panel__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eld-download-panel__form input {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 255, 225, 0.4);
+  color: #00ffe1;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-family: "IBM Plex Mono", monospace;
+  width: 110px;
+}
+
+.eld-download-panel__form input:focus {
+  outline: none;
+  border-color: #00ffe1;
+  box-shadow: 0 0 8px rgba(0, 255, 225, 0.3);
+}
+
+.eld-download-panel__x {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 14px;
+}
+
+.eld-download-panel__reset {
+  padding: 10px 18px;
+  border: 1px solid rgba(0, 255, 225, 0.4);
+  background: transparent;
+  color: #00ffe1;
+  font-family: "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.eld-download-panel__reset:hover {
+  background: rgba(0, 255, 225, 0.12);
+  border-color: #00ffe1;
+}
+
+.eld-download-panel__hint {
+  font-size: 0.75rem;
+  font-family: "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Terminal Disconnected State */
+.eld-disconnected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 500px;
+  text-align: center;
+  gap: 16px;
+  opacity: 0.7;
+}
+
+.eld-disconnected[hidden] {
+  display: none;
+}
+
+.eld-disconnected-icon {
+  font-size: 4rem;
+  color: #ffbb00;
+  text-shadow: 0 0 20px rgba(255, 187, 0, 0.5);
+}
+
+.eld-disconnected-text {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: #00ffe1;
+  text-transform: uppercase;
+}
+
+.eld-disconnected-subtext {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.9rem;
+  color: #9fc0ff;
+  letter-spacing: 0.1em;
+}
+
+/* Image Lightbox */
+.eld-lightbox {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 40px;
+}
+
+.eld-lightbox.active {
+  display: flex;
+}
+
+.eld-lightbox img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border: 2px solid #00ffe1;
+  border-radius: 8px;
+  box-shadow: 0 0 50px rgba(0, 255, 225, 0.5);
+}
+
+.eld-lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  color: #00ffe1;
+  font-size: 40px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.2s;
+  line-height: 1;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.eld-lightbox-close:hover {
+  color: #ff6dff;
 }
 
 .eld-console-headline {

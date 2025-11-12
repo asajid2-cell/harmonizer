@@ -8,9 +8,12 @@
   const terminalOutput = document.getElementById("terminal-output");
   const terminalClose = document.getElementById("terminal-close");
   const resultsGrid = document.getElementById("results-grid");
+  const terminalDisconnected = document.getElementById("terminal-disconnected");
+  const sizeSelector = document.getElementById("size-selector");
 
   let selectedFile = null;
   let isProcessing = false;
+  let selectedSize = 768; // default size
 
   // Initialize
   if (launchBtn) {
@@ -33,14 +36,37 @@
     terminalClose.addEventListener("click", closeTerminal);
   }
 
+  // Size selector buttons
+  if (sizeSelector) {
+    const sizeButtons = sizeSelector.querySelectorAll('.eld-size-btn');
+    sizeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Remove active from all buttons
+        sizeButtons.forEach(b => b.classList.remove('active'));
+        // Add active to clicked button
+        btn.classList.add('active');
+        // Update selected size
+        selectedSize = parseInt(btn.getAttribute('data-size'));
+      });
+    });
+  }
+
   function openTerminal() {
     if (!terminalWindow || !terminalOutput) {
       console.error("Terminal elements not found!");
       return;
     }
 
-    // Show terminal, hide results
+    // Show size selector and terminal, hide disconnected message and results
+    if (sizeSelector) {
+      sizeSelector.removeAttribute("hidden");
+    }
+
     terminalWindow.removeAttribute("hidden");
+
+    if (terminalDisconnected) {
+      terminalDisconnected.setAttribute("hidden", "");
+    }
 
     if (resultsGrid) {
       resultsGrid.setAttribute("hidden", "");
@@ -54,27 +80,37 @@
     addTerminalLine("");
 
     setTimeout(() => {
-      addTerminalLine("$ Initializing VAE capture system...", "success");
+      addTerminalLine("$ Loading VAE encoder/decoder...", "success");
+    }, 150);
+
+    setTimeout(() => {
+      addTerminalLine("$ Residual MLP refiner online", "success");
     }, 300);
 
     setTimeout(() => {
-      addTerminalLine("$ Cobalt refiner online", "success");
-    }, 600);
-
-    setTimeout(() => {
-      addTerminalLine("$ DF2K broadcast module ready", "success");
-    }, 900);
+      addTerminalLine("$ DF2K super-resolution ready", "success");
+    }, 450);
 
     setTimeout(() => {
       addTerminalLine("");
       addTerminalLine("Ready for image upload.", "info");
       addTerminalLine("");
       showFilePrompt();
-    }, 1200);
+    }, 600);
   }
 
   function closeTerminal() {
     terminalWindow.setAttribute("hidden", "");
+
+    if (sizeSelector) {
+      sizeSelector.setAttribute("hidden", "");
+    }
+
+    // Show disconnected message again
+    if (terminalDisconnected) {
+      terminalDisconnected.removeAttribute("hidden");
+    }
+
     selectedFile = null;
     isProcessing = false;
   }
@@ -92,13 +128,13 @@
   function showFilePrompt() {
     const promptDiv = document.createElement("div");
     promptDiv.className = "eld-terminal-line info";
-    promptDiv.innerHTML = `<span style="color: #00ffe1;">$ upload [SELECT IMAGE FILE]</span>`;
+    promptDiv.innerHTML = `<span style="color: #00ffe1;">$ upload</span>`;
     terminalOutput.appendChild(promptDiv);
 
     const fileInput = document.createElement("input");
     fileInput.type = "file";
     fileInput.accept = "image/png,image/jpeg,image/webp,image/bmp";
-    fileInput.style.cssText = "display: inline-block; margin-left: 10px; color: #00ff00; background: transparent; border: 1px solid #00ffe1; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 0.85rem;";
+    fileInput.className = "eld-terminal-file-input";
 
     promptDiv.appendChild(fileInput);
 
@@ -132,89 +168,90 @@
     addTerminalLine(`  Type: ${file.type}`, "info");
     addTerminalLine("");
 
-    await sleep(400);
+    await sleep(200);
     addTerminalLine(`$ Copying to: ${fakePath}`, "info");
-    await sleep(600);
+    await sleep(300);
     addTerminalLine("✓ Upload complete", "success");
     addTerminalLine("");
 
-    await sleep(300);
+    await sleep(150);
     addTerminalLine("$ Starting pipeline execution...", "info");
     addTerminalLine("─".repeat(60), "info");
     addTerminalLine("");
 
-    // Stage 1: Capture
+    // Stage 1: VAE Encode
+    await sleep(250);
+    addTerminalLine("[1/5] VAE encoding", "warning");
+    await sleep(400);
+    addTerminalLine("  → Compressing to 64-dim latent space...", "info");
+    await sleep(300);
+    addTerminalLine("  → Reparameterization pass...", "info");
+    await sleep(350);
+    addTerminalLine("  ✓ Latent captured", "success");
+    addTerminalLine("");
+
+    // Stage 2: VAE Decode
+    await sleep(200);
+    addTerminalLine("[2/5] VAE decoding", "warning");
+    await sleep(450);
+    addTerminalLine("  → Reconstructing from latent...", "info");
+    await sleep(350);
+    addTerminalLine("  → Deconvolutional upsampling...", "info");
+    await sleep(300);
+    addTerminalLine("  ✓ Base reconstruction complete", "success");
+    addTerminalLine("");
+
+    // Stage 3: Latent Refine
+    await sleep(200);
+    addTerminalLine("[3/5] Latent refinement", "warning");
     await sleep(500);
-    addTerminalLine("[1/5] Capturing structure (32x32 latent)", "warning");
-    await sleep(800);
-    addTerminalLine("  → Loading base VAE model...", "info");
-    await sleep(600);
-    addTerminalLine("  → Encoding latent grid...", "info");
-    await sleep(700);
-    addTerminalLine("  ✓ Capture complete", "success");
-    addTerminalLine("");
-
-    // Stage 2: VAE
+    addTerminalLine("  → Applying residual MLP layers...", "info");
     await sleep(400);
-    addTerminalLine("[2/5] VAE processing", "warning");
-    await sleep(900);
-    addTerminalLine("  → Applying VAE decoder...", "info");
-    await sleep(700);
-    addTerminalLine("  → Locking geometric structure...", "info");
-    await sleep(600);
-    addTerminalLine("  ✓ VAE pass complete", "success");
-    addTerminalLine("");
-
-    // Stage 3: Refine
-    await sleep(400);
-    addTerminalLine("[3/5] Refining with Cobalt", "warning");
-    await sleep(1000);
-    addTerminalLine("  → Loading refiner weights...", "info");
-    await sleep(800);
-    addTerminalLine("  → Uncrunching gradients...", "info");
-    await sleep(700);
-    addTerminalLine("  → Removing banding artifacts...", "info");
-    await sleep(600);
+    addTerminalLine("  → LayerNorm + dropout passes...", "info");
+    await sleep(350);
+    addTerminalLine("  → Re-decoding refined latent...", "info");
+    await sleep(300);
     addTerminalLine("  ✓ Refinement complete", "success");
     addTerminalLine("");
 
-    // Stage 4: Upsample
+    // Stage 4: Pixel Upsample
+    await sleep(200);
+    addTerminalLine("[4/5] Pixel upsampling (2x)", "warning");
+    await sleep(450);
+    addTerminalLine("  → Residual block feature extraction...", "info");
     await sleep(400);
-    addTerminalLine("[4/5] Pixel upsampling", "warning");
-    await sleep(900);
-    addTerminalLine("  → Applying pixel shuffle...", "info");
-    await sleep(800);
-    addTerminalLine("  → 2x scale pass...", "info");
-    await sleep(700);
-    addTerminalLine("  ✓ Upsample complete", "success");
+    addTerminalLine("  → Pixel shuffle 32→64...", "info");
+    await sleep(350);
+    addTerminalLine("  ✓ 2x upsample complete", "success");
     addTerminalLine("");
 
-    // Stage 5: HD Output
+    // Stage 5: HD Super-res
+    await sleep(200);
+    addTerminalLine("[5/5] DF2K super-resolution (8x)", "warning");
+    await sleep(550);
+    addTerminalLine("  → Loading DF2K-trained weights...", "info");
+    await sleep(450);
+    addTerminalLine("  → 8x upscale 64→512...", "info");
+    await sleep(500);
+    addTerminalLine("  → Bicubic resize to target...", "info");
     await sleep(400);
-    addTerminalLine("[5/5] DF2K broadcast", "warning");
-    await sleep(1100);
-    addTerminalLine("  → Loading DF2K model...", "info");
-    await sleep(900);
-    addTerminalLine("  → Final HD pass...", "info");
-    await sleep(1000);
-    addTerminalLine("  → Preserving neon edges...", "info");
-    await sleep(800);
     addTerminalLine("  ✓ HD output generated", "success");
     addTerminalLine("");
 
     // Complete
-    await sleep(500);
+    await sleep(250);
     addTerminalLine("─".repeat(60), "info");
     addTerminalLine("✓ Pipeline execution complete!", "success");
     addTerminalLine("");
 
     // Now send to backend
-    await sleep(600);
+    await sleep(300);
     addTerminalLine("$ Uploading to server...", "info");
 
     try {
       const formData = new FormData();
       formData.append("image", file);
+      formData.append("target_size", selectedSize);
 
       const response = await fetch(API_ENDPOINT, {
         method: "POST",
@@ -253,59 +290,115 @@
   }
 
   function displayResults(file, data) {
-    // Close terminal after a moment
+    // Close terminal and size selector, show results
     setTimeout(() => {
-      closeTerminal();
+      terminalWindow.setAttribute("hidden", "");
+      if (sizeSelector) {
+        sizeSelector.setAttribute("hidden", "");
+      }
       resultsGrid.removeAttribute("hidden");
+      // Don't show disconnected message when displaying results
+      selectedFile = null;
+      isProcessing = false;
     }, 1000);
 
-    // Display input image
+    // Display input image (original, not resized)
     const inputImg = document.getElementById("result-input");
     const reader = new FileReader();
     reader.onload = (e) => {
       inputImg.src = e.target.result;
+      // Set up download for original input
+      const downloadInput = document.getElementById("download-input");
+      downloadInput.href = e.target.result;
+      downloadInput.download = `input_${file.name}`;
     };
     reader.readAsDataURL(file);
 
     // Display server results if available
     if (data && data.previews) {
       // API returns previews object with base64 data URLs
-      if (data.previews.vae) {
-        document.getElementById("result-vae").src = data.previews.vae;
-      }
-      if (data.previews.refined) {
-        document.getElementById("result-refined").src = data.previews.refined;
-      }
-      if (data.previews.upsampled) {
-        document.getElementById("result-upsampled").src = data.previews.upsampled;
-      }
-      if (data.previews.hd) {
-        document.getElementById("result-hd").src = data.previews.hd;
-      }
-
-      // Setup download with final image URL
-      if (data.image_url) {
-        const downloadBtn = document.getElementById("download-btn");
-        downloadBtn.href = data.image_url;
-        downloadBtn.download = data.filename || `eldrichify_${Date.now()}.png`;
-      }
+      const stages = ['vae', 'refined', 'upsampled', 'hd'];
+      stages.forEach(stage => {
+        if (data.previews[stage]) {
+          const img = document.getElementById(`result-${stage}`);
+          const downloadBtn = document.getElementById(`download-${stage}`);
+          img.src = data.previews[stage];
+          downloadBtn.href = data.previews[stage];
+          downloadBtn.download = `${stage}_${Date.now()}.png`;
+        }
+      });
     } else {
       // Fallback: duplicate input for all stages
       setTimeout(() => {
         const inputSrc = inputImg.src;
-        document.getElementById("result-vae").src = inputSrc;
-        document.getElementById("result-refined").src = inputSrc;
-        document.getElementById("result-upsampled").src = inputSrc;
-        document.getElementById("result-hd").src = inputSrc;
-
-        const downloadBtn = document.getElementById("download-btn");
-        downloadBtn.href = inputSrc;
-        downloadBtn.download = `eldrichify_${Date.now()}.png`;
+        ['vae', 'refined', 'upsampled', 'hd'].forEach(stage => {
+          document.getElementById(`result-${stage}`).src = inputSrc;
+          const downloadBtn = document.getElementById(`download-${stage}`);
+          downloadBtn.href = inputSrc;
+          downloadBtn.download = `${stage}_${Date.now()}.png`;
+        });
       }, 500);
     }
   }
 
   function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Image lightbox functionality
+  const lightbox = document.getElementById("image-lightbox");
+  const lightboxImg = document.getElementById("lightbox-img");
+  const lightboxClose = document.querySelector(".eld-lightbox-close");
+
+  function openLightbox(imgSrc) {
+    lightboxImg.src = imgSrc;
+    lightbox.classList.add("active");
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove("active");
+    lightboxImg.src = "";
+  }
+
+  // Add click handlers to result images
+  function setupImageClickHandlers() {
+    const resultImages = document.querySelectorAll(".eld-result-item img");
+    resultImages.forEach((img) => {
+      img.addEventListener("click", () => {
+        if (img.src) {
+          openLightbox(img.src);
+        }
+      });
+    });
+  }
+
+  // Close lightbox when clicking close button or background
+  if (lightboxClose) {
+    lightboxClose.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeLightbox();
+    });
+  }
+
+  if (lightbox) {
+    lightbox.addEventListener("click", closeLightbox);
+  }
+
+  // Prevent closing when clicking the image itself
+  if (lightboxImg) {
+    lightboxImg.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+  }
+
+  // Setup handlers after results are displayed
+  const observer = new MutationObserver(() => {
+    if (!resultsGrid.hasAttribute("hidden")) {
+      setupImageClickHandlers();
+    }
+  });
+
+  if (resultsGrid) {
+    observer.observe(resultsGrid, { attributes: true, attributeFilter: ["hidden"] });
   }
 })();
