@@ -3,8 +3,6 @@
  *
  * Implements a probabilistic weighted random-walk on a circular beat timeline
  * with anti-sticky mechanisms, memory penalties, and phrase-aware scheduling.
- *
- * Author: Claude (Anthropic)
  * Version: 2.0.0
  */
 

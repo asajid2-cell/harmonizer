@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Eldrichify · Harmonizer Lab</title>
+    <title>Eldrichify � Harmonizer Lab</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -19,37 +19,91 @@
                     <p class="eld-eyebrow">NEON VAE LAB // 32A-32</p>
                     <h1>ELDRICHIFY</h1>
                     <p>
-                        Compress any artwork through the Harmonizer VAE stack, then rebuild it with latent noise,
-                        residual refiners, and DF2K super-res. The output is warped, fragile, and perfect for album backdrops.
+                        Compress images through a 32A-32 latent bottleneck, then reconstruct them. The VAE creates artifacts
+                        and distortions that look kind of cool.
                     </p>
                     <ul class="eld-callouts">
                         <li>&#10022; 32A-32 latent bottleneck + reconstruction loop</li>
                         <li>&#10022; Residual MLP layers inject texture + neon halos</li>
                         <li>&#10022; DF2K upsampler pushes the final pass to HD</li>
                     </ul>
-                    <div class="eld-badge-row">
-                        <span class="eld-badge">VAE</span>
-                        <span class="eld-badge">RESIDUAL LAB</span>
-                        <span class="eld-badge">SUPER-RES</span>
-                    </div>
                     <div class="eld-cta-row">
                         <button type="button" class="launch-link viz-button" id="launch-pipeline-btn">Launch Pipeline</button>
-                        <a class="viz-button ghost" href="/projects">View Projects</a>
                     </div>
                 </div>
-                <div class="eld-hero-art" aria-hidden="true"><pre>
+                <div class="eld-hero-art" aria-hidden="true">
+                    <div class="eld-ascii-grid">
+<pre>
    .-""-.
   / .--. \
  / /    \ \
  | |    | |
  | |.-""-.|
- ///`.::::.\
+ ///`.::::.`\
  ||| ::/  \::
- ||; ::\__/::
+ ||; ::\__/:: 
   \\\ '::::' /
    `=':-..-'`
   latent beacon
-</pre></div>
+</pre>
+<pre>
+    _.-^^---....,,--
+ _--                  --_
+<        SIGNAL HILL      >
+ \._                  _./
+    '''--. . , ; .--'''
+       .:;:::;.
+    .::::'  `:::.
+   ::::'      `:::
+   `:::        :::'
+     `::.    .::'                          
+     .`::::::'
+     :::`  '.
+     `:::.   `.
+</pre>
+<pre>
+        latent echo
+       .-""""""""-.
+     .':          :`.
+    / /            \ \
+   ; ;              ; ;
+   | |              | |
+   | |    .----.    | |
+   ; ;   / .--. \   ; ;
+    \ \_/ /    \ \_/ /
+     `.. /  ()  \ ..'
+        |  ____  |
+        | |    | |
+        | |    | |
+        | |____| |
+        |  ____  |
+        | |    | |
+        | |    | |
+        | |____| |
+        |________|
+</pre>
+<pre>
+   .------.
+  /  .--.  \
+ |  /    \  |
+ | |  () |  |
+ | | .__.|  |
+  \ \____/ /        
+   '------'
+  phase blooms   
+        ____
+     .-'    `-.
+    /  .--.    \
+   /  /    \    \
+   |  | () |    |
+   |  \____/    |
+    \          /
+     `-. __ .-'
+  
+
+</pre>
+                    </div>
+                </div>
             </div>
 
             <section class="eld-console" id="eldrichify-console">
@@ -107,7 +161,7 @@
                             Width
                             <input type="number" id="download-width" min="32" max="4096" placeholder="768" />
                         </label>
-                        <span class="eld-download-panel__x">×</span>
+                        <span class="eld-download-panel__x">�</span>
                         <label>
                             Height
                             <input type="number" id="download-height" min="32" max="4096" placeholder="768" />
@@ -135,3 +189,4 @@
     <script src="./js/eldrichify.js"></script>
 </body>
 </html>
+
