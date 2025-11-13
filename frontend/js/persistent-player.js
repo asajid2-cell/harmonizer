@@ -5,16 +5,16 @@
     const PLAYER_STYLE_ID = 'idc-persistent-player-styles';
 
     const FALLBACK_TRACKS = [
-        { number: '01', title: 'Moves So Sweet', artist: 'ID Chief', durationLabel: '3:14', file: 'assets/audio/moves-so-sweet.wav' },
-        { number: '02', title: 'Tigerstyle', artist: 'Aloe Island Posse', durationLabel: '2:58', file: 'assets/audio/tigerstyle.wav' },
-        { number: '03', title: 'Kotori', artist: 'コンシャスTHOUGHTS', durationLabel: '3:28', file: 'assets/audio/kotori.wav' },
-        { number: '04', title: 'Smile', artist: 'ID Chief x Aloe Island Posse', durationLabel: '3:21', file: 'assets/audio/smile.wav' },
-        { number: '05', title: "Maybe I'm Dreaming", artist: 'コンシャスTHOUGHTS x ID Chief', durationLabel: '4:04', file: 'assets/audio/maybe-im-dreaming.wav' },
-        { number: '06', title: 'Refreshing', artist: 'コンシャスTHOUGHTS x Aloe Island Posse', durationLabel: '2:40', file: 'assets/audio/refreshing.wav' },
-        { number: '07', title: 'Our Love', artist: 'Aloe Island Posse', durationLabel: '2:30', file: 'assets/audio/our-love.wav' },
-        { number: '08', title: 'Visions of You', artist: 'コンシャスTHOUGHTS', durationLabel: '3:14', file: 'assets/audio/visions-of-you.wav' },
-        { number: '09', title: 'Me & You', artist: 'ID Chief', durationLabel: '3:21', file: 'assets/audio/me-and-you.wav' },
-        { number: '10', title: 'Space Cowboys', artist: 'コンシャスTHOUGHTS x ID Chief x Aloe Island Posse', durationLabel: '4:20', file: 'assets/audio/space-cowboys.wav' },
+        { number: '01', title: 'Moves So Sweet', artist: 'ID Chief', durationLabel: '3:14', file: 'assets/audio/moves-so-sweet.mp3' },
+        { number: '02', title: 'Tigerstyle', artist: 'Aloe Island Posse', durationLabel: '2:58', file: 'assets/audio/tigerstyle.mp3' },
+        { number: '03', title: 'Kotori', artist: 'コンシャスTHOUGHTS', durationLabel: '3:28', file: 'assets/audio/kotori.mp3' },
+        { number: '04', title: 'Smile', artist: 'ID Chief x Aloe Island Posse', durationLabel: '3:21', file: 'assets/audio/smile.mp3' },
+        { number: '05', title: "Maybe I'm Dreaming", artist: 'コンシャスTHOUGHTS x ID Chief', durationLabel: '4:04', file: 'assets/audio/maybe-im-dreaming.mp3' },
+        { number: '06', title: 'Refreshing', artist: 'コンシャスTHOUGHTS x Aloe Island Posse', durationLabel: '2:40', file: 'assets/audio/refreshing.mp3' },
+        { number: '07', title: 'Our Love', artist: 'Aloe Island Posse', durationLabel: '2:30', file: 'assets/audio/our-love.mp3' },
+        { number: '08', title: 'Visions of You', artist: 'コンシャスTHOUGHTS', durationLabel: '3:14', file: 'assets/audio/visions-of-you.mp3' },
+        { number: '09', title: 'Me & You', artist: 'ID Chief', durationLabel: '3:21', file: 'assets/audio/me-and-you.mp3' },
+        { number: '10', title: 'Space Cowboys', artist: 'コンシャスTHOUGHTS x ID Chief x Aloe Island Posse', durationLabel: '4:20', file: 'assets/audio/space-cowboys.mp3' },
     ];
 
     const scriptEl = document.currentScript || document.querySelector('script[src*="persistent-player.js"]');
@@ -113,12 +113,16 @@
             this.handoffInProgress = false;
 
             this.state = this.readState();
+            const storedSettings = this.state?.playbackSettings || {};
             this.playbackSettings = {
-                shuffle: this.state?.playbackSettings?.shuffle ?? false,
-                repeatAll: this.state?.playbackSettings?.repeatAll ?? false,
-                loopOne: this.state?.playbackSettings?.loopOne ?? false,
+                shuffle: storedSettings.shuffle !== undefined ? storedSettings.shuffle : true,
+                repeatAll: storedSettings.repeatAll ?? false,
+                loopOne: storedSettings.loopOne ?? false,
             };
             this.volume = typeof this.state?.volume === 'number' ? clamp(this.state.volume, 0, 1) : 0.9;
+            this.uiState = this.state?.uiState || {};
+            this.minimized = !!this.uiState.minimized;
+            this.autoStartAttempted = false;
 
             if (this.blocked) {
                 safeStorage.remove(STORAGE_KEY);
@@ -133,6 +137,8 @@
             this.buildCatalog();
             this.setupInlineIntegration();
             this.restoreFromState();
+            this.applyMinimizeState(this.minimized);
+            this.maybeAutoplayFromHome();
         }
 
         injectStyles() {
@@ -189,12 +195,26 @@
     font-size: 0.82rem;
     color: rgba(255, 255, 255, 0.75);
 }
+#persistent-audio-deck .player-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
 #persistent-audio-deck button {
     font-family: inherit;
     border: none;
     background: none;
     color: inherit;
     cursor: pointer;
+}
+#persistent-audio-deck .player-minimize {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.85rem;
 }
 #persistent-audio-deck .player-close {
     width: 30px;
@@ -283,6 +303,26 @@
     flex: 1;
     accent-color: #00ffd5;
 }
+#persistent-audio-deck[data-minimized="true"] {
+    padding: 10px 14px;
+    width: auto;
+    min-width: 240px;
+}
+#persistent-audio-deck[data-minimized="true"] header {
+    margin-bottom: 0;
+}
+#persistent-audio-deck[data-minimized="true"] .player-controls,
+#persistent-audio-deck[data-minimized="true"] .player-progress,
+#persistent-audio-deck[data-minimized="true"] .player-modes,
+#persistent-audio-deck[data-minimized="true"] .player-volume {
+    display: none;
+}
+#persistent-audio-deck[data-minimized="true"] .player-meta__title {
+    font-size: 0.9rem;
+}
+#persistent-audio-deck[data-minimized="true"] .player-meta__artist {
+    font-size: 0.7rem;
+}
 @media (max-width: 620px) {
     #persistent-audio-deck {
         left: 16px;
@@ -306,10 +346,13 @@
                 <header>
                     <div class="player-meta">
                         <span class="player-meta__label">Now Playing</span>
-                        <span class="player-meta__title" data-player-title>—</span>
+                        <span class="player-meta__title" data-player-title>&mdash;</span>
                         <span class="player-meta__artist" data-player-artist></span>
                     </div>
-                    <button type="button" class="player-close" aria-label="Close player" data-player-close>&times;</button>
+                    <div class="player-actions">
+                        <button type="button" class="player-minimize" aria-label="Minimize player" data-player-minimize>&#8211;</button>
+                        <button type="button" class="player-close" aria-label="Close player" data-player-close>&times;</button>
+                    </div>
                 </header>
                 <div class="player-controls">
                     <button type="button" data-action="rewind" aria-label="Rewind 10 seconds">–10s</button>
@@ -334,12 +377,14 @@
                 </div>
             `;
             document.body.appendChild(this.root);
+            this.root.dataset.minimized = this.minimized ? 'true' : 'false';
             this.titleEl = this.root.querySelector('[data-player-title]');
             this.artistEl = this.root.querySelector('[data-player-artist]');
             this.seekInput = this.root.querySelector('[data-player-seek]');
             this.currentTimeEl = this.root.querySelector('[data-player-current]');
             this.durationEl = this.root.querySelector('[data-player-duration]');
             this.closeButton = this.root.querySelector('[data-player-close]');
+            this.minimizeButton = this.root.querySelector('[data-player-minimize]');
             this.modeButtons = {
                 shuffle: this.root.querySelector('[data-action="shuffle"]'),
                 repeat: this.root.querySelector('[data-action="repeat"]'),
@@ -347,6 +392,7 @@
             };
             this.volumeSlider = this.root.querySelector('[data-player-volume]');
             this.updateModeButtons();
+            this.updateMinimizeUI();
         }
 
         setupAudio() {
@@ -367,6 +413,9 @@
             this.seekInput.addEventListener('input', (event) => this.previewSeek(event.target.value));
             this.seekInput.addEventListener('change', (event) => this.commitSeek(event.target.value));
             this.closeButton.addEventListener('click', () => this.stopAndHide());
+            if (this.minimizeButton) {
+                this.minimizeButton.addEventListener('click', () => this.toggleMinimize());
+            }
             this.modeButtons.shuffle.addEventListener('click', () => this.toggleMode('shuffle'));
             this.modeButtons.repeat.addEventListener('click', () => this.toggleMode('repeat'));
             this.modeButtons.loop.addEventListener('click', () => this.toggleMode('loop'));
@@ -381,16 +430,39 @@
                     this.stopAndHide();
                     return;
                 }
+                const incomingSettings = this.state?.playbackSettings || {};
                 this.playbackSettings = {
-                    shuffle: this.state.playbackSettings?.shuffle ?? false,
-                    repeatAll: this.state.playbackSettings?.repeatAll ?? false,
-                    loopOne: this.state.playbackSettings?.loopOne ?? false,
+                    shuffle: incomingSettings.shuffle !== undefined ? incomingSettings.shuffle : true,
+                    repeatAll: incomingSettings.repeatAll ?? false,
+                    loopOne: incomingSettings.loopOne ?? false,
                 };
                 this.updateModeButtons();
                 this.volume = typeof this.state.volume === 'number' ? clamp(this.state.volume, 0, 1) : this.volume;
                 this.applyVolume();
+                this.applyMinimizeState(!!(this.state?.uiState?.minimized));
                 this.restoreFromState();
             });
+        }
+
+        toggleMinimize(force) {
+            if (!this.root) return;
+            const next = typeof force === 'boolean' ? force : this.root.dataset.minimized !== 'true';
+            this.root.dataset.minimized = next ? 'true' : 'false';
+            this.updateMinimizeUI();
+            this.persistState();
+        }
+
+        updateMinimizeUI() {
+            if (!this.minimizeButton || !this.root) return;
+            const minimized = this.root.dataset.minimized === 'true';
+            this.minimizeButton.innerHTML = minimized ? '&#9633;' : '&#8211;';
+            this.minimizeButton.setAttribute('aria-label', minimized ? 'Restore player' : 'Minimize player');
+        }
+
+        applyMinimizeState(isMinimized) {
+            if (!this.root) return;
+            this.root.dataset.minimized = isMinimized ? 'true' : 'false';
+            this.updateMinimizeUI();
         }
 
         buildCatalog() {
@@ -628,6 +700,8 @@
             this.ensureState(meta);
             this.volume = typeof this.state.volume === 'number' ? clamp(this.state.volume, 0, 1) : this.volume;
             this.applyVolume();
+            this.minimized = !!(this.state?.uiState?.minimized);
+            this.applyMinimizeState(this.minimized);
             this.showUI();
             this.renderMetadata();
             const shouldResume = this.state.isPlaying !== false;
@@ -882,6 +956,9 @@
                 updatedAt: Date.now(),
                 playbackSettings: this.playbackSettings,
                 volume: this.volume,
+                uiState: {
+                    minimized: this.root?.dataset?.minimized === 'true',
+                },
             };
             this.state = next;
             safeStorage.set(STORAGE_KEY, JSON.stringify(next));
@@ -917,6 +994,7 @@
             this.root.dataset.visible = 'false';
             this.root.dataset.playing = 'false';
             this.root.dataset.inlineVisible = 'false';
+            this.applyMinimizeState(false);
             this.inlineActive = null;
             this.playbackOwner = 'deck';
             safeStorage.remove(STORAGE_KEY);
@@ -925,9 +1003,36 @@
                 el.removeAttribute('data-persistent-active');
             });
         }
+
+        maybeAutoplayFromHome() {
+            if (this.autoStartAttempted) return;
+            if (!this.isHomePage()) return;
+            if (this.state?.src) return;
+            if (!this.catalogOrder.length) return;
+            this.autoStartAttempted = true;
+            this.playbackSettings.shuffle = true;
+            this.updateModeButtons();
+            this.persistState();
+            const randomMeta = this.catalogOrder[Math.floor(Math.random() * this.catalogOrder.length)];
+            if (!randomMeta) return;
+            this.setTrack(randomMeta, { startTime: 0, autoPlay: true }).catch((err) => {
+                console.warn('[PersistentPlayer] Autoplay blocked', err);
+            });
+        }
+
+        isHomePage() {
+            try {
+                const path = window.location?.pathname || '/';
+                return path === '/' || path.endsWith('/index.html');
+            } catch (err) {
+                return false;
+            }
+        }
     }
 
     ready(() => {
         new PersistentPlayer();
     });
 })();
+
+
