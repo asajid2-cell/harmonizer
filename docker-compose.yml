@@ -15,11 +15,12 @@ services:
     restart: unless-stopped
 
   watchtower:
-    image: containrrr/watchtower:1.7.1
+    image: containrrr/watchtower:latest
     command: --cleanup --rolling-restart harmonizer
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
+
 
 
 
