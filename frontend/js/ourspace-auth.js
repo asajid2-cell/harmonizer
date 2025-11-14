@@ -1,23 +1,23 @@
-// MySpace Authentication
+﻿// OurSpace Authentication
 
 (function() {
     'use strict';
 
     // Global auth state
-    window.MySpaceAuth = {
+    window.OurSpaceAuth = {
         currentUser: null,
         isAuthenticated: false,
 
         syncCoreAuthState: function() {
-            if (window.MySpace && typeof window.MySpace.setAuthState === 'function') {
-                window.MySpace.setAuthState(this.isAuthenticated);
+            if (window.OurSpace && typeof window.OurSpace.setAuthState === 'function') {
+                window.OurSpace.setAuthState(this.isAuthenticated);
             }
         },
 
         // Check if user is logged in
         checkAuth: async function() {
             try {
-                const response = await fetch('/api/myspace/me');
+                const response = await fetch('/api/ourspace/me');
                 const data = await response.json();
 
                 if (data.authenticated) {
@@ -27,16 +27,16 @@
                     };
                     this.isAuthenticated = true;
                     this.syncCoreAuthState();
-                    if (window.MySpace) {
-                        window.MySpace.viewingUsername = data.username;
+                    if (window.OurSpace) {
+                        window.OurSpace.viewingUsername = data.username;
                     }
                     this.updateUI();
 
                     // Load user's profile from database
                     await this.loadUserProfile();
 
-                    if (window.MySpaceComments && window.MySpaceComments.refresh) {
-                        window.MySpaceComments.refresh();
+                    if (window.OurSpaceComments && window.OurSpaceComments.refresh) {
+                        window.OurSpaceComments.refresh();
                     }
 
                     return true;
@@ -44,12 +44,12 @@
                     this.currentUser = null;
                     this.isAuthenticated = false;
                     this.syncCoreAuthState();
-                    if (window.MySpace) {
-                        window.MySpace.viewingUsername = null;
+                    if (window.OurSpace) {
+                        window.OurSpace.viewingUsername = null;
                     }
                     this.updateUI();
-                    if (window.MySpaceFriends && window.MySpaceFriends.refreshInboxUI) {
-                        window.MySpaceFriends.refreshInboxUI();
+                    if (window.OurSpaceFriends && window.OurSpaceFriends.refreshInboxUI) {
+                        window.OurSpaceFriends.refreshInboxUI();
                     }
                     return false;
                 }
@@ -62,7 +62,7 @@
         // Register new user
         register: async function(username, password) {
             try {
-                const response = await fetch('/api/myspace/register', {
+                const response = await fetch('/api/ourspace/register', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ username, password })
@@ -77,15 +77,15 @@
                     };
                     this.isAuthenticated = true;
                     this.syncCoreAuthState();
-                    if (window.MySpace) {
-                        window.MySpace.viewingUsername = data.username;
+                    if (window.OurSpace) {
+                        window.OurSpace.viewingUsername = data.username;
                     }
                     this.updateUI();
-                    if (window.MySpaceFriends && window.MySpaceFriends.refreshInboxUI) {
-                        window.MySpaceFriends.refreshInboxUI();
+                    if (window.OurSpaceFriends && window.OurSpaceFriends.refreshInboxUI) {
+                        window.OurSpaceFriends.refreshInboxUI();
                     }
-                    if (window.MySpaceComments && window.MySpaceComments.refresh) {
-                        window.MySpaceComments.refresh();
+                    if (window.OurSpaceComments && window.OurSpaceComments.refresh) {
+                        window.OurSpaceComments.refresh();
                     }
                     return { success: true };
                 } else {
@@ -100,7 +100,7 @@
         // Login existing user
         login: async function(username, password) {
             try {
-                const response = await fetch('/api/myspace/login', {
+                const response = await fetch('/api/ourspace/login', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ username, password })
@@ -115,19 +115,19 @@
                     };
                     this.isAuthenticated = true;
                     this.syncCoreAuthState();
-                    if (window.MySpace) {
-                        window.MySpace.viewingUsername = data.username;
+                    if (window.OurSpace) {
+                        window.OurSpace.viewingUsername = data.username;
                     }
                     this.updateUI();
 
                     // Load user's profile from database
                     await this.loadUserProfile();
 
-                    if (window.MySpaceFriends && window.MySpaceFriends.refreshInboxUI) {
-                        window.MySpaceFriends.refreshInboxUI();
+                    if (window.OurSpaceFriends && window.OurSpaceFriends.refreshInboxUI) {
+                        window.OurSpaceFriends.refreshInboxUI();
                     }
-                    if (window.MySpaceComments && window.MySpaceComments.refresh) {
-                        window.MySpaceComments.refresh();
+                    if (window.OurSpaceComments && window.OurSpaceComments.refresh) {
+                        window.OurSpaceComments.refresh();
                     }
 
                     return { success: true };
@@ -143,22 +143,22 @@
         // Logout
         logout: async function() {
             try {
-                await fetch('/api/myspace/logout', {
+                await fetch('/api/ourspace/logout', {
                     method: 'POST'
                 });
 
                 this.currentUser = null;
                 this.isAuthenticated = false;
                 this.syncCoreAuthState();
-                if (window.MySpace) {
-                    window.MySpace.viewingUsername = null;
+                if (window.OurSpace) {
+                    window.OurSpace.viewingUsername = null;
                 }
                 this.updateUI();
-                if (window.MySpaceFriends && window.MySpaceFriends.refreshInboxUI) {
-                    window.MySpaceFriends.refreshInboxUI();
+                if (window.OurSpaceFriends && window.OurSpaceFriends.refreshInboxUI) {
+                    window.OurSpaceFriends.refreshInboxUI();
                 }
-                if (window.MySpaceComments && window.MySpaceComments.refresh) {
-                    window.MySpaceComments.refresh();
+                if (window.OurSpaceComments && window.OurSpaceComments.refresh) {
+                    window.OurSpaceComments.refresh();
                 }
 
                 // Reload page to reset state
@@ -171,39 +171,39 @@
         // Load user's profile from database
         loadUserProfile: async function() {
             try {
-                const response = await fetch('/api/myspace/profile/load');
+                const response = await fetch('/api/ourspace/profile/load');
 
                 if (response.ok) {
                     const profileData = await response.json();
-                    if (profileData && window.MySpace) {
-                        window.MySpace.profile = profileData;
-                        window.MySpace.profileSource = 'database';
-                        window.MySpace.profileLoadIssue = false;
-                        if (typeof window.MySpace.clearProfileLoadWarning === 'function') {
-                            window.MySpace.clearProfileLoadWarning();
+                    if (profileData && window.OurSpace) {
+                        window.OurSpace.profile = profileData;
+                        window.OurSpace.profileSource = 'database';
+                        window.OurSpace.profileLoadIssue = false;
+                        if (typeof window.OurSpace.clearProfileLoadWarning === 'function') {
+                            window.OurSpace.clearProfileLoadWarning();
                         }
-                        if (typeof window.MySpace.updateProfileLoadWarning === 'function') {
-                            window.MySpace.updateProfileLoadWarning();
+                        if (typeof window.OurSpace.updateProfileLoadWarning === 'function') {
+                            window.OurSpace.updateProfileLoadWarning();
                         }
-                        if (typeof window.MySpace.setAuthState === 'function') {
-                            window.MySpace.setAuthState(true);
+                        if (typeof window.OurSpace.setAuthState === 'function') {
+                            window.OurSpace.setAuthState(true);
                         }
-                        if (typeof window.MySpace.backupProfileLocally === 'function') {
-                            window.MySpace.backupProfileLocally();
+                        if (typeof window.OurSpace.backupProfileLocally === 'function') {
+                            window.OurSpace.backupProfileLocally();
                         }
                         // Reapply theme and reload content
-                        if (window.MySpace.applyTheme) {
-                            window.MySpace.applyTheme();
+                        if (window.OurSpace.applyTheme) {
+                            window.OurSpace.applyTheme();
                         }
-                        if (window.MySpace.loadContent) {
-                            window.MySpace.loadContent();
+                        if (window.OurSpace.loadContent) {
+                            window.OurSpace.loadContent();
                         }
-                        if (window.MySpace.updateStats) {
-                            window.MySpace.updateStats();
+                        if (window.OurSpace.updateStats) {
+                            window.OurSpace.updateStats();
                         }
                         // Reload audio widget with saved audio
-                        if (window.MySpaceAudio && window.MySpaceAudio.reloadAudio) {
-                            window.MySpaceAudio.reloadAudio();
+                        if (window.OurSpaceAudio && window.OurSpaceAudio.reloadAudio) {
+                            window.OurSpaceAudio.reloadAudio();
                         }
                         console.log('[Auth] Loaded user profile from database');
                     }
@@ -221,9 +221,9 @@
                 return false;
             }
 
-            if (window.MySpace && window.MySpace.isAuthenticated && window.MySpace.profileSource === 'default') {
-                if (typeof window.MySpace.showProfileLoadWarning === 'function') {
-                    window.MySpace.showProfileLoadWarning("We couldn't load your saved profile. Refresh before publishing.");
+            if (window.OurSpace && window.OurSpace.isAuthenticated && window.OurSpace.profileSource === 'default') {
+                if (typeof window.OurSpace.showProfileLoadWarning === 'function') {
+                    window.OurSpace.showProfileLoadWarning("We couldn't load your saved profile. Refresh before publishing.");
                 }
                 alert('Profile data has not loaded from the server yet. Please refresh or re-login before publishing to avoid overwriting your profile.');
                 return false;
@@ -231,10 +231,10 @@
 
             try {
                 // First save the profile
-                const saveResponse = await fetch('/api/myspace/profile/save', {
+                const saveResponse = await fetch('/api/ourspace/profile/save', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(window.MySpace.profile)
+                    body: JSON.stringify(window.OurSpace.profile)
                 });
 
                 if (!saveResponse.ok) {
@@ -242,7 +242,7 @@
                 }
 
                 // Then publish it
-                const publishResponse = await fetch('/api/myspace/profile/publish', {
+                const publishResponse = await fetch('/api/ourspace/profile/publish', {
                     method: 'POST'
                 });
 
@@ -250,7 +250,8 @@
                     throw new Error('Failed to publish profile');
                 }
 
-                alert('✅ Your profile has been saved and published!\nOthers can now view it at: myspace.html?user=' + this.currentUser.username);
+                const shareUrl = getProfileEntryUrl(this.currentUser.username);
+                alert('Your profile has been saved and published!\nOthers can now view it at: ' + shareUrl);
                 return true;
             } catch (e) {
                 console.error('[Auth] Error saving and publishing:', e);
@@ -326,8 +327,8 @@
                 }
             }
 
-            if (window.MySpaceFriends && window.MySpaceFriends.refreshInboxUI) {
-                window.MySpaceFriends.refreshInboxUI();
+            if (window.OurSpaceFriends && window.OurSpaceFriends.refreshInboxUI) {
+                window.OurSpaceFriends.refreshInboxUI();
             }
         },
 
@@ -358,11 +359,11 @@
             if (newPasswordField) newPasswordField.required = false;
 
             if (mode === 'login') {
-                modalTitle.textContent = 'Login to MySpace';
+                modalTitle.textContent = 'Login to OurSpace';
                 submitBtn.textContent = 'Login';
                 switchLink.innerHTML = 'Don\'t have an account? <a href="#" id="switch-to-register">Sign up</a><br><a href="#" id="forgot-password-link" style="margin-top: 5px; display: inline-block;">Forgot password?</a>';
             } else if (mode === 'register') {
-                modalTitle.textContent = 'Create MySpace Account';
+                modalTitle.textContent = 'Create OurSpace Account';
                 submitBtn.textContent = 'Sign Up';
                 switchLink.innerHTML = 'Already have an account? <a href="#" id="switch-to-login">Login</a>';
             } else if (mode === 'reset') {
@@ -502,7 +503,7 @@
 
                 if (result.success) {
                     this.closeAuthModal();
-                    alert(`Welcome${mode === 'register' ? ' to MySpace' : ' back'}, ${username}!`);
+                    alert(`Welcome${mode === 'register' ? ' to OurSpace' : ' back'}, ${username}!`);
                 } else {
                     errorEl.textContent = result.error;
                     submitBtn.disabled = false;
@@ -514,7 +515,7 @@
         // Reset password with admin password
         resetPassword: async function(username, adminPassword, newPassword) {
             try {
-                const response = await fetch('/api/myspace/reset-password', {
+                const response = await fetch('/api/ourspace/reset-password', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -543,13 +544,13 @@
         console.log('[Auth] Initializing...');
 
         // Check if user is logged in
-        await window.MySpaceAuth.checkAuth();
+        await window.OurSpaceAuth.checkAuth();
 
         // Set up auth form submit handler
         const authForm = document.getElementById('auth-form');
         if (authForm) {
             authForm.addEventListener('submit', (e) => {
-                window.MySpaceAuth.handleAuthSubmit(e);
+                window.OurSpaceAuth.handleAuthSubmit(e);
             });
         }
 
@@ -557,7 +558,7 @@
         const closeModalBtn = document.getElementById('close-auth-modal');
         if (closeModalBtn) {
             closeModalBtn.addEventListener('click', () => {
-                window.MySpaceAuth.closeAuthModal();
+                window.OurSpaceAuth.closeAuthModal();
             });
         }
 
@@ -565,7 +566,7 @@
         if (authModal) {
             authModal.addEventListener('click', (e) => {
                 if (e.target === authModal) {
-                    window.MySpaceAuth.closeAuthModal();
+                    window.OurSpaceAuth.closeAuthModal();
                 }
             });
         }
@@ -574,7 +575,7 @@
         const savePublishBtn = document.getElementById('save-publish-btn');
         if (savePublishBtn) {
             savePublishBtn.addEventListener('click', () => {
-                window.MySpaceAuth.saveAndPublish();
+                window.OurSpaceAuth.saveAndPublish();
             });
         }
 
@@ -593,7 +594,7 @@
     // Load another user's profile
     async function loadOtherUserProfile(username) {
         try {
-            const response = await fetch(`/api/myspace/profile/${encodeURIComponent(username)}`);
+            const response = await fetch(`/api/ourspace/profile/${encodeURIComponent(username)}`);
 
             if (!response.ok) {
                 if (response.status === 404) {
@@ -603,41 +604,41 @@
                 } else {
                     alert('Error loading profile.');
                 }
-                window.location.href = 'myspace.html';
+                window.location.href = getProfileEntryUrl();
                 return;
             }
 
             const data = await response.json();
 
-            if (data.data && window.MySpace) {
+            if (data.data && window.OurSpace) {
                 // Load the profile into view-only mode
-                window.MySpace.profile = data.data;
-                window.MySpace.viewingUsername = data.username;
-                window.MySpace.profileSource = 'published';
-                window.MySpace.profileLoadIssue = false;
-                if (typeof window.MySpace.clearProfileLoadWarning === 'function') {
-                    window.MySpace.clearProfileLoadWarning();
+                window.OurSpace.profile = data.data;
+                window.OurSpace.viewingUsername = data.username;
+                window.OurSpace.profileSource = 'published';
+                window.OurSpace.profileLoadIssue = false;
+                if (typeof window.OurSpace.clearProfileLoadWarning === 'function') {
+                    window.OurSpace.clearProfileLoadWarning();
                 }
-                if (typeof window.MySpace.updateProfileLoadWarning === 'function') {
-                    window.MySpace.updateProfileLoadWarning();
+                if (typeof window.OurSpace.updateProfileLoadWarning === 'function') {
+                    window.OurSpace.updateProfileLoadWarning();
                 }
-                window.MySpace.viewMode = true;
-                window.MySpace.applyTheme();
-                window.MySpace.loadContent();
-                window.MySpace.applyViewMode();
-                if (window.MySpaceComments && window.MySpaceComments.refresh) {
-                    window.MySpaceComments.refresh();
+                window.OurSpace.viewMode = true;
+                window.OurSpace.applyTheme();
+                window.OurSpace.loadContent();
+                window.OurSpace.applyViewMode();
+                if (window.OurSpaceComments && window.OurSpaceComments.refresh) {
+                    window.OurSpaceComments.refresh();
                 }
 
                 // Update stats with visit count
                 if (data.visits !== undefined) {
-                    window.MySpace.profile.meta.visits = data.visits;
-                    window.MySpace.updateStats();
+                    window.OurSpace.profile.meta.visits = data.visits;
+                    window.OurSpace.updateStats();
                 }
 
                 // Reload audio widget with user's saved audio
-                if (window.MySpaceAudio && window.MySpaceAudio.reloadAudio) {
-                    window.MySpaceAudio.reloadAudio();
+                if (window.OurSpaceAudio && window.OurSpaceAudio.reloadAudio) {
+                    window.OurSpaceAudio.reloadAudio();
                 }
 
                 // Add banner showing whose profile this is
@@ -648,12 +649,13 @@
         } catch (e) {
             console.error('[Auth] Error loading other user profile:', e);
             alert('Error loading profile.');
-            window.location.href = 'myspace.html';
+            window.location.href = getProfileEntryUrl();
         }
     }
 
     // Add banner showing whose profile we're viewing
     function addProfileOwnerBanner(username) {
+        const entryUrl = getProfileEntryUrl();
         const banner = document.createElement('div');
         banner.id = 'viewing-profile-banner';
         banner.style.cssText = `
@@ -673,15 +675,35 @@
         `;
         banner.innerHTML = `
             <strong>Viewing ${username}'s Profile</strong>
-            <a href="myspace.html" style="color: #00ffff; margin-left: 20px; text-decoration: underline;">Back to My Profile</a>
+            <a href="${entryUrl}" style="color: #00ffff; margin-left: 20px; text-decoration: underline;">Back to My Profile</a>
         `;
         document.body.insertBefore(banner, document.body.firstChild);
 
         // Adjust container padding
-        const container = document.getElementById('myspace-container');
+        const container = document.getElementById('ourspace-container');
         if (container) {
             container.style.paddingTop = '100px';
         }
     }
 
+    function getProfileEntryUrl(username = '') {
+        if (window.OurSpace && typeof window.OurSpace.getProfileShareUrl === 'function') {
+            return window.OurSpace.getProfileShareUrl(username);
+        }
+        const origin = window.location.origin || '';
+        const base = origin ? `${origin}/ourspace.html` : 'ourspace.html';
+        const encoded = username ? encodeURIComponent(username) : '';
+        return `${base}?user=${encoded}`;
+    }
+
 })();
+
+
+
+
+
+
+
+
+
+

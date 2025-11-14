@@ -1,4 +1,4 @@
-/* MySpace Effects and Animations */
+﻿/* OurSpace Effects and Animations */
 
 :root {
     --glitter-border-strength: 0.7;
@@ -938,3 +938,6 @@ body.lightning-rumble {
         transform: translate(0, 0);
     }
 }
+
+
+

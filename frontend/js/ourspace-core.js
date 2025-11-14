@@ -1,4 +1,4 @@
-// MySpace Core - Initialization and Storage Management
+﻿// OurSpace Core - Initialization and Storage Management
 
 (function() {
     'use strict';
@@ -33,6 +33,33 @@
         lightningFlickers: { enabled: false, intensity: 0.8, frequency: 6 }
     };
 
+    const STICKER_FRAME_STYLES = [
+        'none',
+        'notebook',
+        'magazine',
+        'polaroid',
+        'photocard',
+        'holographic',
+        'glitter',
+        'taped',
+        'neon',
+        'burnt'
+    ];
+
+    const FRAME_TEXT_DEFAULTS = {
+        magazine: {
+            text: 'FEATURED',
+            color: '#3c3c3c'
+        },
+        polaroid: {
+            text: 'ourspace',
+            color: '#2f2f2f'
+        }
+    };
+
+    const frameSupportsText = (style) => Object.prototype.hasOwnProperty.call(FRAME_TEXT_DEFAULTS, style);
+    const getFrameTextDefaults = (style) => FRAME_TEXT_DEFAULTS[style] || { text: '', color: '' };
+
     // Default profile data structure
     const DEFAULT_PROFILE = {
         version: "1.0",
@@ -46,6 +73,8 @@
             mood: { icon: "😎", text: "chillin" },
             onlineStatus: true
         },
+        stickers: [],
+        stickerDeck: [],
         theme: {
             name: "glitter",
             colors: {
@@ -111,7 +140,8 @@
                 visible: true,
                 images: [],
                 columns: 4,
-                gap: "10px"
+                gap: "10px",
+                frameStyle: "classic"
             },
             topFriends: {
                 visible: true,
@@ -139,7 +169,8 @@
             },
             customHtml: {
                 visible: true,
-                html: ""
+                html: "",
+                global: ""
             }
         },
         layout: {
@@ -190,8 +221,8 @@
         return merged;
     }
 
-    // Global MySpace object
-    window.MySpace = {
+    // Global OurSpace object
+    window.OurSpace = {
         profile: JSON.parse(JSON.stringify(DEFAULT_PROFILE)), // Initialize with default to prevent null errors
         viewMode: false,
         _themeFrame: null,
@@ -203,18 +234,34 @@
         loadFailureAlertShown: false,
         viewingUsername: null,
         _commentMigrationDone: false,
+        stickerLayer: null,
+        stickerDeckGrid: null,
+        stickerDeckEmpty: null,
+        stickerState: {
+            activeId: null,
+            dragging: null
+        },
 
-        // Initialize the MySpace page
+        // Initialize the OurSpace page
         init: async function() {
-            console.log("[MySpace] Initializing...");
+            console.log("[OurSpace] Initializing...");
 
-            const urlUser = new URLSearchParams(window.location.search).get('user');
+            const searchParams = new URLSearchParams(window.location.search);
+            if (!searchParams.has('user')) {
+                searchParams.set('user', '');
+                const nextUrl = `${window.location.pathname}?${searchParams.toString()}`;
+                window.history.replaceState({}, '', nextUrl);
+            }
+
+            const urlUser = searchParams.get('user');
             if (urlUser) {
                 this.viewingUsername = urlUser;
             }
 
             // Load profile from server or localStorage
             await this.loadProfile();
+            this.ensureStickerData();
+            this.initStickerLayer();
 
             // Load view mode preference
             this.loadViewMode();
@@ -225,7 +272,7 @@
                 this.profile.meta.lastModified = Date.now();
                 await this.saveProfile();
             } else {
-                console.warn("[MySpace] Profile not loaded from database. Auto-save skipped to protect data.");
+                console.warn("[OurSpace] Profile not loaded from database. Auto-save skipped to protect data.");
             }
 
             // Apply theme and customizations
@@ -237,13 +284,13 @@
             this.setupModeToggle();
 
             // Load custom layout if exists
-            if (window.MySpaceLayoutEditor && this.profile.layout && this.profile.layout.grid) {
+            if (window.OurSpaceLayoutEditor && this.profile.layout && this.profile.layout.grid) {
                 setTimeout(() => {
-                    window.MySpaceLayoutEditor.updateFromProfile();
+                    window.OurSpaceLayoutEditor.updateFromProfile();
                 }, 500);
             }
 
-            console.log("[MySpace] Initialization complete");
+            console.log("[OurSpace] Initialization complete");
         },
 
         setAuthState: function(state) {
@@ -265,21 +312,21 @@
                 return this._authPromise;
             }
 
-            const promise = fetch('/api/myspace/me', {
+            const promise = fetch('/api/ourspace/me', {
                 method: 'GET',
                 cache: 'no-store'
             })
                 .then(response => response.ok ? response.json() : { authenticated: false })
                 .then(data => {
-                    const moduleState = (window.MySpaceAuth && typeof window.MySpaceAuth.isAuthenticated === 'boolean')
-                        ? window.MySpaceAuth.isAuthenticated
+                    const moduleState = (window.OurSpaceAuth && typeof window.OurSpaceAuth.isAuthenticated === 'boolean')
+                        ? window.OurSpaceAuth.isAuthenticated
                         : null;
                     const resolved = moduleState !== null ? moduleState : !!data.authenticated;
                     this.setAuthState(resolved);
                     return this.isAuthenticated;
                 })
                 .catch(() => {
-                    const fallback = !!(window.MySpaceAuth && window.MySpaceAuth.isAuthenticated);
+                    const fallback = !!(window.OurSpaceAuth && window.OurSpaceAuth.isAuthenticated);
                     this.setAuthState(fallback);
                     return this.isAuthenticated;
                 })
@@ -293,10 +340,10 @@
 
         backupProfileLocally: function() {
             try {
-                localStorage.setItem('myspace-profile', JSON.stringify(this.profile));
+                localStorage.setItem('ourspace-profile', JSON.stringify(this.profile));
                 return true;
             } catch (error) {
-                console.warn("[MySpace] Unable to store local backup:", error);
+                console.warn("[OurSpace] Unable to store local backup:", error);
                 return false;
             }
         },
@@ -366,14 +413,14 @@
                 this.backupProfileLocally();
                 return true;
             } catch (error) {
-                console.error(`[MySpace] Error loading profile from ${endpoint}:`, error);
+                console.error(`[OurSpace] Error loading profile from ${endpoint}:`, error);
                 return false;
             }
         },
 
         _loadProfileFromLocalStorage: function() {
             try {
-                const saved = localStorage.getItem('myspace-profile');
+                const saved = localStorage.getItem('ourspace-profile');
                 if (!saved) {
                     return false;
                 }
@@ -381,7 +428,7 @@
                 this.profileSource = 'local';
                 return true;
             } catch (error) {
-                console.error("[MySpace] Error loading profile from localStorage:", error);
+                console.error("[OurSpace] Error loading profile from localStorage:", error);
                 return false;
             }
         },
@@ -392,25 +439,25 @@
             let loaded = false;
 
             if (isAuthenticated) {
-                loaded = await this._loadProfileFromUrl('/api/myspace/profile/load', 'database');
+                loaded = await this._loadProfileFromUrl('/api/ourspace/profile/load', 'database');
                 if (loaded) {
-                    console.log("[MySpace] Loaded profile from database");
+                    console.log("[OurSpace] Loaded profile from database");
                 } else {
-                    console.warn("[MySpace] Failed to load profile from database, will fall back");
+                    console.warn("[OurSpace] Failed to load profile from database, will fall back");
                 }
             }
 
             if (!loaded) {
-                loaded = await this._loadProfileFromUrl('/api/myspace/profile', 'session');
+                loaded = await this._loadProfileFromUrl('/api/ourspace/profile', 'session');
                 if (loaded) {
-                    console.log("[MySpace] Loaded profile from temporary session storage");
+                    console.log("[OurSpace] Loaded profile from temporary session storage");
                 }
             }
 
             if (!loaded) {
                 loaded = this._loadProfileFromLocalStorage();
                 if (loaded) {
-                    console.log("[MySpace] Loaded profile from local backup");
+                    console.log("[OurSpace] Loaded profile from local backup");
                 }
             }
 
@@ -418,10 +465,11 @@
                 this.profile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
                 this.profileSource = 'default';
                 this.backupProfileLocally();
-                console.log("[MySpace] Created new profile");
+                console.log("[OurSpace] Created new profile");
             }
 
             this.updateProfileLoadWarning();
+            this.ensureStickerData();
         },
 
         // Save profile to server
@@ -430,7 +478,7 @@
                 if (this.isAuthenticated && this.profileSource === 'default') {
                     this.updateProfileLoadWarning();
                     const warningMessage = "Profile data wasn't loaded from the server yet. Refresh or re-login before saving.";
-                    console.warn("[MySpace] Save blocked:", warningMessage);
+                    console.warn("[OurSpace] Save blocked:", warningMessage);
                     if (!this.loadFailureAlertShown) {
                         alert(warningMessage);
                         this.loadFailureAlertShown = true;
@@ -440,8 +488,8 @@
 
                 this.profile.meta.lastModified = Date.now();
 
-                const moduleState = window.MySpaceAuth && typeof window.MySpaceAuth.isAuthenticated === 'boolean'
-                    ? window.MySpaceAuth.isAuthenticated
+                const moduleState = window.OurSpaceAuth && typeof window.OurSpaceAuth.isAuthenticated === 'boolean'
+                    ? window.OurSpaceAuth.isAuthenticated
                     : null;
 
                 if (moduleState !== null) {
@@ -451,7 +499,7 @@
                 }
 
                 const useDatabase = this.isAuthenticated;
-                const endpoint = useDatabase ? '/api/myspace/profile/save' : '/api/myspace/profile';
+                const endpoint = useDatabase ? '/api/ourspace/profile/save' : '/api/ourspace/profile';
                 const targetLabel = useDatabase ? 'database' : 'temporary storage';
 
                 const response = await fetch(endpoint, {
@@ -468,15 +516,15 @@
                 }
 
                 this.backupProfileLocally();
-                console.log(`[MySpace] Profile saved successfully to ${targetLabel}`);
+                console.log(`[OurSpace] Profile saved successfully to ${targetLabel}`);
                 return true;
             } catch (e) {
-                console.error("[MySpace] Error saving profile:", e);
+                console.error("[OurSpace] Error saving profile:", e);
                 if (!this.backupProfileLocally()) {
                     alert("Error saving profile. Storage might be full.");
                     return false;
                 }
-                console.log("[MySpace] Profile saved to local backup (fallback)");
+                console.log("[OurSpace] Profile saved to local backup (fallback)");
                 return true;
             }
         },
@@ -513,8 +561,8 @@
                 }
 
                 // Disable grid editor if active
-                if (window.MySpaceLayoutEditor && window.MySpaceLayoutEditor.enabled) {
-                    window.MySpaceLayoutEditor.toggle(false);
+                if (window.OurSpaceLayoutEditor && window.OurSpaceLayoutEditor.enabled) {
+                    window.OurSpaceLayoutEditor.toggle(false);
                     const layoutToggle = document.getElementById('layout-editor-toggle');
                     if (layoutToggle) layoutToggle.checked = false;
                 }
@@ -536,11 +584,11 @@
 
             const link = document.createElement('a');
             link.href = url;
-            link.download = 'myspace-profile.json';
+            link.download = 'ourspace-profile.json';
             link.click();
 
             URL.revokeObjectURL(url);
-            console.log("[MySpace] Profile exported");
+            console.log("[OurSpace] Profile exported");
         },
 
         // Import profile from JSON file
@@ -554,7 +602,7 @@
                     location.reload();
                 } catch (error) {
                     alert("Error importing profile. Invalid file format.");
-                    console.error("[MySpace] Import error:", error);
+                    console.error("[OurSpace] Import error:", error);
                 }
             };
             reader.readAsText(file);
@@ -609,9 +657,9 @@
             if (!theme.background.customSize) theme.background.customSize = 100;
             if (!theme.background.position) theme.background.position = 'center';
 
-            console.log("[MySpace] Applying theme:", theme.name);
-            console.log("[MySpace] Background type:", theme.background.type);
-            console.log("[MySpace] Background color:", theme.colors.background);
+            console.log("[OurSpace] Applying theme:", theme.name);
+            console.log("[OurSpace] Background type:", theme.background.type);
+            console.log("[OurSpace] Background color:", theme.colors.background);
 
             // Apply theme class (preserve view-mode class)
             const viewMode = document.body.classList.contains('view-mode');
@@ -621,8 +669,8 @@
             }
 
             // Apply custom colors
-            const bg = document.getElementById('myspace-background');
-            console.log("[MySpace] Background element:", bg);
+            const bg = document.getElementById('ourspace-background');
+            console.log("[OurSpace] Background element:", bg);
             if (bg) {
                 // Clear all background styles first
                 bg.style.background = '';
@@ -640,31 +688,31 @@
                 const existingOverlay = document.getElementById('bg-transform-overlay');
                 if (existingOverlay) {
                     existingOverlay.remove();
-                    console.log("[MySpace] Removed existing transform overlay");
+                    console.log("[OurSpace] Removed existing transform overlay");
                 }
 
                 if (theme.background.type === 'solid') {
                     // Solid color background
-                    console.log("[MySpace] Applying solid color:", theme.colors.background);
+                    console.log("[OurSpace] Applying solid color:", theme.colors.background);
                     bg.style.backgroundColor = theme.colors.background;
                 } else if (theme.background.type === 'gradient') {
                     // Gradient background
                     const gradient = theme.background.gradient ||
                         `linear-gradient(135deg, ${theme.colors.background} 0%, #000000 100%)`;
-                    console.log("[MySpace] Applying gradient:", gradient);
+                    console.log("[OurSpace] Applying gradient:", gradient);
                     bg.style.background = gradient;
                 } else if (theme.background.type === 'pattern') {
                     // Pattern background with color
                     const patternUrl = this.getPatternUrl(theme.background.pattern);
-                    console.log("[MySpace] Applying pattern:", theme.background.pattern);
-                    console.log("[MySpace] Pattern URL:", patternUrl);
+                    console.log("[OurSpace] Applying pattern:", theme.background.pattern);
+                    console.log("[OurSpace] Pattern URL:", patternUrl);
                     bg.style.backgroundColor = theme.colors.background;
                     bg.style.backgroundImage = patternUrl;
                     bg.style.backgroundRepeat = 'repeat';
                     bg.style.backgroundAttachment = 'fixed';
                 } else if (theme.background.type === 'image' && theme.background.image) {
                     // Custom image background with transformations
-                    console.log("[MySpace] Applying custom image with transformations");
+                    console.log("[OurSpace] Applying custom image with transformations");
 
                     // Handle custom size
                     const bgSize = theme.background.size === 'custom'
@@ -723,7 +771,7 @@
                         overlay.style.opacity = (theme.background.blend.opacity || 100) / 100;
                     }
                 }
-                console.log("[MySpace] Final background styles:", {
+                console.log("[OurSpace] Final background styles:", {
                     background: bg.style.background,
                     backgroundColor: bg.style.backgroundColor,
                     backgroundImage: bg.style.backgroundImage
@@ -763,11 +811,13 @@
                 grid.className = `content-grid layout-${this.profile.layout.preset}`;
             }
 
-            console.log("[MySpace] Theme applied:", theme.name);
+            console.log("[OurSpace] Theme applied:", theme.name);
         },
 
         // Load content into page
         loadContent: function() {
+            this.ensureCustomHtmlData();
+
             // Profile info
             const profileName = document.getElementById('profile-name');
             const profileTagline = document.getElementById('profile-tagline');
@@ -826,16 +876,31 @@
             if (booksEl) booksEl.textContent = interests.books;
 
             // Custom HTML widget
+            const safeWidgetHtml = this.sanitizeCustomHtml(this.profile.widgets.customHtml.html || '');
+            const safeGlobalHtml = this.sanitizeCustomHtml(this.profile.widgets.customHtml.global || '');
             const customHtmlOutput = document.getElementById('custom-html-output');
             if (customHtmlOutput) {
-                customHtmlOutput.innerHTML = this.profile.widgets.customHtml.html || '';
+                customHtmlOutput.innerHTML = safeWidgetHtml;
             }
             const customHtmlInput = document.getElementById('custom-html-input');
             if (customHtmlInput) {
-                customHtmlInput.value = this.profile.widgets.customHtml.html || '';
+                customHtmlInput.value = safeWidgetHtml;
+            }
+            const customHtmlGlobalInput = document.getElementById('custom-html-global-input');
+            if (customHtmlGlobalInput) {
+                customHtmlGlobalInput.value = safeGlobalHtml;
+            }
+            const customHtmlGlobal = document.getElementById('custom-html-global');
+            if (customHtmlGlobal) {
+                customHtmlGlobal.innerHTML = safeGlobalHtml;
             }
 
-            console.log("[MySpace] Content loaded");
+            this.renderCustomGlobalCode();
+
+            this.renderStickers();
+            this.renderStickerDeck();
+
+            console.log("[OurSpace] Content loaded");
         },
 
         // Update stats display
@@ -914,12 +979,661 @@
                 mallgoth: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(255,0,0,0.12)\'/%3E%3Crect x=\'0\' y=\'0\' width=\'40\' height=\'10\' fill=\'rgba(255,0,0,0.35)\'/%3E%3Crect x=\'45\' y=\'25\' width=\'35\' height=\'12\' fill=\'rgba(255,0,0,0.45)\'/%3E%3Crect x=\'10\' y=\'45\' width=\'25\' height=\'15\' fill=\'rgba(255,60,60,0.4)\'/%3E%3Crect x=\'40\' y=\'65\' width=\'30\' height=\'10\' fill=\'rgba(255,0,0,0.35)\'/%3E%3C/svg%3E")',
 
                 // Pop punk doodles
-                poppunk: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(0,0,0,0)\'/%3E%3Ccircle cx=\'20\' cy=\'15\' r=\'4\' fill=\'#ff5bff\'/%3E%3Ccircle cx=\'60\' cy=\'25\' r=\'4\' fill=\'#36fffb\'/%3E%3Cpath d=\'M5 60 L25 40\' stroke=\'#ffef5a\' stroke-width=\'4\'/%3E%3Cpath d=\'M35 70 L55 50\' stroke=\'#ff5bff\' stroke-width=\'4\'/%3E%3Crect x=\'50\' y=\'5\' width=\'12\' height=\'12\' fill=\'rgba(255,255,255,0.25)\'/%3E%3Crect x=\'10\' y=\'35\' width=\'12\' height=\'12\' fill=\'rgba(255,255,255,0.25)\'/%3E%3C/svg%3E")',
+                poppunk: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(0,0,0,0)\'/%3E%3Ccircle cx=\'20\' cy=\'15\' r=\'4\' fill=\'%23ff5bff\'/%3E%3Ccircle cx=\'60\' cy=\'25\' r=\'4\' fill=\'%2336fffb\'/%3E%3Cpath d=\'M5 60 L25 40\' stroke=\'%23ffef5a\' stroke-width=\'4\'/%3E%3Cpath d=\'M35 70 L55 50\' stroke=\'%23ff5bff\' stroke-width=\'4\'/%3E%3Crect x=\'50\' y=\'5\' width=\'12\' height=\'12\' fill=\'rgba(255,255,255,0.25)\'/%3E%3Crect x=\'10\' y=\'35\' width=\'12\' height=\'12\' fill=\'rgba(255,255,255,0.25)\'/%3E%3C/svg%3E")',
 
                 // Evanescent swirls
                 evanescent: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(0,0,0,0)\'/%3E%3Cpath d=\'M10 40 Q30 20 50 40 T90 40\' fill=\'none\' stroke=\'rgba(126, 230, 255, 0.35)\' stroke-width=\'6\'/%3E%3Cpath d=\'M-10 60 Q10 80 30 60 T70 60\' fill=\'none\' stroke=\'rgba(240, 89, 255, 0.3)\' stroke-width=\'5\'/%3E%3Ccircle cx=\'25\' cy=\'50\' r=\'5\' fill=\'rgba(126,230,255,0.4)\'/%3E%3Ccircle cx=\'55\' cy=\'30\' r=\'4\' fill=\'rgba(240,89,255,0.4)\'/%3E%3C/svg%3E")'
             };
             return patterns[patternName] || patterns.stars;
+        },
+
+        sanitizeCustomHtml: function(html) {
+            if (!html || typeof html !== 'string') {
+                return '';
+            }
+            let sanitized = html;
+            sanitized = sanitized.replace(/<script(?![^>]*data-ourspace)[\s\S]*?>[\s\S]*?<\/script>/gi, '');
+            sanitized = sanitized.replace(/on\w+\s*=\s*(['"]).*?\1/gi, '');
+            sanitized = sanitized.replace(/javascript:/gi, '');
+            return sanitized;
+        },
+
+        normalizeFrameTextData: function(target) {
+            if (!target) return;
+            if (!frameSupportsText(target.frameStyle)) {
+                if (typeof target.frameText !== 'string') {
+                    target.frameText = '';
+                }
+                if (typeof target.frameTextColor !== 'string') {
+                    target.frameTextColor = '';
+                }
+                return;
+            }
+            const defaults = getFrameTextDefaults(target.frameStyle);
+            if (typeof target.frameText !== 'string') {
+                target.frameText = defaults.text;
+            }
+            if (typeof target.frameTextColor !== 'string' || !target.frameTextColor || !/^#/.test(target.frameTextColor)) {
+                target.frameTextColor = defaults.color;
+            }
+        },
+
+        ensureStickerData: function() {
+            if (!Array.isArray(this.profile.stickers)) {
+                this.profile.stickers = [];
+            }
+            this.profile.stickers.forEach(sticker => {
+                if (!STICKER_FRAME_STYLES.includes(sticker.frameStyle)) {
+                    sticker.frameStyle = 'none';
+                }
+                this.normalizeFrameTextData(sticker);
+            });
+            if (!Array.isArray(this.profile.stickerDeck)) {
+                this.profile.stickerDeck = [];
+            }
+            this.profile.stickerDeck.forEach(entry => {
+                if (!STICKER_FRAME_STYLES.includes(entry.frameStyle)) {
+                    entry.frameStyle = 'none';
+                }
+                this.normalizeFrameTextData(entry);
+            });
+        },
+
+        getPublicBaseUrl: function() {
+            const host = window.location.hostname;
+            if (host === 'localhost' || host === '127.0.0.1') {
+                return `${window.location.origin}/ourspace.html`;
+            }
+            return 'https://ourspace.icu/ourspace.html';
+        },
+
+        getProfileShareUrl: function(username = '') {
+            const base = this.getPublicBaseUrl();
+            const encoded = username ? encodeURIComponent(username) : '';
+            return `${base}?user=${encoded}`;
+        },
+
+        renderCustomGlobalCode: function() {
+            this.ensureCustomHtmlData();
+            this.applyCustomGlobalCode(this.profile.widgets.customHtml.global || '');
+        },
+
+        applyCustomGlobalCode: function(code) {
+            const styleTarget = document.getElementById('custom-global-style');
+            const contentTarget = document.getElementById('custom-global-content');
+            if (!styleTarget || !contentTarget) {
+                return;
+            }
+
+            styleTarget.textContent = '';
+            contentTarget.innerHTML = '';
+
+            if (!code || typeof code !== 'string') {
+                return;
+            }
+
+            const template = document.createElement('template');
+            template.innerHTML = code;
+            const effectPayloads = [];
+
+            Array.from(template.content.childNodes).forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'STYLE') {
+                    styleTarget.textContent += node.textContent || '';
+                    node.remove();
+                    return;
+                }
+
+                if (
+                    node.nodeType === Node.ELEMENT_NODE &&
+                    node.tagName === 'SCRIPT' &&
+                    node.getAttribute('type') === 'application/json' &&
+                    node.dataset &&
+                    node.dataset.ourspace === 'effects'
+                ) {
+                    try {
+                        const payload = JSON.parse(node.textContent || '{}');
+                        effectPayloads.push(payload);
+                    } catch (err) {
+                        console.warn('[Custom Code] Invalid effect JSON', err);
+                    }
+                    node.remove();
+                    return;
+                }
+
+                if (node.nodeType === Node.TEXT_NODE) {
+                    if (!node.textContent.trim()) {
+                        node.remove();
+                        return;
+                    }
+                }
+
+                contentTarget.appendChild(node);
+            });
+
+            if (effectPayloads.length) {
+                effectPayloads.forEach(payload => this.applyEffectPayload(payload));
+            }
+        },
+
+        applyEffectPayload: function(payload) {
+            if (!payload || typeof payload !== 'object') {
+                return;
+            }
+            this.ensureStickerData();
+            this.profile.theme.effects = mergeEffectDefaults(this.profile.theme.effects);
+
+            Object.entries(payload).forEach(([effect, config]) => {
+                if (typeof config !== 'object') return;
+                if (!this.profile.theme.effects[effect]) {
+                    this.profile.theme.effects[effect] = { enabled: false };
+                }
+                Object.assign(this.profile.theme.effects[effect], config);
+            });
+
+            this.applyTheme(true);
+        },
+
+        initStickerLayer: function() {
+            this.stickerLayer = document.getElementById('sticker-layer');
+            if (this.stickerLayer) {
+                const main = document.getElementById('ourspace-main');
+                if (main && this.stickerLayer.parentElement !== main) {
+                    main.insertBefore(this.stickerLayer, main.firstChild);
+                }
+                this.stickerLayer.innerHTML = '';
+            }
+        },
+
+        ensureCustomHtmlData: function() {
+            if (!this.profile.widgets.customHtml) {
+                this.profile.widgets.customHtml = { visible: true, html: "", global: "" };
+            }
+            if (typeof this.profile.widgets.customHtml.html !== 'string') {
+                this.profile.widgets.customHtml.html = '';
+            }
+            if (typeof this.profile.widgets.customHtml.global !== 'string') {
+                this.profile.widgets.customHtml.global = '';
+            }
+        },
+
+        renderStickers: function() {
+            this.ensureStickerData();
+            if (!this.stickerLayer) {
+                this.initStickerLayer();
+            }
+            const layer = this.stickerLayer;
+            if (!layer) return;
+            layer.innerHTML = '';
+
+            this.profile.stickers.forEach(sticker => {
+                if (!sticker.id) {
+                    sticker.id = `sticker-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                }
+                if (typeof sticker.scale !== 'number') sticker.scale = 1;
+                if (typeof sticker.x !== 'number') sticker.x = 50;
+                if (typeof sticker.y !== 'number') sticker.y = 50;
+                if (typeof sticker.zIndex !== 'number') sticker.zIndex = 30;
+
+                const item = document.createElement('div');
+                item.className = 'sticker-item';
+                item.dataset.stickerId = sticker.id;
+
+                const img = document.createElement('img');
+                img.src = sticker.url;
+                img.alt = sticker.caption || 'Sticker';
+                item.appendChild(img);
+
+                this.applyStickerStyles(sticker, item);
+                layer.appendChild(item);
+
+                item.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    this.selectSticker(sticker.id);
+                });
+
+                if (!this.viewMode) {
+                    item.addEventListener('pointerdown', (event) => {
+                        if (event.button !== 0) return;
+                        event.stopPropagation();
+                        this.selectSticker(sticker.id);
+                        this.startStickerDrag(event, sticker);
+                    });
+                }
+            });
+
+            this.notifyStickerUpdate();
+        },
+
+        renderStickerDeck: function() {
+            this.ensureStickerData();
+
+            if (!this.stickerDeckGrid || !document.body.contains(this.stickerDeckGrid)) {
+                this.stickerDeckGrid = document.getElementById('sticker-deck-grid');
+            }
+            if (!this.stickerDeckEmpty || !document.body.contains(this.stickerDeckEmpty)) {
+                this.stickerDeckEmpty = document.getElementById('sticker-deck-empty');
+            }
+
+            const grid = this.stickerDeckGrid;
+            const emptyState = this.stickerDeckEmpty;
+
+            if (!grid) {
+                this.notifyStickerDeckUpdate();
+                return;
+            }
+
+            grid.innerHTML = '';
+            const deck = (this.profile.stickerDeck || [])
+                .filter(entry => entry && entry.url)
+                .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+            if (!deck.length) {
+                if (emptyState) {
+                    emptyState.style.display = 'block';
+                }
+                this.notifyStickerDeckUpdate([]);
+                return;
+            }
+
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
+
+            const fragment = document.createDocumentFragment();
+            deck.forEach(entry => {
+                const entryFrame = STICKER_FRAME_STYLES.includes(entry.frameStyle) ? entry.frameStyle : 'none';
+                entry.frameStyle = entryFrame;
+                const card = document.createElement('div');
+                card.className = 'sticker-deck-item';
+                card.dataset.deckId = entry.id;
+
+                const thumbButton = document.createElement('button');
+                thumbButton.type = 'button';
+                thumbButton.className = 'sticker-deck-thumb';
+                thumbButton.dataset.action = 'place';
+
+                const thumbImage = document.createElement('img');
+                thumbImage.src = entry.url;
+                thumbImage.alt = entry.label || 'Sticker';
+                if (entry.clipPath) {
+                    thumbImage.style.clipPath = entry.clipPath;
+                }
+                thumbButton.appendChild(thumbImage);
+
+                const meta = document.createElement('div');
+                meta.className = 'sticker-deck-meta';
+
+                const label = document.createElement('p');
+                label.className = 'sticker-deck-label';
+                label.textContent = entry.label || 'Sticker';
+
+                const styleBadge = document.createElement('span');
+                styleBadge.className = 'sticker-deck-style';
+                styleBadge.textContent = entryFrame === 'none' ? 'Default frame' : `${entryFrame} frame`;
+
+                const actions = document.createElement('div');
+                actions.className = 'sticker-deck-actions';
+
+                const placeBtn = document.createElement('button');
+                placeBtn.type = 'button';
+                placeBtn.dataset.action = 'place';
+                placeBtn.textContent = 'Place';
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.dataset.action = 'delete';
+                deleteBtn.classList.add('danger');
+                deleteBtn.textContent = 'Delete';
+
+                actions.appendChild(placeBtn);
+                actions.appendChild(deleteBtn);
+
+                meta.appendChild(label);
+                meta.appendChild(styleBadge);
+                meta.appendChild(actions);
+
+                card.appendChild(thumbButton);
+                card.appendChild(meta);
+                fragment.appendChild(card);
+            });
+
+            grid.appendChild(fragment);
+            this.notifyStickerDeckUpdate(deck);
+        },
+
+        notifyStickerDeckUpdate: function(deckData) {
+            const payload = Array.isArray(deckData)
+                ? deckData
+                : (Array.isArray(this.profile.stickerDeck) ? [...this.profile.stickerDeck] : []);
+            document.dispatchEvent(new CustomEvent('ourspace:sticker-deck-updated', {
+                detail: { deck: payload }
+            }));
+        },
+
+        applyStickerStyles: function(sticker, element) {
+            if (!this.stickerLayer) return;
+            if (!element) {
+                element = this.stickerLayer.querySelector(`[data-sticker-id="${sticker.id}"]`);
+            }
+            if (!element) return;
+            const x = typeof sticker.x === 'number' ? sticker.x : 50;
+            const y = typeof sticker.y === 'number' ? sticker.y : 50;
+            const scale = typeof sticker.scale === 'number' ? sticker.scale : 1;
+            element.style.left = `${x}%`;
+            element.style.top = `${y}%`;
+            element.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            element.style.zIndex = sticker.zIndex || 30;
+            const frameStyle = STICKER_FRAME_STYLES.includes(sticker.frameStyle) ? sticker.frameStyle : 'none';
+            element.dataset.frameStyle = frameStyle;
+            STICKER_FRAME_STYLES.forEach(style => {
+                if (style === 'none') {
+                    return;
+                }
+                element.classList.toggle(`sticker-frame--${style}`, frameStyle === style);
+            });
+            const existingLabel = element.querySelector('.sticker-frame-label');
+            if (frameSupportsText(frameStyle)) {
+                const defaults = getFrameTextDefaults(frameStyle);
+                const frameText = typeof sticker.frameText === 'string' ? sticker.frameText : defaults.text;
+                const textColor = sticker.frameTextColor || defaults.color;
+                let labelEl = existingLabel;
+                if (!labelEl) {
+                    labelEl = document.createElement('div');
+                    labelEl.className = 'sticker-frame-label';
+                    labelEl.contentEditable = 'false';
+                    labelEl.spellcheck = false;
+                    element.appendChild(labelEl);
+                }
+                labelEl.textContent = frameText || '';
+                labelEl.dataset.stickerId = sticker.id;
+                labelEl.style.color = textColor || defaults.color;
+                labelEl.style.setProperty('--frame-text-color', textColor || defaults.color);
+                labelEl.style.display = 'block';
+            } else if (existingLabel) {
+                existingLabel.remove();
+            }
+
+            if (sticker.clipPath) {
+                element.style.clipPath = sticker.clipPath;
+                element.style.webkitClipPath = sticker.clipPath;
+            } else {
+                element.style.clipPath = '';
+                element.style.webkitClipPath = '';
+            }
+            const img = element.querySelector('img');
+            if (img) {
+                img.style.clipPath = sticker.clipPath || '';
+            }
+        },
+
+        selectSticker: function(id) {
+            if (!this.stickerLayer) return;
+            this.stickerState.activeId = id;
+            const elements = this.stickerLayer.querySelectorAll('.sticker-item');
+            elements.forEach(el => {
+                el.classList.toggle('active', el.dataset.stickerId === id);
+            });
+            const sticker = this.profile.stickers.find(s => s.id === id);
+            document.dispatchEvent(new CustomEvent('ourspace:sticker-selected', {
+                detail: { id, sticker }
+            }));
+        },
+
+        addSticker: function(sticker) {
+            this.ensureStickerData();
+            if (!sticker.id) {
+                sticker.id = `sticker-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            }
+            if (typeof sticker.x !== 'number') sticker.x = 50;
+            if (typeof sticker.y !== 'number') sticker.y = 50;
+            if (typeof sticker.scale !== 'number') sticker.scale = 1;
+            if (typeof sticker.zIndex !== 'number') sticker.zIndex = 30;
+            if (!STICKER_FRAME_STYLES.includes(sticker.frameStyle)) {
+                sticker.frameStyle = 'none';
+            }
+            this.normalizeFrameTextData(sticker);
+            this.profile.stickers.push(sticker);
+            this.renderStickers();
+            this.selectSticker(sticker.id);
+            this.saveProfile();
+        },
+
+        addStickerAsset: function(options = {}) {
+            this.ensureStickerData();
+            if (!options.url) {
+                return null;
+            }
+
+            const entry = {
+                id: options.id || `deck-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                url: options.url,
+                clipPath: options.clipPath || '',
+                scale: typeof options.scale === 'number' ? options.scale : 1,
+                zIndex: typeof options.zIndex === 'number' ? options.zIndex : 40,
+                label: options.label || options.name || `Sticker ${this.profile.stickerDeck.length + 1}`,
+                createdAt: options.createdAt || Date.now(),
+                sourceStickerId: options.sourceStickerId || null,
+                frameStyle: STICKER_FRAME_STYLES.includes(options.frameStyle) ? options.frameStyle : 'none',
+                frameText: typeof options.frameText === 'string' ? options.frameText : undefined,
+                frameTextColor: typeof options.frameTextColor === 'string' ? options.frameTextColor : undefined
+            };
+
+            this.profile.stickerDeck.push(entry);
+            this.normalizeFrameTextData(entry);
+            this.renderStickerDeck();
+
+            this.saveProfile();
+
+            return entry;
+        },
+
+        duplicateStickerToDeck: function(sticker, meta = {}) {
+            if (!sticker || !sticker.url) {
+                return null;
+            }
+            const label = meta.label || `Cutout ${this.profile.stickerDeck.length + 1}`;
+            return this.addStickerAsset({
+                url: sticker.url,
+                clipPath: sticker.clipPath || '',
+                scale: typeof sticker.scale === 'number' ? sticker.scale : 1,
+                zIndex: typeof sticker.zIndex === 'number' ? sticker.zIndex : 40,
+                label,
+                sourceStickerId: sticker.id,
+                frameStyle: STICKER_FRAME_STYLES.includes(sticker.frameStyle) ? sticker.frameStyle : 'none',
+                frameText: sticker.frameText,
+                frameTextColor: sticker.frameTextColor
+            });
+        },
+
+        addStickerFromDeck: function(deckId) {
+            this.ensureStickerData();
+            const entry = this.profile.stickerDeck.find(item => item.id === deckId);
+            if (!entry) {
+                return;
+            }
+            this.addSticker({
+                url: entry.url,
+                clipPath: entry.clipPath || '',
+                scale: typeof entry.scale === 'number' ? entry.scale : 1,
+                zIndex: typeof entry.zIndex === 'number' ? entry.zIndex : 40,
+                x: 50,
+                y: 50,
+                frameStyle: STICKER_FRAME_STYLES.includes(entry.frameStyle) ? entry.frameStyle : 'none',
+                frameText: entry.frameText,
+                frameTextColor: entry.frameTextColor
+            });
+        },
+
+        removeStickerFromDeck: function(deckId) {
+            this.ensureStickerData();
+            const next = this.profile.stickerDeck.filter(entry => entry.id !== deckId);
+            if (next.length === this.profile.stickerDeck.length) {
+                return;
+            }
+            this.profile.stickerDeck = next;
+            this.renderStickerDeck();
+            this.saveProfile();
+        },
+
+        updateSticker: function(id, updates, options = {}) {
+            const sticker = this.profile.stickers.find(s => s.id === id);
+            if (!sticker) return;
+            Object.assign(sticker, updates);
+            if (!STICKER_FRAME_STYLES.includes(sticker.frameStyle)) {
+                sticker.frameStyle = 'none';
+            }
+            this.normalizeFrameTextData(sticker);
+            this.applyStickerStyles(sticker);
+            if (!options.silent) {
+                this.saveProfile();
+                this.notifyStickerUpdate();
+            }
+        },
+
+        removeSticker: function(id) {
+            const next = this.profile.stickers.filter(s => s.id !== id);
+            if (next.length === this.profile.stickers.length) return;
+            this.profile.stickers = next;
+            this.renderStickers();
+            this.selectSticker(null);
+            this.saveProfile();
+        },
+
+        notifyStickerUpdate: function() {
+            document.dispatchEvent(new CustomEvent('ourspace:stickers-updated', {
+                detail: { stickers: this.profile.stickers }
+            }));
+        },
+
+        startStickerDrag: function(startEvent, sticker) {
+            if (this.viewMode || !this.stickerLayer) return;
+            startEvent.preventDefault();
+            const bounds = this.stickerLayer.getBoundingClientRect();
+            const width = bounds.width || window.innerWidth || 1;
+            const height = bounds.height || window.innerHeight || 1;
+            const state = {
+                id: sticker.id,
+                pointerId: startEvent.pointerId,
+                startX: startEvent.clientX,
+                startY: startEvent.clientY,
+                initialX: sticker.x || 50,
+                initialY: sticker.y || 50,
+                bounds: { width, height }
+            };
+            this.stickerState.dragging = state;
+
+            const moveHandler = (event) => {
+                if (event.pointerId !== state.pointerId) return;
+                const deltaX = (event.clientX - state.startX) / state.bounds.width * 100;
+                const deltaY = (event.clientY - state.startY) / state.bounds.height * 100;
+                sticker.x = Math.max(0, Math.min(100, state.initialX + deltaX));
+                sticker.y = Math.max(0, Math.min(100, state.initialY + deltaY));
+                this.applyStickerStyles(sticker);
+            };
+
+            const endHandler = (event) => {
+                if (event.pointerId !== state.pointerId) return;
+                window.removeEventListener('pointermove', moveHandler);
+                window.removeEventListener('pointerup', endHandler);
+                window.removeEventListener('pointercancel', endHandler);
+                this.stickerState.dragging = null;
+                this.saveProfile();
+                this.notifyStickerUpdate();
+            };
+
+            window.addEventListener('pointermove', moveHandler);
+            window.addEventListener('pointerup', endHandler);
+            window.addEventListener('pointercancel', endHandler);
+        },
+
+        startStickerCutout: function(id) {
+            if (this.viewMode || !this.stickerLayer) return;
+            const sticker = this.profile.stickers.find(s => s.id === id);
+            if (!sticker) return;
+            const element = this.stickerLayer.querySelector(`[data-sticker-id="${id}"]`);
+            if (!element) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.className = 'sticker-cutout-canvas';
+            element.appendChild(canvas);
+            const rect = element.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            const ctx = canvas.getContext('2d');
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(0,255,255,0.9)';
+            ctx.fillStyle = 'rgba(0,255,255,0.25)';
+
+            const points = [];
+            let drawing = false;
+
+            const getPoint = (event) => {
+                const bounds = canvas.getBoundingClientRect();
+                return {
+                    x: event.clientX - bounds.left,
+                    y: event.clientY - bounds.top
+                };
+            };
+
+            const draw = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (points.length === 0) return;
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    ctx.lineTo(points[i].x, points[i].y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            };
+
+            const moveHandler = (event) => {
+                if (!drawing) return;
+                points.push(getPoint(event));
+                draw();
+            };
+
+            const endHandler = () => {
+                drawing = false;
+                window.removeEventListener('pointermove', moveHandler);
+                window.removeEventListener('pointerup', endHandler);
+                window.removeEventListener('pointercancel', endHandler);
+                element.removeChild(canvas);
+
+                if (points.length >= 3) {
+                    const coords = points.map(p => {
+                        const x = (p.x / canvas.width) * 100;
+                        const y = (p.y / canvas.height) * 100;
+                        return `${x.toFixed(2)}% ${y.toFixed(2)}%`;
+                    }).join(', ');
+                    sticker.clipPath = `polygon(${coords})`;
+                    this.applyStickerStyles(sticker);
+                    this.saveProfile();
+                    this.notifyStickerUpdate();
+                    this.duplicateStickerToDeck(sticker);
+                }
+            };
+
+            canvas.addEventListener('pointerdown', (event) => {
+                event.stopPropagation();
+                drawing = true;
+                points.length = 0;
+                points.push(getPoint(event));
+                draw();
+                window.addEventListener('pointermove', moveHandler);
+                window.addEventListener('pointerup', endHandler);
+                window.addEventListener('pointercancel', endHandler);
+            }, { once: true });
+        },
+
+        clearStickerCutout: function(id) {
+            const sticker = this.profile.stickers.find(s => s.id === id);
+            if (!sticker) return;
+            sticker.clipPath = '';
+            this.applyStickerStyles(sticker);
+            this.saveProfile();
+            this.notifyStickerUpdate();
         },
 
         // Enable drag-to-frame behavior on an element
@@ -1020,14 +1734,14 @@
 
         // Load view mode preference
         loadViewMode: function() {
-            const saved = localStorage.getItem('myspace-view-mode');
+            const saved = localStorage.getItem('ourspace-view-mode');
             this.viewMode = saved === 'true';
             this.applyViewMode();
         },
 
         // Save view mode preference
         saveViewMode: function() {
-            localStorage.setItem('myspace-view-mode', this.viewMode);
+            localStorage.setItem('ourspace-view-mode', this.viewMode);
         },
 
         // Apply view mode
@@ -1038,6 +1752,7 @@
                 document.body.classList.remove('view-mode');
             }
             this.updateModeButton();
+            this.renderStickers();
         },
 
         // Toggle view mode
@@ -1047,8 +1762,8 @@
             this.applyViewMode();
 
             // Disable layout editor when entering view mode
-            if (this.viewMode && window.MySpaceLayoutEditor && window.MySpaceLayoutEditor.enabled) {
-                window.MySpaceLayoutEditor.toggle(false);
+            if (this.viewMode && window.OurSpaceLayoutEditor && window.OurSpaceLayoutEditor.enabled) {
+                window.OurSpaceLayoutEditor.toggle(false);
                 const layoutToggle = document.getElementById('layout-editor-toggle');
                 if (layoutToggle) {
                     layoutToggle.checked = false;
@@ -1059,7 +1774,7 @@
                 }
             }
 
-            console.log("[MySpace] View mode:", this.viewMode ? 'ON' : 'OFF');
+            console.log("[OurSpace] View mode:", this.viewMode ? 'ON' : 'OFF');
         },
 
         // Setup mode toggle button
@@ -1093,10 +1808,20 @@
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
-            window.MySpace.init();
+            window.OurSpace.init();
         });
     } else {
-        window.MySpace.init();
+        window.OurSpace.init();
     }
 
 })();
+
+
+
+
+
+
+
+
+
+

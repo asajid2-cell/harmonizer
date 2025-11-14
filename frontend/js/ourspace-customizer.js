@@ -1,4 +1,4 @@
-// MySpace Customizer - Customization Panel Logic
+﻿// OurSpace Customizer - Customization Panel Logic
 
 (function() {
     'use strict';
@@ -43,10 +43,18 @@
         const toggleBtn = document.getElementById('toggle-panel');
 
         if (toggleBtn && panel) {
+            const updateState = () => {
+                const collapsed = panel.classList.contains('collapsed');
+                toggleBtn.textContent = collapsed ? '▶' : '◀';
+                toggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+            };
+
             toggleBtn.addEventListener('click', function() {
                 panel.classList.toggle('collapsed');
-                toggleBtn.textContent = panel.classList.contains('collapsed') ? '▶' : '◀';
+                updateState();
             });
+
+            updateState();
         }
     }
 
@@ -290,10 +298,10 @@
 
         const theme = themes[themeName];
         if (theme) {
-            window.MySpace.profile.theme.name = theme.name;
-            Object.assign(window.MySpace.profile.theme.colors, theme.colors);
-            Object.assign(window.MySpace.profile.theme.fonts, theme.fonts);
-            Object.assign(window.MySpace.profile.theme.background, theme.background);
+            window.OurSpace.profile.theme.name = theme.name;
+            Object.assign(window.OurSpace.profile.theme.colors, theme.colors);
+            Object.assign(window.OurSpace.profile.theme.fonts, theme.fonts);
+            Object.assign(window.OurSpace.profile.theme.background, theme.background);
 
             // Update UI controls
             updateColorPickers();
@@ -301,8 +309,8 @@
             updateBackgroundControls();
 
             // Apply and save
-            window.MySpace.applyTheme();
-            window.MySpace.saveProfile();
+            window.OurSpace.applyTheme();
+            window.OurSpace.saveProfile();
         }
     }
 
@@ -323,66 +331,66 @@
         // Background color
         if (colorBg) {
             colorBg.addEventListener('input', function() {
-                window.MySpace.profile.theme.colors.background = this.value;
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.colors.background = this.value;
+                window.OurSpace.applyTheme();
             });
             colorBg.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Text color
         if (colorText) {
             colorText.addEventListener('input', function() {
-                window.MySpace.profile.theme.colors.text = this.value;
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.colors.text = this.value;
+                window.OurSpace.applyTheme();
             });
             colorText.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Links color
         if (colorLinks) {
             colorLinks.addEventListener('input', function() {
-                window.MySpace.profile.theme.colors.links = this.value;
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.colors.links = this.value;
+                window.OurSpace.applyTheme();
             });
             colorLinks.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Borders color
         if (colorBorders) {
             colorBorders.addEventListener('input', function() {
-                window.MySpace.profile.theme.colors.borders = this.value;
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.colors.borders = this.value;
+                window.OurSpace.applyTheme();
             });
             colorBorders.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Label text color (Music, TV, etc)
         if (colorLabels) {
             colorLabels.addEventListener('input', function() {
-                window.MySpace.profile.theme.colors.labelText = this.value;
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.colors.labelText = this.value;
+                window.OurSpace.applyTheme();
             });
             colorLabels.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Widget background color
         if (colorWidgetBg) {
             colorWidgetBg.addEventListener('input', function() {
-                window.MySpace.profile.theme.colors.widgetBg = this.value;
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.colors.widgetBg = this.value;
+                window.OurSpace.applyTheme();
             });
             colorWidgetBg.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -390,18 +398,18 @@
         if (widgetBgOpacity) {
             widgetBgOpacity.addEventListener('input', function() {
                 if (opacityValue) opacityValue.textContent = this.value + '%';
-                window.MySpace.profile.theme.colors.widgetBgOpacity = parseInt(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.colors.widgetBgOpacity = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
 
             widgetBgOpacity.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
     }
 
     function updateColorPickers() {
-        const colors = window.MySpace.profile.theme.colors;
+        const colors = window.OurSpace.profile.theme.colors;
 
         const colorBg = document.getElementById('color-bg');
         const colorText = document.getElementById('color-text');
@@ -431,7 +439,7 @@
 
         // Background type selector
         if (bgType) {
-            bgType.value = window.MySpace.profile.theme.background.type;
+            bgType.value = window.OurSpace.profile.theme.background.type;
 
             // Show/hide pattern grid based on initial type
             if (patternGrid) {
@@ -439,13 +447,13 @@
             }
 
             bgType.addEventListener('change', function() {
-                window.MySpace.profile.theme.background.type = this.value;
+                window.OurSpace.profile.theme.background.type = this.value;
 
                 // Clear custom image when switching away from 'image' type
-                if (this.value !== 'image' && window.MySpace.profile.theme.background.image) {
+                if (this.value !== 'image' && window.OurSpace.profile.theme.background.image) {
                     console.log('[Customizer] Clearing custom background image');
                     // Don't delete the image, just clear the reference
-                    window.MySpace.profile.theme.background.image = '';
+                    window.OurSpace.profile.theme.background.image = '';
                 }
 
                 if (this.value === 'pattern') {
@@ -454,8 +462,8 @@
                     if (patternGrid) patternGrid.style.display = 'none';
                 }
 
-                window.MySpace.applyTheme();
-                window.MySpace.saveProfile();
+                window.OurSpace.applyTheme();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -463,7 +471,7 @@
         if (patternGrid) {
             const patternItems = patternGrid.querySelectorAll('.pattern-item');
             patternItems.forEach(item => {
-                if (item.dataset.pattern === window.MySpace.profile.theme.background.pattern) {
+                if (item.dataset.pattern === window.OurSpace.profile.theme.background.pattern) {
                     item.classList.add('active');
                 }
 
@@ -471,13 +479,13 @@
                     patternItems.forEach(p => p.classList.remove('active'));
                     this.classList.add('active');
 
-                    window.MySpace.profile.theme.background.pattern = this.dataset.pattern;
-                    window.MySpace.profile.theme.background.type = 'pattern';
-                    window.MySpace.profile.theme.background.image = ''; // Clear custom image
+                    window.OurSpace.profile.theme.background.pattern = this.dataset.pattern;
+                    window.OurSpace.profile.theme.background.type = 'pattern';
+                    window.OurSpace.profile.theme.background.image = ''; // Clear custom image
                     if (bgType) bgType.value = 'pattern';
 
-                    window.MySpace.applyTheme();
-                    window.MySpace.saveProfile();
+                    window.OurSpace.applyTheme();
+                    window.OurSpace.saveProfile();
                 });
             });
         }
@@ -501,22 +509,22 @@
                         formData.append('file', file);
                         formData.append('type', 'background');
 
-                        const response = await fetch('/api/myspace/upload', {
+                        const response = await fetch('/api/ourspace/upload', {
                             method: 'POST',
                             body: formData
                         });
 
                         if (response.ok) {
                             const data = await response.json();
-                            window.MySpace.profile.theme.background.image = data.url;
-                            window.MySpace.profile.theme.background.type = 'image';
+                            window.OurSpace.profile.theme.background.image = data.url;
+                            window.OurSpace.profile.theme.background.type = 'image';
                             if (bgType) bgType.value = 'image';
 
                             // Show remove button
                             if (removeBgBtn) removeBgBtn.style.display = 'block';
 
-                            window.MySpace.applyTheme();
-                            await window.MySpace.saveProfile();
+                            window.OurSpace.applyTheme();
+                            await window.OurSpace.saveProfile();
                         } else {
                             console.error('[Customizer] Failed to upload background image');
                             alert('Failed to upload background image');
@@ -532,20 +540,20 @@
         // Remove custom background button
         if (removeBgBtn) {
             // Show/hide based on whether there's a custom background
-            if (window.MySpace.profile.theme.background.image) {
+            if (window.OurSpace.profile.theme.background.image) {
                 removeBgBtn.style.display = 'block';
             }
 
             removeBgBtn.addEventListener('click', function() {
                 if (confirm('Remove custom background image?')) {
-                    window.MySpace.profile.theme.background.image = '';
-                    window.MySpace.profile.theme.background.type = 'solid';
+                    window.OurSpace.profile.theme.background.image = '';
+                    window.OurSpace.profile.theme.background.type = 'solid';
                     if (bgType) bgType.value = 'solid';
 
                     this.style.display = 'none';
 
-                    window.MySpace.applyTheme();
-                    window.MySpace.saveProfile();
+                    window.OurSpace.applyTheme();
+                    window.OurSpace.saveProfile();
                 }
             });
         }
@@ -573,11 +581,11 @@
         // Repeat control
         const bgRepeat = document.getElementById('bg-repeat');
         if (bgRepeat) {
-            bgRepeat.value = window.MySpace.profile.theme.background.repeat || 'no-repeat';
+            bgRepeat.value = window.OurSpace.profile.theme.background.repeat || 'no-repeat';
             bgRepeat.addEventListener('change', function() {
-                window.MySpace.profile.theme.background.repeat = this.value;
-                window.MySpace.applyTheme();
-                window.MySpace.saveProfile();
+                window.OurSpace.profile.theme.background.repeat = this.value;
+                window.OurSpace.applyTheme();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -588,7 +596,7 @@
         const bgSizeCustomDisplay = document.getElementById('bg-size-custom-display');
 
         if (bgSize) {
-            bgSize.value = window.MySpace.profile.theme.background.size || 'cover';
+            bgSize.value = window.OurSpace.profile.theme.background.size || 'cover';
 
             // Show/hide custom size slider
             function updateCustomSizeVisibility() {
@@ -599,42 +607,42 @@
             updateCustomSizeVisibility();
 
             bgSize.addEventListener('change', function() {
-                window.MySpace.profile.theme.background.size = this.value;
+                window.OurSpace.profile.theme.background.size = this.value;
                 updateCustomSizeVisibility();
-                window.MySpace.applyTheme();
-                window.MySpace.saveProfile();
+                window.OurSpace.applyTheme();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Custom size slider
         if (bgSizeCustom && bgSizeCustomDisplay) {
-            bgSizeCustom.value = window.MySpace.profile.theme.background.customSize || 100;
-            bgSizeCustomDisplay.textContent = (window.MySpace.profile.theme.background.customSize || 100) + 'px';
+            bgSizeCustom.value = window.OurSpace.profile.theme.background.customSize || 100;
+            bgSizeCustomDisplay.textContent = (window.OurSpace.profile.theme.background.customSize || 100) + 'px';
 
             bgSizeCustom.addEventListener('input', function() {
                 bgSizeCustomDisplay.textContent = this.value + 'px';
-                window.MySpace.profile.theme.background.customSize = parseInt(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.background.customSize = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
 
             bgSizeCustom.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Position control
         const bgPosition = document.getElementById('bg-position');
         if (bgPosition) {
-            bgPosition.value = window.MySpace.profile.theme.background.position || 'center';
+            bgPosition.value = window.OurSpace.profile.theme.background.position || 'center';
             bgPosition.addEventListener('change', function() {
-                window.MySpace.profile.theme.background.position = this.value;
-                window.MySpace.applyTheme();
-                window.MySpace.saveProfile();
+                window.OurSpace.profile.theme.background.position = this.value;
+                window.OurSpace.applyTheme();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Transform controls
-        const transform = window.MySpace.profile.theme.background.transform || {};
+        const transform = window.OurSpace.profile.theme.background.transform || {};
 
         // Scale
         const bgScale = document.getElementById('bg-scale');
@@ -644,11 +652,11 @@
             bgScaleDisplay.textContent = (transform.scale || 1).toFixed(1);
             bgScale.addEventListener('input', function() {
                 bgScaleDisplay.textContent = parseFloat(this.value).toFixed(1);
-                window.MySpace.profile.theme.background.transform.scale = parseFloat(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.background.transform.scale = parseFloat(this.value);
+                window.OurSpace.applyTheme();
             });
             bgScale.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -657,14 +665,14 @@
         const bgRotateDisplay = document.getElementById('bg-rotate-display');
         if (bgRotate && bgRotateDisplay) {
             bgRotate.value = transform.rotate || 0;
-            bgRotateDisplay.textContent = (transform.rotate || 0) + '°';
+            bgRotateDisplay.textContent = (transform.rotate || 0) + 'Â°';
             bgRotate.addEventListener('input', function() {
-                bgRotateDisplay.textContent = this.value + '°';
-                window.MySpace.profile.theme.background.transform.rotate = parseInt(this.value);
-                window.MySpace.applyTheme();
+                bgRotateDisplay.textContent = this.value + 'Â°';
+                window.OurSpace.profile.theme.background.transform.rotate = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgRotate.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -673,14 +681,14 @@
         const bgSkewXDisplay = document.getElementById('bg-skewx-display');
         if (bgSkewX && bgSkewXDisplay) {
             bgSkewX.value = transform.skewX || 0;
-            bgSkewXDisplay.textContent = (transform.skewX || 0) + '°';
+            bgSkewXDisplay.textContent = (transform.skewX || 0) + 'Â°';
             bgSkewX.addEventListener('input', function() {
-                bgSkewXDisplay.textContent = this.value + '°';
-                window.MySpace.profile.theme.background.transform.skewX = parseInt(this.value);
-                window.MySpace.applyTheme();
+                bgSkewXDisplay.textContent = this.value + 'Â°';
+                window.OurSpace.profile.theme.background.transform.skewX = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgSkewX.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -689,14 +697,14 @@
         const bgSkewYDisplay = document.getElementById('bg-skewy-display');
         if (bgSkewY && bgSkewYDisplay) {
             bgSkewY.value = transform.skewY || 0;
-            bgSkewYDisplay.textContent = (transform.skewY || 0) + '°';
+            bgSkewYDisplay.textContent = (transform.skewY || 0) + 'Â°';
             bgSkewY.addEventListener('input', function() {
-                bgSkewYDisplay.textContent = this.value + '°';
-                window.MySpace.profile.theme.background.transform.skewY = parseInt(this.value);
-                window.MySpace.applyTheme();
+                bgSkewYDisplay.textContent = this.value + 'Â°';
+                window.OurSpace.profile.theme.background.transform.skewY = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgSkewY.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -705,9 +713,9 @@
         if (bgFlipX) {
             bgFlipX.checked = transform.flipX || false;
             bgFlipX.addEventListener('change', function() {
-                window.MySpace.profile.theme.background.transform.flipX = this.checked;
-                window.MySpace.applyTheme();
-                window.MySpace.saveProfile();
+                window.OurSpace.profile.theme.background.transform.flipX = this.checked;
+                window.OurSpace.applyTheme();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -716,14 +724,14 @@
         if (bgFlipY) {
             bgFlipY.checked = transform.flipY || false;
             bgFlipY.addEventListener('change', function() {
-                window.MySpace.profile.theme.background.transform.flipY = this.checked;
-                window.MySpace.applyTheme();
-                window.MySpace.saveProfile();
+                window.OurSpace.profile.theme.background.transform.flipY = this.checked;
+                window.OurSpace.applyTheme();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Filter controls
-        const filter = window.MySpace.profile.theme.background.filter || {};
+        const filter = window.OurSpace.profile.theme.background.filter || {};
 
         // Blur
         const bgBlur = document.getElementById('bg-blur');
@@ -733,11 +741,11 @@
             bgBlurDisplay.textContent = (filter.blur || 0) + 'px';
             bgBlur.addEventListener('input', function() {
                 bgBlurDisplay.textContent = this.value + 'px';
-                window.MySpace.profile.theme.background.filter.blur = parseInt(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.background.filter.blur = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgBlur.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -749,11 +757,11 @@
             bgBrightnessDisplay.textContent = (filter.brightness || 100) + '%';
             bgBrightness.addEventListener('input', function() {
                 bgBrightnessDisplay.textContent = this.value + '%';
-                window.MySpace.profile.theme.background.filter.brightness = parseInt(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.background.filter.brightness = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgBrightness.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -765,11 +773,11 @@
             bgContrastDisplay.textContent = (filter.contrast || 100) + '%';
             bgContrast.addEventListener('input', function() {
                 bgContrastDisplay.textContent = this.value + '%';
-                window.MySpace.profile.theme.background.filter.contrast = parseInt(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.background.filter.contrast = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgContrast.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -781,11 +789,11 @@
             bgSaturateDisplay.textContent = (filter.saturate || 100) + '%';
             bgSaturate.addEventListener('input', function() {
                 bgSaturateDisplay.textContent = this.value + '%';
-                window.MySpace.profile.theme.background.filter.saturate = parseInt(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.background.filter.saturate = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgSaturate.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -794,14 +802,14 @@
         const bgHueDisplay = document.getElementById('bg-hue-display');
         if (bgHue && bgHueDisplay) {
             bgHue.value = filter.hueRotate || 0;
-            bgHueDisplay.textContent = (filter.hueRotate || 0) + '°';
+            bgHueDisplay.textContent = (filter.hueRotate || 0) + 'Â°';
             bgHue.addEventListener('input', function() {
-                bgHueDisplay.textContent = this.value + '°';
-                window.MySpace.profile.theme.background.filter.hueRotate = parseInt(this.value);
-                window.MySpace.applyTheme();
+                bgHueDisplay.textContent = this.value + 'Â°';
+                window.OurSpace.profile.theme.background.filter.hueRotate = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgHue.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -813,11 +821,11 @@
             bgInvertDisplay.textContent = (filter.invert || 0) + '%';
             bgInvert.addEventListener('input', function() {
                 bgInvertDisplay.textContent = this.value + '%';
-                window.MySpace.profile.theme.background.filter.invert = parseInt(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.background.filter.invert = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgInvert.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -829,11 +837,11 @@
             bgSepiaDisplay.textContent = (filter.sepia || 0) + '%';
             bgSepia.addEventListener('input', function() {
                 bgSepiaDisplay.textContent = this.value + '%';
-                window.MySpace.profile.theme.background.filter.sepia = parseInt(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.background.filter.sepia = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgSepia.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -845,23 +853,23 @@
             bgGrayscaleDisplay.textContent = (filter.grayscale || 0) + '%';
             bgGrayscale.addEventListener('input', function() {
                 bgGrayscaleDisplay.textContent = this.value + '%';
-                window.MySpace.profile.theme.background.filter.grayscale = parseInt(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.background.filter.grayscale = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgGrayscale.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Blend mode
         const bgBlendMode = document.getElementById('bg-blend-mode');
         if (bgBlendMode) {
-            const blend = window.MySpace.profile.theme.background.blend || {};
+            const blend = window.OurSpace.profile.theme.background.blend || {};
             bgBlendMode.value = blend.mode || 'normal';
             bgBlendMode.addEventListener('change', function() {
-                window.MySpace.profile.theme.background.blend.mode = this.value;
-                window.MySpace.applyTheme();
-                window.MySpace.saveProfile();
+                window.OurSpace.profile.theme.background.blend.mode = this.value;
+                window.OurSpace.applyTheme();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -869,16 +877,16 @@
         const bgOpacity = document.getElementById('bg-opacity');
         const bgOpacityDisplay = document.getElementById('bg-opacity-display');
         if (bgOpacity && bgOpacityDisplay) {
-            const blend = window.MySpace.profile.theme.background.blend || {};
+            const blend = window.OurSpace.profile.theme.background.blend || {};
             bgOpacity.value = blend.opacity || 100;
             bgOpacityDisplay.textContent = (blend.opacity || 100) + '%';
             bgOpacity.addEventListener('input', function() {
                 bgOpacityDisplay.textContent = this.value + '%';
-                window.MySpace.profile.theme.background.blend.opacity = parseInt(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.background.blend.opacity = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
             bgOpacity.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -887,10 +895,10 @@
         if (resetBtn) {
             resetBtn.addEventListener('click', function() {
                 // Reset all transformations to defaults
-                window.MySpace.profile.theme.background.size = 'cover';
-                window.MySpace.profile.theme.background.position = 'center';
-                window.MySpace.profile.theme.background.repeat = 'no-repeat';
-                window.MySpace.profile.theme.background.transform = {
+                window.OurSpace.profile.theme.background.size = 'cover';
+                window.OurSpace.profile.theme.background.position = 'center';
+                window.OurSpace.profile.theme.background.repeat = 'no-repeat';
+                window.OurSpace.profile.theme.background.transform = {
                     scale: 1,
                     rotate: 0,
                     skewX: 0,
@@ -898,7 +906,7 @@
                     flipX: false,
                     flipY: false
                 };
-                window.MySpace.profile.theme.background.filter = {
+                window.OurSpace.profile.theme.background.filter = {
                     blur: 0,
                     brightness: 100,
                     contrast: 100,
@@ -908,15 +916,15 @@
                     sepia: 0,
                     grayscale: 0
                 };
-                window.MySpace.profile.theme.background.blend = {
+                window.OurSpace.profile.theme.background.blend = {
                     mode: 'normal',
                     opacity: 100
                 };
 
                 // Update all controls
                 setupBackgroundTransformControls();
-                window.MySpace.applyTheme();
-                window.MySpace.saveProfile();
+                window.OurSpace.applyTheme();
+                window.OurSpace.saveProfile();
             });
         }
     }
@@ -926,14 +934,14 @@
         const patternGrid = document.getElementById('pattern-grid');
 
         if (bgType) {
-            bgType.value = window.MySpace.profile.theme.background.type;
+            bgType.value = window.OurSpace.profile.theme.background.type;
         }
 
         if (patternGrid) {
             const patternItems = patternGrid.querySelectorAll('.pattern-item');
             patternItems.forEach(item => {
                 item.classList.remove('active');
-                if (item.dataset.pattern === window.MySpace.profile.theme.background.pattern) {
+                if (item.dataset.pattern === window.OurSpace.profile.theme.background.pattern) {
                     item.classList.add('active');
                 }
             });
@@ -956,9 +964,9 @@
         // Font family
         if (fontFamily) {
             fontFamily.addEventListener('change', function() {
-                window.MySpace.profile.theme.fonts.family = this.value;
-                window.MySpace.applyTheme();
-                window.MySpace.saveProfile();
+                window.OurSpace.profile.theme.fonts.family = this.value;
+                window.OurSpace.applyTheme();
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -966,49 +974,49 @@
         if (fontSize) {
             fontSize.addEventListener('input', function() {
                 if (fontSizeDisplay) fontSizeDisplay.textContent = this.value + 'px';
-                window.MySpace.profile.theme.fonts.size = parseInt(this.value);
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.fonts.size = parseInt(this.value);
+                window.OurSpace.applyTheme();
             });
 
             fontSize.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Text shadow
         if (textShadow) {
             textShadow.addEventListener('change', function() {
-                window.MySpace.profile.theme.fonts.effects.shadow = this.checked;
-                window.MySpace.applyTheme();
-                window.MySpace.saveProfile();
+                window.OurSpace.profile.theme.fonts.effects.shadow = this.checked;
+                window.OurSpace.applyTheme();
+                window.OurSpace.saveProfile();
             });
         }
 
         // Text glow
         if (textGlow) {
             textGlow.addEventListener('change', function() {
-                window.MySpace.profile.theme.fonts.effects.glow = this.checked;
+                window.OurSpace.profile.theme.fonts.effects.glow = this.checked;
                 if (textGlowColorWrapper) {
                     textGlowColorWrapper.style.display = this.checked ? 'block' : 'none';
                 }
-                window.MySpace.applyTheme();
-                window.MySpace.saveProfile();
+                window.OurSpace.applyTheme();
+                window.OurSpace.saveProfile();
             });
         }
 
         if (textGlowColor) {
             textGlowColor.addEventListener('input', function() {
-                window.MySpace.profile.theme.fonts.effects.glowColor = this.value;
-                window.MySpace.applyTheme();
+                window.OurSpace.profile.theme.fonts.effects.glowColor = this.value;
+                window.OurSpace.applyTheme();
             });
             textGlowColor.addEventListener('change', function() {
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
     }
 
     function updateFontControls() {
-        const fonts = window.MySpace.profile.theme.fonts;
+        const fonts = window.OurSpace.profile.theme.fonts;
 
         const fontFamily = document.getElementById('font-family');
         const fontSize = document.getElementById('font-size');
@@ -1031,7 +1039,7 @@
 
     // Effects Controls
     function setupEffectsControls() {
-        window.MySpace.profile.theme.effects = window.MySpace.profile.theme.effects || {};
+        window.OurSpace.profile.theme.effects = window.OurSpace.profile.theme.effects || {};
 
         const effectFalling = document.getElementById('effect-falling');
         const fallingType = document.getElementById('falling-type');
@@ -1052,7 +1060,7 @@
         const cursorCustomWrapper = document.getElementById('cursor-trail-custom-wrapper');
 
         function ensureEffectConfig(key, defaults = {}) {
-            const effects = window.MySpace.profile.theme.effects;
+            const effects = window.OurSpace.profile.theme.effects;
             let config = effects[key];
             if (!config || typeof config !== 'object') {
                 config = { enabled: !!config };
@@ -1063,14 +1071,14 @@
         }
 
         function refreshEffects(options = {}) {
-            if (options.falling && window.MySpaceEffects && window.MySpaceEffects.updateFallingEffect) {
-                window.MySpaceEffects.updateFallingEffect();
+            if (options.falling && window.OurSpaceEffects && window.OurSpaceEffects.updateFallingEffect) {
+                window.OurSpaceEffects.updateFallingEffect();
             }
-            if (options.cursor && window.MySpaceEffects && window.MySpaceEffects.toggleCursorTrail) {
-                window.MySpaceEffects.toggleCursorTrail();
+            if (options.cursor && window.OurSpaceEffects && window.OurSpaceEffects.toggleCursorTrail) {
+                window.OurSpaceEffects.toggleCursorTrail();
             }
-            if (window.MySpaceEffects && window.MySpaceEffects.refreshDynamicEffects) {
-                window.MySpaceEffects.refreshDynamicEffects();
+            if (window.OurSpaceEffects && window.OurSpaceEffects.refreshDynamicEffects) {
+                window.OurSpaceEffects.refreshDynamicEffects();
             }
         }
 
@@ -1080,7 +1088,7 @@
             toggle.checked = !!config.enabled;
             toggle.addEventListener('change', function() {
                 ensureEffectConfig(key, defaults).enabled = this.checked;
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
                 refreshEffects(options.refresh || {});
             });
         }
@@ -1112,7 +1120,7 @@
             input.addEventListener('change', function() {
                 const val = parse(this.value);
                 ensureEffectConfig(key, defaults)[prop] = val;
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
                 refreshEffects(options.refresh || {});
             });
         }
@@ -1131,7 +1139,7 @@
             }
             select.addEventListener('change', function() {
                 ensureEffectConfig(key, defaults)[prop] = this.value;
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
                 if (options.onChange) {
                     options.onChange(this.value);
                 }
@@ -1156,7 +1164,7 @@
             });
             input.addEventListener('change', function() {
                 ensureEffectConfig(key, defaults)[prop] = this.value;
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
                 refreshEffects(options.refresh || {});
             });
         }
@@ -1168,7 +1176,7 @@
             fallingType.value = fallingConfig.type;
             fallingType.addEventListener('change', function() {
                 ensureEffectConfig('falling', fallingDefaults).type = this.value;
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
                 refreshEffects({ falling: true });
             });
         }
@@ -1288,7 +1296,7 @@
         const layoutBtns = document.querySelectorAll('.layout-btn');
 
         layoutBtns.forEach(btn => {
-            if (btn.dataset.layout === window.MySpace.profile.layout.preset) {
+            if (btn.dataset.layout === window.OurSpace.profile.layout.preset) {
                 btn.classList.add('active');
             }
 
@@ -1297,14 +1305,14 @@
                 this.classList.add('active');
 
                 const layout = this.dataset.layout;
-                window.MySpace.profile.layout.preset = layout;
+                window.OurSpace.profile.layout.preset = layout;
 
                 const grid = document.getElementById('content-grid');
                 if (grid) {
                     grid.className = `content-grid layout-${layout}`;
                 }
 
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         });
 
@@ -1322,8 +1330,8 @@
 
         if (layoutEditorToggle) {
             layoutEditorToggle.addEventListener('change', function() {
-                if (window.MySpaceLayoutEditor) {
-                    window.MySpaceLayoutEditor.toggle(this.checked);
+                if (window.OurSpaceLayoutEditor) {
+                    window.OurSpaceLayoutEditor.toggle(this.checked);
 
                     if (layoutEditorControls) {
                         layoutEditorControls.style.display = this.checked ? 'block' : 'none';
@@ -1335,14 +1343,14 @@
         if (allowOverlapToggle) {
             allowOverlapToggle.checked = true; // Default to allowing overlap
             allowOverlapToggle.addEventListener('change', function() {
-                if (window.MySpaceLayoutEditor) {
-                    window.MySpaceLayoutEditor.allowOverlap = this.checked;
+                if (window.OurSpaceLayoutEditor) {
+                    window.OurSpaceLayoutEditor.allowOverlap = this.checked;
                     console.log('[Layout Editor] Allow overlap:', this.checked);
 
                     // If turning off overlap, resolve existing overlaps
-                    if (!this.checked && window.MySpaceLayoutEditor.enabled) {
-                        window.MySpaceLayoutEditor.resolveOverlaps();
-                        window.MySpaceLayoutEditor.saveLayout();
+                    if (!this.checked && window.OurSpaceLayoutEditor.enabled) {
+                        window.OurSpaceLayoutEditor.resolveOverlaps();
+                        window.OurSpaceLayoutEditor.saveLayout();
                     }
                 }
             });
@@ -1351,8 +1359,8 @@
         if (snapThreshold && snapThresholdDisplay) {
             snapThreshold.addEventListener('input', function() {
                 snapThresholdDisplay.textContent = this.value + 'px';
-                if (window.MySpaceLayoutEditor) {
-                    window.MySpaceLayoutEditor.snapThreshold = parseInt(this.value);
+                if (window.OurSpaceLayoutEditor) {
+                    window.OurSpaceLayoutEditor.snapThreshold = parseInt(this.value);
                 }
             });
         }
@@ -1360,8 +1368,8 @@
         if (gridSize && gridSizeDisplay) {
             gridSize.addEventListener('input', function() {
                 gridSizeDisplay.textContent = this.value + 'px';
-                if (window.MySpaceLayoutEditor) {
-                    window.MySpaceLayoutEditor.gridSize = parseInt(this.value);
+                if (window.OurSpaceLayoutEditor) {
+                    window.OurSpaceLayoutEditor.gridSize = parseInt(this.value);
                 }
             });
         }
@@ -1372,8 +1380,8 @@
                 widgets.forEach(widget => {
                     widget.dataset.mobileBreakpoint = this.value;
                 });
-                if (window.MySpaceLayoutEditor) {
-                    window.MySpaceLayoutEditor.saveLayout();
+                if (window.OurSpaceLayoutEditor) {
+                    window.OurSpaceLayoutEditor.saveLayout();
                 }
             });
         }
@@ -1384,16 +1392,16 @@
                 widgets.forEach(widget => {
                     widget.dataset.mobileBehavior = this.value;
                 });
-                if (window.MySpaceLayoutEditor) {
-                    window.MySpaceLayoutEditor.saveLayout();
+                if (window.OurSpaceLayoutEditor) {
+                    window.OurSpaceLayoutEditor.saveLayout();
                 }
             });
         }
 
         if (layoutReset) {
             layoutReset.addEventListener('click', function() {
-                if (window.MySpaceLayoutEditor) {
-                    window.MySpaceLayoutEditor.resetLayout();
+                if (window.OurSpaceLayoutEditor) {
+                    window.OurSpaceLayoutEditor.resetLayout();
                 }
             });
         }
@@ -1408,7 +1416,7 @@
 
         if (saveBtn) {
             saveBtn.addEventListener('click', function() {
-                if (window.MySpace.saveProfile()) {
+                if (window.OurSpace.saveProfile()) {
                     alert('Profile saved successfully! ✨');
                 }
             });
@@ -1422,7 +1430,7 @@
                 input.onchange = function(e) {
                     const file = e.target.files[0];
                     if (file) {
-                        window.MySpace.importProfile(file);
+                        window.OurSpace.importProfile(file);
                     }
                 };
                 input.click();
@@ -1431,15 +1439,20 @@
 
         if (exportBtn) {
             exportBtn.addEventListener('click', function() {
-                window.MySpace.exportProfile();
+                window.OurSpace.exportProfile();
             });
         }
 
         if (resetBtn) {
             resetBtn.addEventListener('click', function() {
-                window.MySpace.resetProfile();
+                window.OurSpace.resetProfile();
             });
         }
     }
 
 })();
+
+
+
+
+

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import base64
 import hmac
@@ -20,7 +20,7 @@ from flask import (
     session,
     url_for,
 )
-# from flask_session import Session  # Not needed for MySpace functionality
+# from flask_session import Session  # Not needed for OurSpace functionality
 from werkzeug.utils import secure_filename
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
@@ -236,7 +236,7 @@ app = Flask(__name__, static_folder=None)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(24))
 # app.config["SESSION_TYPE"] = "filesystem"
 # app.config["SESSION_FILE_DIR"] = str(BASE_DIR / "flask_session")
-# Session(app)  # Not needed for MySpace functionality - using Flask's built-in session
+# Session(app)  # Not needed for OurSpace functionality - using Flask's built-in session
 app.config["RL_LABELER_TOKEN"] = RL_LABELER_TOKEN
 app.config["RL_POLICY_MODE"] = rl_policy_override
 
@@ -1806,14 +1806,14 @@ def api_rl_telemetry():
     return jsonify(telemetry)
 
 
-# MySpace Profile Storage
-MYSPACE_DATA_DIR = BASE_DIR / "myspace_data"
-MYSPACE_DATA_DIR.mkdir(exist_ok=True)
+# OurSpace Profile Storage
+ourspace_DATA_DIR = BASE_DIR / "ourspace_data"
+ourspace_DATA_DIR.mkdir(exist_ok=True)
 
 
-@app.route("/api/myspace/profile", methods=["GET", "POST", "OPTIONS"])
-def myspace_profile():
-    """[DEPRECATED] Save or load MySpace profile data (for local changes only)."""
+@app.route("/api/ourspace/profile", methods=["GET", "POST", "OPTIONS"])
+def ourspace_profile():
+    """[DEPRECATED] Save or load OurSpace profile data (for local changes only)."""
     if request.method == "OPTIONS":
         return "", 204
 
@@ -1822,7 +1822,7 @@ def myspace_profile():
         session["user_id"] = str(uuid.uuid4())
 
     user_id = session["user_id"]
-    profile_file = MYSPACE_DATA_DIR / f"temp_{user_id}.json"
+    profile_file = ourspace_DATA_DIR / f"temp_{user_id}.json"
 
     if request.method == "POST":
         # Save profile to temp file
@@ -1844,22 +1844,22 @@ def myspace_profile():
             return jsonify(None)
 
 
-@app.route("/api/myspace/upload", methods=["POST", "OPTIONS"])
-def myspace_upload():
-    """Upload and store MySpace media files (images, audio). Requires authentication to save permanently."""
+@app.route("/api/ourspace/upload", methods=["POST", "OPTIONS"])
+def ourspace_upload():
+    """Upload and store OurSpace media files (images, audio). Requires authentication to save permanently."""
     if request.method == "OPTIONS":
         return "", 204
 
     # Use authenticated user ID if available, otherwise temp ID
-    myspace_user_id = session.get("myspace_user_id")
-    if myspace_user_id:
-        user_id = str(myspace_user_id)
+    ourspace_user_id = session.get("ourspace_user_id")
+    if ourspace_user_id:
+        user_id = str(ourspace_user_id)
     else:
         if "user_id" not in session:
             session["user_id"] = str(uuid.uuid4())
         user_id = f"temp_{session['user_id']}"
 
-    user_media_dir = MYSPACE_DATA_DIR / user_id
+    user_media_dir = ourspace_DATA_DIR / user_id
     user_media_dir.mkdir(exist_ok=True)
 
     try:
@@ -1881,27 +1881,27 @@ def myspace_upload():
         file.save(filepath)
 
         # Return URL to access the file
-        url = f"/api/myspace/media/{user_id}/{filename}"
+        url = f"/api/ourspace/media/{user_id}/{filename}"
         return jsonify({"success": True, "url": url, "filename": filename})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/myspace/media/<user_id>/<filename>")
-def myspace_media(user_id: str, filename: str):
-    """Serve MySpace media files."""
-    filepath = MYSPACE_DATA_DIR / user_id / filename
+@app.route("/api/ourspace/media/<user_id>/<filename>")
+def ourspace_media(user_id: str, filename: str):
+    """Serve OurSpace media files."""
+    filepath = ourspace_DATA_DIR / user_id / filename
     if not filepath.exists():
         abort(404)
     return send_file(filepath)
 
 
-# MySpace Authentication Endpoints
-def _load_myspace_db():
-    """Load MySpace DB helpers whether backend runs as module or package."""
+# OurSpace Authentication Endpoints
+def _load_ourspace_db():
+    """Load OurSpace DB helpers whether backend runs as module or package."""
     try:
-        from .myspace_db import (  # type: ignore[attr-defined]
+        from .ourspace_db import (  # type: ignore[attr-defined]
             accept_friend_request,
             add_friend,
             authenticate_user,
@@ -1963,7 +1963,7 @@ def _load_myspace_db():
         }
     except ImportError:
         try:
-            from myspace_db import (
+            from ourspace_db import (
                 accept_friend_request,
                 add_friend,
                 authenticate_user,
@@ -2027,40 +2027,40 @@ def _load_myspace_db():
             return {}
 
 
-_myspace_db_helpers = _load_myspace_db()
-create_user = _myspace_db_helpers.get("create_user")
-authenticate_user = _myspace_db_helpers.get("authenticate_user")
-get_user_profile = _myspace_db_helpers.get("get_user_profile")
-get_user_profile_by_username = _myspace_db_helpers.get("get_user_profile_by_username")
-save_user_profile = _myspace_db_helpers.get("save_user_profile")
-publish_profile = _myspace_db_helpers.get("publish_profile")
-add_friend = _myspace_db_helpers.get("add_friend")
-remove_friend = _myspace_db_helpers.get("remove_friend")
-get_friends = _myspace_db_helpers.get("get_friends")
-search_users = _myspace_db_helpers.get("search_users")
-reset_user_password = _myspace_db_helpers.get("reset_user_password")
-send_friend_request = _myspace_db_helpers.get("send_friend_request")
-get_pending_friend_requests = _myspace_db_helpers.get("get_pending_friend_requests")
-accept_friend_request = _myspace_db_helpers.get("accept_friend_request")
-reject_friend_request = _myspace_db_helpers.get("reject_friend_request")
-send_message = _myspace_db_helpers.get("send_message")
-get_inbox = _myspace_db_helpers.get("get_inbox")
-get_sent_messages = _myspace_db_helpers.get("get_sent_messages")
-mark_message_read = _myspace_db_helpers.get("mark_message_read")
-get_unread_count = _myspace_db_helpers.get("get_unread_count")
-delete_message = _myspace_db_helpers.get("delete_message")
-block_user = _myspace_db_helpers.get("block_user")
-unblock_user = _myspace_db_helpers.get("unblock_user")
-get_blocked_users = _myspace_db_helpers.get("get_blocked_users")
-is_blocked = _myspace_db_helpers.get("is_blocked")
-add_profile_comment = _myspace_db_helpers.get("add_profile_comment")
-get_profile_comments = _myspace_db_helpers.get("get_profile_comments")
-delete_profile_comment = _myspace_db_helpers.get("delete_profile_comment")
+_ourspace_db_helpers = _load_ourspace_db()
+create_user = _ourspace_db_helpers.get("create_user")
+authenticate_user = _ourspace_db_helpers.get("authenticate_user")
+get_user_profile = _ourspace_db_helpers.get("get_user_profile")
+get_user_profile_by_username = _ourspace_db_helpers.get("get_user_profile_by_username")
+save_user_profile = _ourspace_db_helpers.get("save_user_profile")
+publish_profile = _ourspace_db_helpers.get("publish_profile")
+add_friend = _ourspace_db_helpers.get("add_friend")
+remove_friend = _ourspace_db_helpers.get("remove_friend")
+get_friends = _ourspace_db_helpers.get("get_friends")
+search_users = _ourspace_db_helpers.get("search_users")
+reset_user_password = _ourspace_db_helpers.get("reset_user_password")
+send_friend_request = _ourspace_db_helpers.get("send_friend_request")
+get_pending_friend_requests = _ourspace_db_helpers.get("get_pending_friend_requests")
+accept_friend_request = _ourspace_db_helpers.get("accept_friend_request")
+reject_friend_request = _ourspace_db_helpers.get("reject_friend_request")
+send_message = _ourspace_db_helpers.get("send_message")
+get_inbox = _ourspace_db_helpers.get("get_inbox")
+get_sent_messages = _ourspace_db_helpers.get("get_sent_messages")
+mark_message_read = _ourspace_db_helpers.get("mark_message_read")
+get_unread_count = _ourspace_db_helpers.get("get_unread_count")
+delete_message = _ourspace_db_helpers.get("delete_message")
+block_user = _ourspace_db_helpers.get("block_user")
+unblock_user = _ourspace_db_helpers.get("unblock_user")
+get_blocked_users = _ourspace_db_helpers.get("get_blocked_users")
+is_blocked = _ourspace_db_helpers.get("is_blocked")
+add_profile_comment = _ourspace_db_helpers.get("add_profile_comment")
+get_profile_comments = _ourspace_db_helpers.get("get_profile_comments")
+delete_profile_comment = _ourspace_db_helpers.get("delete_profile_comment")
 
 
-@app.route("/api/myspace/register", methods=["POST", "OPTIONS"])
-def myspace_register():
-    """Register a new MySpace user."""
+@app.route("/api/ourspace/register", methods=["POST", "OPTIONS"])
+def ourspace_register():
+    """Register a new OurSpace user."""
     if request.method == "OPTIONS":
         return "", 204
 
@@ -2093,8 +2093,8 @@ def myspace_register():
         return jsonify({"error": "Username already exists"}), 409
 
     # Set session
-    session["myspace_user_id"] = user_id
-    session["myspace_username"] = username
+    session["ourspace_user_id"] = user_id
+    session["ourspace_username"] = username
 
     return jsonify({
         "success": True,
@@ -2103,9 +2103,9 @@ def myspace_register():
     })
 
 
-@app.route("/api/myspace/login", methods=["POST", "OPTIONS"])
-def myspace_login():
-    """Login to MySpace."""
+@app.route("/api/ourspace/login", methods=["POST", "OPTIONS"])
+def ourspace_login():
+    """Login to OurSpace."""
     if request.method == "OPTIONS":
         return "", 204
 
@@ -2126,8 +2126,8 @@ def myspace_login():
         return jsonify({"error": "Invalid username or password"}), 401
 
     # Set session
-    session["myspace_user_id"] = user["id"]
-    session["myspace_username"] = user["username"]
+    session["ourspace_user_id"] = user["id"]
+    session["ourspace_username"] = user["username"]
 
     return jsonify({
         "success": True,
@@ -2137,26 +2137,26 @@ def myspace_login():
     })
 
 
-@app.route("/api/myspace/logout", methods=["POST", "OPTIONS"])
-def myspace_logout():
-    """Logout from MySpace."""
+@app.route("/api/ourspace/logout", methods=["POST", "OPTIONS"])
+def ourspace_logout():
+    """Logout from OurSpace."""
     if request.method == "OPTIONS":
         return "", 204
 
-    session.pop("myspace_user_id", None)
-    session.pop("myspace_username", None)
+    session.pop("ourspace_user_id", None)
+    session.pop("ourspace_username", None)
 
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/me", methods=["GET", "OPTIONS"])
-def myspace_me():
+@app.route("/api/ourspace/me", methods=["GET", "OPTIONS"])
+def ourspace_me():
     """Get current user info."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
-    username = session.get("myspace_username")
+    user_id = session.get("ourspace_user_id")
+    username = session.get("ourspace_username")
 
     if not user_id:
         return jsonify({"authenticated": False})
@@ -2168,13 +2168,13 @@ def myspace_me():
     })
 
 
-@app.route("/api/myspace/profile/load", methods=["GET", "OPTIONS"])
-def myspace_load_profile():
+@app.route("/api/ourspace/profile/load", methods=["GET", "OPTIONS"])
+def ourspace_load_profile():
     """Load user's own profile."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
 
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
@@ -2190,13 +2190,13 @@ def myspace_load_profile():
     return jsonify(profile["data"])
 
 
-@app.route("/api/myspace/profile/save", methods=["POST", "OPTIONS"])
-def myspace_save_profile():
+@app.route("/api/ourspace/profile/save", methods=["POST", "OPTIONS"])
+def ourspace_save_profile():
     """Save user's profile (does not publish)."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
 
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
@@ -2214,13 +2214,13 @@ def myspace_save_profile():
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/profile/publish", methods=["POST", "OPTIONS"])
-def myspace_publish_profile():
+@app.route("/api/ourspace/profile/publish", methods=["POST", "OPTIONS"])
+def ourspace_publish_profile():
     """Publish user's profile to make it visible to others."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
 
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
@@ -2236,8 +2236,8 @@ def myspace_publish_profile():
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/profile/<username>", methods=["GET", "OPTIONS"])
-def myspace_view_profile(username: str):
+@app.route("/api/ourspace/profile/<username>", methods=["GET", "OPTIONS"])
+def ourspace_view_profile(username: str):
     """View another user's published profile."""
     if request.method == "OPTIONS":
         return "", 204
@@ -2260,13 +2260,13 @@ def myspace_view_profile(username: str):
     })
 
 
-@app.route("/api/myspace/friends", methods=["GET", "OPTIONS"])
-def myspace_get_friends():
+@app.route("/api/ourspace/friends", methods=["GET", "OPTIONS"])
+def ourspace_get_friends():
     """Get user's friends list."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
 
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
@@ -2279,13 +2279,13 @@ def myspace_get_friends():
     return jsonify({"friends": friends})
 
 
-@app.route("/api/myspace/friends/add", methods=["POST", "OPTIONS"])
-def myspace_add_friend():
+@app.route("/api/ourspace/friends/add", methods=["POST", "OPTIONS"])
+def ourspace_add_friend():
     """Add a friend."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
 
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
@@ -2307,13 +2307,13 @@ def myspace_add_friend():
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/friends/remove", methods=["POST", "OPTIONS"])
-def myspace_remove_friend():
+@app.route("/api/ourspace/friends/remove", methods=["POST", "OPTIONS"])
+def ourspace_remove_friend():
     """Remove a friend."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
 
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
@@ -2335,8 +2335,8 @@ def myspace_remove_friend():
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/search", methods=["GET", "OPTIONS"])
-def myspace_search_users():
+@app.route("/api/ourspace/search", methods=["GET", "OPTIONS"])
+def ourspace_search_users():
     """Search for users."""
     if request.method == "OPTIONS":
         return "", 204
@@ -2354,15 +2354,36 @@ def myspace_search_users():
     return jsonify({"users": users})
 
 
+@app.route("/api/ourspace/users", methods=["GET", "OPTIONS"])
+def ourspace_list_users():
+    """List published users (optionally filtered by query)."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    if search_users is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    query = request.args.get("q", "").strip()
+
+    try:
+        limit = int(request.args.get("limit", 60))
+    except (TypeError, ValueError):
+        limit = 60
+    limit = max(1, min(limit, 200))
+
+    users = search_users(query, limit=limit)
+    return jsonify({"users": users})
+
+
 # Friend Request Endpoints
 
-@app.route("/api/myspace/friends/request/send", methods=["POST", "OPTIONS"])
-def myspace_send_friend_request():
+@app.route("/api/ourspace/friends/request/send", methods=["POST", "OPTIONS"])
+def ourspace_send_friend_request():
     """Send a friend request."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2383,13 +2404,13 @@ def myspace_send_friend_request():
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/friends/requests", methods=["GET", "OPTIONS"])
-def myspace_get_friend_requests():
+@app.route("/api/ourspace/friends/requests", methods=["GET", "OPTIONS"])
+def ourspace_get_friend_requests():
     """Get pending friend requests."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2401,13 +2422,13 @@ def myspace_get_friend_requests():
     return jsonify({"requests": requests})
 
 
-@app.route("/api/myspace/friends/request/accept", methods=["POST", "OPTIONS"])
-def myspace_accept_friend_request():
+@app.route("/api/ourspace/friends/request/accept", methods=["POST", "OPTIONS"])
+def ourspace_accept_friend_request():
     """Accept a friend request."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2428,13 +2449,13 @@ def myspace_accept_friend_request():
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/friends/request/reject", methods=["POST", "OPTIONS"])
-def myspace_reject_friend_request():
+@app.route("/api/ourspace/friends/request/reject", methods=["POST", "OPTIONS"])
+def ourspace_reject_friend_request():
     """Reject a friend request."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2457,13 +2478,13 @@ def myspace_reject_friend_request():
 
 # Message Endpoints
 
-@app.route("/api/myspace/messages/send", methods=["POST", "OPTIONS"])
-def myspace_send_message():
+@app.route("/api/ourspace/messages/send", methods=["POST", "OPTIONS"])
+def ourspace_send_message():
     """Send a message to another user."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2486,13 +2507,13 @@ def myspace_send_message():
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/messages/inbox", methods=["GET", "OPTIONS"])
-def myspace_get_inbox():
+@app.route("/api/ourspace/messages/inbox", methods=["GET", "OPTIONS"])
+def ourspace_get_inbox():
     """Get inbox messages."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2504,13 +2525,13 @@ def myspace_get_inbox():
     return jsonify({"messages": messages})
 
 
-@app.route("/api/myspace/messages/sent", methods=["GET", "OPTIONS"])
-def myspace_get_sent():
+@app.route("/api/ourspace/messages/sent", methods=["GET", "OPTIONS"])
+def ourspace_get_sent():
     """Get sent messages."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2522,13 +2543,13 @@ def myspace_get_sent():
     return jsonify({"messages": messages})
 
 
-@app.route("/api/myspace/messages/read", methods=["POST", "OPTIONS"])
-def myspace_mark_read():
+@app.route("/api/ourspace/messages/read", methods=["POST", "OPTIONS"])
+def ourspace_mark_read():
     """Mark a message as read."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2549,13 +2570,13 @@ def myspace_mark_read():
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/messages/unread-count", methods=["GET", "OPTIONS"])
-def myspace_unread_count():
+@app.route("/api/ourspace/messages/unread-count", methods=["GET", "OPTIONS"])
+def ourspace_unread_count():
     """Get unread message count."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2567,13 +2588,13 @@ def myspace_unread_count():
     return jsonify({"count": count})
 
 
-@app.route("/api/myspace/messages/delete", methods=["POST", "OPTIONS"])
-def myspace_delete_message():
+@app.route("/api/ourspace/messages/delete", methods=["POST", "OPTIONS"])
+def ourspace_delete_message():
     """Delete a message."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2594,8 +2615,8 @@ def myspace_delete_message():
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/comments/<username>", methods=["GET", "POST", "OPTIONS"])
-def myspace_profile_comments(username: str):
+@app.route("/api/ourspace/comments/<username>", methods=["GET", "POST", "OPTIONS"])
+def ourspace_profile_comments(username: str):
     """Fetch or post profile comments for a given username."""
     if request.method == "OPTIONS":
         return "", 204
@@ -2634,13 +2655,13 @@ def myspace_profile_comments(username: str):
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/comments/<int:comment_id>/delete", methods=["POST", "OPTIONS"])
-def myspace_delete_profile_comment(comment_id: int):
+@app.route("/api/ourspace/comments/<int:comment_id>/delete", methods=["POST", "OPTIONS"])
+def ourspace_delete_profile_comment(comment_id: int):
     """Delete a profile comment (profile owner only)."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2656,13 +2677,13 @@ def myspace_delete_profile_comment(comment_id: int):
 
 # Blocking Endpoints
 
-@app.route("/api/myspace/block", methods=["POST", "OPTIONS"])
-def myspace_block_user():
+@app.route("/api/ourspace/block", methods=["POST", "OPTIONS"])
+def ourspace_block_user():
     """Block a user."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2683,13 +2704,13 @@ def myspace_block_user():
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/unblock", methods=["POST", "OPTIONS"])
-def myspace_unblock_user():
+@app.route("/api/ourspace/unblock", methods=["POST", "OPTIONS"])
+def ourspace_unblock_user():
     """Unblock a user."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2710,13 +2731,13 @@ def myspace_unblock_user():
     return jsonify({"success": True})
 
 
-@app.route("/api/myspace/blocked", methods=["GET", "OPTIONS"])
-def myspace_get_blocked():
+@app.route("/api/ourspace/blocked", methods=["GET", "OPTIONS"])
+def ourspace_get_blocked():
     """Get blocked users list."""
     if request.method == "OPTIONS":
         return "", 204
 
-    user_id = session.get("myspace_user_id")
+    user_id = session.get("ourspace_user_id")
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -2728,8 +2749,8 @@ def myspace_get_blocked():
     return jsonify({"blocked": blocked})
 
 
-@app.route("/api/myspace/reset-password", methods=["POST", "OPTIONS"])
-def myspace_reset_password():
+@app.route("/api/ourspace/reset-password", methods=["POST", "OPTIONS"])
+def ourspace_reset_password():
     """Reset user password with admin password verification."""
     if request.method == "OPTIONS":
         return "", 204
@@ -2791,3 +2812,9 @@ def serve_frontend_asset(asset_path: str):
 
 if __name__ == "__main__":
     app.run(debug=True, port=4000)
+
+
+
+
+
+

@@ -5,16 +5,16 @@
     const PLAYER_STYLE_ID = 'idc-persistent-player-styles';
 
     const FALLBACK_TRACKS = [
-        { number: '01', title: 'Moves So Sweet', artist: 'ID Chief', durationLabel: '3:14', file: 'assets/audio/moves-so-sweet.mp3' },
-        { number: '02', title: 'Tigerstyle', artist: 'Aloe Island Posse', durationLabel: '2:58', file: 'assets/audio/tigerstyle.mp3' },
-        { number: '03', title: 'Kotori', artist: 'コンシャスTHOUGHTS', durationLabel: '3:28', file: 'assets/audio/kotori.mp3' },
-        { number: '04', title: 'Smile', artist: 'ID Chief x Aloe Island Posse', durationLabel: '3:21', file: 'assets/audio/smile.mp3' },
-        { number: '05', title: "Maybe I'm Dreaming", artist: 'コンシャスTHOUGHTS x ID Chief', durationLabel: '4:04', file: 'assets/audio/maybe-im-dreaming.mp3' },
-        { number: '06', title: 'Refreshing', artist: 'コンシャスTHOUGHTS x Aloe Island Posse', durationLabel: '2:40', file: 'assets/audio/refreshing.mp3' },
-        { number: '07', title: 'Our Love', artist: 'Aloe Island Posse', durationLabel: '2:30', file: 'assets/audio/our-love.mp3' },
-        { number: '08', title: 'Visions of You', artist: 'コンシャスTHOUGHTS', durationLabel: '3:14', file: 'assets/audio/visions-of-you.mp3' },
-        { number: '09', title: 'Me & You', artist: 'ID Chief', durationLabel: '3:21', file: 'assets/audio/me-and-you.mp3' },
-        { number: '10', title: 'Space Cowboys', artist: 'コンシャスTHOUGHTS x ID Chief x Aloe Island Posse', durationLabel: '4:20', file: 'assets/audio/space-cowboys.mp3' },
+        { number: '01', title: 'Moves So Sweet', artist: 'ID Chief', durationLabel: '3:14', file: 'assets/audio/moves-so-sweet.wav' },
+        { number: '02', title: 'Tigerstyle', artist: 'Aloe Island Posse', durationLabel: '2:58', file: 'assets/audio/tigerstyle.wav' },
+        { number: '03', title: 'Kotori', artist: 'コンシャスTHOUGHTS', durationLabel: '3:28', file: 'assets/audio/kotori.wav' },
+        { number: '04', title: 'Smile', artist: 'ID Chief x Aloe Island Posse', durationLabel: '3:21', file: 'assets/audio/smile.wav' },
+        { number: '05', title: "Maybe I'm Dreaming", artist: 'コンシャスTHOUGHTS x ID Chief', durationLabel: '4:04', file: 'assets/audio/maybe-im-dreaming.wav' },
+        { number: '06', title: 'Refreshing', artist: 'コンシャスTHOUGHTS x Aloe Island Posse', durationLabel: '2:40', file: 'assets/audio/refreshing.wav' },
+        { number: '07', title: 'Our Love', artist: 'Aloe Island Posse', durationLabel: '2:30', file: 'assets/audio/our-love.wav' },
+        { number: '08', title: 'Visions of You', artist: 'コンシャスTHOUGHTS', durationLabel: '3:14', file: 'assets/audio/visions-of-you.wav' },
+        { number: '09', title: 'Me & You', artist: 'ID Chief', durationLabel: '3:21', file: 'assets/audio/me-and-you.wav' },
+        { number: '10', title: 'Space Cowboys', artist: 'コンシャスTHOUGHTS x ID Chief x Aloe Island Posse', durationLabel: '4:20', file: 'assets/audio/space-cowboys.wav' },
     ];
 
     const scriptEl = document.currentScript || document.querySelector('script[src*="persistent-player.js"]');
@@ -111,6 +111,7 @@
             this.playbackOwner = 'deck';
             this.lastInlinePersist = 0;
             this.handoffInProgress = false;
+            this.pendingSet = null;
 
             this.state = this.readState();
             const storedSettings = this.state?.playbackSettings || {};
@@ -164,11 +165,25 @@
     z-index: 9999;
     transition: opacity 180ms ease, transform 180ms ease;
 }
-#persistent-audio-deck[data-visible="false"],
-#persistent-audio-deck[data-inline-visible="true"] {
+#persistent-audio-deck[data-visible="false"] {
     opacity: 0;
     pointer-events: none;
     transform: translateY(16px);
+}
+#persistent-audio-deck[data-inline-visible="true"] {
+    opacity: 0.35;
+    pointer-events: auto;
+    transform: translateY(8px);
+}
+#persistent-audio-deck[data-inline-visible="true"]::after {
+    content: 'Inline player active';
+    position: absolute;
+    top: 6px;
+    right: 20px;
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
 }
 #persistent-audio-deck header {
     display: flex;
@@ -355,7 +370,7 @@
                     </div>
                 </header>
                 <div class="player-controls">
-                    <button type="button" data-action="rewind" aria-label="Rewind 10 seconds">–10s</button>
+                    <button type="button" data-action="rewind" aria-label="Rewind 10 seconds">&minus;10s</button>
                     <button type="button" data-action="toggle" aria-label="Play or pause"></button>
                     <button type="button" data-action="forward" aria-label="Skip ahead 10 seconds">+10s</button>
                 </div>
@@ -396,9 +411,16 @@
         }
 
         setupAudio() {
-            this.audio = new Audio();
+            this.audio = document.createElement('audio');
             this.audio.preload = 'auto';
+            this.audio.autoplay = false;
+            this.audio.playsInline = true;
+            this.audio.crossOrigin = 'anonymous';
+            this.audio.loop = false;
             this.audio.volume = this.volume;
+            this.audio.dataset.role = 'persistent-player-audio';
+            this.audio.style.display = 'none';
+            (this.root || document.body).appendChild(this.audio);
             this.audio.addEventListener('timeupdate', () => this.handleTimeUpdate());
             this.audio.addEventListener('loadedmetadata', () => this.handleLoadedMetadata());
             this.audio.addEventListener('ended', () => this.handleEnded());
@@ -717,14 +739,24 @@
         setTrack(meta, options = {}) {
             if (!meta?.src) return Promise.resolve();
             const { startTime = 0, autoPlay = true } = options;
+            const normalizedStart = Number.isFinite(startTime) ? Math.max(0, startTime) : 0;
+
+            if (this.pendingSet && this.pendingSet.src === meta.src) {
+                const delta = Math.abs(this.pendingSet.startTime - normalizedStart);
+                if (delta < 0.1 && this.pendingSet.autoPlay === autoPlay) {
+                    return this.pendingSet.promise;
+                }
+            }
+
             this.ensureState(meta);
-            this.state.currentTime = startTime;
+            this.state.currentTime = normalizedStart;
             this.state.isPlaying = autoPlay;
             this.state.trackIndex = this.resolveTrackIndex(meta.src);
             this.persistState();
             this.showUI();
             this.renderMetadata();
-            this.pendingSeek = Number.isFinite(startTime) ? startTime : 0;
+            this.pendingSeek = normalizedStart;
+
             const attemptPlay = () => {
                 if (!autoPlay) {
                     this.audio.pause();
@@ -741,26 +773,54 @@
                     });
             };
 
-            if (this.audio.src === meta.src && this.audio.readyState >= 1) {
-                if (Number.isFinite(startTime)) {
+            const seekIfNeeded = () => {
+                const delta = Math.abs((this.audio.currentTime || 0) - normalizedStart);
+                if (delta > 0.25) {
                     try {
-                        this.audio.currentTime = startTime;
+                        this.audio.currentTime = normalizedStart;
                     } catch (err) {
                         console.warn('[PersistentPlayer] Unable to seek existing source', err);
                     }
                 }
+            };
+
+            if (this.audio.src === meta.src && this.audio.readyState >= 1) {
+                seekIfNeeded();
+                this.pendingSet = null;
                 return attemptPlay();
             }
 
+            this.audio.pause();
+            this.audio.removeAttribute('src');
+            this.audio.load();
             this.audio.src = meta.src;
-            return new Promise((resolve) => {
-                const handleMeta = () => {
+
+            const pending = new Promise((resolve) => {
+                const cleanup = () => {
                     this.audio.removeEventListener('loadedmetadata', handleMeta);
+                    this.audio.removeEventListener('error', handleError);
+                    this.pendingSet = null;
+                };
+                const handleMeta = () => {
+                    cleanup();
                     attemptPlay().finally(resolve);
                 };
+                const handleError = () => {
+                    cleanup();
+                    resolve();
+                };
                 this.audio.addEventListener('loadedmetadata', handleMeta, { once: true });
-                this.audio.addEventListener('error', () => resolve(), { once: true });
+                this.audio.addEventListener('error', handleError, { once: true });
             });
+
+            this.pendingSet = {
+                src: meta.src,
+                startTime: normalizedStart,
+                autoPlay,
+                promise: pending,
+            };
+
+            return pending;
         }
 
         showUI() {
@@ -782,7 +842,7 @@
             if (this.state.artist) {
                 artistParts.push(this.state.artist);
             }
-            this.artistEl.textContent = artistParts.join(' · ');
+            this.artistEl.textContent = artistParts.join(' × ');
         }
 
         handleTimeUpdate() {

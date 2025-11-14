@@ -1,13 +1,15 @@
-# MySpace Authentication & Database System - User Guide
+﻿# OurSpace Authentication & Database System - User Guide
 
 ## Overview
 
-The MySpace page now has a complete authentication and database system that allows:
+The OurSpace page now has a complete authentication and database system that allows:
 - Creating user accounts with secure password hashing
 - Saving and publishing profiles permanently
 - Viewing other users' published profiles
 - Making local changes without login (temporary)
 - Server-side media storage (no localStorage quota issues)
+
+> **Production host:** OurSpace is served from `https://ourspace.icu/ourspace.html`. Local development uses `http://localhost:4000/ourspace.html`.
 
 ## How to Use
 
@@ -27,7 +29,7 @@ The MySpace page now has a complete authentication and database system that allo
 
 ### Creating an Account
 
-1. Open http://localhost:8000/myspace.html
+1. Open http://localhost:8000/ourspace.html
 2. Look for the "Account" section in the left sidebar
 3. Click "Sign Up" button
 4. Enter a username (min 3 characters, letters/numbers/underscores only)
@@ -39,7 +41,7 @@ The MySpace page now has a complete authentication and database system that allo
 
 1. **While Logged In**:
    - All changes are saved locally as you make them
-   - Click "💾 Save & Publish Profile" when you're happy with your page
+   - Click "ðŸ’¾ Save & Publish Profile" when you're happy with your page
    - This makes your profile visible to others
 
 2. **Without Login**:
@@ -50,7 +52,7 @@ The MySpace page now has a complete authentication and database system that allo
 
 ### Viewing Other Profiles
 
-1. Get another user's URL: `http://localhost:8000/myspace.html?user=theirusername`
+1. Get another user's URL: `http://localhost:8000/ourspace.html?user=theirusername`
 2. Visit their page - it loads in view-only mode
 3. Banner shows "Viewing {username}'s Profile"
 4. Visit counter increments
@@ -66,10 +68,10 @@ The MySpace page now has a complete authentication and database system that allo
 - Audio files
 - Background images
 
-All media is stored on the server in `backend/myspace_data/{user_id}/` folders.
+All media is stored on the server in `backend/ourspace_data/{user_id}/` folders.
 
 #### Profile Data:
-- Stored in SQLite database (`backend/myspace_data/myspace.db`)
+- Stored in SQLite database (`backend/ourspace_data/OurSpace.db`)
 - Passwords hashed with PBKDF2-SHA256 (100,000 iterations)
 - Profile JSON stored per user
 - Visit tracking
@@ -102,26 +104,26 @@ All media is stored on the server in `backend/myspace_data/{user_id}/` folders.
 ## API Endpoints
 
 ### Authentication
-- `POST /api/myspace/register` - Create account
-- `POST /api/myspace/login` - Login
-- `POST /api/myspace/logout` - Logout
-- `GET /api/myspace/me` - Get current user info
+- `POST /api/ourspace/register` - Create account
+- `POST /api/ourspace/login` - Login
+- `POST /api/ourspace/logout` - Logout
+- `GET /api/ourspace/me` - Get current user info
 
 ### Profiles
-- `GET /api/myspace/profile/load` - Load own profile (requires auth)
-- `POST /api/myspace/profile/save` - Save own profile (requires auth)
-- `POST /api/myspace/profile/publish` - Publish profile (requires auth)
-- `GET /api/myspace/profile/<username>` - View published profile
+- `GET /api/ourspace/profile/load` - Load own profile (requires auth)
+- `POST /api/ourspace/profile/save` - Save own profile (requires auth)
+- `POST /api/ourspace/profile/publish` - Publish profile (requires auth)
+- `GET /api/ourspace/profile/<username>` - View published profile
 
 ### Media
-- `POST /api/myspace/upload` - Upload media file
-- `GET /api/myspace/media/<user_id>/<filename>` - Serve media file
+- `POST /api/ourspace/upload` - Upload media file
+- `GET /api/ourspace/media/<user_id>/<filename>` - Serve media file
 
 ### Friends
-- `GET /api/myspace/friends` - Get friends list
-- `POST /api/myspace/friends/add` - Add friend
-- `POST /api/myspace/friends/remove` - Remove friend
-- `GET /api/myspace/search?q=<query>` - Search users
+- `GET /api/ourspace/friends` - Get friends list
+- `POST /api/ourspace/friends/add` - Add friend
+- `POST /api/ourspace/friends/remove` - Remove friend
+- `GET /api/ourspace/search?q=<query>` - Search users
 
 ## Testing Steps
 
@@ -132,12 +134,12 @@ All media is stored on the server in `backend/myspace_data/{user_id}/` folders.
 
 2. **Create Second Account**:
    - Open browser incognito/private window
-   - Go to http://localhost:8000/myspace.html
+   - Go to http://localhost:8000/ourspace.html
    - Sign up as "user2" with password "password456"
    - Customize differently
 
 3. **View Profiles**:
-   - In user2's window, visit: http://localhost:8000/myspace.html?user=user1
+   - In user2's window, visit: http://localhost:8000/ourspace.html?user=user1
    - See user1's published profile
    - Verify visit counter increases
 
@@ -150,15 +152,15 @@ All media is stored on the server in `backend/myspace_data/{user_id}/` folders.
 ## Files Modified/Created
 
 ### Backend
-- `myspace_db.py` - Database models and functions (NEW)
+- `ourspace_db.py` - Database models and functions (NEW)
 - `app.py` - Added auth endpoints (lines 1895-2207)
 
 ### Frontend
-- `js/myspace-auth.js` - Authentication UI and logic (NEW)
-- `js/myspace-core.js` - Initialize profile with default to prevent null errors
-- `js/myspace-customizer.js` - Updated background upload to use server
-- `myspace.html` - Added auth modal and account section
-- `css/myspace-base.css` - Added auth UI styling
+- `js/ourspace-auth.js` - Authentication UI and logic (NEW)
+- `js/ourspace-core.js` - Initialize profile with default to prevent null errors
+- `js/ourspace-customizer.js` - Updated background upload to use server
+- `ourspace.html` - Added auth modal and account section
+- `css/ourspace-base.css` - Added auth UI styling
 
 ## Security Features
 
@@ -177,13 +179,13 @@ All media is stored on the server in `backend/myspace_data/{user_id}/` folders.
 - Clear browser cache and refresh
 
 ### "Can't upload files"
-- Verify `/api/myspace/upload` endpoint is accessible
+- Verify `/api/ourspace/upload` endpoint is accessible
 - Check server logs for errors
-- Ensure `myspace_data` directory exists with write permissions
+- Ensure `ourspace_data` directory exists with write permissions
 
 ### "Database errors"
-- Check if `myspace_data/myspace.db` exists
-- Verify myspace_db.py is in backend directory
+- Check if `ourspace_data/OurSpace.db` exists
+- Verify ourspace_db.py is in backend directory
 - Check server console for SQL errors
 
 ### "Login not working"
@@ -199,3 +201,12 @@ All media is stored on the server in `backend/myspace_data/{user_id}/` folders.
 - Activity feed
 - Messaging system
 - Profile analytics
+
+
+
+
+
+
+
+
+

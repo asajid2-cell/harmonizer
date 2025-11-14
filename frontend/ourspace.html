@@ -1,13 +1,15 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MySpace - Disco-teque</title>
+    <title>ourspace - i see you</title>
     <link rel="stylesheet" href="eldrichify.css">
-    <link rel="stylesheet" href="css/myspace-base.css">
-    <link rel="stylesheet" href="css/myspace-themes.css">
-    <link rel="stylesheet" href="css/myspace-effects.css">
+    <link rel="icon" type="image/svg+xml" href="/img/ourspace-favicon.svg">
+    <style id="custom-global-style"></style>
+    <link rel="stylesheet" href="css/ourspace-base.css">
+    <link rel="stylesheet" href="css/ourspace-themes.css">
+    <link rel="stylesheet" href="css/ourspace-effects.css">
     <style>
         body {
             overflow-x: hidden;
@@ -34,16 +36,9 @@
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="eld-nav">
-        <a href="/">Home</a>
-        <a href="/projects">Showcase</a>
-        <a href="/harmonizer.html">Harmonizer</a>
-        <a href="/eldrichify.html">Image Playground</a>
-        <a href="/talk-to-disco-teque.html">Talk to Disco-teque</a>
-        <a href="https://plaza.one/" target="_blank" rel="noopener">Radio</a>
-        <a href="/myspace.html" class="active" aria-current="page">MySpace</a>
-        <a href="/notebook.html">Notebook</a>
-        <a href="/cheatsheets/">Quick Reference</a>
+    <nav class="eld-nav ourspace-nav">
+        <span>OurSpace Directory</span>
+        <a href="https://ourspace.icu/ourspace.html?user=" aria-current="page">Jump to ?user=</a>
     </nav>
 
     <!-- Falling Effects Container -->
@@ -53,7 +48,10 @@
     <canvas id="cursor-trail-canvas"></canvas>
 
     <!-- Background Layer -->
-    <div id="myspace-background"></div>
+    <div id="ourspace-background"></div>
+    
+    <div id="custom-html-global" aria-hidden="true"></div>
+    <div id="custom-global-content" aria-hidden="true"></div>
 
     <!-- Mode Toggle Button -->
     <button id="mode-toggle-btn" class="mode-toggle-btn" title="Toggle Customize/View Mode">
@@ -62,7 +60,7 @@
     </button>
 
     <!-- Main Container -->
-    <div id="myspace-container">
+    <div id="ourspace-container">
         <!-- Customization Sidebar -->
         <aside id="customization-panel" class="customize-panel">
             <div class="panel-header">
@@ -308,6 +306,61 @@
                         <button id="bg-reset-transforms" style="margin-top: 15px; width: 100%; padding: 8px; background: #ff3366; color: white; border: none; border-radius: 5px; cursor: pointer;">
                             Reset All Transformations
                         </button>
+                    </div>
+                </section>
+
+                <!-- Stickers -->
+                <section class="panel-section" id="sticker-panel">
+                    <h3>Stickers</h3>
+                    <input type="file" id="sticker-upload" accept="image/*" style="display: none;">
+                    <button id="add-sticker-btn" class="action-btn">Add Sticker</button>
+                    <div class="sticker-controls">
+                        <label>
+                            Size
+                            <input type="range" id="sticker-scale" min="0.3" max="2.5" step="0.1" value="1">
+                        </label>
+                        <label>
+                            Z-Index (controls what shows on top vs bottom)
+                            <input type="number" id="sticker-z" min="1" max="999" value="30">
+                        </label>
+                        <div class="sticker-frame-panel">
+                            <p class="frame-panel-title">Border Style</p>
+                            <div class="sticker-frame-presets" id="sticker-frame-style">
+                                <button type="button" data-sticker-frame="none" class="frame-preset">None</button>
+                                <button type="button" data-sticker-frame="notebook" class="frame-preset">Notebook</button>
+                                <button type="button" data-sticker-frame="magazine" class="frame-preset">Magazine</button>
+                                <button type="button" data-sticker-frame="polaroid" class="frame-preset">Polaroid</button>
+                                <button type="button" data-sticker-frame="photocard" class="frame-preset">Photo Card</button>
+                                <button type="button" data-sticker-frame="holographic" class="frame-preset">Holographic</button>
+                                <button type="button" data-sticker-frame="glitter" class="frame-preset">Glitter Veil</button>
+                                <button type="button" data-sticker-frame="taped" class="frame-preset">Taped Scrap</button>
+                                <button type="button" data-sticker-frame="neon" class="frame-preset">Neon Glow</button>
+                                <button type="button" data-sticker-frame="burnt" class="frame-preset">Burnt Edge</button>
+                            </div>
+                        <div class="frame-text-controls hidden" id="frame-text-controls">
+                                <label>
+                                    Border Label
+                                    <input type="text" id="sticker-frame-text" placeholder="e.g. FEATURED" maxlength="40">
+                                </label>
+                                <label>
+                                    Label Color
+                                    <input type="color" id="sticker-frame-text-color" value="#3c3c3c">
+                                </label>
+                                <small>Used on frames that include printed text (Magazine, Polaroid).</small>
+                            </div>
+                        </div>
+                        <div class="sticker-action-row">
+                            <button id="sticker-cutout-btn" class="action-btn">Cutout Mode</button>
+                            <button id="sticker-reset-cutout" class="action-btn">Reset Cutout</button>
+                        </div>
+                        <button id="sticker-delete-btn" class="action-btn danger">Delete Sticker</button>
+                        <p id="sticker-hint">Click any sticker to select it. Drag to move when in Customize mode.</p>
+                        <div class="sticker-deck" aria-live="polite">
+                            <p class="sticker-deck-empty" id="sticker-deck-empty">
+                                Uploaded stickers and cutouts will live here. Click one to place it again or delete it.
+                            </p>
+                            <div class="sticker-deck-grid" id="sticker-deck-grid"></div>
+                        </div>
                     </div>
                 </section>
 
@@ -589,7 +642,8 @@
         </aside>
 
         <!-- Main Content -->
-        <main id="myspace-main">
+        <main id="ourspace-main">
+            <div id="sticker-layer" aria-live="polite"></div>
             <!-- Header Banner -->
             <header id="profile-header" class="widget">
                 <input type="file" id="banner-upload" accept="image/*" style="display: none;">
@@ -614,11 +668,11 @@
                     </div>
                     <div class="profile-info">
                         <h1 contenteditable="true" id="profile-name" class="profile-name">Your Name Here</h1>
-                        <p contenteditable="true" id="profile-tagline" class="profile-tagline"> living my best life </p>
+                        <p contenteditable="true" id="profile-tagline" class="profile-tagline">✨ living my best life ✨</p>
                         <div class="profile-status">
                             <span class="mood">
                                 Mood: <span contenteditable="true" id="mood-text">chillin</span>
-                                <span id="mood-icon">:)</span>
+                                <span id="mood-icon">😎</span>
                             </span>
                         </div>
                     </div>
@@ -674,13 +728,17 @@
                             <h2>Custom HTML</h2>
                             <button class="widget-toggle">-</button>
                         </div>
-                        <div class="widget-content">
-                            <div class="custom-html-editor">
-                                <textarea id="custom-html-input" placeholder="Paste your custom HTML here..."></textarea>
-                                <button id="apply-custom-html">Apply</button>
-                            </div>
-                            <div id="custom-html-output"></div>
+                    <div class="widget-content">
+                        <div class="custom-html-editor">
+                            <textarea id="custom-html-input" placeholder="Paste your custom HTML here..."></textarea>
+                            <label class="custom-html-label">
+                                <span>Global Code (for custom backgrounds, styles, etc.)</span>
+                                <textarea id="custom-html-global-input" placeholder="Paste HTML / CSS that should apply to the whole page&#10;Example: &lt;style&gt;body{background: url(...)}&lt;/style&gt;"></textarea>
+                            </label>
+                            <button id="apply-custom-html">Save Custom Code</button>
                         </div>
+                        <div id="custom-html-output"></div>
+                    </div>
                     </div>
                 </div>
 
@@ -751,6 +809,16 @@
                                         <option value="4" selected>4</option>
                                         <option value="5">5</option>
                                         <option value="6">6</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    Frame Style:
+                                    <select id="picture-frame-style">
+                                        <option value="classic">Classic</option>
+                                        <option value="notebook">Notebook</option>
+                                        <option value="magazine">Magazine</option>
+                                        <option value="polaroid">Polaroid</option>
+                                        <option value="photocard">Photocard</option>
                                     </select>
                                 </label>
                             </div>
@@ -848,6 +916,7 @@
                             <div class="contact-tabs">
                                 <button class="contact-tab active" data-tab="actions">Actions</button>
                                 <button class="contact-tab" data-tab="inbox">Inbox</button>
+                                <button class="contact-tab" data-tab="accounts">Accounts</button>
                             </div>
                             <div class="contact-tab-content active" data-tab="actions">
                                 <div class="contact-links">
@@ -872,6 +941,14 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="contact-tab-content" data-tab="accounts">
+                                <div class="accounts-search">
+                                    <input type="text" id="accounts-search" placeholder="Search usernames...">
+                                </div>
+                                <div id="accounts-list" class="accounts-list">
+                                    <!-- Accounts rendered here -->
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -890,7 +967,7 @@
     <div id="auth-modal" class="auth-modal" style="display: none;">
         <div class="auth-modal-content">
             <span class="auth-modal-close" id="close-auth-modal">x</span>
-            <h2 id="auth-modal-title">Login to MySpace</h2>
+            <h2 id="auth-modal-title">Login to OurSpace</h2>
             <form id="auth-form">
                 <div class="auth-form-group">
                     <label for="auth-username">Username:</label>
@@ -921,14 +998,18 @@
 
     <!-- Scripts -->
     <script src="js/persistent-player.js"></script>
-    <script src="js/myspace-core.js"></script>
-    <script src="js/myspace-customizer.js"></script>
-    <script src="js/myspace-widgets.js"></script>
-    <script src="js/myspace-images.js"></script>
-    <script src="js/myspace-audio.js"></script>
-    <script src="js/myspace-effects.js"></script>
-    <script src="js/myspace-auth.js"></script>
-    <script src="js/myspace-friends.js"></script>
-    <script src="js/myspace-layout-editor.js"></script>
+    <script src="js/ourspace-core.js"></script>
+    <script src="js/ourspace-customizer.js"></script>
+    <script src="js/ourspace-widgets.js"></script>
+    <script src="js/ourspace-images.js"></script>
+    <script src="js/ourspace-audio.js"></script>
+    <script src="js/ourspace-effects.js"></script>
+    <script src="js/ourspace-auth.js"></script>
+    <script src="js/ourspace-friends.js"></script>
+    <script src="js/ourspace-layout-editor.js"></script>
 </body>
 </html>
+
+
+
+

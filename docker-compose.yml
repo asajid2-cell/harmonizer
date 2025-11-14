@@ -1,4 +1,4 @@
-version: "3.9"
+﻿version: "3.9"
 services:
   harmonizer:
     container_name: harmonizer
@@ -11,7 +11,7 @@ services:
     volumes:
       - ./uploads:/app/backend/uploads
       - ./data:/app/backend/data
-      - ./backend/myspace_data:/app/backend/myspace_data
+      - ./backend/ourspace_data:/app/backend/ourspace_data
     restart: unless-stopped
 
   watchtower:
@@ -20,3 +20,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
+
+
+

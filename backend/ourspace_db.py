@@ -1,4 +1,4 @@
-"""MySpace Database Models and Setup"""
+﻿"""OurSpace Database Models and Setup"""
 import sqlite3
 import json
 import hashlib
@@ -8,7 +8,7 @@ from typing import Optional, Dict, List, Any
 from datetime import datetime
 
 # Database file location
-DB_PATH = Path(__file__).parent / "myspace_data" / "myspace.db"
+DB_PATH = Path(__file__).parent / "ourspace_data" / "OurSpace.db"
 
 
 def get_db():
@@ -217,7 +217,7 @@ def create_user(username: str, password: str) -> Optional[int]:
             "profile": {
                 "name": username,
                 "tagline": "✨ living my best life ✨",
-                "mood": {"text": "chillin", "icon": "😎"},
+                "mood": {"text": "chillin", "icon": "ðŸ˜Ž"},
                 "bannerImage": "",
                 "profilePic": ""
             },
@@ -238,7 +238,7 @@ def create_user(username: str, password: str) -> Optional[int]:
                     "autoplay": False,
                     "volume": 50
                 },
-                "customHtml": {"html": ""}
+                "customHtml": {"html": "", "global": ""}
             },
             "meta": {
                 "created": datetime.now().isoformat(),
@@ -1070,3 +1070,7 @@ def is_blocked(user_id: int, other_user_id: int) -> bool:
 
 # Initialize database on module import
 init_db()
+
+
+
+

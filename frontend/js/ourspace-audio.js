@@ -1,4 +1,4 @@
-// MySpace Audio - Music Player
+﻿// OurSpace Audio - Music Player
 
 (function() {
     'use strict';
@@ -73,10 +73,10 @@
 
         // Volume slider
         if (volumeSlider && audioPlayer) {
-            volumeSlider.value = window.MySpace.profile.widgets.music.volume;
-            audioPlayer.volume = window.MySpace.profile.widgets.music.volume / 100;
+            volumeSlider.value = window.OurSpace.profile.widgets.music.volume;
+            audioPlayer.volume = window.OurSpace.profile.widgets.music.volume / 100;
             if (volumeDisplay) {
-                volumeDisplay.textContent = window.MySpace.profile.widgets.music.volume + '%';
+                volumeDisplay.textContent = window.OurSpace.profile.widgets.music.volume + '%';
             }
 
             volumeSlider.addEventListener('input', function() {
@@ -88,8 +88,8 @@
             });
 
             volumeSlider.addEventListener('change', function() {
-                window.MySpace.profile.widgets.music.volume = parseInt(this.value);
-                window.MySpace.saveProfile();
+                window.OurSpace.profile.widgets.music.volume = parseInt(this.value);
+                window.OurSpace.saveProfile();
             });
         }
 
@@ -119,7 +119,7 @@
                         formData.append('file', file);
                         formData.append('type', 'audio');
 
-                        const response = await fetch('/api/myspace/upload', {
+                        const response = await fetch('/api/ourspace/upload', {
                             method: 'POST',
                             body: formData
                         });
@@ -127,10 +127,10 @@
                         if (response.ok) {
                             const data = await response.json();
                             console.log('[Audio] Upload successful, URL:', data.url);
-                            window.MySpace.profile.widgets.music.audioData = data.url;
-                            window.MySpace.profile.widgets.music.title = title || file.name;
+                            window.OurSpace.profile.widgets.music.audioData = data.url;
+                            window.OurSpace.profile.widgets.music.title = title || file.name;
                             console.log('[Audio] Saving profile with audio data');
-                            await window.MySpace.saveProfile();
+                            await window.OurSpace.saveProfile();
                             console.log('[Audio] Profile saved');
 
                             loadAudioIntoPlayer(data.url, title || file.name);
@@ -156,9 +156,9 @@
         if (removeAudioBtn) {
             removeAudioBtn.addEventListener('click', function() {
                 if (confirm('Remove uploaded song?')) {
-                    window.MySpace.profile.widgets.music.audioData = '';
-                    window.MySpace.profile.widgets.music.title = 'No track loaded';
-                    window.MySpace.saveProfile();
+                    window.OurSpace.profile.widgets.music.audioData = '';
+                    window.OurSpace.profile.widgets.music.title = 'No track loaded';
+                    window.OurSpace.saveProfile();
 
                     // Clear player
                     if (audioPlayer) {
@@ -177,26 +177,26 @@
             });
 
             // Show remove button if audio exists
-            if (window.MySpace.profile.widgets.music.audioData) {
+            if (window.OurSpace.profile.widgets.music.audioData) {
                 removeAudioBtn.style.display = 'inline-block';
             }
         }
 
         // Autoplay checkbox
         if (autoplayCheckbox) {
-            autoplayCheckbox.checked = window.MySpace.profile.widgets.music.autoplay;
+            autoplayCheckbox.checked = window.OurSpace.profile.widgets.music.autoplay;
 
             autoplayCheckbox.addEventListener('change', function() {
-                window.MySpace.profile.widgets.music.autoplay = this.checked;
-                window.MySpace.saveProfile();
+                window.OurSpace.profile.widgets.music.autoplay = this.checked;
+                window.OurSpace.saveProfile();
             });
         }
     }
 
     // Load Saved Audio
     function loadSavedAudio() {
-        const audioData = window.MySpace.profile.widgets.music.audioData;
-        const title = window.MySpace.profile.widgets.music.title;
+        const audioData = window.OurSpace.profile.widgets.music.audioData;
+        const title = window.OurSpace.profile.widgets.music.title;
 
         if (audioData) {
             loadAudioIntoPlayer(audioData, title);
@@ -220,8 +220,8 @@
 
     // Check Autoplay
     function checkAutoplay() {
-        const autoplay = window.MySpace.profile.widgets.music.autoplay;
-        const audioData = window.MySpace.profile.widgets.music.audioData;
+        const autoplay = window.OurSpace.profile.widgets.music.autoplay;
+        const audioData = window.OurSpace.profile.widgets.music.audioData;
 
         if (autoplay && audioData && audioPlayer) {
             // Delay autoplay slightly to ensure page is fully loaded
@@ -266,14 +266,14 @@
     }
 
     // Export public API
-    window.MySpaceAudio = {
+    window.OurSpaceAudio = {
         reloadAudio: function() {
             console.log('[Audio] Reloading audio from profile');
             loadSavedAudio();
 
             // Update remove button visibility
             const removeAudioBtn = document.getElementById('remove-audio-btn');
-            if (removeAudioBtn && window.MySpace.profile.widgets.music.audioData) {
+            if (removeAudioBtn && window.OurSpace.profile.widgets.music.audioData) {
                 removeAudioBtn.style.display = 'inline-block';
             } else if (removeAudioBtn) {
                 removeAudioBtn.style.display = 'none';
@@ -282,8 +282,8 @@
             // Restore autoplay checkbox state
             const autoplayCheckbox = document.getElementById('autoplay-checkbox');
             if (autoplayCheckbox) {
-                autoplayCheckbox.checked = window.MySpace.profile.widgets.music.autoplay;
-                console.log('[Audio] Autoplay setting restored:', window.MySpace.profile.widgets.music.autoplay);
+                autoplayCheckbox.checked = window.OurSpace.profile.widgets.music.autoplay;
+                console.log('[Audio] Autoplay setting restored:', window.OurSpace.profile.widgets.music.autoplay);
             }
 
             // Check and enforce autoplay
@@ -292,3 +292,8 @@
     };
 
 })();
+
+
+
+
+

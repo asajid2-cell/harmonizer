@@ -1,4 +1,4 @@
-﻿// MySpace Effects - Visual Effects (Falling Objects, Cursor Trail, etc.)
+﻿// OurSpace Effects - Visual Effects (Falling Objects, Cursor Trail, etc.)
 
 (function() {
     'use strict';
@@ -19,7 +19,7 @@
     let prismTrailConfig = null;
 
     function getEffectsStore() {
-        return (window.MySpace && window.MySpace.profile && window.MySpace.profile.theme && window.MySpace.profile.theme.effects) || {};
+        return (window.OurSpace && window.OurSpace.profile && window.OurSpace.profile.theme && window.OurSpace.profile.theme.effects) || {};
     }
 
     function getEffectConfig(key, defaults = {}) {
@@ -45,7 +45,7 @@
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-    window.MySpaceEffects = {
+    window.OurSpaceEffects = {
         updateFallingEffect: updateFallingEffect,
         toggleCursorTrail: toggleCursorTrail,
         refreshDynamicEffects: refreshDynamicEffects
@@ -75,7 +75,7 @@
     }
 
     function refreshDynamicEffects() {
-        if (!window.MySpace || !window.MySpace.profile) return;
+        if (!window.OurSpace || !window.OurSpace.profile) return;
         toggleGlitterBorders(getEffectConfig('glitter', { intensity: 0.7 }));
         toggleBlinkingText(getEffectConfig('blink', { speed: 1 }));
         toggleSparkleRain(getEffectConfig('sparkleRain', { density: 1 }));
@@ -456,7 +456,7 @@
         }
 
         const quotes = [
-            "Stay weird âœ¨",
+            "Stay weird ✨",
             "Live, laugh, loop",
             "BRB vibing",
             "Sparkle mode: ON",
@@ -593,24 +593,6 @@
             setTimeout(() => emoji.remove(), 7000);
         }, Math.max(300, 1000 / density));
     }
-            return;
-        }
-
-        if (!container) {
-            container = ensureOverlay('floating-emoji-container', 'floating-emoji-container');
-        }
-
-        const emojis = ['âœ¨', 'ðŸŽ§', 'ðŸ’œ', 'ðŸŒˆ', 'â­', 'ðŸ’Œ', 'ðŸ¦‹'];
-        if (floatingEmojiInterval) clearInterval(floatingEmojiInterval);
-        floatingEmojiInterval = setInterval(() => {
-            const emoji = document.createElement('span');
-            emoji.className = 'floating-emoji';
-            emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-            emoji.style.left = Math.random() * 100 + '%';
-            container.appendChild(emoji);
-            setTimeout(() => emoji.remove(), 7000);
-        }, 800);
-    }
 
     // Lightning Flickers
     function toggleLightningFlickers(config) {
@@ -659,5 +641,7 @@
     }
 
 })();
+
+
 
 

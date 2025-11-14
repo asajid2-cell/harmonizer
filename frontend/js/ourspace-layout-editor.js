@@ -1,10 +1,10 @@
-// MySpace Layout Grid Editor
+// OurSpace Layout Grid Editor
 // Drag-and-drop grid system with snaplines, column controls, z-index, and mobile breakpoints
 
 (function() {
     'use strict';
 
-    window.MySpaceLayoutEditor = {
+    window.OurSpaceLayoutEditor = {
         enabled: false,
         allowOverlap: true,
         draggedElement: null,
@@ -31,20 +31,20 @@
                 if (document.body.classList.contains('view-mode')) {
                     document.body.classList.remove('view-mode');
                 }
-                if (window.MySpace && window.MySpace.viewMode) {
-                    window.MySpace.viewMode = false;
-                    if (typeof window.MySpace.saveViewMode === 'function') {
-                        window.MySpace.saveViewMode();
+                if (window.OurSpace && window.OurSpace.viewMode) {
+                    window.OurSpace.viewMode = false;
+                    if (typeof window.OurSpace.saveViewMode === 'function') {
+                        window.OurSpace.saveViewMode();
                     }
-                    if (typeof window.MySpace.applyViewMode === 'function') {
-                        window.MySpace.applyViewMode();
+                    if (typeof window.OurSpace.applyViewMode === 'function') {
+                        window.OurSpace.applyViewMode();
                     }
                 }
 
                 console.log('[Layout Editor] Enabled');
                 console.log('[Layout Editor] Found', widgets.length, 'widgets');
 
-                const container = document.getElementById('myspace-main');
+                const container = document.getElementById('ourspace-main');
                 if (container) {
                     const containerRect = container.getBoundingClientRect();
 
@@ -162,7 +162,7 @@
 
             const dragHandle = document.createElement('div');
             dragHandle.className = 'drag-handle';
-            dragHandle.innerHTML = '⋮⋮';
+            dragHandle.textContent = '⠿⠿';
             dragHandle.title = 'Drag to move';
             element.appendChild(dragHandle);
 
@@ -177,7 +177,7 @@
                 this.draggedElement = element;
 
                 const rect = element.getBoundingClientRect();
-                const container = document.getElementById('myspace-main').getBoundingClientRect();
+                const container = document.getElementById('ourspace-main').getBoundingClientRect();
 
                 startX = e.clientX;
                 startY = e.clientY;
@@ -284,7 +284,7 @@
                 if (widget === element) return;
 
                 const otherRect = widget.getBoundingClientRect();
-                const container = document.getElementById('myspace-main').getBoundingClientRect();
+                const container = document.getElementById('ourspace-main').getBoundingClientRect();
                 const otherLeft = otherRect.left - container.left;
                 const otherTop = otherRect.top - container.top;
                 const otherRight = otherLeft + widget.offsetWidth;
@@ -351,7 +351,7 @@
 
             const handle = document.createElement('div');
             handle.className = 'resize-handle';
-            handle.innerHTML = '◢';
+            handle.textContent = '⤢';
             handle.title = 'Drag to resize';
             element.appendChild(handle);
 
@@ -439,7 +439,7 @@
 
             const upBtn = document.createElement('button');
             upBtn.className = 'zindex-btn';
-            upBtn.innerHTML = '▲';
+            upBtn.textContent = '▲';
             upBtn.title = 'Move forward';
             upBtn.onclick = (e) => {
                 e.stopPropagation();
@@ -448,7 +448,7 @@
 
             const downBtn = document.createElement('button');
             downBtn.className = 'zindex-btn';
-            downBtn.innerHTML = '▼';
+            downBtn.textContent = '▼';
             downBtn.title = 'Move backward';
             downBtn.onclick = (e) => {
                 e.stopPropagation();
@@ -506,7 +506,7 @@
         },
 
         saveLayout: function() {
-            if (!window.MySpace || !this.enabled) return;
+            if (!window.OurSpace || !this.enabled) return;
 
             const layout = {
                 widgets: []
@@ -536,21 +536,21 @@
                 });
             });
 
-            if (!window.MySpace.profile.layout) {
-                window.MySpace.profile.layout = {};
+            if (!window.OurSpace.profile.layout) {
+                window.OurSpace.profile.layout = {};
             }
-            window.MySpace.profile.layout.grid = layout;
+            window.OurSpace.profile.layout.grid = layout;
 
             console.log('[Layout Editor] Saved layout:', layout);
-            window.MySpace.saveProfile();
+            window.OurSpace.saveProfile();
         },
 
         updateFromProfile: function() {
-            if (!window.MySpace || !window.MySpace.profile.layout || !window.MySpace.profile.layout.grid) {
+            if (!window.OurSpace || !window.OurSpace.profile.layout || !window.OurSpace.profile.layout.grid) {
                 return;
             }
 
-            const layout = window.MySpace.profile.layout.grid;
+            const layout = window.OurSpace.profile.layout.grid;
             console.log('[Layout Editor] Loading layout:', layout);
 
             layout.widgets.forEach(widgetData => {
@@ -601,9 +601,9 @@
                 delete widget.dataset.mobileBehavior;
             });
 
-            if (window.MySpace && window.MySpace.profile.layout) {
-                delete window.MySpace.profile.layout.grid;
-                window.MySpace.saveProfile();
+            if (window.OurSpace && window.OurSpace.profile.layout) {
+                delete window.OurSpace.profile.layout.grid;
+                window.OurSpace.saveProfile();
             }
 
             console.log('[Layout Editor] Layout reset');
@@ -720,7 +720,7 @@
 
             console.log('[Layout Editor] Resolving overlaps...');
 
-            const container = document.getElementById('myspace-main');
+            const container = document.getElementById('ourspace-main');
             const containerRect = container.getBoundingClientRect();
 
             // Get all widget bounds
@@ -784,9 +784,15 @@
 
     // Initialize when DOM is ready
     window.addEventListener('DOMContentLoaded', function() {
-        if (window.MySpaceLayoutEditor) {
-            window.MySpaceLayoutEditor.init();
+        if (window.OurSpaceLayoutEditor) {
+            window.OurSpaceLayoutEditor.init();
         }
     });
 
 })();
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-/* MySpace Theme Presets */
+﻿/* OurSpace Theme Presets */
 
 /* Classic Theme */
 body.theme-classic {
@@ -182,3 +182,5 @@ body[class*="theme-"] .widget-content {
 body[class*="theme-"] .profile-header-content {
     background: var(--widget-bg);
 }
+
+

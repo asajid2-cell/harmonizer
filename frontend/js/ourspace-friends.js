@@ -1,18 +1,18 @@
-// MySpace Friends & Messages System
+// OurSpace Friends & Messages System
 
 (function() {
     'use strict';
 
-    window.MySpaceFriends = {
+    window.OurSpaceFriends = {
         // Send friend request
         sendFriendRequest: async function(username) {
-            if (!window.MySpaceAuth || !window.MySpaceAuth.isAuthenticated) {
+            if (!window.OurSpaceAuth || !window.OurSpaceAuth.isAuthenticated) {
                 alert('You must be logged in to add friends');
                 return false;
             }
 
             try {
-                const response = await fetch('/api/myspace/friends/request/send', {
+                const response = await fetch('/api/ourspace/friends/request/send', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({username: username})
@@ -36,12 +36,12 @@
 
         // Get pending friend requests
         getFriendRequests: async function() {
-            if (!window.MySpaceAuth || !window.MySpaceAuth.isAuthenticated) {
+            if (!window.OurSpaceAuth || !window.OurSpaceAuth.isAuthenticated) {
                 return [];
             }
 
             try {
-                const response = await fetch('/api/myspace/friends/requests');
+                const response = await fetch('/api/ourspace/friends/requests');
                 if (response.ok) {
                     const data = await response.json();
                     return data.requests || [];
@@ -56,7 +56,7 @@
         // Accept friend request
         acceptFriendRequest: async function(requestId) {
             try {
-                const response = await fetch('/api/myspace/friends/request/accept', {
+                const response = await fetch('/api/ourspace/friends/request/accept', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({request_id: requestId})
@@ -76,7 +76,7 @@
         // Reject friend request
         rejectFriendRequest: async function(requestId) {
             try {
-                const response = await fetch('/api/myspace/friends/request/reject', {
+                const response = await fetch('/api/ourspace/friends/request/reject', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({request_id: requestId})
@@ -91,13 +91,13 @@
 
         // Send message
         sendMessage: async function(toUsername, subject, body) {
-            if (!window.MySpaceAuth || !window.MySpaceAuth.isAuthenticated) {
+            if (!window.OurSpaceAuth || !window.OurSpaceAuth.isAuthenticated) {
                 alert('You must be logged in to send messages');
                 return false;
             }
 
             try {
-                const response = await fetch('/api/myspace/messages/send', {
+                const response = await fetch('/api/ourspace/messages/send', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -125,12 +125,12 @@
 
         // Get inbox
         getInbox: async function() {
-            if (!window.MySpaceAuth || !window.MySpaceAuth.isAuthenticated) {
+            if (!window.OurSpaceAuth || !window.OurSpaceAuth.isAuthenticated) {
                 return [];
             }
 
             try {
-                const response = await fetch('/api/myspace/messages/inbox');
+                const response = await fetch('/api/ourspace/messages/inbox');
                 if (response.ok) {
                     const data = await response.json();
                     return data.messages || [];
@@ -144,7 +144,7 @@
 
         // Block user
         blockUser: async function(username) {
-            if (!window.MySpaceAuth || !window.MySpaceAuth.isAuthenticated) {
+            if (!window.OurSpaceAuth || !window.OurSpaceAuth.isAuthenticated) {
                 alert('You must be logged in to block users');
                 return false;
             }
@@ -154,7 +154,7 @@
             }
 
             try {
-                const response = await fetch('/api/myspace/block', {
+                const response = await fetch('/api/ourspace/block', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({username: username})
@@ -203,15 +203,18 @@
 
         // Show share profile dialog
         showShareProfileDialog: function() {
-            if (!window.MySpaceAuth || !window.MySpaceAuth.currentUser) {
+            if (!window.OurSpaceAuth || !window.OurSpaceAuth.currentUser) {
                 alert('You must be logged in');
                 return;
             }
 
-            const username = window.MySpaceAuth.currentUser.username;
-            const profileUrl = `${window.location.origin}${window.location.pathname}?user=${encodeURIComponent(username)}`;
+            const username = window.OurSpaceAuth.currentUser.username;
+            let profileUrl = `${window.location.origin}${window.location.pathname}?user=${encodeURIComponent(username)}`;
+            if (window.OurSpace && typeof window.OurSpace.getProfileShareUrl === 'function') {
+                profileUrl = window.OurSpace.getProfileShareUrl(username);
+            }
 
-            const message = `Check out my MySpace profile!\n\n${profileUrl}\n\nYou can also send this link to a friend's inbox.`;
+            const message = `Check out my OurSpace profile!\n\n${profileUrl}\n\nYou can also send this link to a friend's inbox.`;
 
             if (confirm(message + '\n\nCopy link to clipboard?')) {
                 navigator.clipboard.writeText(profileUrl).then(() => {
@@ -228,7 +231,7 @@
 
         markMessageRead: async function(messageId) {
             try {
-                const response = await fetch('/api/myspace/messages/read', {
+                const response = await fetch('/api/ourspace/messages/read', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ message_id: messageId })
@@ -242,7 +245,7 @@
 
         deleteInboxMessage: async function(messageId) {
             try {
-                const response = await fetch('/api/myspace/messages/delete', {
+                const response = await fetch('/api/ourspace/messages/delete', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ message_id: messageId })
@@ -252,6 +255,22 @@
                 console.error('[Messages] Error deleting message:', e);
                 return false;
             }
+        },
+
+        fetchPublishedUsers: async function(query = '', limit = 60) {
+            try {
+                const params = new URLSearchParams();
+                if (query) params.set('q', query);
+                params.set('limit', String(limit));
+                const response = await fetch(`/api/ourspace/users?${params.toString()}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.users || [];
+                }
+            } catch (e) {
+                console.error('[Friends] Error fetching users:', e);
+            }
+            return [];
         }
     };
 
@@ -259,6 +278,7 @@
     window.addEventListener('DOMContentLoaded', function() {
         setupContactButtons();
         setupContactTabs();
+        setupAccountsTab();
     });
 
     function setupContactButtons() {
@@ -272,33 +292,33 @@
                     // If viewing another user's profile, send to them
                     const viewingUser = getViewingUsername();
                     if (viewingUser) {
-                        window.MySpaceFriends.showSendMessageDialog(viewingUser);
+                        window.OurSpaceFriends.showSendMessageDialog(viewingUser);
                     } else {
-                        window.MySpaceFriends.showSendMessageDialog();
+                        window.OurSpaceFriends.showSendMessageDialog();
                     }
                 });
             } else if (text.includes('Add to Friends')) {
                 button.addEventListener('click', function() {
                     const viewingUser = getViewingUsername();
                     if (viewingUser) {
-                        window.MySpaceFriends.sendFriendRequest(viewingUser);
+                        window.OurSpaceFriends.sendFriendRequest(viewingUser);
                     } else {
-                        window.MySpaceFriends.showAddFriendDialog();
+                        window.OurSpaceFriends.showAddFriendDialog();
                     }
                 });
             } else if (text.includes('Forward to Friend')) {
                 button.addEventListener('click', function() {
-                    window.MySpaceFriends.showShareProfileDialog();
+                    window.OurSpaceFriends.showShareProfileDialog();
                 });
             } else if (text.includes('Block User')) {
                 button.addEventListener('click', function() {
                     const viewingUser = getViewingUsername();
                     if (viewingUser) {
-                        window.MySpaceFriends.blockUser(viewingUser);
+                        window.OurSpaceFriends.blockUser(viewingUser);
                     } else {
                         const username = prompt('Enter username to block:');
                         if (username && username.trim()) {
-                            window.MySpaceFriends.blockUser(username.trim());
+                            window.OurSpaceFriends.blockUser(username.trim());
                         }
                     }
                 });
@@ -317,9 +337,96 @@
                 tabs.forEach(btn => btn.classList.toggle('active', btn === this));
                 contents.forEach(panel => panel.classList.toggle('active', panel.dataset.tab === target));
                 if (target === 'inbox') {
-                    window.MySpaceFriends.refreshInboxUI();
+                    window.OurSpaceFriends.refreshInboxUI();
+                } else if (target === 'accounts') {
+                    refreshAccountsList();
                 }
             });
+        });
+    }
+
+    let accountsSearchTimer = null;
+
+    function setupAccountsTab() {
+        const searchInput = document.getElementById('accounts-search');
+        const list = document.getElementById('accounts-list');
+        if (!searchInput || !list) return;
+
+        searchInput.addEventListener('input', function() {
+            clearTimeout(accountsSearchTimer);
+            accountsSearchTimer = setTimeout(() => {
+                loadAccountsList(this.value.trim());
+            }, 300);
+        });
+
+        list.addEventListener('click', (event) => {
+            const addBtn = event.target.closest('[data-action="account-add"]');
+            if (addBtn) {
+                const username = addBtn.dataset.username;
+                if (username) {
+                    window.OurSpaceFriends.sendFriendRequest(username);
+                }
+            }
+        });
+
+        loadAccountsList('');
+    }
+
+    function refreshAccountsList() {
+        const input = document.getElementById('accounts-search');
+        if (!input) return;
+        loadAccountsList(input.value.trim());
+    }
+
+    async function loadAccountsList(query = '') {
+        const list = document.getElementById('accounts-list');
+        if (!list) return;
+
+        list.innerHTML = '<p class="inbox-empty">Loading profiles...</p>';
+        const users = await window.OurSpaceFriends.fetchPublishedUsers(query);
+        renderAccountsList(users);
+    }
+
+    function renderAccountsList(users) {
+        const list = document.getElementById('accounts-list');
+        if (!list) return;
+
+        if (!users.length) {
+            list.innerHTML = '<p class="inbox-empty">No users found.</p>';
+            return;
+        }
+
+        list.innerHTML = '';
+        users.forEach(user => {
+            const item = document.createElement('div');
+            item.className = 'account-item';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'account-name';
+            nameSpan.textContent = user.username;
+
+            const actions = document.createElement('div');
+            actions.className = 'account-actions';
+
+            const visitLink = document.createElement('a');
+            visitLink.className = 'visit-btn';
+            visitLink.href = `/ourspace.html?user=${encodeURIComponent(user.username)}`;
+            visitLink.target = '_blank';
+            visitLink.rel = 'noopener';
+            visitLink.textContent = 'Visit';
+
+            const addBtn = document.createElement('button');
+            addBtn.type = 'button';
+            addBtn.dataset.action = 'account-add';
+            addBtn.dataset.username = user.username;
+            addBtn.textContent = 'Add Friend';
+
+            actions.appendChild(visitLink);
+            actions.appendChild(addBtn);
+
+            item.appendChild(nameSpan);
+            item.appendChild(actions);
+            list.appendChild(item);
         });
     }
 
@@ -328,7 +435,7 @@
         const loginMessage = document.getElementById('inbox-login-message');
         if (!inboxLists || !loginMessage) return;
 
-        if (!window.MySpaceAuth || !window.MySpaceAuth.isAuthenticated) {
+        if (!window.OurSpaceAuth || !window.OurSpaceAuth.isAuthenticated) {
             loginMessage.textContent = 'Log in to view your inbox.';
             loginMessage.style.display = 'block';
             inboxLists.style.display = 'none';
@@ -340,8 +447,8 @@
         inboxLists.style.flexDirection = 'column';
 
         const [messages, requests] = await Promise.all([
-            window.MySpaceFriends.getInbox(),
-            window.MySpaceFriends.getFriendRequests()
+            window.OurSpaceFriends.getInbox(),
+            window.OurSpaceFriends.getFriendRequests()
         ]);
 
         renderMessages(messages);
@@ -393,7 +500,7 @@
                 const action = button.dataset.action;
                 if (action === 'mark-read') {
                     button.addEventListener('click', async () => {
-                        const ok = await window.MySpaceFriends.markMessageRead(button.dataset.id);
+                        const ok = await window.OurSpaceFriends.markMessageRead(button.dataset.id);
                         if (ok) {
                             refreshInbox();
                         } else {
@@ -402,12 +509,12 @@
                     });
                 } else if (action === 'reply') {
                     button.addEventListener('click', () => {
-                        window.MySpaceFriends.showSendMessageDialog(button.dataset.username);
+                        window.OurSpaceFriends.showSendMessageDialog(button.dataset.username);
                     });
                 } else if (action === 'delete') {
                     button.addEventListener('click', async () => {
                         if (!confirm('Delete this message?')) return;
-                        const ok = await window.MySpaceFriends.deleteInboxMessage(button.dataset.id);
+                        const ok = await window.OurSpaceFriends.deleteInboxMessage(button.dataset.id);
                         if (ok) {
                             refreshInbox();
                         } else {
@@ -452,7 +559,7 @@
 
             if (acceptBtn) {
                 acceptBtn.addEventListener('click', async () => {
-                    const ok = await window.MySpaceFriends.acceptFriendRequest(parseInt(acceptBtn.dataset.id, 10));
+                    const ok = await window.OurSpaceFriends.acceptFriendRequest(parseInt(acceptBtn.dataset.id, 10));
                     if (!ok) {
                         alert('Unable to accept request.');
                     }
@@ -462,7 +569,7 @@
 
             if (rejectBtn) {
                 rejectBtn.addEventListener('click', async () => {
-                    const ok = await window.MySpaceFriends.rejectFriendRequest(parseInt(rejectBtn.dataset.id, 10));
+                    const ok = await window.OurSpaceFriends.rejectFriendRequest(parseInt(rejectBtn.dataset.id, 10));
                     if (!ok) {
                         alert('Unable to reject request.');
                     }
@@ -486,7 +593,7 @@
     function truncateText(text, max) {
         if (!text) return '';
         if (text.length <= max) return text;
-        return `${text.slice(0, max - 1)}…`;
+        return `${text.slice(0, max - 1)}\u2026`;
     }
 
     function safeText(text) {
@@ -500,3 +607,8 @@
     }
 
 })();
+
+
+
+
+

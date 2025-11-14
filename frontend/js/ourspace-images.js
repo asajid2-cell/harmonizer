@@ -1,4 +1,4 @@
-// MySpace Images - Picture Wall and Image Management
+﻿// OurSpace Images - Picture Wall and Image Management
 
 (function() {
     'use strict';
@@ -15,6 +15,9 @@
 
         // Grid columns control
         setupGridColumns();
+
+        // Frame style control
+        setupPictureFrameStyleControl();
 
         // Load existing pictures
         loadPictureGrid();
@@ -45,7 +48,7 @@
                             formData.append('file', file);
                             formData.append('type', 'picture');
 
-                            const response = await fetch('/api/myspace/upload', {
+                            const response = await fetch('/api/ourspace/upload', {
                                 method: 'POST',
                                 body: formData
                             });
@@ -56,12 +59,13 @@
                                     id: Date.now() + Math.random(),
                                     url: data.url,
                                     caption: caption || '',
-                                    order: window.MySpace.profile.widgets.pictureWall.images.length,
+                                    order: window.OurSpace.profile.widgets.pictureWall.images.length,
+                                    frameStyle: window.OurSpace.profile.widgets.pictureWall.frameStyle || 'classic',
                                     position: { x: 50, y: 50 }
                                 };
 
-                                window.MySpace.profile.widgets.pictureWall.images.push(image);
-                                await window.MySpace.saveProfile();
+                                window.OurSpace.profile.widgets.pictureWall.images.push(image);
+                                await window.OurSpace.saveProfile();
                                 loadPictureGrid();
                             } else {
                                 console.error('[Images] Failed to upload image:', file.name);
@@ -86,15 +90,36 @@
         const pictureGrid = document.getElementById('picture-grid');
 
         if (gridColumns && pictureGrid) {
-            gridColumns.value = window.MySpace.profile.widgets.pictureWall.columns;
+            gridColumns.value = window.OurSpace.profile.widgets.pictureWall.columns;
 
             gridColumns.addEventListener('change', function() {
                 const columns = parseInt(this.value);
-                window.MySpace.profile.widgets.pictureWall.columns = columns;
+                window.OurSpace.profile.widgets.pictureWall.columns = columns;
                 pictureGrid.dataset.columns = columns;
-                window.MySpace.saveProfile();
+                window.OurSpace.saveProfile();
             });
         }
+    }
+
+    function setupPictureFrameStyleControl() {
+        const frameSelect = document.getElementById('picture-frame-style');
+        if (!frameSelect) return;
+
+        if (!window.OurSpace.profile.widgets.pictureWall.frameStyle) {
+            window.OurSpace.profile.widgets.pictureWall.frameStyle = 'classic';
+        }
+        const current = window.OurSpace.profile.widgets.pictureWall.frameStyle || 'classic';
+        frameSelect.value = current;
+
+        frameSelect.addEventListener('change', () => {
+            const style = frameSelect.value || 'classic';
+            window.OurSpace.profile.widgets.pictureWall.frameStyle = style;
+            window.OurSpace.profile.widgets.pictureWall.images.forEach(img => {
+                img.frameStyle = style;
+            });
+            window.OurSpace.saveProfile();
+            loadPictureGrid();
+        });
     }
 
     // Load Picture Grid
@@ -102,7 +127,11 @@
         const pictureGrid = document.getElementById('picture-grid');
         if (!pictureGrid) return;
 
-        const images = window.MySpace.profile.widgets.pictureWall.images;
+        if (!window.OurSpace.profile.widgets.pictureWall.frameStyle) {
+            window.OurSpace.profile.widgets.pictureWall.frameStyle = 'classic';
+        }
+
+        const images = window.OurSpace.profile.widgets.pictureWall.images;
 
         // Sort by order
         images.sort((a, b) => a.order - b.order);
@@ -116,8 +145,11 @@
 
         images.forEach((image, index) => {
             const position = ensurePicturePosition(image);
+            const frameStyle = sanitizeFrameStyle(image.frameStyle || window.OurSpace.profile.widgets.pictureWall.frameStyle || 'classic');
+            image.frameStyle = frameStyle;
             const pictureItem = document.createElement('div');
-            pictureItem.className = 'picture-item';
+            pictureItem.className = 'picture-item frame-' + frameStyle;
+            pictureItem.dataset.frameStyle = frameStyle;
             pictureItem.dataset.id = image.id;
             pictureItem.dataset.index = index;
             pictureItem.draggable = true;
@@ -161,13 +193,13 @@
                     pictureItem.draggable = !isActive;
                     frameBtn.textContent = isActive ? 'Done' : 'Frame';
                     if (!isActive) {
-                        window.MySpace.saveProfile();
+                        window.OurSpace.saveProfile();
                     }
                 });
             }
 
-            if (img && window.MySpace && typeof window.MySpace.createFrameDrag === 'function') {
-                window.MySpace.createFrameDrag(img, {
+            if (img && window.OurSpace && typeof window.OurSpace.createFrameDrag === 'function') {
+                window.OurSpace.createFrameDrag(img, {
                     isActive: () => pictureItem.classList.contains('picture-framing'),
                     get: () => ensurePicturePosition(image),
                     set: pos => {
@@ -179,7 +211,7 @@
                         img.style.objectPosition = `${x}% ${y}%`;
                     },
                     ignoreSelector: '.delete-btn, .frame-btn',
-                    onSave: () => window.MySpace.saveProfile()
+                    onSave: () => window.OurSpace.saveProfile()
                 });
             }
 
@@ -204,27 +236,27 @@
 
     // Delete Picture
     function deletePicture(id) {
-        window.MySpace.profile.widgets.pictureWall.images =
-            window.MySpace.profile.widgets.pictureWall.images.filter(img => img.id !== id);
+        window.OurSpace.profile.widgets.pictureWall.images =
+            window.OurSpace.profile.widgets.pictureWall.images.filter(img => img.id !== id);
 
         // Reorder
-        window.MySpace.profile.widgets.pictureWall.images.forEach((img, index) => {
+        window.OurSpace.profile.widgets.pictureWall.images.forEach((img, index) => {
             img.order = index;
         });
 
-        window.MySpace.saveProfile();
+        window.OurSpace.saveProfile();
         loadPictureGrid();
     }
 
     // Edit Caption
     function editCaption(id) {
-        const image = window.MySpace.profile.widgets.pictureWall.images.find(img => img.id === id);
+        const image = window.OurSpace.profile.widgets.pictureWall.images.find(img => img.id === id);
         if (!image) return;
 
         const newCaption = prompt('Edit caption:', image.caption);
         if (newCaption !== null) {
             image.caption = newCaption;
-            window.MySpace.saveProfile();
+            window.OurSpace.saveProfile();
             loadPictureGrid();
         }
     }
@@ -262,7 +294,7 @@
             const targetIndex = parseInt(this.dataset.index);
 
             // Reorder images
-            const images = window.MySpace.profile.widgets.pictureWall.images;
+            const images = window.OurSpace.profile.widgets.pictureWall.images;
             const [movedImage] = images.splice(draggedIndex, 1);
             images.splice(targetIndex, 0, movedImage);
 
@@ -271,7 +303,7 @@
                 img.order = index;
             });
 
-            window.MySpace.saveProfile();
+            window.OurSpace.saveProfile();
             loadPictureGrid();
         }
 
@@ -352,4 +384,14 @@
         return image.position;
     }
 
+    function sanitizeFrameStyle(value) {
+        const allowed = ['classic', 'notebook', 'magazine', 'polaroid', 'photocard'];
+        return allowed.includes(value) ? value : 'classic';
+    }
+
 })();
+
+
+
+
+
