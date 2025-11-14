@@ -847,6 +847,8 @@
         const fontSizeDisplay = document.getElementById('font-size-display');
         const textShadow = document.getElementById('text-shadow');
         const textGlow = document.getElementById('text-glow');
+        const textGlowColor = document.getElementById('text-glow-color');
+        const textGlowColorWrapper = document.getElementById('text-glow-color-wrapper');
 
         // Initialize with current values
         updateFontControls();
@@ -886,7 +888,20 @@
         if (textGlow) {
             textGlow.addEventListener('change', function() {
                 window.MySpace.profile.theme.fonts.effects.glow = this.checked;
+                if (textGlowColorWrapper) {
+                    textGlowColorWrapper.style.display = this.checked ? 'block' : 'none';
+                }
                 window.MySpace.applyTheme();
+                window.MySpace.saveProfile();
+            });
+        }
+
+        if (textGlowColor) {
+            textGlowColor.addEventListener('input', function() {
+                window.MySpace.profile.theme.fonts.effects.glowColor = this.value;
+                window.MySpace.applyTheme();
+            });
+            textGlowColor.addEventListener('change', function() {
                 window.MySpace.saveProfile();
             });
         }
@@ -900,104 +915,272 @@
         const fontSizeDisplay = document.getElementById('font-size-display');
         const textShadow = document.getElementById('text-shadow');
         const textGlow = document.getElementById('text-glow');
+        const textGlowColor = document.getElementById('text-glow-color');
+        const textGlowColorWrapper = document.getElementById('text-glow-color-wrapper');
 
         if (fontFamily) fontFamily.value = fonts.family;
         if (fontSize) fontSize.value = fonts.size;
         if (fontSizeDisplay) fontSizeDisplay.textContent = fonts.size + 'px';
         if (textShadow) textShadow.checked = fonts.effects.shadow;
         if (textGlow) textGlow.checked = fonts.effects.glow;
+        if (textGlowColor) textGlowColor.value = fonts.effects.glowColor || '#ffffff';
+        if (textGlowColorWrapper) {
+            textGlowColorWrapper.style.display = fonts.effects.glow ? 'block' : 'none';
+        }
     }
 
     // Effects Controls
     function setupEffectsControls() {
+        window.MySpace.profile.theme.effects = window.MySpace.profile.theme.effects || {};
+
         const effectFalling = document.getElementById('effect-falling');
         const fallingType = document.getElementById('falling-type');
         const effectCursorTrail = document.getElementById('effect-cursor-trail');
         const effectGlitter = document.getElementById('effect-glitter');
         const effectBlink = document.getElementById('effect-blink');
+        const effectSparkleRain = document.getElementById('effect-sparkle-rain');
+        const effectAuroraWaves = document.getElementById('effect-aurora-waves');
+        const effectPixelBurst = document.getElementById('effect-pixel-burst');
+        const effectNeonPulse = document.getElementById('effect-neon-pulse');
+        const effectPolaroid = document.getElementById('effect-polaroid-popups');
+        const effectBubbleWarp = document.getElementById('effect-bubble-warp');
+        const effectRetroScanlines = document.getElementById('effect-retro-scanlines');
+        const effectChromatic = document.getElementById('effect-chromatic-trails');
+        const effectFloatingEmojis = document.getElementById('effect-floating-emojis');
+        const effectLightning = document.getElementById('effect-lightning-flickers');
 
-        // Falling objects
-        if (effectFalling) {
-            effectFalling.checked = window.MySpace.profile.theme.effects.falling.enabled;
+        const cursorCustomWrapper = document.getElementById('cursor-trail-custom-wrapper');
 
-            effectFalling.addEventListener('change', function() {
-                window.MySpace.profile.theme.effects.falling.enabled = this.checked;
+        function ensureEffectConfig(key, defaults = {}) {
+            const effects = window.MySpace.profile.theme.effects;
+            let config = effects[key];
+            if (!config || typeof config !== 'object') {
+                config = { enabled: !!config };
+            }
+            config = Object.assign({ enabled: false }, defaults, config);
+            effects[key] = config;
+            return config;
+        }
+
+        function refreshEffects(options = {}) {
+            if (options.falling && window.MySpaceEffects && window.MySpaceEffects.updateFallingEffect) {
+                window.MySpaceEffects.updateFallingEffect();
+            }
+            if (options.cursor && window.MySpaceEffects && window.MySpaceEffects.toggleCursorTrail) {
+                window.MySpaceEffects.toggleCursorTrail();
+            }
+            if (window.MySpaceEffects && window.MySpaceEffects.refreshDynamicEffects) {
+                window.MySpaceEffects.refreshDynamicEffects();
+            }
+        }
+
+        function bindEffectToggle(toggle, key, defaults = {}, options = {}) {
+            if (!toggle) return;
+            const config = ensureEffectConfig(key, defaults);
+            toggle.checked = !!config.enabled;
+            toggle.addEventListener('change', function() {
+                ensureEffectConfig(key, defaults).enabled = this.checked;
                 window.MySpace.saveProfile();
-
-                // Trigger effects update
-                if (window.MySpaceEffects && window.MySpaceEffects.updateFallingEffect) {
-                    window.MySpaceEffects.updateFallingEffect();
-                }
+                refreshEffects(options.refresh || {});
             });
         }
 
-        // Falling type
+        function bindRangeControl(inputId, displayId, key, prop, defaults = {}, options = {}) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            const display = displayId ? document.getElementById(displayId) : null;
+            const config = ensureEffectConfig(key, defaults);
+            const format = options.format || (val => val);
+            const parse = options.parse || (val => parseFloat(val));
+            const updateDisplay = (val) => {
+                if (display) display.textContent = format(val);
+            };
+            if (config[prop] !== undefined) {
+                input.value = config[prop];
+            } else {
+                ensureEffectConfig(key, defaults)[prop] = parse(input.value);
+            }
+            updateDisplay(ensureEffectConfig(key, defaults)[prop]);
+            input.addEventListener('input', function() {
+                const val = parse(this.value);
+                ensureEffectConfig(key, defaults)[prop] = val;
+                updateDisplay(val);
+                if (options.live !== false) {
+                    refreshEffects(options.refresh || {});
+                }
+            });
+            input.addEventListener('change', function() {
+                const val = parse(this.value);
+                ensureEffectConfig(key, defaults)[prop] = val;
+                window.MySpace.saveProfile();
+                refreshEffects(options.refresh || {});
+            });
+        }
+
+        function bindSelectControl(selectId, key, prop, defaults = {}, options = {}) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            const config = ensureEffectConfig(key, defaults);
+            if (config[prop] !== undefined) {
+                select.value = config[prop];
+            } else {
+                ensureEffectConfig(key, defaults)[prop] = select.value;
+            }
+            if (options.onInit) {
+                options.onInit(select.value);
+            }
+            select.addEventListener('change', function() {
+                ensureEffectConfig(key, defaults)[prop] = this.value;
+                window.MySpace.saveProfile();
+                if (options.onChange) {
+                    options.onChange(this.value);
+                }
+                refreshEffects(options.refresh || {});
+            });
+        }
+
+        function bindColorControl(inputId, key, prop, defaults = {}, options = {}) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            const config = ensureEffectConfig(key, defaults);
+            if (config[prop]) {
+                input.value = config[prop];
+            } else {
+                ensureEffectConfig(key, defaults)[prop] = input.value;
+            }
+            input.addEventListener('input', function() {
+                ensureEffectConfig(key, defaults)[prop] = this.value;
+                if (options.live !== false) {
+                    refreshEffects(options.refresh || {});
+                }
+            });
+            input.addEventListener('change', function() {
+                ensureEffectConfig(key, defaults)[prop] = this.value;
+                window.MySpace.saveProfile();
+                refreshEffects(options.refresh || {});
+            });
+        }
+
+        const fallingDefaults = { type: 'hearts', speed: 2, density: 1 };
+        bindEffectToggle(effectFalling, 'falling', fallingDefaults, { refresh: { falling: true } });
         if (fallingType) {
-            fallingType.value = window.MySpace.profile.theme.effects.falling.type;
-
+            const fallingConfig = ensureEffectConfig('falling', fallingDefaults);
+            fallingType.value = fallingConfig.type;
             fallingType.addEventListener('change', function() {
-                window.MySpace.profile.theme.effects.falling.type = this.value;
+                ensureEffectConfig('falling', fallingDefaults).type = this.value;
                 window.MySpace.saveProfile();
+                refreshEffects({ falling: true });
+            });
+        }
+        bindRangeControl('falling-speed', 'falling-speed-display', 'falling', 'speed', fallingDefaults, {
+            refresh: { falling: true },
+            format: val => val.toFixed(1) + 'x'
+        });
+        bindRangeControl('falling-density', 'falling-density-display', 'falling', 'density', fallingDefaults, {
+            refresh: { falling: true },
+            format: val => val.toFixed(1) + 'x'
+        });
 
-                if (window.MySpaceEffects && window.MySpaceEffects.updateFallingEffect) {
-                    window.MySpaceEffects.updateFallingEffect();
+        const cursorDefaults = { style: 'sparkle', colorMode: 'rainbow', customColor: '#ff7cf5', length: 1, size: 1 };
+        bindEffectToggle(effectCursorTrail, 'cursorTrail', cursorDefaults, { refresh: { cursor: true } });
+        bindRangeControl('cursor-trail-length', 'cursor-trail-length-display', 'cursorTrail', 'length', cursorDefaults, {
+            refresh: { cursor: true },
+            format: val => val.toFixed(1) + 'x'
+        });
+        bindRangeControl('cursor-trail-size', 'cursor-trail-size-display', 'cursorTrail', 'size', cursorDefaults, {
+            refresh: { cursor: true },
+            format: val => val.toFixed(1) + 'x'
+        });
+        bindSelectControl('cursor-trail-color-mode', 'cursorTrail', 'colorMode', cursorDefaults, {
+            refresh: { cursor: true },
+            onInit: (value) => {
+                if (cursorCustomWrapper) {
+                    cursorCustomWrapper.style.display = value === 'custom' ? 'block' : 'none';
                 }
-            });
-        }
-
-        // Cursor trail
-        if (effectCursorTrail) {
-            effectCursorTrail.checked = window.MySpace.profile.theme.effects.cursorTrail.enabled;
-
-            effectCursorTrail.addEventListener('change', function() {
-                window.MySpace.profile.theme.effects.cursorTrail.enabled = this.checked;
-                window.MySpace.saveProfile();
-
-                if (window.MySpaceEffects && window.MySpaceEffects.toggleCursorTrail) {
-                    window.MySpaceEffects.toggleCursorTrail(this.checked);
+            },
+            onChange: (value) => {
+                if (cursorCustomWrapper) {
+                    cursorCustomWrapper.style.display = value === 'custom' ? 'block' : 'none';
                 }
-            });
-        }
+            }
+        });
+        bindColorControl('cursor-trail-custom-color', 'cursorTrail', 'customColor', cursorDefaults, {
+            refresh: { cursor: true }
+        });
 
-        // Glitter borders
-        if (effectGlitter) {
-            effectGlitter.checked = window.MySpace.profile.theme.effects.glitter;
+        const glitterDefaults = { intensity: 0.7 };
+        bindEffectToggle(effectGlitter, 'glitter', glitterDefaults);
+        bindRangeControl('glitter-intensity', 'glitter-intensity-display', 'glitter', 'intensity', glitterDefaults, {
+            refresh: {},
+            format: val => Math.round(val * 100) + '%'
+        });
 
-            effectGlitter.addEventListener('change', function() {
-                window.MySpace.profile.theme.effects.glitter = this.checked;
-                window.MySpace.saveProfile();
+        const blinkDefaults = { speed: 1 };
+        bindEffectToggle(effectBlink, 'blink', blinkDefaults);
+        bindRangeControl('blink-speed', 'blink-speed-display', 'blink', 'speed', blinkDefaults, {
+            refresh: {},
+            format: val => val.toFixed(1) + 's'
+        });
 
-                // Toggle glitter class on widgets
-                const widgets = document.querySelectorAll('.widget, .picture-item, .friend-slot');
-                widgets.forEach(widget => {
-                    if (this.checked) {
-                        widget.classList.add('glitter-border');
-                    } else {
-                        widget.classList.remove('glitter-border');
-                    }
-                });
-            });
-        }
+        const sparkleDefaults = { density: 1 };
+        bindEffectToggle(effectSparkleRain, 'sparkleRain', sparkleDefaults);
+        bindRangeControl('sparkle-rain-density', 'sparkle-rain-density-display', 'sparkleRain', 'density', sparkleDefaults, {
+            refresh: {},
+            format: val => val.toFixed(1) + 'x'
+        });
 
-        // Blinking text
-        if (effectBlink) {
-            effectBlink.checked = window.MySpace.profile.theme.effects.blink;
+        const auroraDefaults = { intensity: 0.4, speed: 1, colorA: '#47ffe3', colorB: '#ff4ffb' };
+        bindEffectToggle(effectAuroraWaves, 'auroraWaves', auroraDefaults);
+        bindRangeControl('aurora-intensity', 'aurora-intensity-display', 'auroraWaves', 'intensity', auroraDefaults, {
+            refresh: {},
+            format: val => Math.round(val * 100) + '%'
+        });
+        bindRangeControl('aurora-speed', 'aurora-speed-display', 'auroraWaves', 'speed', auroraDefaults, {
+            refresh: {},
+            format: val => val.toFixed(1) + 'x'
+        });
+        bindColorControl('aurora-color-a', 'auroraWaves', 'colorA', auroraDefaults, { refresh: {} });
+        bindColorControl('aurora-color-b', 'auroraWaves', 'colorB', auroraDefaults, { refresh: {} });
 
-            effectBlink.addEventListener('change', function() {
-                window.MySpace.profile.theme.effects.blink = this.checked;
-                window.MySpace.saveProfile();
+        const neonDefaults = { color: '#00fff5', accent: '#ff00ff', speed: 1.2 };
+        bindEffectToggle(effectNeonPulse, 'neonPulse', neonDefaults);
+        bindColorControl('neon-color', 'neonPulse', 'color', neonDefaults, { refresh: {} });
+        bindColorControl('neon-accent-color', 'neonPulse', 'accent', neonDefaults, { refresh: {} });
+        bindRangeControl('neon-speed', 'neon-speed-display', 'neonPulse', 'speed', neonDefaults, {
+            refresh: {},
+            format: val => val.toFixed(1) + 'x'
+        });
 
-                // Toggle blink class on headers
-                const headers = document.querySelectorAll('.widget-header h2, .profile-name');
-                headers.forEach(header => {
-                    if (this.checked) {
-                        header.classList.add('blink');
-                    } else {
-                        header.classList.remove('blink');
-                    }
-                });
-            });
-        }
+        bindEffectToggle(effectPixelBurst, 'pixelBurst');
+        bindEffectToggle(effectPolaroid, 'polaroidPopups', { interval: 4 });
+        bindEffectToggle(effectBubbleWarp, 'bubbleWarp', { size: 1 });
+        bindEffectToggle(effectRetroScanlines, 'retroScanlines', { opacity: 0.18 });
+
+        const trailDefaults = { length: 0.9, mode: 'sunset' };
+        bindEffectToggle(effectChromatic, 'chromaticTrails', trailDefaults);
+        bindRangeControl('trail-length', 'trail-length-display', 'chromaticTrails', 'length', trailDefaults, {
+            refresh: {},
+            format: val => val.toFixed(1) + 'x'
+        });
+        bindSelectControl('trail-mode', 'chromaticTrails', 'mode', trailDefaults, { refresh: {} });
+
+        const emojiDefaults = { density: 1 };
+        bindEffectToggle(effectFloatingEmojis, 'floatingEmojis', emojiDefaults);
+        bindRangeControl('emoji-density', 'emoji-density-display', 'floatingEmojis', 'density', emojiDefaults, {
+            refresh: {},
+            format: val => val.toFixed(1) + 'x'
+        });
+
+        const lightningDefaults = { intensity: 0.8, frequency: 6 };
+        bindEffectToggle(effectLightning, 'lightningFlickers', lightningDefaults);
+        bindRangeControl('lightning-frequency', 'lightning-frequency-display', 'lightningFlickers', 'frequency', lightningDefaults, {
+            refresh: {},
+            format: val => val.toFixed(1) + 's'
+        });
+        bindRangeControl('lightning-intensity', 'lightning-intensity-display', 'lightningFlickers', 'intensity', lightningDefaults, {
+            refresh: {},
+            format: val => Math.round(val * 100) + '%'
+        });
     }
 
     // Layout Controls
@@ -1024,6 +1207,96 @@
                 window.MySpace.saveProfile();
             });
         });
+
+        // Layout Editor Controls
+        const layoutEditorToggle = document.getElementById('layout-editor-toggle');
+        const allowOverlapToggle = document.getElementById('allow-overlap-toggle');
+        const layoutEditorControls = document.getElementById('layout-editor-controls');
+        const snapThreshold = document.getElementById('snap-threshold');
+        const snapThresholdDisplay = document.getElementById('snap-threshold-display');
+        const gridSize = document.getElementById('grid-size');
+        const gridSizeDisplay = document.getElementById('grid-size-display');
+        const mobileBreakpoint = document.getElementById('mobile-breakpoint');
+        const mobileBehavior = document.getElementById('mobile-behavior');
+        const layoutReset = document.getElementById('layout-reset');
+
+        if (layoutEditorToggle) {
+            layoutEditorToggle.addEventListener('change', function() {
+                if (window.MySpaceLayoutEditor) {
+                    window.MySpaceLayoutEditor.toggle(this.checked);
+
+                    if (layoutEditorControls) {
+                        layoutEditorControls.style.display = this.checked ? 'block' : 'none';
+                    }
+                }
+            });
+        }
+
+        if (allowOverlapToggle) {
+            allowOverlapToggle.checked = true; // Default to allowing overlap
+            allowOverlapToggle.addEventListener('change', function() {
+                if (window.MySpaceLayoutEditor) {
+                    window.MySpaceLayoutEditor.allowOverlap = this.checked;
+                    console.log('[Layout Editor] Allow overlap:', this.checked);
+
+                    // If turning off overlap, resolve existing overlaps
+                    if (!this.checked && window.MySpaceLayoutEditor.enabled) {
+                        window.MySpaceLayoutEditor.resolveOverlaps();
+                        window.MySpaceLayoutEditor.saveLayout();
+                    }
+                }
+            });
+        }
+
+        if (snapThreshold && snapThresholdDisplay) {
+            snapThreshold.addEventListener('input', function() {
+                snapThresholdDisplay.textContent = this.value + 'px';
+                if (window.MySpaceLayoutEditor) {
+                    window.MySpaceLayoutEditor.snapThreshold = parseInt(this.value);
+                }
+            });
+        }
+
+        if (gridSize && gridSizeDisplay) {
+            gridSize.addEventListener('input', function() {
+                gridSizeDisplay.textContent = this.value + 'px';
+                if (window.MySpaceLayoutEditor) {
+                    window.MySpaceLayoutEditor.gridSize = parseInt(this.value);
+                }
+            });
+        }
+
+        if (mobileBreakpoint) {
+            mobileBreakpoint.addEventListener('change', function() {
+                const widgets = document.querySelectorAll('.layout-editable');
+                widgets.forEach(widget => {
+                    widget.dataset.mobileBreakpoint = this.value;
+                });
+                if (window.MySpaceLayoutEditor) {
+                    window.MySpaceLayoutEditor.saveLayout();
+                }
+            });
+        }
+
+        if (mobileBehavior) {
+            mobileBehavior.addEventListener('change', function() {
+                const widgets = document.querySelectorAll('.layout-editable');
+                widgets.forEach(widget => {
+                    widget.dataset.mobileBehavior = this.value;
+                });
+                if (window.MySpaceLayoutEditor) {
+                    window.MySpaceLayoutEditor.saveLayout();
+                }
+            });
+        }
+
+        if (layoutReset) {
+            layoutReset.addEventListener('click', function() {
+                if (window.MySpaceLayoutEditor) {
+                    window.MySpaceLayoutEditor.resetLayout();
+                }
+            });
+        }
     }
 
     // Profile Actions

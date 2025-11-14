@@ -18,17 +18,34 @@ body {
 #myspace-main p,
 #myspace-main div,
 #myspace-main span,
-#myspace-main li {
+#myspace-main li,
+#myspace-main h1,
+#myspace-main h2,
+#myspace-main h3,
+#myspace-main h4,
+#myspace-main h5,
+#myspace-main h6 {
     color: var(--custom-text-color, #ffffff);
+    text-shadow: var(--text-glow-shadow, none);
 }
 
 #myspace-main a {
     color: var(--custom-link-color, #00ffff);
     transition: color 0.2s ease;
+    text-shadow: var(--text-glow-shadow, none);
 }
 
 #myspace-main a:hover {
     color: var(--custom-link-hover, #ff00ff);
+    text-shadow: var(--text-glow-shadow, none);
+}
+
+#myspace-main button,
+#myspace-main label,
+#myspace-main input,
+#myspace-main textarea {
+    text-shadow: var(--text-glow-shadow, none);
+    color: var(--custom-text-color, #ffffff);
 }
 
 /* Apply border color to widgets */
@@ -377,6 +394,42 @@ select {
     cursor: pointer;
 }
 
+.effect-control-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.effect-group {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+}
+
+.effect-group h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #ffd8ff;
+}
+
+.effect-group label {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.effect-group input[type="range"],
+.effect-group select,
+.effect-group input[type="color"] {
+    width: 100%;
+    margin-top: 4px;
+}
+
 /* Layout Buttons */
 .layout-btns {
     display: grid;
@@ -522,11 +575,6 @@ select {
     display: flex;
     gap: 20px;
     font-size: 14px;
-}
-
-.online-indicator {
-    color: #00ff00;
-    font-weight: bold;
 }
 
 .mood {
@@ -1136,6 +1184,290 @@ select {
     max-height: 80%;
     border: 3px solid #00ffff;
     box-shadow: 0 0 50px rgba(0, 255, 255, 0.7);
+}
+
+/* Layout Editor Styles */
+.layout-editor-active #myspace-main {
+    position: relative;
+}
+
+.layout-editable {
+    position: relative !important;
+    transition: box-shadow 0.2s ease;
+    cursor: move;
+}
+
+.layout-editable:hover {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    outline: 2px dashed rgba(0, 255, 255, 0.3);
+}
+
+.layout-editable.dragging {
+    opacity: 0.8;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+    outline: 2px solid #00ffff;
+    z-index: 9999;
+}
+
+.layout-editable.resizing {
+    opacity: 0.9;
+    outline: 2px solid #ff00ff;
+}
+
+/* Ensure widget content stays organized when resized */
+.layout-editable .widget-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.layout-editable .widget-header {
+    flex-shrink: 0;
+}
+
+/* Music widget specific layout protection */
+.layout-editable#music-widget .widget-content {
+    min-height: 200px;
+}
+
+.layout-editable#music-widget .audio-controls {
+    flex-shrink: 0;
+    position: relative;
+}
+
+.layout-editable#music-widget .audio-upload {
+    flex-shrink: 0;
+}
+
+/* Picture wall layout protection */
+.layout-editable#picture-wall-widget .picture-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 10px;
+}
+
+/* Comments widget layout protection */
+.layout-editable#comments-widget .comment-input {
+    flex-shrink: 0;
+    margin-top: auto;
+}
+
+/* Contact buttons stay visible */
+.layout-editable#contact-widget .contact-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Drag Handle */
+.drag-handle {
+    position: absolute !important;
+    top: 5px !important;
+    left: 5px !important;
+    width: 30px !important;
+    height: 30px !important;
+    background: rgba(0, 255, 255, 0.8) !important;
+    border: 2px solid #00ffff !important;
+    border-radius: 5px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: move !important;
+    font-size: 18px !important;
+    color: #000 !important;
+    font-weight: bold !important;
+    z-index: 10000 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.drag-handle:hover {
+    background: rgba(0, 255, 255, 1);
+    transform: scale(1.1);
+}
+
+/* Hide all editor controls in view mode */
+body.view-mode .drag-handle,
+body.view-mode .resize-handle,
+body.view-mode .zindex-controls,
+body.view-mode .snapline-container {
+    display: none !important;
+}
+
+body.view-mode .layout-editable {
+    cursor: default !important;
+}
+
+body.view-mode .layout-editable:hover {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Resize Handle */
+.resize-handle {
+    position: absolute !important;
+    bottom: 0 !important;
+    right: 0 !important;
+    width: 20px !important;
+    height: 20px !important;
+    background: rgba(255, 0, 255, 0.8) !important;
+    border: 2px solid #ff00ff !important;
+    border-radius: 0 0 5px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: nwse-resize !important;
+    font-size: 12px !important;
+    color: #fff !important;
+    z-index: 10000 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.resize-handle:hover {
+    background: rgba(255, 0, 255, 1);
+    transform: scale(1.1);
+}
+
+/* Z-Index Controls */
+.zindex-controls {
+    position: absolute !important;
+    top: 5px !important;
+    right: 5px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+    border: 2px solid #ffff00 !important;
+    border-radius: 5px !important;
+    padding: 3px 8px !important;
+    z-index: 10000 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.zindex-btn {
+    width: 20px;
+    height: 20px;
+    background: rgba(255, 255, 0, 0.8);
+    border: 1px solid #ffff00;
+    border-radius: 3px;
+    color: #000;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-weight: bold;
+}
+
+.zindex-btn:hover {
+    background: rgba(255, 255, 0, 1);
+    transform: scale(1.1);
+}
+
+.zindex-label {
+    color: #ffff00;
+    font-size: 10px;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+    min-width: 30px;
+    text-align: center;
+}
+
+/* Snapline Container */
+.snapline-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9998;
+}
+
+/* Snaplines */
+.snapline {
+    position: absolute;
+    background: #00ff00;
+    box-shadow: 0 0 5px #00ff00;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.snapline-vertical {
+    width: 2px;
+    height: 100%;
+    top: 0;
+}
+
+.snapline-horizontal {
+    height: 2px;
+    width: 100%;
+    left: 0;
+}
+
+/* Mobile Responsive Overrides */
+@media (max-width: 768px) {
+    .layout-editable[data-mobile-behavior="hide"] {
+        display: none !important;
+    }
+
+    .layout-editable[data-mobile-behavior="stack"] {
+        position: static !important;
+        width: 100% !important;
+        margin-bottom: 15px;
+    }
+
+    .layout-editable[data-mobile-behavior="shrink"] {
+        transform: scale(0.8);
+        transform-origin: top left;
+    }
+
+    .layout-editable[data-mobile-behavior="scroll"] {
+        overflow-x: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .layout-editable[data-mobile-breakpoint="480px"][data-mobile-behavior="hide"] {
+        display: none !important;
+    }
+
+    .layout-editable[data-mobile-breakpoint="480px"][data-mobile-behavior="stack"] {
+        position: static !important;
+        width: 100% !important;
+    }
+}
+
+@media (max-width: 1024px) {
+    .layout-editable[data-mobile-breakpoint="1024px"][data-mobile-behavior="hide"] {
+        display: none !important;
+    }
+
+    .layout-editable[data-mobile-breakpoint="1024px"][data-mobile-behavior="stack"] {
+        position: static !important;
+        width: 100% !important;
+    }
+}
+
+@media (max-width: 1280px) {
+    .layout-editable[data-mobile-breakpoint="1280px"][data-mobile-behavior="hide"] {
+        display: none !important;
+    }
+
+    .layout-editable[data-mobile-breakpoint="1280px"][data-mobile-behavior="stack"] {
+        position: static !important;
+        width: 100% !important;
+    }
 }
 
 .lightbox-caption {

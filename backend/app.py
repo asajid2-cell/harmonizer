@@ -1898,37 +1898,149 @@ def myspace_media(user_id: str, filename: str):
 
 
 # MySpace Authentication Endpoints
-try:
-    from myspace_db import (
-        create_user,
-        authenticate_user,
-        get_user_profile,
-        get_user_profile_by_username,
-        save_user_profile,
-        publish_profile,
-        add_friend,
-        remove_friend,
-        get_friends,
-        search_users,
-        reset_user_password,
-        send_friend_request,
-        get_pending_friend_requests,
-        accept_friend_request,
-        reject_friend_request,
-        send_message,
-        get_inbox,
-        get_sent_messages,
-        mark_message_read,
-        get_unread_count,
-        delete_message,
-        block_user,
-        unblock_user,
-        get_blocked_users,
-        is_blocked
-    )
-except ImportError:
-    # Module not available
-    create_user = None
+def _load_myspace_db():
+    """Load MySpace DB helpers whether backend runs as module or package."""
+    try:
+        from .myspace_db import (  # type: ignore[attr-defined]
+            accept_friend_request,
+            add_friend,
+            authenticate_user,
+            block_user,
+            create_user,
+            delete_message,
+            get_blocked_users,
+            get_friends,
+            get_inbox,
+            get_pending_friend_requests,
+            get_sent_messages,
+            get_unread_count,
+            get_user_profile,
+            get_user_profile_by_username,
+            is_blocked,
+            mark_message_read,
+            publish_profile,
+            reject_friend_request,
+            remove_friend,
+            reset_user_password,
+            save_user_profile,
+            search_users,
+            send_friend_request,
+            send_message,
+            unblock_user,
+        )
+        return {
+            "accept_friend_request": accept_friend_request,
+            "add_friend": add_friend,
+            "authenticate_user": authenticate_user,
+            "block_user": block_user,
+            "create_user": create_user,
+            "delete_message": delete_message,
+            "get_blocked_users": get_blocked_users,
+            "get_friends": get_friends,
+            "get_inbox": get_inbox,
+            "get_pending_friend_requests": get_pending_friend_requests,
+            "get_sent_messages": get_sent_messages,
+            "get_unread_count": get_unread_count,
+            "get_user_profile": get_user_profile,
+            "get_user_profile_by_username": get_user_profile_by_username,
+            "is_blocked": is_blocked,
+            "mark_message_read": mark_message_read,
+            "publish_profile": publish_profile,
+            "reject_friend_request": reject_friend_request,
+            "remove_friend": remove_friend,
+            "reset_user_password": reset_user_password,
+            "save_user_profile": save_user_profile,
+            "search_users": search_users,
+            "send_friend_request": send_friend_request,
+            "send_message": send_message,
+            "unblock_user": unblock_user,
+        }
+    except ImportError:
+        try:
+            from myspace_db import (
+                accept_friend_request,
+                add_friend,
+                authenticate_user,
+                block_user,
+                create_user,
+                delete_message,
+                get_blocked_users,
+                get_friends,
+                get_inbox,
+                get_pending_friend_requests,
+                get_sent_messages,
+                get_unread_count,
+                get_user_profile,
+                get_user_profile_by_username,
+                is_blocked,
+                mark_message_read,
+                publish_profile,
+                reject_friend_request,
+                remove_friend,
+                reset_user_password,
+                save_user_profile,
+                search_users,
+                send_friend_request,
+                send_message,
+                unblock_user,
+            )
+            return {
+                "accept_friend_request": accept_friend_request,
+                "add_friend": add_friend,
+                "authenticate_user": authenticate_user,
+                "block_user": block_user,
+                "create_user": create_user,
+                "delete_message": delete_message,
+                "get_blocked_users": get_blocked_users,
+                "get_friends": get_friends,
+                "get_inbox": get_inbox,
+                "get_pending_friend_requests": get_pending_friend_requests,
+                "get_sent_messages": get_sent_messages,
+                "get_unread_count": get_unread_count,
+                "get_user_profile": get_user_profile,
+                "get_user_profile_by_username": get_user_profile_by_username,
+                "is_blocked": is_blocked,
+                "mark_message_read": mark_message_read,
+                "publish_profile": publish_profile,
+                "reject_friend_request": reject_friend_request,
+                "remove_friend": remove_friend,
+                "reset_user_password": reset_user_password,
+                "save_user_profile": save_user_profile,
+                "search_users": search_users,
+                "send_friend_request": send_friend_request,
+                "send_message": send_message,
+                "unblock_user": unblock_user,
+            }
+        except ImportError:
+            return {}
+
+
+_myspace_db_helpers = _load_myspace_db()
+create_user = _myspace_db_helpers.get("create_user")
+authenticate_user = _myspace_db_helpers.get("authenticate_user")
+get_user_profile = _myspace_db_helpers.get("get_user_profile")
+get_user_profile_by_username = _myspace_db_helpers.get("get_user_profile_by_username")
+save_user_profile = _myspace_db_helpers.get("save_user_profile")
+publish_profile = _myspace_db_helpers.get("publish_profile")
+add_friend = _myspace_db_helpers.get("add_friend")
+remove_friend = _myspace_db_helpers.get("remove_friend")
+get_friends = _myspace_db_helpers.get("get_friends")
+search_users = _myspace_db_helpers.get("search_users")
+reset_user_password = _myspace_db_helpers.get("reset_user_password")
+send_friend_request = _myspace_db_helpers.get("send_friend_request")
+get_pending_friend_requests = _myspace_db_helpers.get("get_pending_friend_requests")
+accept_friend_request = _myspace_db_helpers.get("accept_friend_request")
+reject_friend_request = _myspace_db_helpers.get("reject_friend_request")
+send_message = _myspace_db_helpers.get("send_message")
+get_inbox = _myspace_db_helpers.get("get_inbox")
+get_sent_messages = _myspace_db_helpers.get("get_sent_messages")
+mark_message_read = _myspace_db_helpers.get("mark_message_read")
+get_unread_count = _myspace_db_helpers.get("get_unread_count")
+delete_message = _myspace_db_helpers.get("delete_message")
+block_user = _myspace_db_helpers.get("block_user")
+unblock_user = _myspace_db_helpers.get("unblock_user")
+get_blocked_users = _myspace_db_helpers.get("get_blocked_users")
+is_blocked = _myspace_db_helpers.get("is_blocked")
 
 
 @app.route("/api/myspace/register", methods=["POST", "OPTIONS"])

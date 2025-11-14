@@ -3,6 +3,36 @@
 (function() {
     'use strict';
 
+    const EFFECT_DEFAULTS = {
+        falling: { enabled: false, type: "hearts", speed: 2, density: 1 },
+        cursorTrail: {
+            enabled: false,
+            style: "sparkle",
+            colorMode: "rainbow",
+            customColor: "#ff7cf5",
+            length: 1,
+            size: 1
+        },
+        blink: { enabled: false, speed: 1 },
+        glitter: { enabled: false, intensity: 0.7 },
+        sparkleRain: { enabled: false, density: 1 },
+        auroraWaves: {
+            enabled: false,
+            intensity: 0.4,
+            speed: 1,
+            colorA: "#47ffe3",
+            colorB: "#ff4ffb"
+        },
+        pixelBurst: { enabled: false },
+        neonPulse: { enabled: false, color: "#00fff5", accent: "#ff00ff", speed: 1.2 },
+        polaroidPopups: { enabled: false, interval: 4 },
+        bubbleWarp: { enabled: false, size: 1 },
+        retroScanlines: { enabled: false, opacity: 0.18 },
+        chromaticTrails: { enabled: false, length: 0.9, mode: "sunset" },
+        floatingEmojis: { enabled: false, density: 1 },
+        lightningFlickers: { enabled: false, intensity: 0.8, frequency: 6 }
+    };
+
     // Default profile data structure
     const DEFAULT_PROFILE = {
         version: "1.0",
@@ -31,7 +61,8 @@
                 size: 14,
                 effects: {
                     shadow: false,
-                    glow: false
+                    glow: false,
+                    glowColor: "#ffffff"
                 }
             },
             background: {
@@ -67,12 +98,7 @@
                     opacity: 100
                 }
             },
-            effects: {
-                falling: { enabled: false, type: "hearts", speed: 2 },
-                cursorTrail: { enabled: false, type: "sparkle" },
-                blink: false,
-                glitter: false
-            }
+            effects: JSON.parse(JSON.stringify(EFFECT_DEFAULTS))
         },
         widgets: {
             aboutMe: {
@@ -124,10 +150,49 @@
         }
     };
 
+    function mergeEffectConfig(defaultConfig, currentConfig) {
+        if (typeof defaultConfig !== "object" || defaultConfig === null) {
+            return currentConfig !== undefined ? currentConfig : defaultConfig;
+        }
+
+        let source = currentConfig;
+        if (typeof currentConfig === "boolean") {
+            source = { enabled: currentConfig };
+        } else if (typeof currentConfig !== "object" || currentConfig === null) {
+            source = {};
+        }
+
+        const merged = {};
+        for (const key of Object.keys(defaultConfig)) {
+            merged[key] = mergeEffectConfig(defaultConfig[key], source[key]);
+        }
+        for (const key of Object.keys(source)) {
+            if (!(key in merged)) {
+                merged[key] = source[key];
+            }
+        }
+        return merged;
+    }
+
+    function mergeEffectDefaults(effects) {
+        const current = effects || {};
+        const merged = {};
+        for (const key of Object.keys(EFFECT_DEFAULTS)) {
+            merged[key] = mergeEffectConfig(EFFECT_DEFAULTS[key], current[key]);
+        }
+        for (const key of Object.keys(current)) {
+            if (!(key in merged)) {
+                merged[key] = current[key];
+            }
+        }
+        return merged;
+    }
+
     // Global MySpace object
     window.MySpace = {
         profile: JSON.parse(JSON.stringify(DEFAULT_PROFILE)), // Initialize with default to prevent null errors
         viewMode: false,
+        _themeFrame: null,
 
         // Initialize the MySpace page
         init: async function() {
@@ -145,12 +210,19 @@
             await this.saveProfile();
 
             // Apply theme and customizations
-            this.applyTheme();
+            this.applyTheme(true);
             this.loadContent();
             this.updateStats();
 
             // Setup mode toggle
             this.setupModeToggle();
+
+            // Load custom layout if exists
+            if (window.MySpaceLayoutEditor && this.profile.layout && this.profile.layout.grid) {
+                setTimeout(() => {
+                    window.MySpaceLayoutEditor.updateFromProfile();
+                }, 500);
+            }
 
             console.log("[MySpace] Initialization complete");
         },
@@ -239,8 +311,46 @@
         // Reset profile to defaults
         resetProfile: function() {
             if (confirm("Are you sure you want to reset everything? This cannot be undone!")) {
+                // Clear all widget inline styles (positions, sizes from grid editor)
+                const allWidgets = document.querySelectorAll('.widget, #profile-header, .profile-header, .profile-picture, .profile-banner, .contact-section, .stat-container, .profile-info');
+                allWidgets.forEach(widget => {
+                    // Remove all inline positioning
+                    widget.style.position = '';
+                    widget.style.left = '';
+                    widget.style.top = '';
+                    widget.style.width = '';
+                    widget.style.height = '';
+                    widget.style.zIndex = '';
+
+                    // Clear dataset attributes
+                    delete widget.dataset.originalPosition;
+                    delete widget.dataset.originalLeft;
+                    delete widget.dataset.originalTop;
+                    delete widget.dataset.originalWidth;
+                    delete widget.dataset.originalHeight;
+
+                    // Remove any editor classes
+                    widget.classList.remove('layout-editable', 'dragging', 'resizing');
+                });
+
+                // Remove transform overlay if it exists
+                const overlay = document.getElementById('bg-transform-overlay');
+                if (overlay) {
+                    overlay.remove();
+                }
+
+                // Disable grid editor if active
+                if (window.MySpaceLayoutEditor && window.MySpaceLayoutEditor.enabled) {
+                    window.MySpaceLayoutEditor.toggle(false);
+                    const layoutToggle = document.getElementById('layout-editor-toggle');
+                    if (layoutToggle) layoutToggle.checked = false;
+                }
+
+                // Reset profile data
                 this.profile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
                 this.saveProfile();
+
+                // Reload page to apply clean state
                 location.reload();
             }
         },
@@ -278,8 +388,39 @@
         },
 
         // Apply current theme
-        applyTheme: function() {
+        applyTheme: function(forceImmediate = false) {
+            if (!forceImmediate) {
+                if (this._themeFrame) {
+                    return;
+                }
+                const raf = window.requestAnimationFrame || function(cb) {
+                    return setTimeout(cb, 16);
+                };
+                this._themeFrame = raf(() => {
+                    this._themeFrame = null;
+                    this.applyTheme(true);
+                });
+                return;
+            }
+
             const theme = this.profile.theme;
+
+            // Ensure font structure exists (backwards compatibility)
+            if (!theme.fonts) {
+                theme.fonts = {
+                    family: "Arial",
+                    size: 14,
+                    effects: { shadow: false, glow: false }
+                };
+            }
+            if (!theme.fonts.effects) {
+                theme.fonts.effects = { shadow: false, glow: false, glowColor: "#ffffff" };
+            }
+            if (!("glowColor" in theme.fonts.effects) || !theme.fonts.effects.glowColor) {
+                theme.fonts.effects.glowColor = "#ffffff";
+            }
+
+            theme.effects = mergeEffectDefaults(theme.effects);
 
             // Initialize background properties if they don't exist (backwards compatibility)
             if (!theme.background.transform) {
@@ -318,6 +459,16 @@
                 bg.style.backgroundSize = '';
                 bg.style.backgroundPosition = '';
                 bg.style.backgroundAttachment = '';
+                bg.style.mixBlendMode = '';
+                bg.style.opacity = '';
+                bg.style.filter = '';
+
+                // Remove any existing transform overlay
+                const existingOverlay = document.getElementById('bg-transform-overlay');
+                if (existingOverlay) {
+                    existingOverlay.remove();
+                    console.log("[MySpace] Removed existing transform overlay");
+                }
 
                 if (theme.background.type === 'solid') {
                     // Solid color background
@@ -341,17 +492,11 @@
                 } else if (theme.background.type === 'image' && theme.background.image) {
                     // Custom image background with transformations
                     console.log("[MySpace] Applying custom image with transformations");
-                    bg.style.backgroundImage = `url(${theme.background.image})`;
 
                     // Handle custom size
                     const bgSize = theme.background.size === 'custom'
                         ? `${theme.background.customSize}px ${theme.background.customSize}px`
                         : (theme.background.size || 'cover');
-                    bg.style.backgroundSize = bgSize;
-
-                    bg.style.backgroundPosition = theme.background.position || 'center';
-                    bg.style.backgroundAttachment = theme.background.attachment || 'fixed';
-                    bg.style.backgroundRepeat = theme.background.repeat || 'no-repeat';
 
                     // Apply CSS filters
                     const filters = [];
@@ -367,12 +512,6 @@
                         if (f.grayscale > 0) filters.push(`grayscale(${f.grayscale}%)`);
                     }
 
-                    // Apply blend mode and opacity
-                    if (theme.background.blend) {
-                        bg.style.mixBlendMode = theme.background.blend.mode || 'normal';
-                        bg.style.opacity = (theme.background.blend.opacity || 100) / 100;
-                    }
-
                     // Apply transformations using a pseudo-element approach
                     const transform = theme.background.transform || {};
                     const transforms = [];
@@ -383,29 +522,33 @@
                     if (transform.flipX) transforms.push(`scaleX(-1)`);
                     if (transform.flipY) transforms.push(`scaleY(-1)`);
 
-                    // Create or update the transform overlay
-                    let overlay = document.getElementById('bg-transform-overlay');
-                    if (!overlay) {
-                        overlay = document.createElement('div');
-                        overlay.id = 'bg-transform-overlay';
-                        overlay.style.cssText = `
-                            position: fixed;
-                            top: -50%;
-                            left: -50%;
-                            width: 200%;
-                            height: 200%;
-                            pointer-events: none;
-                            z-index: -1;
-                        `;
-                        bg.appendChild(overlay);
-                    }
+                    // Create the transform overlay for the image
+                    let overlay = document.createElement('div');
+                    overlay.id = 'bg-transform-overlay';
+                    overlay.style.cssText = `
+                        position: fixed;
+                        top: -50%;
+                        left: -50%;
+                        width: 200%;
+                        height: 200%;
+                        pointer-events: none;
+                        z-index: -1;
+                    `;
+                    bg.appendChild(overlay);
 
+                    // Apply all styles to the overlay only
                     overlay.style.backgroundImage = `url(${theme.background.image})`;
                     overlay.style.backgroundSize = bgSize;
                     overlay.style.backgroundPosition = 'center';
                     overlay.style.backgroundRepeat = theme.background.repeat || 'no-repeat';
                     overlay.style.transform = transforms.length > 0 ? transforms.join(' ') : 'none';
                     overlay.style.filter = filters.length > 0 ? filters.join(' ') : 'none';
+
+                    // Apply blend mode and opacity to overlay
+                    if (theme.background.blend) {
+                        overlay.style.mixBlendMode = theme.background.blend.mode || 'normal';
+                        overlay.style.opacity = (theme.background.blend.opacity || 100) / 100;
+                    }
                 }
                 console.log("[MySpace] Final background styles:", {
                     background: bg.style.background,
@@ -419,12 +562,15 @@
             document.body.style.fontSize = theme.fonts.size + 'px';
 
             // Apply text effects
-            if (theme.fonts.effects.shadow) {
-                document.body.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.8)';
-            }
-            if (theme.fonts.effects.glow) {
-                document.body.classList.add('glow');
-            }
+            const hasShadow = !!theme.fonts.effects.shadow;
+            const hasGlow = !!theme.fonts.effects.glow;
+            const glowColor = theme.fonts.effects.glowColor || '#ffffff';
+
+            document.body.style.textShadow = hasShadow
+                ? '2px 2px 4px rgba(0, 0, 0, 0.8)'
+                : 'none';
+            document.body.style.setProperty('--text-glow-color', glowColor);
+            document.body.classList.toggle('glow', hasGlow);
 
             // Apply colors
             document.documentElement.style.setProperty('--custom-text-color', theme.colors.text);
@@ -594,6 +740,20 @@
             this.viewMode = !this.viewMode;
             this.saveViewMode();
             this.applyViewMode();
+
+            // Disable layout editor when entering view mode
+            if (this.viewMode && window.MySpaceLayoutEditor && window.MySpaceLayoutEditor.enabled) {
+                window.MySpaceLayoutEditor.toggle(false);
+                const layoutToggle = document.getElementById('layout-editor-toggle');
+                if (layoutToggle) {
+                    layoutToggle.checked = false;
+                }
+                const layoutControls = document.getElementById('layout-editor-controls');
+                if (layoutControls) {
+                    layoutControls.style.display = 'none';
+                }
+            }
+
             console.log("[MySpace] View mode:", this.viewMode ? 'ON' : 'OFF');
         },
 

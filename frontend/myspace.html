@@ -326,7 +326,72 @@
 
                     <div class="checkbox-group">
                         <label><input type="checkbox" id="text-shadow"> Text Shadow</label>
-                        <label><input type="checkbox" id="text-glow"> Text Glow</label>
+                        <label class="glow-toggle">
+                            <input type="checkbox" id="text-glow"> Text Glow
+                        </label>
+                        <label id="text-glow-color-wrapper" style="display: none; width: 100%; margin-top: 8px;">
+                            Glow Color
+                            <input type="color" id="text-glow-color" value="#ffffff" style="width: 100%; margin-top: 4px;">
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Layout Editor -->
+                <section class="panel-section">
+                    <h3>Layout Editor</h3>
+
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="layout-editor-toggle">
+                            Enable Grid Editor
+                        </label>
+                        <label>
+                            <input type="checkbox" id="allow-overlap-toggle">
+                            Allow Overlap
+                        </label>
+                    </div>
+
+                    <div id="layout-editor-controls" style="display: none; margin-top: 15px;">
+                        <p style="font-size: 11px; color: #ccc; margin-bottom: 10px;">
+                            Drag widgets to reposition, resize from corner, adjust z-index with arrows.
+                            Hold SHIFT while dragging to snap to grid.
+                        </p>
+
+                        <label style="font-size: 12px;">
+                            Snap Threshold: <span id="snap-threshold-display">10px</span>
+                            <input type="range" id="snap-threshold" min="0" max="50" step="5" value="10" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Grid Size: <span id="grid-size-display">20px</span>
+                            <input type="range" id="grid-size" min="5" max="50" step="5" value="20" style="width: 100%;">
+                        </label>
+
+                        <h4 style="margin: 15px 0 10px 0; font-size: 13px;">Mobile Breakpoints</h4>
+
+                        <label style="font-size: 12px;">
+                            Breakpoint Width:
+                            <select id="mobile-breakpoint" style="width: 100%; margin-top: 5px;">
+                                <option value="480px">480px (Phone)</option>
+                                <option value="768px" selected>768px (Tablet)</option>
+                                <option value="1024px">1024px (Small Desktop)</option>
+                                <option value="1280px">1280px (Desktop)</option>
+                            </select>
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Mobile Behavior:
+                            <select id="mobile-behavior" style="width: 100%; margin-top: 5px;">
+                                <option value="stack" selected>Stack Vertically</option>
+                                <option value="hide">Hide</option>
+                                <option value="shrink">Shrink to Fit</option>
+                                <option value="scroll">Horizontal Scroll</option>
+                            </select>
+                        </label>
+
+                        <button id="layout-reset" style="margin-top: 15px; width: 100%; padding: 8px; background: #ff3366; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Reset Layout to Default
+                        </button>
                     </div>
                 </section>
 
@@ -348,6 +413,139 @@
                         <label><input type="checkbox" id="effect-cursor-trail"> Cursor Trail</label>
                         <label><input type="checkbox" id="effect-glitter"> Glitter Borders</label>
                         <label><input type="checkbox" id="effect-blink"> Blinking Text</label>
+                        <label><input type="checkbox" id="effect-sparkle-rain"> Sparkle Rain</label>
+                        <label><input type="checkbox" id="effect-aurora-waves"> Aurora Waves</label>
+                        <label><input type="checkbox" id="effect-pixel-burst"> Pixel Burst</label>
+                        <label><input type="checkbox" id="effect-neon-pulse"> Neon Pulse</label>
+                        <label><input type="checkbox" id="effect-polaroid-popups"> Polaroid Popups</label>
+                        <label><input type="checkbox" id="effect-bubble-warp"> Bubble Warp</label>
+                        <label><input type="checkbox" id="effect-retro-scanlines"> Retro Scanlines</label>
+                        <label><input type="checkbox" id="effect-chromatic-trails"> Chromatic Trails</label>
+                        <label><input type="checkbox" id="effect-floating-emojis"> Floating Emojis</label>
+                        <label><input type="checkbox" id="effect-lightning-flickers"> Lightning Flickers</label>
+                    </div>
+                    <div class="effect-control-grid">
+                        <div class="effect-group">
+                            <h4>Falling Objects</h4>
+                            <label>
+                                Speed: <span id="falling-speed-display">2.0x</span>
+                                <input type="range" id="falling-speed" min="0.5" max="4" step="0.1" value="2">
+                            </label>
+                            <label>
+                                Density: <span id="falling-density-display">1.0x</span>
+                                <input type="range" id="falling-density" min="0.3" max="2" step="0.1" value="1">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Cursor Trail</h4>
+                            <label>
+                                Trail Length: <span id="cursor-trail-length-display">1.0x</span>
+                                <input type="range" id="cursor-trail-length" min="0.3" max="1.5" step="0.05" value="1">
+                            </label>
+                            <label>
+                                Particle Size: <span id="cursor-trail-size-display">1.0x</span>
+                                <input type="range" id="cursor-trail-size" min="0.5" max="2" step="0.1" value="1">
+                            </label>
+                            <label>
+                                Color Mode
+                                <select id="cursor-trail-color-mode">
+                                    <option value="rainbow">Rainbow</option>
+                                    <option value="neon">Electric Neon</option>
+                                    <option value="cool">Icy Blue</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                            </label>
+                            <label id="cursor-trail-custom-wrapper" style="display: none;">
+                                Custom Color
+                                <input type="color" id="cursor-trail-custom-color" value="#ff7cf5">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Glitter & Blink</h4>
+                            <label>
+                                Glitter Intensity: <span id="glitter-intensity-display">70%</span>
+                                <input type="range" id="glitter-intensity" min="0.2" max="1" step="0.05" value="0.7">
+                            </label>
+                            <label>
+                                Blink Speed: <span id="blink-speed-display">1.0s</span>
+                                <input type="range" id="blink-speed" min="0.4" max="1.6" step="0.1" value="1">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Sparkle Rain</h4>
+                            <label>
+                                Density: <span id="sparkle-rain-density-display">1.0x</span>
+                                <input type="range" id="sparkle-rain-density" min="0.3" max="2" step="0.1" value="1">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Aurora Waves</h4>
+                            <label>
+                                Intensity: <span id="aurora-intensity-display">40%</span>
+                                <input type="range" id="aurora-intensity" min="0.1" max="1" step="0.05" value="0.4">
+                            </label>
+                            <label>
+                                Speed: <span id="aurora-speed-display">1.0x</span>
+                                <input type="range" id="aurora-speed" min="0.5" max="2" step="0.1" value="1">
+                            </label>
+                            <label>
+                                Primary Color
+                                <input type="color" id="aurora-color-a" value="#47ffe3">
+                            </label>
+                            <label>
+                                Accent Color
+                                <input type="color" id="aurora-color-b" value="#ff4ffb">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Neon Pulse</h4>
+                            <label>
+                                Glow Color
+                                <input type="color" id="neon-color" value="#00fff5">
+                            </label>
+                            <label>
+                                Accent Color
+                                <input type="color" id="neon-accent-color" value="#ff00ff">
+                            </label>
+                            <label>
+                                Pulse Speed: <span id="neon-speed-display">1.2x</span>
+                                <input type="range" id="neon-speed" min="0.5" max="2" step="0.1" value="1.2">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Lightning</h4>
+                            <label>
+                                Frequency: <span id="lightning-frequency-display">6s</span>
+                                <input type="range" id="lightning-frequency" min="2" max="12" step="0.5" value="6">
+                            </label>
+                            <label>
+                                Intensity: <span id="lightning-intensity-display">80%</span>
+                                <input type="range" id="lightning-intensity" min="0.3" max="1.2" step="0.05" value="0.8">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Prism Trails</h4>
+                            <label>
+                                Trail Length: <span id="trail-length-display">0.9x</span>
+                                <input type="range" id="trail-length" min="0.3" max="1.5" step="0.05" value="0.9">
+                            </label>
+                            <label>
+                                Palette
+                                <select id="trail-mode">
+                                    <option value="sunset">Sunset</option>
+                                    <option value="ocean">Ocean</option>
+                                    <option value="neon">Neon</option>
+                                    <option value="pastel">Pastel</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Floating Emojis</h4>
+                            <label>
+                                Density: <span id="emoji-density-display">1.0x</span>
+                                <input type="range" id="emoji-density" min="0.5" max="2" step="0.1" value="1">
+                            </label>
+                        </div>
                     </div>
                 </section>
 
@@ -413,7 +611,6 @@
                         <h1 contenteditable="true" id="profile-name" class="profile-name">Your Name Here</h1>
                         <p contenteditable="true" id="profile-tagline" class="profile-tagline">✨ living my best life ✨</p>
                         <div class="profile-status">
-                            <span class="online-indicator">● Online Now!</span>
                             <span class="mood">
                                 Mood: <span contenteditable="true" id="mood-text">chillin</span>
                                 <span id="mood-icon">😎</span>
@@ -704,5 +901,6 @@
     <script src="js/myspace-effects.js"></script>
     <script src="js/myspace-auth.js"></script>
     <script src="js/myspace-friends.js"></script>
+    <script src="js/myspace-layout-editor.js"></script>
 </body>
 </html>

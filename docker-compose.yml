@@ -11,6 +11,7 @@ services:
     volumes:
       - ./uploads:/app/backend/uploads
       - ./data:/app/backend/data
+      - ./backend/myspace_data:/app/backend/myspace_data
     restart: unless-stopped
 
   watchtower:
