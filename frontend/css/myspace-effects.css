@@ -1,0 +1,574 @@
+/* MySpace Effects and Animations */
+
+/* Cursor Trail Canvas */
+#cursor-trail-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9998;
+    display: none;
+}
+
+#cursor-trail-canvas.active {
+    display: block;
+}
+
+/* Falling Effects Container */
+#falling-effects-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9997;
+    overflow: hidden;
+}
+
+.falling-object {
+    position: absolute;
+    font-size: 20px;
+    opacity: 0.8;
+    animation: fall linear infinite;
+    pointer-events: none;
+}
+
+@keyframes fall {
+    0% {
+        transform: translateY(-100%) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* Glitter Border Effect */
+.glitter-border {
+    position: relative;
+}
+
+.glitter-border::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    background: linear-gradient(45deg,
+        #ff00ff, #00ffff, #ff00ff, #00ffff,
+        #ff00ff, #00ffff, #ff00ff, #00ffff
+    );
+    background-size: 400% 400%;
+    border-radius: inherit;
+    z-index: -1;
+    animation: glitterBorder 3s ease infinite;
+    opacity: 0.7;
+}
+
+@keyframes glitterBorder {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    25% {
+        background-position: 100% 50%;
+    }
+    50% {
+        background-position: 100% 100%;
+    }
+    75% {
+        background-position: 0% 100%;
+    }
+}
+
+/* Blinking Text Effect */
+.blink {
+    animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+/* Sparkle Effect */
+.sparkle {
+    position: relative;
+    display: inline-block;
+}
+
+.sparkle::after {
+    content: '✨';
+    position: absolute;
+    top: -10px;
+    right: -15px;
+    font-size: 20px;
+    animation: sparkleFloat 2s ease-in-out infinite;
+}
+
+@keyframes sparkleFloat {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: translateY(-10px) scale(1.2);
+        opacity: 0.7;
+    }
+}
+
+/* Pulse Effect */
+.pulse {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* Marquee Alternative (CSS) */
+.marquee-text {
+    display: inline-block;
+    animation: marquee 15s linear infinite;
+    white-space: nowrap;
+}
+
+@keyframes marquee {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+
+/* Glow Effect */
+.glow {
+    text-shadow:
+        0 0 5px currentColor,
+        0 0 10px currentColor,
+        0 0 15px currentColor,
+        0 0 20px currentColor;
+}
+
+/* Rainbow Text */
+.rainbow-text {
+    background: linear-gradient(90deg,
+        #ff0000 0%,
+        #ff7700 16.66%,
+        #ffff00 33.33%,
+        #00ff00 50%,
+        #0000ff 66.66%,
+        #8b00ff 83.33%,
+        #ff00ff 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% 100%;
+    animation: rainbowScroll 3s linear infinite;
+}
+
+/* Floating Animation */
+.float {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-20px);
+    }
+}
+
+/* Shake Effect */
+.shake {
+    animation: shake 0.5s ease-in-out infinite;
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-5px);
+    }
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+/* Rotate Effect */
+.rotate {
+    animation: rotate 10s linear infinite;
+}
+
+@keyframes rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Bounce Effect */
+.bounce {
+    animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+/* Wiggle Effect */
+.wiggle {
+    animation: wiggle 1s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+    25% {
+        transform: rotate(5deg);
+    }
+    75% {
+        transform: rotate(-5deg);
+    }
+}
+
+/* Zoom In Animation */
+.zoom-in {
+    animation: zoomIn 0.3s ease-out;
+}
+
+@keyframes zoomIn {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Slide In From Left */
+.slide-in-left {
+    animation: slideInLeft 0.5s ease-out;
+}
+
+@keyframes slideInLeft {
+    0% {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Slide In From Right */
+.slide-in-right {
+    animation: slideInRight 0.5s ease-out;
+}
+
+@keyframes slideInRight {
+    0% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Fade In */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Neon Glow Effect */
+.neon {
+    text-shadow:
+        0 0 5px #fff,
+        0 0 10px #fff,
+        0 0 20px #fff,
+        0 0 40px #0ff,
+        0 0 80px #0ff,
+        0 0 90px #0ff,
+        0 0 100px #0ff,
+        0 0 150px #0ff;
+}
+
+/* Glitch Effect */
+.glitch {
+    position: relative;
+}
+
+.glitch::before,
+.glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.glitch::before {
+    left: 2px;
+    text-shadow: -2px 0 #ff00ff;
+    clip: rect(24px, 550px, 90px, 0);
+    animation: glitch-anim 2s infinite linear alternate-reverse;
+}
+
+.glitch::after {
+    left: -2px;
+    text-shadow: -2px 0 #00ffff;
+    clip: rect(85px, 550px, 140px, 0);
+    animation: glitch-anim 2.5s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-anim {
+    0% {
+        clip: rect(61px, 9999px, 91px, 0);
+    }
+    20% {
+        clip: rect(87px, 9999px, 43px, 0);
+    }
+    40% {
+        clip: rect(15px, 9999px, 61px, 0);
+    }
+    60% {
+        clip: rect(72px, 9999px, 28px, 0);
+    }
+    80% {
+        clip: rect(34px, 9999px, 85px, 0);
+    }
+    100% {
+        clip: rect(50px, 9999px, 76px, 0);
+    }
+}
+
+/* Scan Line Effect */
+.scanlines {
+    position: relative;
+}
+
+.scanlines::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        to bottom,
+        transparent 50%,
+        rgba(0, 255, 0, 0.1) 50%
+    );
+    background-size: 100% 4px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Matrix Effect */
+.matrix {
+    background: #000;
+    color: #0f0;
+    font-family: 'Courier New', monospace;
+    text-shadow: 0 0 5px #0f0;
+}
+
+/* Fire Effect */
+.fire-text {
+    background: linear-gradient(to top, #ff0000, #ff7700, #ffff00, transparent);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: fireFlicker 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes fireFlicker {
+    0% {
+        text-shadow:
+            0 0 5px #ff0000,
+            0 0 10px #ff7700;
+    }
+    100% {
+        text-shadow:
+            0 0 10px #ff0000,
+            0 0 20px #ff7700,
+            0 0 30px #ffff00;
+    }
+}
+
+/* Snow Effect (for winter themes) */
+.snowflake {
+    position: absolute;
+    color: #fff;
+    font-size: 1em;
+    animation: snowfall linear infinite;
+}
+
+@keyframes snowfall {
+    0% {
+        transform: translateY(-100vh) translateX(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) translateX(100px);
+        opacity: 0.3;
+    }
+}
+
+/* Heart Beat Effect */
+.heartbeat {
+    animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+    0%, 100% {
+        transform: scale(1);
+    }
+    25% {
+        transform: scale(1.1);
+    }
+    50% {
+        transform: scale(1);
+    }
+    75% {
+        transform: scale(1.15);
+    }
+}
+
+/* Wave Effect */
+.wave {
+    animation: wave 2s ease-in-out infinite;
+}
+
+@keyframes wave {
+    0%, 100% {
+        transform: skewY(0deg);
+    }
+    50% {
+        transform: skewY(2deg);
+    }
+}
+
+/* Typewriter Effect */
+.typewriter {
+    overflow: hidden;
+    border-right: 2px solid;
+    white-space: nowrap;
+    animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+}
+
+@keyframes typing {
+    from {
+        width: 0;
+    }
+    to {
+        width: 100%;
+    }
+}
+
+@keyframes blink-caret {
+    from, to {
+        border-color: transparent;
+    }
+    50% {
+        border-color: currentColor;
+    }
+}
+
+/* Holographic Effect */
+.holographic {
+    background: linear-gradient(
+        135deg,
+        #667eea 0%,
+        #764ba2 25%,
+        #f093fb 50%,
+        #667eea 75%,
+        #764ba2 100%
+    );
+    background-size: 400% 400%;
+    animation: holographicShift 4s ease infinite;
+}
+
+@keyframes holographicShift {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+/* Disco Ball Effect */
+.disco {
+    background:
+        linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.5) 30%, rgba(255, 255, 255, 0.5) 70%, transparent 70%),
+        linear-gradient(-45deg, transparent 30%, rgba(255, 255, 255, 0.5) 30%, rgba(255, 255, 255, 0.5) 70%, transparent 70%);
+    background-size: 20px 20px;
+    animation: discoShine 2s linear infinite;
+}
+
+@keyframes discoShine {
+    0% {
+        background-position: 0 0, 0 0;
+    }
+    100% {
+        background-position: 20px 20px, -20px -20px;
+    }
+}
+
+/* Pixel Transition */
+.pixelate {
+    animation: pixelate 0.3s steps(5, end);
+}
+
+@keyframes pixelate {
+    0% {
+        filter: blur(0px);
+        transform: scale(1);
+    }
+    50% {
+        filter: blur(10px);
+        transform: scale(0.9);
+    }
+    100% {
+        filter: blur(0px);
+        transform: scale(1);
+    }
+}

@@ -1,0 +1,225 @@
+/* MySpace Theme Presets */
+
+/* Classic Theme */
+body.theme-classic {
+    --bg-color: #0066cc;
+    --text-color: #ffffff;
+    --link-color: #00ccff;
+    --link-hover: #ffff00;
+    --border-color: #ffffff;
+    --widget-bg: rgba(0, 51, 153, 0.8);
+    --accent-color: #00ccff;
+    font-family: 'Arial', sans-serif;
+}
+
+body.theme-classic #myspace-background {
+    background: linear-gradient(135deg, #0066cc 0%, #003366 100%);
+}
+
+/* Glitter Girl Theme */
+body.theme-glitter {
+    --bg-color: #ff69b4;
+    --text-color: #ffffff;
+    --link-color: #ffb3d9;
+    --link-hover: #ff1493;
+    --border-color: #ff1493;
+    --widget-bg: rgba(199, 21, 133, 0.7);
+    --accent-color: #ff69b4;
+    font-family: 'Comic Sans MS', cursive;
+}
+
+body.theme-glitter #myspace-background {
+    background: linear-gradient(135deg, #ff69b4 0%, #ff1493 50%, #c71585 100%);
+}
+
+body.theme-glitter .widget,
+body.theme-glitter .picture-item,
+body.theme-glitter .friend-slot {
+    box-shadow: 0 0 20px rgba(255, 105, 180, 0.6);
+}
+
+/* Emo Scene Theme */
+body.theme-emo {
+    --bg-color: #000000;
+    --text-color: #ffffff;
+    --link-color: #ff00ff;
+    --link-hover: #00ffff;
+    --border-color: #ff00ff;
+    --widget-bg: rgba(0, 0, 0, 0.9);
+    --accent-color: #ff00ff;
+    font-family: 'Arial', sans-serif;
+}
+
+body.theme-emo #myspace-background {
+    background: #000000;
+}
+
+body.theme-emo .profile-name,
+body.theme-emo .widget-header h2 {
+    text-shadow:
+        0 0 10px #ff00ff,
+        0 0 20px #ff00ff,
+        0 0 30px #ff00ff,
+        0 0 40px #00ffff,
+        0 0 70px #00ffff;
+}
+
+body.theme-emo * {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+/* Rainbow Bright Theme */
+body.theme-rainbow {
+    --bg-color: #ffffff;
+    --text-color: #000000;
+    --link-color: #ff0000;
+    --link-hover: #0000ff;
+    --border-color: #ff00ff;
+    --widget-bg: rgba(255, 255, 255, 0.9);
+    --accent-color: #ff00ff;
+    font-family: 'Comic Sans MS', cursive;
+}
+
+body.theme-rainbow #myspace-background {
+    background: linear-gradient(
+        135deg,
+        #ff0000 0%,
+        #ff7700 16.66%,
+        #ffff00 33.33%,
+        #00ff00 50%,
+        #0000ff 66.66%,
+        #8b00ff 83.33%,
+        #ff00ff 100%
+    );
+    background-size: 400% 400%;
+    animation: rainbowShift 10s ease infinite;
+}
+
+@keyframes rainbowShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+body.theme-rainbow .widget-header {
+    background: linear-gradient(90deg, #ff0000, #ff7700, #ffff00, #00ff00, #0000ff, #8b00ff);
+    background-size: 200% 100%;
+    animation: rainbowScroll 3s linear infinite;
+}
+
+@keyframes rainbowScroll {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+
+body.theme-rainbow .profile-name {
+    background: linear-gradient(90deg, #ff0000, #ff7700, #ffff00, #00ff00, #0000ff, #8b00ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% 100%;
+    animation: rainbowScroll 3s linear infinite;
+}
+
+/* Goth Dark Theme */
+body.theme-goth {
+    --bg-color: #1a0000;
+    --text-color: #8b0000;
+    --link-color: #ff0000;
+    --link-hover: #cc0000;
+    --border-color: #8b0000;
+    --widget-bg: rgba(0, 0, 0, 0.95);
+    --accent-color: #8b0000;
+    font-family: 'Times New Roman', serif;
+}
+
+body.theme-goth #myspace-background {
+    background: linear-gradient(135deg, #1a0000 0%, #000000 100%);
+}
+
+body.theme-goth .widget {
+    border-style: double;
+    border-width: 5px;
+}
+
+body.theme-goth .profile-name,
+body.theme-goth .widget-header h2 {
+    font-family: 'Times New Roman', serif;
+    font-style: italic;
+    text-shadow: 3px 3px 6px rgba(139, 0, 0, 0.8);
+}
+
+/* Y2K Cyber Theme */
+body.theme-y2k {
+    --bg-color: #00ff00;
+    --text-color: #00ff00;
+    --link-color: #00ffff;
+    --link-hover: #ff00ff;
+    --border-color: #00ff00;
+    --widget-bg: rgba(0, 0, 0, 0.9);
+    --accent-color: #00ff00;
+    font-family: 'Courier New', monospace;
+}
+
+body.theme-y2k #myspace-background {
+    background: #000000;
+}
+
+body.theme-y2k .widget {
+    border-style: solid;
+    border-width: 2px;
+    box-shadow:
+        0 0 10px #00ff00,
+        inset 0 0 10px rgba(0, 255, 0, 0.2);
+}
+
+body.theme-y2k .widget-header {
+    background: linear-gradient(135deg, #003300 0%, #006600 100%);
+}
+
+body.theme-y2k * {
+    text-shadow: 0 0 5px #00ff00;
+}
+
+body.theme-y2k .profile-name {
+    font-family: 'Courier New', monospace;
+    letter-spacing: 3px;
+}
+
+/* Apply theme colors to elements */
+body[class*="theme-"] {
+    color: var(--text-color);
+}
+
+body[class*="theme-"] a {
+    color: var(--link-color);
+}
+
+body[class*="theme-"] a:hover {
+    color: var(--link-hover);
+}
+
+body[class*="theme-"] .widget,
+body[class*="theme-"] .profile-header-content,
+body[class*="theme-"] .picture-item,
+body[class*="theme-"] .friend-slot,
+body[class*="theme-"] .comment-item,
+body[class*="theme-"] input[type="color"],
+body[class*="theme-"] .add-comment input,
+body[class*="theme-"] .add-comment textarea,
+body[class*="theme-"] #custom-html-input,
+body[class*="theme-"] .now-playing,
+body[class*="theme-"] .hit-counter,
+body[class*="theme-"] .lightbox-content,
+body[class*="theme-"] .lightbox-caption,
+body[class*="theme-"] .counter-display {
+    border-color: var(--border-color);
+}
+
+body[class*="theme-"] .widget-content {
+    background: var(--widget-bg);
+}
+
+body[class*="theme-"] .profile-header-content {
+    background: var(--widget-bg);
+}

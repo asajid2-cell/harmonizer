@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySpace - Disco-teque</title>
+    <link rel="stylesheet" href="eldrichify.css">
+    <link rel="stylesheet" href="css/myspace-base.css">
+    <link rel="stylesheet" href="css/myspace-themes.css">
+    <link rel="stylesheet" href="css/myspace-effects.css">
+    <style>
+        body {
+            overflow-x: hidden;
+        }
+
+        ::-webkit-scrollbar {
+            width: 0px;
+            height: 0px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: transparent;
+        }
+
+        * {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="eld-nav">
+        <a href="/index.html">Home</a>
+        <a href="/showcase.html">Showcase</a>
+        <a href="/harmonizer.html">Harmonizer</a>
+        <a href="/image-playground.html">Image Playground</a>
+        <a href="/talk-to-disco-teque.html">Talk to Disco-teque</a>
+        <a href="/radio.html">Radio</a>
+        <a href="/myspace.html" class="active">MySpace</a>
+        <a href="/notebook.html">Notebook</a>
+        <a href="/quick-reference.html">Quick Reference</a>
+    </nav>
+
+    <!-- Falling Effects Container -->
+    <div id="falling-effects-container"></div>
+
+    <!-- Cursor Trail Canvas -->
+    <canvas id="cursor-trail-canvas"></canvas>
+
+    <!-- Background Layer -->
+    <div id="myspace-background"></div>
+
+    <!-- Main Container -->
+    <div id="myspace-container">
+        <!-- Customization Sidebar -->
+        <aside id="customization-panel" class="customize-panel">
+            <div class="panel-header">
+                <h2>✨ CUSTOMIZE ✨</h2>
+                <button id="toggle-panel" class="toggle-btn">◀</button>
+            </div>
+
+            <div class="panel-content">
+                <!-- Theme Presets -->
+                <section class="panel-section">
+                    <h3>Theme Presets</h3>
+                    <div class="theme-grid">
+                        <button class="theme-btn" data-theme="classic">Classic</button>
+                        <button class="theme-btn" data-theme="glitter">Glitter Girl</button>
+                        <button class="theme-btn" data-theme="emo">Emo Scene</button>
+                        <button class="theme-btn" data-theme="rainbow">Rainbow Bright</button>
+                        <button class="theme-btn" data-theme="goth">Goth Dark</button>
+                        <button class="theme-btn" data-theme="y2k">Y2K Cyber</button>
+                    </div>
+                </section>
+
+                <!-- Colors -->
+                <section class="panel-section">
+                    <h3>Colors</h3>
+                    <div class="color-controls">
+                        <label>
+                            Background
+                            <input type="color" id="color-bg" value="#ff69b4">
+                        </label>
+                        <label>
+                            Text
+                            <input type="color" id="color-text" value="#ffffff">
+                        </label>
+                        <label>
+                            Links
+                            <input type="color" id="color-links" value="#00ffff">
+                        </label>
+                        <label>
+                            Borders
+                            <input type="color" id="color-borders" value="#ffffff">
+                        </label>
+                        <label>
+                            Widget BG
+                            <input type="color" id="color-widget-bg" value="#000000">
+                            <input type="range" id="widget-bg-opacity" min="0" max="100" value="70">
+                            <span id="opacity-value">70%</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Background -->
+                <section class="panel-section">
+                    <h3>Background</h3>
+                    <select id="bg-type">
+                        <option value="solid">Solid Color</option>
+                        <option value="gradient">Gradient</option>
+                        <option value="pattern" selected>Pattern</option>
+                        <option value="image">Custom Image</option>
+                    </select>
+
+                    <div id="pattern-grid" class="pattern-grid">
+                        <div class="pattern-item" data-pattern="stars">⭐ Stars</div>
+                        <div class="pattern-item" data-pattern="hearts">💖 Hearts</div>
+                        <div class="pattern-item" data-pattern="flames">🔥 Flames</div>
+                        <div class="pattern-item" data-pattern="sparkles">✨ Sparkles</div>
+                        <div class="pattern-item" data-pattern="checkers">⬛ Checkers</div>
+                        <div class="pattern-item" data-pattern="dots">⚫ Dots</div>
+                        <div class="pattern-item" data-pattern="stripes">📊 Stripes</div>
+                        <div class="pattern-item" data-pattern="glitter">💎 Glitter</div>
+                    </div>
+
+                    <input type="file" id="bg-image-upload" accept="image/*" style="display: none;">
+                    <button id="upload-bg-btn" class="upload-btn">Upload Background</button>
+                </section>
+
+                <!-- Fonts -->
+                <section class="panel-section">
+                    <h3>Fonts</h3>
+                    <select id="font-family">
+                        <option value="Comic Sans MS">Comic Sans</option>
+                        <option value="Papyrus">Papyrus</option>
+                        <option value="Impact">Impact</option>
+                        <option value="Arial">Arial</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Courier New">Courier New</option>
+                        <option value="Brush Script MT">Brush Script</option>
+                    </select>
+
+                    <label>
+                        Size: <span id="font-size-display">14px</span>
+                        <input type="range" id="font-size" min="10" max="24" value="14">
+                    </label>
+
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="text-shadow"> Text Shadow</label>
+                        <label><input type="checkbox" id="text-glow"> Text Glow</label>
+                    </div>
+                </section>
+
+                <!-- Effects -->
+                <section class="panel-section">
+                    <h3>Effects</h3>
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="effect-falling">
+                            Falling Objects
+                        </label>
+                        <select id="falling-type">
+                            <option value="hearts">Hearts</option>
+                            <option value="stars">Stars</option>
+                            <option value="snow">Snow</option>
+                            <option value="sparkles">Sparkles</option>
+                        </select>
+
+                        <label><input type="checkbox" id="effect-cursor-trail"> Cursor Trail</label>
+                        <label><input type="checkbox" id="effect-glitter"> Glitter Borders</label>
+                        <label><input type="checkbox" id="effect-blink"> Blinking Text</label>
+                    </div>
+                </section>
+
+                <!-- Layout -->
+                <section class="panel-section">
+                    <h3>Layout</h3>
+                    <div class="layout-btns">
+                        <button class="layout-btn active" data-layout="classic">Classic</button>
+                        <button class="layout-btn" data-layout="split">Split</button>
+                        <button class="layout-btn" data-layout="centered">Centered</button>
+                    </div>
+                </section>
+
+                <!-- Save/Load -->
+                <section class="panel-section">
+                    <button id="save-profile" class="action-btn">💾 Save Profile</button>
+                    <button id="load-profile" class="action-btn">📁 Load Profile</button>
+                    <button id="export-profile" class="action-btn">📤 Export</button>
+                    <button id="reset-profile" class="action-btn danger">🔄 Reset All</button>
+                </section>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main id="myspace-main">
+            <!-- Header Banner -->
+            <header id="profile-header" class="widget">
+                <input type="file" id="banner-upload" accept="image/*" style="display: none;">
+                <div id="banner-image" class="banner-image">
+                    <button class="upload-overlay" onclick="document.getElementById('banner-upload').click()">
+                        + Upload Banner
+                    </button>
+                </div>
+                <div class="profile-header-content">
+                    <div class="profile-pic-container">
+                        <input type="file" id="profile-pic-upload" accept="image/*" style="display: none;">
+                        <img id="profile-pic" src="" alt="Profile" class="profile-pic">
+                        <button class="pic-upload-btn" onclick="document.getElementById('profile-pic-upload').click()">
+                            📷
+                        </button>
+                    </div>
+                    <div class="profile-info">
+                        <h1 contenteditable="true" id="profile-name" class="profile-name">Your Name Here</h1>
+                        <p contenteditable="true" id="profile-tagline" class="profile-tagline">✨ living my best life ✨</p>
+                        <div class="profile-status">
+                            <span class="online-indicator">● Online Now!</span>
+                            <span class="mood">
+                                Mood: <span contenteditable="true" id="mood-text">chillin</span>
+                                <span id="mood-icon">😎</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Grid -->
+            <div id="content-grid" class="content-grid layout-classic">
+                <!-- Left Column -->
+                <div class="column column-left">
+                    <!-- About Me Widget -->
+                    <div class="widget" id="about-me-widget">
+                        <div class="widget-header">
+                            <h2>About Me</h2>
+                            <button class="widget-toggle">−</button>
+                        </div>
+                        <div class="widget-content" contenteditable="true" id="about-me-content">
+                            <p>Hey! Thanks for visiting my page! 🎉</p>
+                            <p>This is my corner of the internet where I share my pics, music, and vibes.</p>
+                            <p>Feel free to leave a comment! 💕</p>
+                        </div>
+                    </div>
+
+                    <!-- Interests Widget -->
+                    <div class="widget" id="interests-widget">
+                        <div class="widget-header">
+                            <h2>Interests</h2>
+                            <button class="widget-toggle">−</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="interest-section">
+                                <strong>Music:</strong>
+                                <div contenteditable="true" id="interest-music">Artist 1, Artist 2, Artist 3</div>
+                            </div>
+                            <div class="interest-section">
+                                <strong>Movies:</strong>
+                                <div contenteditable="true" id="interest-movies">Movie 1, Movie 2, Movie 3</div>
+                            </div>
+                            <div class="interest-section">
+                                <strong>TV Shows:</strong>
+                                <div contenteditable="true" id="interest-tv">Show 1, Show 2, Show 3</div>
+                            </div>
+                            <div class="interest-section">
+                                <strong>Books:</strong>
+                                <div contenteditable="true" id="interest-books">Book 1, Book 2, Book 3</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom HTML Widget -->
+                    <div class="widget" id="custom-html-widget">
+                        <div class="widget-header">
+                            <h2>Custom HTML</h2>
+                            <button class="widget-toggle">−</button>
+                        </div>
+                        <div class="widget-content">
+                            <textarea id="custom-html-input" placeholder="Paste your custom HTML here..."></textarea>
+                            <button id="apply-custom-html">Apply</button>
+                            <div id="custom-html-output"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center Column -->
+                <div class="column column-center">
+                    <!-- Music Player Widget -->
+                    <div class="widget" id="music-widget">
+                        <div class="widget-header">
+                            <h2>♫ My Music ♫</h2>
+                            <button class="widget-toggle">−</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="music-player">
+                                <div class="now-playing">
+                                    <marquee id="track-title">No track loaded</marquee>
+                                </div>
+                                <audio id="audio-player" preload="auto"></audio>
+                                <div class="player-controls">
+                                    <button id="play-btn" class="player-btn">▶</button>
+                                    <button id="pause-btn" class="player-btn">⏸</button>
+                                    <button id="stop-btn" class="player-btn">⏹</button>
+                                    <input type="range" id="volume-slider" min="0" max="100" value="70">
+                                    <span id="volume-display">70%</span>
+                                </div>
+                                <div class="visualizer" id="audio-visualizer">
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                </div>
+                                <div class="music-upload">
+                                    <input type="file" id="audio-upload" accept="audio/*" style="display: none;">
+                                    <button onclick="document.getElementById('audio-upload').click()" class="upload-btn">
+                                        🎵 Upload Song
+                                    </button>
+                                    <label>
+                                        <input type="checkbox" id="autoplay-checkbox"> Autoplay on page load
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Picture Wall Widget -->
+                    <div class="widget" id="picture-wall-widget">
+                        <div class="widget-header">
+                            <h2>📷 My Pictures 📷</h2>
+                            <button class="widget-toggle">−</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="picture-wall-controls">
+                                <input type="file" id="picture-upload" accept="image/*" multiple style="display: none;">
+                                <button onclick="document.getElementById('picture-upload').click()" class="upload-btn">
+                                    ➕ Add Photos
+                                </button>
+                                <label>
+                                    Columns:
+                                    <select id="grid-columns">
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4" selected>4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div id="picture-grid" class="picture-grid" data-columns="4">
+                                <!-- Pictures will be added here dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comments Widget -->
+                    <div class="widget" id="comments-widget">
+                        <div class="widget-header">
+                            <h2>💬 Comments 💬</h2>
+                            <button class="widget-toggle">−</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="add-comment">
+                                <input type="text" id="comment-author" placeholder="Your name...">
+                                <textarea id="comment-text" placeholder="Leave a comment..."></textarea>
+                                <button id="add-comment-btn">Post Comment</button>
+                            </div>
+                            <div id="comments-list" class="comments-list">
+                                <!-- Comments will be added here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="column column-right">
+                    <!-- Top Friends Widget -->
+                    <div class="widget" id="top-friends-widget">
+                        <div class="widget-header">
+                            <h2>Top Friends</h2>
+                            <button class="widget-toggle">−</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="friends-controls">
+                                <label>
+                                    Slots:
+                                    <select id="friends-slots">
+                                        <option value="4">4</option>
+                                        <option value="8" selected>8</option>
+                                        <option value="12">12</option>
+                                        <option value="16">16</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div id="friends-grid" class="friends-grid" data-slots="8">
+                                <!-- Friend slots will be added here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats Widget -->
+                    <div class="widget" id="stats-widget">
+                        <div class="widget-header">
+                            <h2>Profile Stats</h2>
+                            <button class="widget-toggle">−</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="stats">
+                                <div class="stat-item">
+                                    <strong>Page Views:</strong>
+                                    <span id="page-views">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <strong>Last Login:</strong>
+                                    <span id="last-login">Just now</span>
+                                </div>
+                                <div class="stat-item">
+                                    <strong>Member Since:</strong>
+                                    <span id="member-since">Today</span>
+                                </div>
+                            </div>
+                            <div class="hit-counter">
+                                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="counter" style="display: none;">
+                                <div class="counter-display">
+                                    <span class="counter-digit">0</span>
+                                    <span class="counter-digit">0</span>
+                                    <span class="counter-digit">0</span>
+                                    <span class="counter-digit">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Widget -->
+                    <div class="widget" id="contact-widget">
+                        <div class="widget-header">
+                            <h2>Contact Me</h2>
+                            <button class="widget-toggle">−</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="contact-links">
+                                <button class="contact-btn">✉️ Send Message</button>
+                                <button class="contact-btn">👥 Add to Friends</button>
+                                <button class="contact-btn">📧 Forward to Friend</button>
+                                <button class="contact-btn">🚫 Block User</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Image Lightbox -->
+    <div id="lightbox" class="lightbox">
+        <span class="lightbox-close">&times;</span>
+        <img class="lightbox-content" id="lightbox-img">
+        <div class="lightbox-caption" id="lightbox-caption"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/persistent-player.js"></script>
+    <script src="js/myspace-core.js"></script>
+    <script src="js/myspace-customizer.js"></script>
+    <script src="js/myspace-widgets.js"></script>
+    <script src="js/myspace-images.js"></script>
+    <script src="js/myspace-audio.js"></script>
+    <script src="js/myspace-effects.js"></script>
+</body>
+</html>

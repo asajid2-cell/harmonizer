@@ -1,0 +1,214 @@
+// MySpace Audio - Music Player
+
+(function() {
+    'use strict';
+
+    let audioPlayer = null;
+    let visualizerInterval = null;
+
+    window.addEventListener('DOMContentLoaded', function() {
+        initAudio();
+    });
+
+    function initAudio() {
+        console.log("[Audio] Initializing music player...");
+
+        audioPlayer = document.getElementById('audio-player');
+
+        // Setup controls
+        setupPlayerControls();
+
+        // Setup upload
+        setupAudioUpload();
+
+        // Load saved audio
+        loadSavedAudio();
+
+        // Autoplay if enabled
+        checkAutoplay();
+
+        console.log("[Audio] Initialization complete");
+    }
+
+    // Player Controls
+    function setupPlayerControls() {
+        const playBtn = document.getElementById('play-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumeDisplay = document.getElementById('volume-display');
+
+        // Play button
+        if (playBtn && audioPlayer) {
+            playBtn.addEventListener('click', function() {
+                audioPlayer.play()
+                    .then(() => {
+                        console.log("[Audio] Playing");
+                        startVisualizer();
+                    })
+                    .catch(err => {
+                        console.error("[Audio] Play error:", err);
+                    });
+            });
+        }
+
+        // Pause button
+        if (pauseBtn && audioPlayer) {
+            pauseBtn.addEventListener('click', function() {
+                audioPlayer.pause();
+                console.log("[Audio] Paused");
+                stopVisualizer();
+            });
+        }
+
+        // Stop button
+        if (stopBtn && audioPlayer) {
+            stopBtn.addEventListener('click', function() {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
+                console.log("[Audio] Stopped");
+                stopVisualizer();
+            });
+        }
+
+        // Volume slider
+        if (volumeSlider && audioPlayer) {
+            volumeSlider.value = window.MySpace.profile.widgets.music.volume;
+            audioPlayer.volume = window.MySpace.profile.widgets.music.volume / 100;
+            if (volumeDisplay) {
+                volumeDisplay.textContent = window.MySpace.profile.widgets.music.volume + '%';
+            }
+
+            volumeSlider.addEventListener('input', function() {
+                const volume = parseInt(this.value);
+                audioPlayer.volume = volume / 100;
+                if (volumeDisplay) {
+                    volumeDisplay.textContent = volume + '%';
+                }
+            });
+
+            volumeSlider.addEventListener('change', function() {
+                window.MySpace.profile.widgets.music.volume = parseInt(this.value);
+                window.MySpace.saveProfile();
+            });
+        }
+
+        // Audio ended event
+        if (audioPlayer) {
+            audioPlayer.addEventListener('ended', function() {
+                stopVisualizer();
+            });
+        }
+    }
+
+    // Audio Upload
+    function setupAudioUpload() {
+        const audioUpload = document.getElementById('audio-upload');
+        const autoplayCheckbox = document.getElementById('autoplay-checkbox');
+
+        if (audioUpload) {
+            audioUpload.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file && file.type.startsWith('audio/')) {
+                    const title = prompt('Song title:', file.name.replace(/\.[^/.]+$/, ""));
+
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        window.MySpace.profile.widgets.music.audioData = e.target.result;
+                        window.MySpace.profile.widgets.music.title = title || file.name;
+                        window.MySpace.saveProfile();
+
+                        loadAudioIntoPlayer(e.target.result, title || file.name);
+                    };
+                    reader.readAsDataURL(file);
+                }
+
+                // Reset input
+                this.value = '';
+            });
+        }
+
+        // Autoplay checkbox
+        if (autoplayCheckbox) {
+            autoplayCheckbox.checked = window.MySpace.profile.widgets.music.autoplay;
+
+            autoplayCheckbox.addEventListener('change', function() {
+                window.MySpace.profile.widgets.music.autoplay = this.checked;
+                window.MySpace.saveProfile();
+            });
+        }
+    }
+
+    // Load Saved Audio
+    function loadSavedAudio() {
+        const audioData = window.MySpace.profile.widgets.music.audioData;
+        const title = window.MySpace.profile.widgets.music.title;
+
+        if (audioData) {
+            loadAudioIntoPlayer(audioData, title);
+        }
+    }
+
+    // Load Audio into Player
+    function loadAudioIntoPlayer(audioData, title) {
+        if (!audioPlayer) return;
+
+        audioPlayer.src = audioData;
+        audioPlayer.load();
+
+        const trackTitle = document.getElementById('track-title');
+        if (trackTitle) {
+            trackTitle.textContent = title || 'Unknown Track';
+        }
+
+        console.log("[Audio] Loaded:", title);
+    }
+
+    // Check Autoplay
+    function checkAutoplay() {
+        const autoplay = window.MySpace.profile.widgets.music.autoplay;
+        const audioData = window.MySpace.profile.widgets.music.audioData;
+
+        if (autoplay && audioData && audioPlayer) {
+            // Delay autoplay slightly to ensure page is fully loaded
+            setTimeout(function() {
+                audioPlayer.play()
+                    .then(() => {
+                        console.log("[Audio] Autoplaying");
+                        startVisualizer();
+                    })
+                    .catch(err => {
+                        console.log("[Audio] Autoplay blocked by browser:", err);
+                        // Browsers often block autoplay, this is expected
+                    });
+            }, 500);
+        }
+    }
+
+    // Visualizer
+    function startVisualizer() {
+        if (visualizerInterval) return;
+
+        const bars = document.querySelectorAll('#audio-visualizer .bar');
+
+        visualizerInterval = setInterval(function() {
+            bars.forEach(bar => {
+                const height = Math.random() * 50 + 10;
+                bar.style.height = height + 'px';
+            });
+        }, 100);
+    }
+
+    function stopVisualizer() {
+        if (visualizerInterval) {
+            clearInterval(visualizerInterval);
+            visualizerInterval = null;
+        }
+
+        const bars = document.querySelectorAll('#audio-visualizer .bar');
+        bars.forEach(bar => {
+            bar.style.height = '10px';
+        });
+    }
+
+})();
