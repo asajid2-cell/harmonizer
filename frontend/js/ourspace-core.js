@@ -398,70 +398,37 @@
             }
         },
 
-        _loadProfileFromUrl: async function(endpoint, sourceLabel) {
-            try {
-                const response = await fetch(endpoint, { cache: 'no-store' });
-                if (!response.ok) {
-                    return false;
-                }
-                const data = await response.json();
-                if (!data) {
-                    return false;
-                }
-                this.profile = data;
-                this.profileSource = sourceLabel;
-                this.backupProfileLocally();
-                return true;
-            } catch (error) {
-                console.error(`[OurSpace] Error loading profile from ${endpoint}:`, error);
-                return false;
-            }
-        },
-
-        _loadProfileFromLocalStorage: function() {
-            try {
-                const saved = localStorage.getItem('ourspace-profile');
-                if (!saved) {
-                    return false;
-                }
-                this.profile = JSON.parse(saved);
-                this.profileSource = 'local';
-                return true;
-            } catch (error) {
-                console.error("[OurSpace] Error loading profile from localStorage:", error);
-                return false;
-            }
-        },
-
         // Load profile from persistent storage
         loadProfile: async function() {
             const isAuthenticated = await this.refreshAuthState();
-            let loaded = false;
+            const profiles = [];
 
+            // Load all available profiles with timestamps
             if (isAuthenticated) {
-                loaded = await this._loadProfileFromUrl('/api/ourspace/profile/load', 'database');
-                if (loaded) {
-                    console.log("[OurSpace] Loaded profile from database");
-                } else {
-                    console.warn("[OurSpace] Failed to load profile from database, will fall back");
-                }
+                const dbProfile = await this._loadProfileCandidate('/api/ourspace/profile/load', 'database');
+                if (dbProfile) profiles.push(dbProfile);
             }
 
-            if (!loaded) {
-                loaded = await this._loadProfileFromUrl('/api/ourspace/profile', 'session');
-                if (loaded) {
-                    console.log("[OurSpace] Loaded profile from temporary session storage");
-                }
-            }
+            const sessionProfile = await this._loadProfileCandidate('/api/ourspace/profile', 'session');
+            if (sessionProfile) profiles.push(sessionProfile);
 
-            if (!loaded) {
-                loaded = this._loadProfileFromLocalStorage();
-                if (loaded) {
-                    console.log("[OurSpace] Loaded profile from local backup");
-                }
-            }
+            const localProfile = this._loadProfileCandidateFromLocalStorage();
+            if (localProfile) profiles.push(localProfile);
 
-            if (!loaded) {
+            // Choose the profile with the most recent lastModified timestamp
+            if (profiles.length > 0) {
+                profiles.sort((a, b) => {
+                    const aTime = a.data?.meta?.lastModified || 0;
+                    const bTime = b.data?.meta?.lastModified || 0;
+                    return bTime - aTime; // Descending order (newest first)
+                });
+
+                const newest = profiles[0];
+                this.profile = newest.data;
+                this.profileSource = newest.source;
+                this.backupProfileLocally();
+                console.log(`[OurSpace] Loaded newest profile from ${newest.source} (${new Date(newest.data.meta.lastModified).toLocaleString()})`);
+            } else {
                 this.profile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
                 this.profileSource = 'default';
                 this.backupProfileLocally();
@@ -470,6 +437,31 @@
 
             this.updateProfileLoadWarning();
             this.ensureStickerData();
+        },
+
+        _loadProfileCandidate: async function(endpoint, sourceLabel) {
+            try {
+                const response = await fetch(endpoint, { cache: 'no-store' });
+                if (!response.ok) return null;
+                const data = await response.json();
+                if (!data) return null;
+                return { data, source: sourceLabel };
+            } catch (error) {
+                console.error(`[OurSpace] Error loading profile from ${endpoint}:`, error);
+                return null;
+            }
+        },
+
+        _loadProfileCandidateFromLocalStorage: function() {
+            try {
+                const saved = localStorage.getItem('ourspace-profile');
+                if (!saved) return null;
+                const data = JSON.parse(saved);
+                return { data, source: 'local' };
+            } catch (error) {
+                console.error("[OurSpace] Error loading profile from localStorage:", error);
+                return null;
+            }
         },
 
         // Save profile to server
@@ -506,24 +498,41 @@
                 }
 
                 const useDatabase = this.isAuthenticated;
-                const endpoint = useDatabase ? '/api/ourspace/profile/save' : '/api/ourspace/profile';
-                const targetLabel = useDatabase ? 'database' : 'temporary storage';
 
-                const response = await fetch(endpoint, {
+                // Save to primary location
+                const primaryEndpoint = useDatabase ? '/api/ourspace/profile/save' : '/api/ourspace/profile';
+                const primaryLabel = useDatabase ? 'database' : 'temporary storage';
+
+                const primaryResponse = await fetch(primaryEndpoint, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(this.profile)
                 });
 
-                if (!response.ok) {
-                    if (response.status === 401 && useDatabase) {
+                if (!primaryResponse.ok) {
+                    if (primaryResponse.status === 401 && useDatabase) {
                         this.setAuthState(false);
                     }
-                    throw new Error(`Server save failed (${response.status})`);
+                    throw new Error(`Server save failed (${primaryResponse.status})`);
                 }
 
+                // If saved to database, also update session storage to keep them in sync
+                if (useDatabase) {
+                    try {
+                        await fetch('/api/ourspace/profile', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(this.profile)
+                        });
+                    } catch (e) {
+                        console.warn("[OurSpace] Failed to sync to session storage:", e);
+                    }
+                }
+
+                // Update source to reflect where we successfully saved
+                this.profileSource = useDatabase ? 'database' : 'session';
                 this.backupProfileLocally();
-                console.log(`[OurSpace] Profile saved successfully to ${targetLabel}`);
+                console.log(`[OurSpace] Profile saved successfully to ${primaryLabel}`);
                 return true;
             } catch (e) {
                 console.error("[OurSpace] Error saving profile:", e);
