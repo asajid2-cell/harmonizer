@@ -150,13 +150,13 @@
     [
       {
         id: "upload",
-        label: "Reconstruct Upload",
+        label: "VAE Upload",
         note: "Enhance an existing photo",
         handler: () => showFilePrompt(),
       },
       {
         id: "prompt",
-        label: "Prompt Synth",
+        label: "IMGEN",
         note: "Generate from text prompt",
         handler: () => showPromptInput(),
       },

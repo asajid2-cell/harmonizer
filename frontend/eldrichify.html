@@ -19,13 +19,14 @@
                     <p class="eld-eyebrow">NEON VAE LAB // 32-32</p>
                     <h1>IMAGE PLAYGROUND</h1>
                     <p>
-                        Compress images through a 32-32 latent bottleneck, then reconstruct them. The VAE creates artifacts
-                        and distortions that look kind of cool.
+                        A traced diffusion UNet compresses uploads into a 32×32 latent bottleneck, a residual MLP cleans the grid,
+                        and a VAE decoder pulls it back into RGB. DF2K super-resolution handles the HD pass, so it doesn’t aim for
+                        strict photorealism—the model generalizes interesting textures, silhouettes, and color runs instead.
                     </p>
                     <ul class="eld-callouts">
-                        <li>&#10022; 32-32 latent bottleneck &#8594; reconstruction loop</li>
-                        <li>&#10022; Residual MLP smooths the latent grid</li>
-                        <li>&#10022; DF2K upsampler handles the HD pass</li>
+                        <li>&#10022; 32×32 latent stage feeding a traced diffusion UNet encoder/decoder</li>
+                        <li>&#10022; Residual MLP refiner keeps the latent grid steady before reconstruction</li>
+                        <li>&#10022; DF2K-trained upsampler handles the HD pass while preserving those non-photoreal patterns</li>
                     </ul>
                     <div class="eld-cta-row">
                         <button type="button" class="launch-link viz-button" id="launch-pipeline-btn">Launch Pipeline</button>
