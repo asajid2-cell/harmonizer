@@ -470,7 +470,6 @@
     function setupTopFriendsWidget() {
         const friendsSlots = document.getElementById('friends-slots');
         const friendsGrid = document.getElementById('friends-grid');
-        const viewAllBtn = document.getElementById('view-all-friends-btn');
 
         // Load friends
         loadFriendsGrid();
@@ -486,13 +485,6 @@
                 }
                 window.OurSpace.saveProfile();
                 loadFriendsGrid();
-            });
-        }
-
-        // View all friends button
-        if (viewAllBtn) {
-            viewAllBtn.addEventListener('click', function() {
-                showAllFriends();
             });
         }
     }
@@ -636,6 +628,9 @@
         };
         document.addEventListener('keydown', escapeHandler);
     }
+
+    // Expose showAllFriends globally so it can be called from other modules
+    window.showAllFriends = showAllFriends;
 
     function addFriend(index) {
         const input = document.createElement('input');

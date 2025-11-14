@@ -449,6 +449,12 @@
                 button.addEventListener('click', function() {
                     window.OurSpaceFriends.showBlockList();
                 });
+            } else if (text.includes('View All Friends')) {
+                button.addEventListener('click', function() {
+                    if (window.showAllFriends) {
+                        window.showAllFriends();
+                    }
+                });
             }
         });
     }
