@@ -22,6 +22,20 @@
   let isProcessing = false;
   let currentMode = null;
   const stageDownloads = {};
+  const pendingStagePreviews = new Map();
+  const UPLOAD_STAGE_ORDER = ["input32", "vae", "refined", "upsampled", "hd"];
+  const PROMPT_STAGE_ORDER = ["tokens", "latent", "guidance", "diffusion", "hd"];
+  const STAGE_PREVIEW_META = {
+    input32: { label: "[S0] Input capture (32x32)", alt: "Input capture preview" },
+    vae: { label: "[S1] Base decode (VAE)", alt: "VAE decode preview" },
+    refined: { label: "[S2] Latent refinement", alt: "Refined preview" },
+    upsampled: { label: "[S3] Pixel upsample 2x", alt: "Upsampled preview" },
+    hd: { label: "[S4] Final HD output", alt: "HD output preview" },
+    tokens: { label: "[S0] Token embeddings", alt: "Tokenization visualization" },
+    latent: { label: "[S1] Latent noise field", alt: "Latent noise visualization" },
+    guidance: { label: "[S2] Guidance fusion", alt: "Guidance visualization" },
+    diffusion: { label: "[S3] Diffusion process", alt: "Diffusion visualization" },
+  };
 
   // Initialize
   if (launchBtn) {
@@ -74,6 +88,7 @@
     clearStageDownloads();
 
     terminalOutput.innerHTML = "";
+    pendingStagePreviews.clear();
 
     addTerminalLine("Eldrichify Terminal v2.4.1", "info");
     addTerminalLine("Photon-Safe Upscaling Pipeline", "info");
@@ -112,6 +127,7 @@
       terminalDisconnected.removeAttribute("hidden");
     }
 
+    pendingStagePreviews.clear();
     clearStageDownloads();
     selectedFile = null;
     isProcessing = false;
@@ -128,6 +144,90 @@
         btn.setAttribute("href", "#");
       });
     }
+  }
+
+  function queueStagePreview(stageKey) {
+    if (!terminalOutput || !stageKey || pendingStagePreviews.has(stageKey)) {
+      return;
+    }
+    const meta = STAGE_PREVIEW_META[stageKey] || { label: stageKey, alt: stageKey };
+    const line = document.createElement("div");
+    line.className = "eld-terminal-line stage-preview-line";
+
+    const shell = document.createElement("div");
+    shell.className = "eld-terminal-stage-preview";
+
+    const labelEl = document.createElement("div");
+    labelEl.className = "eld-stage-preview-label";
+    labelEl.textContent = meta.label;
+
+    const frame = document.createElement("div");
+    frame.className = "eld-stage-preview-frame";
+    frame.innerHTML = `
+      <div class="eld-stage-preview-spinner" aria-hidden="true"></div>
+      <span class="eld-stage-preview-waiting">awaiting render...</span>
+    `;
+
+    shell.appendChild(labelEl);
+    shell.appendChild(frame);
+    line.appendChild(shell);
+    terminalOutput.appendChild(line);
+    terminalOutput.parentElement.scrollTop = terminalOutput.parentElement.scrollHeight;
+    pendingStagePreviews.set(stageKey, { frame, shell, meta });
+  }
+
+  function renderStagePreviewImage(stageKey, dataUrl) {
+    const preview = pendingStagePreviews.get(stageKey);
+    if (!preview) {
+      return;
+    }
+    const { frame, shell, meta } = preview;
+    frame.innerHTML = "";
+    if (dataUrl) {
+      const img = document.createElement("img");
+      img.src = dataUrl;
+      img.alt = meta?.alt || `${stageKey} preview`;
+      frame.appendChild(img);
+      shell.classList.add("ready");
+    } else {
+      const fallback = document.createElement("span");
+      fallback.className = "eld-stage-preview-missing";
+      fallback.textContent = "preview unavailable";
+      frame.appendChild(fallback);
+      shell.classList.add("is-missing");
+    }
+  }
+
+  async function revealStagePreviews(previewMap, stageOrder) {
+    if (!pendingStagePreviews.size) {
+      return;
+    }
+    if (!previewMap) {
+      markStagePreviewsUnavailable();
+      return;
+    }
+    const order = stageOrder && stageOrder.length ? stageOrder : Array.from(pendingStagePreviews.keys());
+    for (const stage of order) {
+      if (!pendingStagePreviews.has(stage)) {
+        continue;
+      }
+      await sleep(160);
+      renderStagePreviewImage(stage, previewMap[stage]);
+    }
+  }
+
+  function markStagePreviewsUnavailable(message = "preview unavailable") {
+    pendingStagePreviews.forEach(({ frame, shell }) => {
+      if (frame.querySelector("img") || frame.querySelector(".eld-stage-preview-missing")) {
+        return;
+      }
+      frame.innerHTML = "";
+      const fallback = document.createElement("span");
+      fallback.className = "eld-stage-preview-missing";
+      fallback.textContent = message;
+      frame.appendChild(fallback);
+      shell.classList.add("is-missing");
+    });
   }
 
   function addTerminalLine(text, type = "") {
@@ -192,7 +292,8 @@
     const submitBtn = document.createElement("button");
     submitBtn.type = "button";
     submitBtn.className = "eld-terminal-submit";
-    submitBtn.textContent = "Generate";
+    submitBtn.innerHTML = `<span class="eld-terminal-submit-label">$ generate</span><span class="eld-terminal-submit-cursor">_</span>`;
+    submitBtn.setAttribute("aria-label", "Generate image");
 
     promptDiv.appendChild(textarea);
     promptDiv.appendChild(submitBtn);
@@ -255,6 +356,7 @@
       addTerminalLine("");
       addTerminalLine(`✖ Error: ${error.message}`, "error");
       addTerminalLine("");
+      markStagePreviewsUnavailable("prompt failed");
       addTerminalLine("$ Restoring prompt input...", "warning");
       await sleep(600);
       showPromptInput(promptText);
@@ -370,6 +472,7 @@
     await sleep(350);
     addTerminalLine("  ✓ Latent captured", "success");
     addTerminalLine("");
+    queueStagePreview("input32");
 
     // Stage 2: VAE Decode
     await sleep(200);
@@ -381,6 +484,7 @@
     await sleep(300);
     addTerminalLine("  ✓ Base reconstruction complete", "success");
     addTerminalLine("");
+    queueStagePreview("vae");
 
     // Stage 3: Latent Refine
     await sleep(200);
@@ -394,6 +498,7 @@
     await sleep(300);
     addTerminalLine("  ✓ Refinement complete", "success");
     addTerminalLine("");
+    queueStagePreview("refined");
 
     // Stage 4: Pixel Upsample
     await sleep(200);
@@ -405,6 +510,7 @@
     await sleep(350);
     addTerminalLine("  ✓ 2x upsample complete", "success");
     addTerminalLine("");
+    queueStagePreview("upsampled");
 
     // Stage 5: HD Super-res
     await sleep(200);
@@ -418,6 +524,7 @@
     await sleep(400);
     addTerminalLine("  ✓ HD output generated", "success");
     addTerminalLine("");
+    // Don't queue the HD preview during processing - will show all steps after completion
 
     // Complete
     await sleep(250);
@@ -446,10 +553,21 @@
 
       addTerminalLine("✓ Server processing complete", "success");
       addTerminalLine("");
-      await sleep(400);
-      addTerminalLine("$ Displaying results...", "info");
+      addTerminalLine("─".repeat(60), "info");
+      addTerminalLine("$ Rendering pipeline outputs:", "info");
+      addTerminalLine("");
 
-      await sleep(600);
+      // Queue all stages including HD
+      UPLOAD_STAGE_ORDER.forEach(stage => {
+        queueStagePreview(stage);
+      });
+
+      await revealStagePreviews(data.previews, UPLOAD_STAGE_ORDER);
+      await sleep(400);
+      addTerminalLine("");
+      addTerminalLine("─".repeat(60), "info");
+      addTerminalLine("✔ Pipeline complete!", "success");
+      await sleep(200);
       displayResults(file, data);
 
     } catch (error) {
@@ -461,6 +579,7 @@
       await sleep(800);
       addTerminalLine("$ Generating preview results...", "info");
       await sleep(1000);
+      markStagePreviewsUnavailable("offline preview only");
 
       // Fallback: show input image only
       displayResults(file, null);
@@ -472,26 +591,22 @@
   function displayResults(file, data) {
     const mode = data?.mode || (file ? "upload" : "prompt");
     const hasInputFile = !!file;
-    const stageOrder = mode === "prompt" ? ["hd"] : ["vae", "refined", "upsampled", "hd"];
+    const stageOrder = mode === "prompt" ? [...PROMPT_STAGE_ORDER] : ["vae", "refined", "upsampled", "hd"];
     if (mode === "prompt") {
       setResultVisibility(["hd"]);
     } else {
       setResultVisibility(["input", "vae", "refined", "upsampled", "hd"]);
     }
 
-    // Close terminal and size selector, show results
-    setTimeout(() => {
-      terminalWindow.setAttribute("hidden", "");
-      if (resultsGrid) {
-        resultsGrid.removeAttribute("hidden");
-      }
-      if (downloadPanel) {
-        downloadPanel.removeAttribute("hidden");
-      }
-      // Don't show disconnected message when displaying results
-      selectedFile = null;
-      isProcessing = false;
-    }, 1000);
+    // Surface the gallery but keep the terminal in place so previews remain visible
+    if (resultsGrid) {
+      resultsGrid.removeAttribute("hidden");
+    }
+    if (downloadPanel) {
+      downloadPanel.removeAttribute("hidden");
+    }
+    selectedFile = null;
+    isProcessing = false;
 
     // Display input image (original, not resized)
     if (hasInputFile) {
@@ -523,25 +638,28 @@
           stageDownloads[stage] = { dataUrl, filename };
         }
       });
-    } else if (hasInputFile) {
-      // Fallback: duplicate input for all stages when working offline
-      setTimeout(() => {
-        const inputImg = document.getElementById("result-input");
-        const inputSrc = inputImg?.src;
-        stageOrder.forEach(stage => {
-          const stageImg = document.getElementById(`result-${stage}`);
-          const downloadBtn = document.getElementById(`download-${stage}`);
-          const filename = `${stage}_${Date.now()}.png`;
-          if (stageImg && inputSrc) {
-            stageImg.src = inputSrc;
-          }
-          if (downloadBtn && inputSrc) {
-            downloadBtn.href = inputSrc;
-            downloadBtn.download = filename;
-            stageDownloads[stage] = { dataUrl: inputSrc, filename };
-          }
-        });
-      }, 500);
+    } else {
+      markStagePreviewsUnavailable("preview unavailable");
+      if (hasInputFile) {
+        // Fallback: duplicate input for all stages when working offline
+        setTimeout(() => {
+          const inputImg = document.getElementById("result-input");
+          const inputSrc = inputImg?.src;
+          stageOrder.forEach(stage => {
+            const stageImg = document.getElementById(`result-${stage}`);
+            const downloadBtn = document.getElementById(`download-${stage}`);
+            const filename = `${stage}_${Date.now()}.png`;
+            if (stageImg && inputSrc) {
+              stageImg.src = inputSrc;
+            }
+            if (downloadBtn && inputSrc) {
+              downloadBtn.href = inputSrc;
+              downloadBtn.download = filename;
+              stageDownloads[stage] = { dataUrl: inputSrc, filename };
+            }
+          });
+        }, 500);
+      }
     }
   }
 

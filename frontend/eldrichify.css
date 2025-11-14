@@ -479,20 +479,130 @@ body.eldrichify-terminal {
 }
 
 .eld-terminal-submit {
-  margin-top: 8px;
+  margin-top: 10px;
   align-self: flex-start;
-  background: linear-gradient(90deg, #00ffe1, #00a4ff);
-  color: #010409;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 14px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  background: rgba(0, 4, 9, 0.8);
+  border: 1px solid rgba(0, 255, 225, 0.45);
+  border-radius: 0;
+  padding: 8px 18px;
+  color: #00ffe1;
   font-family: "IBM Plex Mono", monospace;
+  letter-spacing: 0.12em;
+  text-transform: lowercase;
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  box-shadow: inset 0 0 18px rgba(0, 255, 225, 0.12);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
 .eld-terminal-submit:hover {
-  opacity: 0.85;
+  background: rgba(0, 255, 225, 0.08);
+  border-color: #00ffe1;
+  box-shadow: 0 0 16px rgba(0, 255, 225, 0.25), inset 0 0 18px rgba(0, 255, 225, 0.15);
+}
+
+.eld-terminal-submit-label {
+  font-size: 0.85rem;
+}
+
+.eld-terminal-submit-cursor {
+  font-size: 0.85rem;
+  line-height: 1;
+  animation: eldCursorBlink 1.1s steps(2, start) infinite;
+}
+
+@keyframes eldCursorBlink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.stage-preview-line {
+  padding: 0;
+}
+
+.eld-terminal-stage-preview {
+  border: 1px solid rgba(0, 255, 225, 0.32);
+  background: rgba(0, 8, 16, 0.85);
+  padding: 12px;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: inset 0 0 20px rgba(0, 255, 225, 0.08);
+}
+
+.eld-terminal-stage-preview.ready {
+  border-color: #00ffe1;
+  box-shadow: 0 0 16px rgba(0, 255, 225, 0.25), inset 0 0 14px rgba(0, 255, 225, 0.12);
+}
+
+.eld-terminal-stage-preview.is-missing {
+  border-color: rgba(255, 136, 136, 0.6);
+  box-shadow: inset 0 0 14px rgba(255, 136, 136, 0.2);
+}
+
+.eld-stage-preview-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(138, 249, 255, 0.9);
+}
+
+.eld-stage-preview-frame {
+  border: 1px solid rgba(0, 255, 225, 0.35);
+  background: rgba(0, 0, 0, 0.65);
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+}
+
+.eld-stage-preview-frame img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 0 16px rgba(0, 255, 225, 0.25);
+}
+
+.eld-stage-preview-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 255, 225, 0.25);
+  border-top-color: #00ffe1;
+  animation: eldStageSpin 0.9s linear infinite;
+}
+
+.eld-stage-preview-waiting {
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(138, 249, 255, 0.7);
+}
+
+.eld-stage-preview-missing {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 166, 166, 0.9);
+}
+
+@keyframes eldStageSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Chat console (Disco-teque) */

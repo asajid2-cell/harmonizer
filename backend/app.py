@@ -63,6 +63,31 @@ rl_policy_weights: dict[str, float] = {"baseline": 0.5, "rl": 0.5}
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-lite-preview")
 GEMINI_API_ROOT = os.environ.get("GEMINI_API_ROOT", "https://generativelanguage.googleapis.com/v1beta")
+PRIMARY_DOMAIN = os.environ.get("PRIMARY_DOMAIN", "harmonizer.cc").lower()
+SECONDARY_DOMAIN = os.environ.get("SECONDARY_DOMAIN", "ourspace.icu").lower()
+SECONDARY_ENTRYPOINT = os.environ.get("SECONDARY_ENTRYPOINT", "ourspace.html")
+
+
+def _normalize_host(value: Optional[str]) -> str:
+    """Lower-case host, strip schemes/ports, drop common www. prefix."""
+    if not value:
+        return ""
+    host = value.strip().lower()
+    if "://" in host:
+        host = host.split("://", 1)[1]
+    if ":" in host:
+        host = host.split(":", 1)[0]
+    if host.startswith("www."):
+        host = host[4:]
+    return host
+
+
+def _host_matches(request_host: Optional[str], expected_host: Optional[str]) -> bool:
+    """Case-insensitive host comparison that tolerates schemes/ports."""
+    normalized_expected = _normalize_host(expected_host)
+    if not normalized_expected:
+        return False
+    return _normalize_host(request_host) == normalized_expected
 
 
 def _coerce_float(value: Optional[object]) -> Optional[float]:
@@ -390,7 +415,20 @@ def locate_ffmpeg_bin() -> Optional[Path]:
 
 @app.route("/")
 def index():
+    host = (request.host or "").split(":")[0].lower()
+    if _host_matches(host, SECONDARY_DOMAIN):
+        return send_from_directory(FRONTEND_DIR, SECONDARY_ENTRYPOINT)
     return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.route("/ourspace.html")
+def ourspace_entry():
+    return send_from_directory(FRONTEND_DIR, "ourspace.html")
+
+
+@app.route("/ourspace")
+def ourspace_redirect():
+    return redirect("/ourspace.html")
 
 
 @app.route("/auth/google")
@@ -611,6 +649,36 @@ def api_eldrichify():
             "previews": previews,
         }
     )
+
+
+@app.route("/download-traced-model")
+def download_traced_model():
+    """Download the traced TorchScript model."""
+    # Use the pre-zipped model from IMGEN directory
+    model_zip = BASE_DIR.parent / "IMGEN" / "finetunemodel.zip"
+    if model_zip.exists():
+        return send_file(
+            model_zip,
+            as_attachment=True,
+            download_name='traced_diffusion_unet.zip',
+            mimetype='application/zip'
+        )
+    abort(404)
+
+
+@app.route("/download-model-weights")
+def download_model_weights():
+    """Download the VAE model weights."""
+    # Return the base VAE weights from VAE directory
+    model_path = BASE_DIR.parent / "VAE" / "base_vae_best.pth"
+    if model_path.exists():
+        return send_file(
+            model_path,
+            as_attachment=True,
+            download_name='base_vae_best.pth',
+            mimetype='application/octet-stream'
+        )
+    abort(404)
 
 
 @app.route("/api/imgen", methods=["POST"])
