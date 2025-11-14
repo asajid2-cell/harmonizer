@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dark Mode Testbed</title>
+    <style>
+      :root {
+        font-family: "Inter", system-ui, Arial, sans-serif;
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 24px;
+        background: #f5f5f7;
+        color: #1f1f1f;
+        transition: background 0.3s ease, color 0.3s ease;
+      }
+      body.dark {
+        background: #050505;
+        color: #f0f0f0;
+      }
+      h1 {
+        margin-bottom: 8px;
+      }
+      p.subhead {
+        margin-top: 0;
+        color: #555;
+      }
+      body.dark p.subhead {
+        color: #cfcfcf;
+      }
+      .horizontal-menu {
+        display: flex;
+        gap: 12px;
+        overflow-x: auto;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 20px;
+        border: 1px solid #e0e0e0;
+        margin-bottom: 24px;
+      }
+      .horizontal-menu button {
+        min-width: 140px;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 999px;
+        background: #4b6bfb;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .vertical-menu {
+        max-height: 240px;
+        overflow-y: auto;
+        border-radius: 20px;
+        border: 1px solid #e0e0e0;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 12px;
+        margin-bottom: 32px;
+      }
+      .vertical-menu div {
+        padding: 8px 4px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      }
+      body.dark .horizontal-menu,
+      body.dark .vertical-menu {
+        background: rgba(25, 25, 25, 0.9);
+        border-color: rgba(255, 255, 255, 0.08);
+      }
+      #dark-toggle {
+        border: none;
+        border-radius: 150px;
+        padding: 18px 48px;
+        font-size: 1.25rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #f97316, #facc15);
+        color: #090909;
+        cursor: pointer;
+        box-shadow: 0 10px 20px rgba(249, 115, 22, 0.35);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      #dark-toggle:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 25px rgba(249, 115, 22, 0.35);
+      }
+      body.dark #dark-toggle {
+        background: linear-gradient(135deg, #22d3ee, #818cf8);
+        color: #050505;
+        box-shadow: 0 10px 20px rgba(129, 140, 248, 0.35);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Scroll Playground</h1>
+    <p class="subhead">Horizontal + vertical menus plus a 150px radius dark mode toggle.</p>
+
+    <section class="horizontal-menu" aria-label="Horizontal scroll menu">
+      <button>Overview</button>
+      <button>Analytics</button>
+      <button>Reports</button>
+      <button>Delivery</button>
+      <button>Inventory</button>
+      <button>Finance</button>
+      <button>Security</button>
+      <button>Settings</button>
+    </section>
+
+    <section class="vertical-menu" aria-label="Vertical scroll menu">
+      <div>Timeline Event 1</div>
+      <div>Timeline Event 2</div>
+      <div>Timeline Event 3</div>
+      <div>Timeline Event 4</div>
+      <div>Timeline Event 5</div>
+      <div>Timeline Event 6</div>
+      <div>Timeline Event 7</div>
+      <div>Timeline Event 8</div>
+      <div>Timeline Event 9</div>
+      <div>Timeline Event 10</div>
+      <div>Timeline Event 11</div>
+      <div>Timeline Event 12</div>
+      <div>Timeline Event 13</div>
+      <div>Timeline Event 14</div>
+    </section>
+
+    <button id="dark-toggle" type="button">Dark Mode</button>
+
+    <script>
+      const toggle = document.getElementById('dark-toggle');
+      toggle.addEventListener('click', () => {
+        document.body.classList.toggle('dark');
+      });
+    </script>
+  </body>
+</html>

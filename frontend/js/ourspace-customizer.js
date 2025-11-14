@@ -3,6 +3,14 @@
 (function() {
     'use strict';
 
+    const WIDGET_TWEAK_DEFAULTS = {
+        radius: 10,
+        border: 3,
+        blur: 0,
+        glowColor: '#00ffff',
+        glowStrength: 20
+    };
+
     window.addEventListener('DOMContentLoaded', function() {
         initCustomizer();
     });
@@ -24,6 +32,9 @@
 
         // Font controls
         setupFontControls();
+
+        // Widget styling controls
+        setupWidgetStyleControls();
 
         // Effects controls
         setupEffectsControls();
@@ -293,6 +304,1226 @@
                     type: 'pattern',
                     pattern: 'evanescent'
                 }
+            },
+            candyrave: {
+                name: 'candyrave',
+                colors: {
+                    background: '#ff1493',
+                    text: '#ffffff',
+                    links: '#00ffff',
+                    linksHover: '#ffff00',
+                    borders: '#ff00ff',
+                    widgetBg: '#ff69b4',
+                    widgetBgOpacity: 75
+                },
+                fonts: {
+                    family: 'Comic Sans MS',
+                    size: 16
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'hearts'
+                }
+            },
+            neongrunge: {
+                name: 'neongrunge',
+                colors: {
+                    background: '#1a1a1a',
+                    text: '#00ff41',
+                    links: '#ff00de',
+                    linksHover: '#00f0ff',
+                    borders: '#39ff14',
+                    widgetBg: '#0d0d0d',
+                    widgetBgOpacity: 85
+                },
+                fonts: {
+                    family: 'Arial',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'dots'
+                }
+            },
+            holographic: {
+                name: 'holographic',
+                colors: {
+                    background: '#e0e0ff',
+                    text: '#4a0080',
+                    links: '#ff00ff',
+                    linksHover: '#00ffff',
+                    borders: '#b366ff',
+                    widgetBg: '#f0f0ff',
+                    widgetBgOpacity: 60
+                },
+                fonts: {
+                    family: 'Verdana',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'sparkles'
+                }
+            },
+            vaporwave: {
+                name: 'vaporwave',
+                colors: {
+                    background: '#ff71ce',
+                    text: '#01cdfe',
+                    links: '#05ffa1',
+                    linksHover: '#fffb96',
+                    borders: '#b967ff',
+                    widgetBg: '#ff6ac1',
+                    widgetBgOpacity: 70
+                },
+                fonts: {
+                    family: 'Courier New',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'stars'
+                }
+            },
+            acidwash: {
+                name: 'acidwash',
+                colors: {
+                    background: '#ccff00',
+                    text: '#9900ff',
+                    links: '#ff0099',
+                    linksHover: '#00ff99',
+                    borders: '#ff6600',
+                    widgetBg: '#99ff00',
+                    widgetBgOpacity: 65
+                },
+                fonts: {
+                    family: 'Impact',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'tigerprint'
+                }
+            },
+            kawaiigore: {
+                name: 'kawaiigore',
+                colors: {
+                    background: '#ffb3d9',
+                    text: '#8b0000',
+                    links: '#ff1493',
+                    linksHover: '#dc143c',
+                    borders: '#ff69b4',
+                    widgetBg: '#ffc0cb',
+                    widgetBgOpacity: 80
+                },
+                fonts: {
+                    family: 'Comic Sans MS',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'hearts'
+                }
+            },
+            glitchcore: {
+                name: 'Glitchdream',
+                colors: {
+                    background: '#000000',
+                    text: '#00ff00',
+                    links: '#ff0000',
+                    linksHover: '#0000ff',
+                    borders: '#ffff00',
+                    widgetBg: '#1a1a1a',
+                    widgetBgOpacity: 95
+                },
+                fonts: {
+                    family: 'Courier New',
+                    size: 13
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'checkers'
+                }
+            },
+            stargaze: {
+                name: 'stargaze',
+                colors: {
+                    background: '#0a0e27',
+                    text: '#ffffff',
+                    links: '#a78bfa',
+                    linksHover: '#fbbf24',
+                    borders: '#6366f1',
+                    widgetBg: '#1e1b4b',
+                    widgetBgOpacity: 85
+                },
+                fonts: {
+                    family: 'Georgia',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'stars'
+                }
+            },
+            plasticfantastic: {
+                name: 'plasticfantastic',
+                colors: {
+                    background: '#ff00ff',
+                    text: '#ffff00',
+                    links: '#00ffff',
+                    linksHover: '#ff6600',
+                    borders: '#00ff00',
+                    widgetBg: '#cc00cc',
+                    widgetBgOpacity: 70
+                },
+                fonts: {
+                    family: 'Comic Sans MS',
+                    size: 16
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'dots'
+                }
+            },
+            hyperpop: {
+                name: 'hyperpop',
+                colors: {
+                    background: '#ff006e',
+                    text: '#ffffff',
+                    links: '#06ffa5',
+                    linksHover: '#fffb00',
+                    borders: '#3a86ff',
+                    widgetBg: '#fb5607',
+                    widgetBgOpacity: 75
+                },
+                fonts: {
+                    family: 'Impact',
+                    size: 17
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'sparkles'
+                }
+            },
+            cosmichorror: {
+                name: 'cosmichorror',
+                colors: {
+                    background: '#1a0033',
+                    text: '#9d4edd',
+                    links: '#7209b7',
+                    linksHover: '#f72585',
+                    borders: '#560bad',
+                    widgetBg: '#10002b',
+                    widgetBgOpacity: 90
+                },
+                fonts: {
+                    family: 'Times New Roman',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'flames'
+                }
+            },
+            rainbowvomit: {
+                name: 'rainbowvomit',
+                colors: {
+                    background: '#ff0000',
+                    text: '#ffff00',
+                    links: '#00ff00',
+                    linksHover: '#00ffff',
+                    borders: '#ff00ff',
+                    widgetBg: '#ff8800',
+                    widgetBgOpacity: 60
+                },
+                fonts: {
+                    family: 'Comic Sans MS',
+                    size: 18
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'hearts'
+                }
+            },
+            electricdream: {
+                name: 'electricdream',
+                colors: {
+                    background: '#0d1b2a',
+                    text: '#00d9ff',
+                    links: '#ff006e',
+                    linksHover: '#ffbe0b',
+                    borders: '#8338ec',
+                    widgetBg: '#1b263b',
+                    widgetBgOpacity: 85
+                },
+                fonts: {
+                    family: 'Verdana',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'stars'
+                }
+            },
+            cyberpsycho: {
+                name: 'cyberpsycho',
+                colors: {
+                    background: '#000000',
+                    text: '#ff0080',
+                    links: '#00ff41',
+                    linksHover: '#ffff00',
+                    borders: '#ff0080',
+                    widgetBg: '#1a001a',
+                    widgetBgOpacity: 95
+                },
+                fonts: {
+                    family: 'Courier New',
+                    size: 13
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'checkers'
+                }
+            },
+            unicornblood: {
+                name: 'unicornblood',
+                colors: {
+                    background: '#ff1493',
+                    text: '#ffffff',
+                    links: '#9d00ff',
+                    linksHover: '#00ffff',
+                    borders: '#ff00ff',
+                    widgetBg: '#c71585',
+                    widgetBgOpacity: 50
+                },
+                fonts: {
+                    family: 'Comic Sans MS',
+                    size: 20
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'sparkles'
+                }
+            },
+            scenecore: {
+                name: 'Stage Bloom',
+                colors: {
+                    background: '#000000',
+                    text: '#ff00ff',
+                    links: '#00ff00',
+                    linksHover: '#ffff00',
+                    borders: '#ff0080',
+                    widgetBg: '#1a0033',
+                    widgetBgOpacity: 85
+                },
+                fonts: {
+                    family: 'Arial',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'checkers'
+                }
+            },
+            weirdcore: {
+                name: 'Liminal Bloom',
+                colors: {
+                    background: '#ffe5b4',
+                    text: '#8b4513',
+                    links: '#ff6347',
+                    linksHover: '#4169e1',
+                    borders: '#9370db',
+                    widgetBg: '#ffd700',
+                    widgetBgOpacity: 60
+                },
+                fonts: {
+                    family: 'Comic Sans MS',
+                    size: 16
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'dots'
+                }
+            },
+            dreamcore: {
+                name: 'Lucid Mirage',
+                colors: {
+                    background: '#f0e6ff',
+                    text: '#6a0dad',
+                    links: '#ff69b4',
+                    linksHover: '#9370db',
+                    borders: '#dda0dd',
+                    widgetBg: '#e6ccff',
+                    widgetBgOpacity: 70
+                },
+                fonts: {
+                    family: 'Georgia',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'clouds'
+                }
+            },
+            kidcore: {
+                name: 'Sticker Parade',
+                colors: {
+                    background: '#ffff00',
+                    text: '#ff0000',
+                    links: '#0000ff',
+                    linksHover: '#00ff00',
+                    borders: '#ff00ff',
+                    widgetBg: '#ffa500',
+                    widgetBgOpacity: 65
+                },
+                fonts: {
+                    family: 'Comic Sans MS',
+                    size: 18
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'stars'
+                }
+            },
+            angelcore: {
+                name: 'angelcore',
+                colors: {
+                    background: '#ffffff',
+                    text: '#d4af37',
+                    links: '#ffd700',
+                    linksHover: '#ffb6c1',
+                    borders: '#e6e6fa',
+                    widgetBg: '#fff8dc',
+                    widgetBgOpacity: 75
+                },
+                fonts: {
+                    family: 'Georgia',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'sparkles'
+                }
+            },
+            witchcore: {
+                name: 'Moonlit Coven',
+                colors: {
+                    background: '#1a0033',
+                    text: '#9d4edd',
+                    links: '#c77dff',
+                    linksHover: '#e0aaff',
+                    borders: '#7209b7',
+                    widgetBg: '#240046',
+                    widgetBgOpacity: 90
+                },
+                fonts: {
+                    family: 'Times New Roman',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'stars'
+                }
+            },
+            goblincore: {
+                name: 'goblincore',
+                colors: {
+                    background: '#3d2b1f',
+                    text: '#b5a397',
+                    links: '#8db600',
+                    linksHover: '#d4a373',
+                    borders: '#6b4423',
+                    widgetBg: '#4a3526',
+                    widgetBgOpacity: 85
+                },
+                fonts: {
+                    family: 'Verdana',
+                    size: 13
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'dots'
+                }
+            },
+            fairycore: {
+                name: 'Prism Fae',
+                colors: {
+                    background: '#f0fff0',
+                    text: '#2e8b57',
+                    links: '#ff69b4',
+                    linksHover: '#dda0dd',
+                    borders: '#98fb98',
+                    widgetBg: '#e0ffe0',
+                    widgetBgOpacity: 65
+                },
+                fonts: {
+                    family: 'Georgia',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'butterflies'
+                }
+            },
+            cryptidcore: {
+                name: 'Cryptid Night',
+                colors: {
+                    background: '#1c3b1a',
+                    text: '#9cce9c',
+                    links: '#ff6b35',
+                    linksHover: '#ffff66',
+                    borders: '#4d7c4d',
+                    widgetBg: '#0f2a0e',
+                    widgetBgOpacity: 88
+                },
+                fonts: {
+                    family: 'Courier New',
+                    size: 13
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'stripes'
+                }
+            },
+            mermaidcore: {
+                name: 'Siren Lagoon',
+                colors: {
+                    background: '#00ced1',
+                    text: '#f0ffff',
+                    links: '#ff69b4',
+                    linksHover: '#ffd700',
+                    borders: '#40e0d0',
+                    widgetBg: '#008b8b',
+                    widgetBgOpacity: 70
+                },
+                fonts: {
+                    family: 'Verdana',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'sparkles'
+                }
+            },
+            royalcore: {
+                name: 'Opulent Throne',
+                colors: {
+                    background: '#4b0082',
+                    text: '#ffd700',
+                    links: '#ffb6c1',
+                    linksHover: '#dda0dd',
+                    borders: '#9370db',
+                    widgetBg: '#2f0066',
+                    widgetBgOpacity: 82
+                },
+                fonts: {
+                    family: 'Times New Roman',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'roses'
+                }
+            },
+            trashcore: {
+                name: 'Dumpster Pop',
+                colors: {
+                    background: '#708090',
+                    text: '#00ff00',
+                    links: '#ff00ff',
+                    linksHover: '#ffff00',
+                    borders: '#a9a9a9',
+                    widgetBg: '#2f4f4f',
+                    widgetBgOpacity: 75
+                },
+                fonts: {
+                    family: 'Courier New',
+                    size: 13
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'checkers'
+                }
+            },
+            bloodrave: {
+                name: 'bloodrave',
+                colors: {
+                    background: '#8b0000',
+                    text: '#ffffff',
+                    links: '#ff1493',
+                    linksHover: '#00ffff',
+                    borders: '#dc143c',
+                    widgetBg: '#660000',
+                    widgetBgOpacity: 85
+                },
+                fonts: {
+                    family: 'Impact',
+                    size: 16
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'hearts'
+                }
+            },
+            pastelgore: {
+                name: 'Sugar Shock',
+                colors: {
+                    background: '#ffcce5',
+                    text: '#990000',
+                    links: '#ff3366',
+                    linksHover: '#cc0066',
+                    borders: '#ff99cc',
+                    widgetBg: '#ffe0f0',
+                    widgetBgOpacity: 65
+                },
+                fonts: {
+                    family: 'Comic Sans MS',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'hearts'
+                }
+            },
+            neonoir: {
+                name: 'neonoir',
+                colors: {
+                    background: '#000000',
+                    text: '#ff00ff',
+                    links: '#00ffff',
+                    linksHover: '#ff0000',
+                    borders: '#39ff14',
+                    widgetBg: '#0a0a0a',
+                    widgetBgOpacity: 92
+                },
+                fonts: {
+                    family: 'Courier New',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'checkers'
+                }
+            },
+            acidfairy: {
+                name: 'acidfairy',
+                colors: {
+                    background: '#bfff00',
+                    text: '#ff00ff',
+                    links: '#00ffff',
+                    linksHover: '#ff1493',
+                    borders: '#ff69b4',
+                    widgetBg: '#90ee90',
+                    widgetBgOpacity: 60
+                },
+                fonts: {
+                    family: 'Comic Sans MS',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'butterflies'
+                }
+            },
+            cybergoth: {
+                name: 'cybergoth',
+                colors: {
+                    background: '#0d0d0d',
+                    text: '#00ff41',
+                    links: '#ff0080',
+                    linksHover: '#00d9ff',
+                    borders: '#8b00ff',
+                    widgetBg: '#1a1a1a',
+                    widgetBgOpacity: 90
+                },
+                fonts: {
+                    family: 'Arial',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'lightning'
+                }
+            },
+            gloomwave: {
+                name: 'gloomwave',
+                colors: {
+                    background: '#2c2c54',
+                    text: '#a29bfe',
+                    links: '#fd79a8',
+                    linksHover: '#fdcb6e',
+                    borders: '#6c5ce7',
+                    widgetBg: '#1e1e3f',
+                    widgetBgOpacity: 85
+                },
+                fonts: {
+                    family: 'Georgia',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'clouds'
+                }
+            },
+            sparklevoid: {
+                name: 'sparklevoid',
+                colors: {
+                    background: '#000033',
+                    text: '#ffffff',
+                    links: '#ff00ff',
+                    linksHover: '#00ffff',
+                    borders: '#9d00ff',
+                    widgetBg: '#000011',
+                    widgetBgOpacity: 75
+                },
+                fonts: {
+                    family: 'Verdana',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'stars'
+                }
+            },
+            chaosangel: {
+                name: 'chaosangel',
+                colors: {
+                    background: '#ffffff',
+                    text: '#000000',
+                    links: '#ff0000',
+                    linksHover: '#ffd700',
+                    borders: '#ff1493',
+                    widgetBg: '#fff0f5',
+                    widgetBgOpacity: 55
+                },
+                fonts: {
+                    family: 'Impact',
+                    size: 17
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'sparkles'
+                }
+            },
+            toxiccandy: {
+                name: 'toxiccandy',
+                colors: {
+                    background: '#39ff14',
+                    text: '#ff006e',
+                    links: '#00f5ff',
+                    linksHover: '#ffff00',
+                    borders: '#ff00ff',
+                    widgetBg: '#00ff00',
+                    widgetBgOpacity: 45
+                },
+                fonts: {
+                    family: 'Chalkduster',
+                    size: 16
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'dots'
+                }
+            },
+            midnightsun: {
+                name: 'midnightsun',
+                colors: {
+                    background: '#191970',
+                    text: '#ffb347',
+                    links: '#ffd700',
+                    linksHover: '#ff6347',
+                    borders: '#ff8c00',
+                    widgetBg: '#0c0c3d',
+                    widgetBgOpacity: 88
+                },
+                fonts: {
+                    family: 'Garamond',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'stars'
+                }
+            },
+            neonforest: {
+                name: 'neonforest',
+                colors: {
+                    background: '#004d00',
+                    text: '#00ff00',
+                    links: '#7fff00',
+                    linksHover: '#adff2f',
+                    borders: '#32cd32',
+                    widgetBg: '#003300',
+                    widgetBgOpacity: 82
+                },
+                fonts: {
+                    family: 'Luminari',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'butterflies'
+                }
+            },
+            desertmirage: {
+                name: 'desertmirage',
+                colors: {
+                    background: '#daa520',
+                    text: '#8b4513',
+                    links: '#ff4500',
+                    linksHover: '#dc143c',
+                    borders: '#cd853f',
+                    widgetBg: '#f4a460',
+                    widgetBgOpacity: 60
+                },
+                fonts: {
+                    family: 'Palatino',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'stripes'
+                }
+            },
+            frostbite: {
+                name: 'frostbite',
+                colors: {
+                    background: '#e0ffff',
+                    text: '#000080',
+                    links: '#4169e1',
+                    linksHover: '#1e90ff',
+                    borders: '#00bfff',
+                    widgetBg: '#f0f8ff',
+                    widgetBgOpacity: 70
+                },
+                fonts: {
+                    family: 'Century Gothic',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'sparkles'
+                }
+            },
+            lavahaze: {
+                name: 'lavahaze',
+                colors: {
+                    background: '#8b0000',
+                    text: '#ffa500',
+                    links: '#ff4500',
+                    linksHover: '#ffff00',
+                    borders: '#ff6347',
+                    widgetBg: '#b22222',
+                    widgetBgOpacity: 78
+                },
+                fonts: {
+                    family: 'Rockwell',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'flames'
+                }
+            },
+            oilslick: {
+                name: 'oilslick',
+                colors: {
+                    background: '#1c1c1c',
+                    text: '#c0c0c0',
+                    links: '#9400d3',
+                    linksHover: '#ff1493',
+                    borders: '#00ced1',
+                    widgetBg: '#2f2f2f',
+                    widgetBgOpacity: 85
+                },
+                fonts: {
+                    family: 'Copperplate',
+                    size: 13
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'galaxy'
+                }
+            },
+            candyfloss: {
+                name: 'candyfloss',
+                colors: {
+                    background: '#ffb3e6',
+                    text: '#4d0026',
+                    links: '#ff0080',
+                    linksHover: '#cc0066',
+                    borders: '#ff66b3',
+                    widgetBg: '#ffe6f2',
+                    widgetBgOpacity: 50
+                },
+                fonts: {
+                    family: 'Bradley Hand',
+                    size: 16
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'clouds'
+                }
+            },
+            rustpunk: {
+                name: 'rustpunk',
+                colors: {
+                    background: '#b7410e',
+                    text: '#f5f5dc',
+                    links: '#ff8c00',
+                    linksHover: '#ffa500',
+                    borders: '#8b4513',
+                    widgetBg: '#a0522d',
+                    widgetBgOpacity: 75
+                },
+                fonts: {
+                    family: 'Stencil',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'chains'
+                }
+            },
+            electropastel: {
+                name: 'electropastel',
+                colors: {
+                    background: '#ffccff',
+                    text: '#0000ff',
+                    links: '#ff00ff',
+                    linksHover: '#00ffff',
+                    borders: '#9966ff',
+                    widgetBg: '#e6ccff',
+                    widgetBgOpacity: 55
+                },
+                fonts: {
+                    family: 'Trebuchet MS',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'lightning'
+                }
+            },
+            myceliumdream: {
+                name: 'myceliumdream',
+                colors: {
+                    background: '#041b0f',
+                    text: '#ecffe6',
+                    links: '#74ffb4',
+                    linksHover: '#c0ffea',
+                    borders: '#2dd480',
+                    widgetBg: '#0f3b24',
+                    widgetBgOpacity: 70
+                },
+                fonts: {
+                    family: 'Book Antiqua',
+                    size: 16,
+                    effects: {
+                        shadow: false,
+                        glow: true,
+                        glowColor: '#78ffb7'
+                    }
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'vines'
+                },
+                tweaks: {
+                    radius: 22,
+                    border: 2,
+                    blur: 6,
+                    glowColor: '#2dd480',
+                    glowStrength: 26
+                }
+            },
+            prismshock: {
+                name: 'prismshock',
+                colors: {
+                    background: '#1b0033',
+                    text: '#fef6ff',
+                    links: '#ff6bff',
+                    linksHover: '#72f5ff',
+                    borders: '#ffd447',
+                    widgetBg: '#2b0050',
+                    widgetBgOpacity: 60
+                },
+                fonts: {
+                    family: 'Century Gothic',
+                    size: 15,
+                    effects: {
+                        shadow: false,
+                        glow: true,
+                        glowColor: '#ffb7ff'
+                    }
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'prism'
+                },
+                tweaks: {
+                    radius: 18,
+                    border: 2,
+                    blur: 4,
+                    glowColor: '#ff6bff',
+                    glowStrength: 32
+                }
+            },
+            ancientfrequency: {
+                name: 'ancientfrequency',
+                colors: {
+                    background: '#2c1500',
+                    text: '#f7e0c0',
+                    links: '#ffb347',
+                    linksHover: '#ffd369',
+                    borders: '#8f5c1c',
+                    widgetBg: '#311f09',
+                    widgetBgOpacity: 78
+                },
+                fonts: {
+                    family: 'Palatino Linotype',
+                    size: 15,
+                    effects: {
+                        shadow: true,
+                        glow: false,
+                        glowColor: '#f7e0c0'
+                    }
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'hieroglyphs'
+                },
+                tweaks: {
+                    radius: 14,
+                    border: 4,
+                    blur: 0,
+                    glowColor: '#ffb347',
+                    glowStrength: 20
+                }
+            },
+            cyberrelic: {
+                name: 'cyberrelic',
+                colors: {
+                    background: '#001f29',
+                    text: '#a8f9ff',
+                    links: '#08ffc8',
+                    linksHover: '#7dffb9',
+                    borders: '#00c4ff',
+                    widgetBg: '#012d3d',
+                    widgetBgOpacity: 65
+                },
+                fonts: {
+                    family: 'Lucida Console',
+                    size: 15,
+                    effects: {
+                        shadow: false,
+                        glow: false,
+                        glowColor: '#08ffc8'
+                    }
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'circuit'
+                },
+                tweaks: {
+                    radius: 12,
+                    border: 3,
+                    blur: 5,
+                    glowColor: '#08ffc8',
+                    glowStrength: 24
+                }
+            },
+            spectrumritual: {
+                name: 'spectrumritual',
+                colors: {
+                    background: '#1a0020',
+                    text: '#f6e8ff',
+                    links: '#ff6ff3',
+                    linksHover: '#9dffea',
+                    borders: '#ffae00',
+                    widgetBg: '#260033',
+                    widgetBgOpacity: 72
+                },
+                fonts: {
+                    family: 'Copperplate',
+                    size: 17,
+                    effects: {
+                        shadow: false,
+                        glow: true,
+                        glowColor: '#ff9cf2'
+                    }
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'mandala'
+                },
+                tweaks: {
+                    radius: 20,
+                    border: 2,
+                    blur: 5,
+                    glowColor: '#ff6ff3',
+                    glowStrength: 34
+                }
+            },
+            abyssalbloom: {
+                name: 'abyssalbloom',
+                colors: {
+                    background: '#001219',
+                    text: '#d9f8ff',
+                    links: '#ff5f9c',
+                    linksHover: '#a8fff0',
+                    borders: '#00c2ff',
+                    widgetBg: '#001f2b',
+                    widgetBgOpacity: 75
+                },
+                fonts: {
+                    family: 'Luminari',
+                    size: 17,
+                    effects: {
+                        shadow: true,
+                        glow: false,
+                        glowColor: '#ff5f9c'
+                    }
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'tentacles'
+                },
+                tweaks: {
+                    radius: 24,
+                    border: 3,
+                    blur: 8,
+                    glowColor: '#00c2ff',
+                    glowStrength: 30
+                }
+            },
+            auroracode: {
+                name: 'auroracode',
+                colors: {
+                    background: '#04103d',
+                    text: '#d6f6ff',
+                    links: '#7bf7ff',
+                    linksHover: '#c7fff8',
+                    borders: '#4ef2a9',
+                    widgetBg: '#071a54',
+                    widgetBgOpacity: 65
+                },
+                fonts: {
+                    family: 'Garamond',
+                    size: 15,
+                    effects: {
+                        shadow: false,
+                        glow: true,
+                        glowColor: '#7bf7ff'
+                    }
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'binary'
+                },
+                tweaks: {
+                    radius: 16,
+                    border: 2,
+                    blur: 4,
+                    glowColor: '#7bf7ff',
+                    glowStrength: 24
+                }
+            },
+            starforged: {
+                name: 'starforged',
+                colors: {
+                    background: '#0b1116',
+                    text: '#f0faff',
+                    links: '#ffae42',
+                    linksHover: '#ffd782',
+                    borders: '#6ee5ff',
+                    widgetBg: '#121c24',
+                    widgetBgOpacity: 78
+                },
+                fonts: {
+                    family: 'Rockwell',
+                    size: 16,
+                    effects: {
+                        shadow: true,
+                        glow: false,
+                        glowColor: '#ffae42'
+                    }
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'scales'
+                },
+                tweaks: {
+                    radius: 10,
+                    border: 4,
+                    blur: 2,
+                    glowColor: '#ffae42',
+                    glowStrength: 28
+                }
+            },
+            petalstorm: {
+                name: 'petalstorm',
+                colors: {
+                    background: '#ffe3f6',
+                    text: '#5a0039',
+                    links: '#e4007c',
+                    linksHover: '#7a00e6',
+                    borders: '#ff90c9',
+                    widgetBg: '#fff5fb',
+                    widgetBgOpacity: 58
+                },
+                fonts: {
+                    family: 'Bradley Hand',
+                    size: 16,
+                    effects: {
+                        shadow: false,
+                        glow: false,
+                        glowColor: '#e4007c'
+                    }
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'sakura'
+                },
+                tweaks: {
+                    radius: 28,
+                    border: 2,
+                    blur: 3,
+                    glowColor: '#ff90c9',
+                    glowStrength: 22
+                }
+            },
+            peacockpunk: {
+                name: 'peacockpunk',
+                colors: {
+                    background: '#052026',
+                    text: '#faffd2',
+                    links: '#00ffd1',
+                    linksHover: '#7bfffb',
+                    borders: '#ffde59',
+                    widgetBg: '#082f39',
+                    widgetBgOpacity: 70
+                },
+                fonts: {
+                    family: 'Stencil',
+                    size: 15,
+                    effects: {
+                        shadow: true,
+                        glow: false,
+                        glowColor: '#00ffd1'
+                    }
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'peacock'
+                },
+                tweaks: {
+                    radius: 15,
+                    border: 3,
+                    blur: 3,
+                    glowColor: '#00ffd1',
+                    glowStrength: 26
+                }
             }
         };
 
@@ -302,11 +1533,17 @@
             Object.assign(window.OurSpace.profile.theme.colors, theme.colors);
             Object.assign(window.OurSpace.profile.theme.fonts, theme.fonts);
             Object.assign(window.OurSpace.profile.theme.background, theme.background);
+            if (theme.tweaks) {
+                window.OurSpace.profile.theme.tweaks = Object.assign({}, WIDGET_TWEAK_DEFAULTS, theme.tweaks);
+            } else {
+                ensureWidgetTweaks();
+            }
 
             // Update UI controls
             updateColorPickers();
             updateFontControls();
             updateBackgroundControls();
+            updateWidgetStyleControls();
 
             // Apply and save
             window.OurSpace.applyTheme();
@@ -1053,6 +2290,105 @@
         }
     }
 
+    function ensureWidgetTweaks() {
+        if (!window.OurSpace.profile.theme) {
+            window.OurSpace.profile.theme = {};
+        }
+        if (!window.OurSpace.profile.theme.tweaks || typeof window.OurSpace.profile.theme.tweaks !== 'object') {
+            window.OurSpace.profile.theme.tweaks = {};
+        }
+        window.OurSpace.profile.theme.tweaks = Object.assign({}, WIDGET_TWEAK_DEFAULTS, window.OurSpace.profile.theme.tweaks);
+        return window.OurSpace.profile.theme.tweaks;
+    }
+
+    function setupWidgetStyleControls() {
+        const tweaks = ensureWidgetTweaks();
+
+        const radiusInput = document.getElementById('widget-radius');
+        const radiusDisplay = document.getElementById('widget-radius-display');
+        const borderInput = document.getElementById('widget-border');
+        const borderDisplay = document.getElementById('widget-border-display');
+        const blurInput = document.getElementById('widget-blur');
+        const blurDisplay = document.getElementById('widget-blur-display');
+        const glowStrengthInput = document.getElementById('widget-glow-strength');
+        const glowStrengthDisplay = document.getElementById('widget-glow-strength-display');
+        const glowColorInput = document.getElementById('widget-glow-color');
+
+        if (radiusInput) {
+            radiusInput.addEventListener('input', function() {
+                const val = parseInt(this.value, 10) || 0;
+                tweaks.radius = val;
+                if (radiusDisplay) radiusDisplay.textContent = val + 'px';
+                window.OurSpace.applyTheme();
+            });
+        }
+
+        if (borderInput) {
+            borderInput.addEventListener('input', function() {
+                const val = parseInt(this.value, 10) || 0;
+                tweaks.border = val;
+                if (borderDisplay) borderDisplay.textContent = val + 'px';
+                window.OurSpace.applyTheme();
+            });
+        }
+
+        if (blurInput) {
+            blurInput.addEventListener('input', function() {
+                const val = parseInt(this.value, 10) || 0;
+                tweaks.blur = val;
+                if (blurDisplay) blurDisplay.textContent = val + 'px';
+                window.OurSpace.applyTheme();
+            });
+        }
+
+        if (glowStrengthInput) {
+            glowStrengthInput.addEventListener('input', function() {
+                const val = parseInt(this.value, 10) || 0;
+                tweaks.glowStrength = val;
+                if (glowStrengthDisplay) glowStrengthDisplay.textContent = val + 'px';
+                window.OurSpace.applyTheme();
+            });
+        }
+
+        if (glowColorInput) {
+            glowColorInput.addEventListener('input', function() {
+                tweaks.glowColor = this.value || '#00ffff';
+                window.OurSpace.applyTheme();
+            });
+        }
+
+        updateWidgetStyleControls();
+    }
+
+    function updateWidgetStyleControls() {
+        const tweaks = ensureWidgetTweaks();
+        const radiusInput = document.getElementById('widget-radius');
+        const radiusDisplay = document.getElementById('widget-radius-display');
+        const borderInput = document.getElementById('widget-border');
+        const borderDisplay = document.getElementById('widget-border-display');
+        const blurInput = document.getElementById('widget-blur');
+        const blurDisplay = document.getElementById('widget-blur-display');
+        const glowStrengthInput = document.getElementById('widget-glow-strength');
+        const glowStrengthDisplay = document.getElementById('widget-glow-strength-display');
+        const glowColorInput = document.getElementById('widget-glow-color');
+
+        if (radiusInput) radiusInput.value = tweaks.radius;
+        if (radiusDisplay) radiusDisplay.textContent = tweaks.radius + 'px';
+
+        if (borderInput) borderInput.value = tweaks.border;
+        if (borderDisplay) borderDisplay.textContent = tweaks.border + 'px';
+
+        if (blurInput) blurInput.value = tweaks.blur;
+        if (blurDisplay) blurDisplay.textContent = tweaks.blur + 'px';
+
+        if (glowStrengthInput) glowStrengthInput.value = tweaks.glowStrength;
+        if (glowStrengthDisplay) glowStrengthDisplay.textContent = tweaks.glowStrength + 'px';
+
+        if (glowColorInput && tweaks.glowColor) {
+            glowColorInput.value = tweaks.glowColor;
+        }
+    }
+
     // Effects Controls
     function setupEffectsControls() {
         window.OurSpace.profile.theme.effects = window.OurSpace.profile.theme.effects || {};
@@ -1072,6 +2408,16 @@
         const effectChromatic = document.getElementById('effect-chromatic-trails');
         const effectFloatingEmojis = document.getElementById('effect-floating-emojis');
         const effectLightning = document.getElementById('effect-lightning-flickers');
+        const effectEmojiOrbit = document.getElementById('effect-emoji-orbit');
+        const effectEmojiBurst = document.getElementById('effect-emoji-burst');
+        const effectEmojiWave = document.getElementById('effect-emoji-wave');
+        const effectEmojiPop = document.getElementById('effect-emoji-pop');
+        const effectEmojiLanterns = document.getElementById('effect-emoji-lanterns');
+        const effectScreenVignette = document.getElementById('effect-screen-vignette');
+        const effectScreenHaze = document.getElementById('effect-screen-haze');
+        const effectScreenGrid = document.getElementById('effect-screen-grid');
+        const effectScreenHolo = document.getElementById('effect-screen-holo');
+        const effectScreenPrism = document.getElementById('effect-screen-prism');
 
         const cursorCustomWrapper = document.getElementById('cursor-trail-custom-wrapper');
 
@@ -1305,6 +2651,16 @@
             refresh: {},
             format: val => Math.round(val * 100) + '%'
         });
+        bindEffectToggle(effectEmojiOrbit, 'emojiOrbit', { emojis: ['💫', '🦋', '🌙', '⭐', '💖'] });
+        bindEffectToggle(effectEmojiBurst, 'emojiBurst', { frequency: 2 });
+        bindEffectToggle(effectEmojiWave, 'emojiWave', { speed: 4000 });
+        bindEffectToggle(effectEmojiPop, 'emojiPop', {});
+        bindEffectToggle(effectEmojiLanterns, 'emojiLanterns', { speed: 1.2 });
+        bindEffectToggle(effectScreenVignette, 'screenVignette', {});
+        bindEffectToggle(effectScreenHaze, 'screenHaze', {});
+        bindEffectToggle(effectScreenGrid, 'screenGrid', {});
+        bindEffectToggle(effectScreenHolo, 'screenHolo', {});
+        bindEffectToggle(effectScreenPrism, 'screenPrism', {});
     }
 
     // Layout Controls

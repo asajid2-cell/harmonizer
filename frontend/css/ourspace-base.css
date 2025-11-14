@@ -1,5 +1,13 @@
 ﻿/* OurSpace Base Styles */
 
+:root {
+    --widget-radius: 10px;
+    --widget-border-size: 3px;
+    --widget-blur: 0px;
+    --widget-glow-color: rgba(0, 255, 255, 0.5);
+    --widget-glow-strength: 20px;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -1247,15 +1255,17 @@ body.view-mode #mood-icon {
 /* Widgets */
 .widget {
     background: var(--custom-widget-bg, rgba(0, 0, 0, 0.7));
-    border: 3px solid;
-    border-radius: 10px;
+    border: var(--widget-border-size, 3px) solid;
+    border-radius: var(--widget-radius, 10px);
     margin-bottom: 20px;
     overflow: hidden;
     transition: all 0.3s ease;
+    backdrop-filter: blur(var(--widget-blur, 0px));
+    -webkit-backdrop-filter: blur(var(--widget-blur, 0px));
 }
 
 .widget:hover {
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    box-shadow: 0 0 var(--widget-glow-strength, 20px) var(--widget-glow-color, rgba(0, 255, 255, 0.5));
 }
 
 .widget-header {

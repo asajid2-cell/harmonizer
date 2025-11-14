@@ -60,6 +60,354 @@
     const frameSupportsText = (style) => Object.prototype.hasOwnProperty.call(FRAME_TEXT_DEFAULTS, style);
     const getFrameTextDefaults = (style) => FRAME_TEXT_DEFAULTS[style] || { text: '', color: '' };
 
+    const encodePatternSvg = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg.trim())}")`;
+
+    const PATTERN_LIBRARY = Object.freeze({
+        stars: encodePatternSvg(`
+            <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20,5 L23,15 L33,15 L25,21 L28,31 L20,25 L12,31 L15,21 L7,15 L17,15 Z" fill="rgba(255,255,255,0.3)" />
+            </svg>
+        `),
+        hearts: encodePatternSvg(`
+            <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20,30 C20,30 8,22 8,15 C8,10 11,8 14,8 C17,8 20,11 20,11 C20,11 23,8 26,8 C29,8 32,10 32,15 C32,22 20,30 20,30 Z" fill="rgba(255,100,150,0.4)" />
+            </svg>
+        `),
+        flames: encodePatternSvg(`
+            <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20,5 Q18,15 20,18 Q22,15 20,5 M20,18 Q15,25 20,35 Q25,25 20,18" fill="rgba(255,150,50,0.5)" />
+            </svg>
+        `),
+        sparkles: encodePatternSvg(`
+            <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20,8 L21,18 L20,19 L19,18 Z M20,22 L21,32 L20,33 L19,32 Z M12,20 L8,21 L7,20 L8,19 Z M28,20 L32,21 L33,20 L32,19 Z" fill="rgba(255,255,100,0.6)" />
+                <circle cx="10" cy="10" r="1.5" fill="rgba(255,255,255,0.8)" />
+                <circle cx="30" cy="30" r="2" fill="rgba(255,255,255,0.7)" />
+            </svg>
+        `),
+        checkers: encodePatternSvg(`
+            <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <rect width="20" height="20" fill="rgba(255,255,255,0.15)" />
+                <rect x="20" y="20" width="20" height="20" fill="rgba(255,255,255,0.15)" />
+                <rect x="20" y="0" width="20" height="20" fill="rgba(0,0,0,0.15)" />
+                <rect x="0" y="20" width="20" height="20" fill="rgba(0,0,0,0.15)" />
+            </svg>
+        `),
+        dots: encodePatternSvg(`
+            <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="10" cy="10" r="6" fill="rgba(255,255,255,0.25)" />
+                <circle cx="30" cy="30" r="6" fill="rgba(255,255,255,0.25)" />
+            </svg>
+        `),
+        stripes: encodePatternSvg(`
+            <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0,40 L40,0 M-10,10 L10,-10 M30,50 L50,30" stroke="rgba(255,255,255,0.2)" stroke-width="8" />
+            </svg>
+        `),
+        glitter: encodePatternSvg(`
+            <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8,8 L9,12 L8,13 L7,12 Z M8,8 L12,9 L13,8 L12,7 Z" fill="rgba(255,255,255,0.6)" />
+                <path d="M28,15 L29,18 L28,19 L27,18 Z M28,15 L31,16 L32,15 L31,14 Z" fill="rgba(255,255,100,0.5)" />
+                <path d="M15,28 L16,30 L15,31 L14,30 Z M15,28 L17,29 L18,28 L17,27 Z" fill="rgba(255,200,255,0.5)" />
+                <circle cx="32" cy="8" r="1.5" fill="rgba(255,255,255,0.7)" />
+                <circle cx="10" cy="35" r="1" fill="rgba(255,255,255,0.8)" />
+            </svg>
+        `),
+        tigerprint: encodePatternSvg(`
+            <svg width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+                <rect width="80" height="80" fill="rgba(0,0,0,0)" />
+                <path d="M10 20 C30 5 50 5 70 20" stroke="rgba(0,0,0,0.35)" stroke-width="10" stroke-linecap="round" fill="none" />
+                <path d="M5 50 C25 35 55 35 75 50" stroke="rgba(0,0,0,0.35)" stroke-width="10" stroke-linecap="round" fill="none" />
+                <circle cx="20" cy="15" r="8" fill="rgba(0,150,255,0.4)" />
+                <circle cx="55" cy="40" r="10" fill="rgba(0,150,255,0.4)" />
+                <circle cx="25" cy="60" r="7" fill="rgba(0,150,255,0.4)" />
+            </svg>
+        `),
+        mallgoth: encodePatternSvg(`
+            <svg width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+                <rect width="80" height="80" fill="rgba(255,0,0,0.12)" />
+                <rect x="0" y="0" width="40" height="10" fill="rgba(255,0,0,0.35)" />
+                <rect x="45" y="25" width="35" height="12" fill="rgba(255,0,0,0.45)" />
+                <rect x="10" y="45" width="25" height="15" fill="rgba(255,60,60,0.4)" />
+                <rect x="40" y="65" width="30" height="10" fill="rgba(255,0,0,0.35)" />
+            </svg>
+        `),
+        poppunk: encodePatternSvg(`
+            <svg width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+                <rect width="80" height="80" fill="rgba(0,0,0,0)" />
+                <circle cx="20" cy="15" r="4" fill="#ff5bff" />
+                <circle cx="60" cy="25" r="4" fill="#36fffb" />
+                <path d="M5 60 L25 40" stroke="#ffef5a" stroke-width="4" fill="none" />
+                <path d="M35 70 L55 50" stroke="#ff5bff" stroke-width="4" fill="none" />
+                <rect x="50" y="5" width="12" height="12" fill="rgba(255,255,255,0.25)" />
+                <rect x="10" y="35" width="12" height="12" fill="rgba(255,255,255,0.25)" />
+            </svg>
+        `),
+        evanescent: encodePatternSvg(`
+            <svg width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+                <rect width="80" height="80" fill="rgba(0,0,0,0)" />
+                <path d="M10 40 Q30 20 50 40 T90 40" fill="none" stroke="rgba(126,230,255,0.35)" stroke-width="6" />
+                <path d="M-10 60 Q10 80 30 60 T70 60" fill="none" stroke="rgba(240,89,255,0.3)" stroke-width="5" />
+                <circle cx="25" cy="50" r="5" fill="rgba(126,230,255,0.4)" />
+                <circle cx="55" cy="30" r="4" fill="rgba(240,89,255,0.4)" />
+            </svg>
+        `),
+        clouds: encodePatternSvg(`
+            <svg width="160" height="80" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="30" cy="40" rx="26" ry="15" fill="rgba(255,255,255,0.35)" />
+                <ellipse cx="65" cy="32" rx="32" ry="18" fill="rgba(255,255,255,0.28)" />
+                <ellipse cx="110" cy="42" rx="34" ry="20" fill="rgba(255,255,255,0.32)" />
+                <ellipse cx="145" cy="34" rx="22" ry="13" fill="rgba(255,255,255,0.25)" />
+            </svg>
+        `),
+        butterflies: encodePatternSvg(`
+            <svg width="140" height="80" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 40 C0 15 0 65 20 40 C40 65 40 15 20 40 Z" fill="rgba(255,160,220,0.6)" />
+                <path d="M80 35 C60 10 60 60 80 35 C100 60 100 10 80 35 Z" fill="rgba(170,220,255,0.55)" />
+                <circle cx="20" cy="40" r="4" fill="rgba(255,255,255,0.8)" />
+                <circle cx="80" cy="35" r="4" fill="rgba(255,255,255,0.8)" />
+            </svg>
+        `),
+        roses: encodePatternSvg(`
+            <svg width="120" height="80" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="30" cy="40" r="16" fill="rgba(255,80,130,0.55)" />
+                <circle cx="30" cy="40" r="8" fill="rgba(255,255,255,0.25)" />
+                <path d="M85 40 C72 18 110 18 97 40 C110 62 72 62 85 40 Z" fill="rgba(255,120,170,0.5)" />
+                <circle cx="85" cy="40" r="6" fill="rgba(255,255,255,0.2)" />
+            </svg>
+        `),
+        skulls: encodePatternSvg(`
+            <svg width="120" height="80" xmlns="http://www.w3.org/2000/svg">
+                <rect x="15" y="18" width="32" height="32" rx="9" fill="rgba(255,255,255,0.4)" />
+                <circle cx="27" cy="32" r="5.5" fill="rgba(0,0,0,0.6)" />
+                <circle cx="39" cy="32" r="5.5" fill="rgba(0,0,0,0.6)" />
+                <rect x="26" y="45" width="12" height="7" fill="rgba(0,0,0,0.6)" />
+                <rect x="70" y="28" width="34" height="34" rx="12" fill="rgba(255,255,255,0.35)" />
+                <circle cx="82" cy="42" r="6" fill="rgba(0,0,0,0.6)" />
+                <circle cx="95" cy="42" r="6" fill="rgba(0,0,0,0.6)" />
+                <rect x="82" y="57" width="16" height="6" fill="rgba(0,0,0,0.6)" />
+            </svg>
+        `),
+        music: encodePatternSvg(`
+            <svg width="140" height="80" xmlns="http://www.w3.org/2000/svg">
+                <path d="M30 20 L30 55 Q50 45 50 28 L50 10" stroke="rgba(255,255,255,0.7)" stroke-width="4" fill="none" />
+                <circle cx="30" cy="55" r="8" fill="rgba(255,105,180,0.75)" />
+                <circle cx="50" cy="28" r="7" fill="rgba(0,255,255,0.6)" />
+                <path d="M95 25 L95 58" stroke="rgba(255,255,255,0.7)" stroke-width="4" />
+                <circle cx="95" cy="58" r="9" fill="rgba(0,255,170,0.6)" />
+            </svg>
+        `),
+        lightning: encodePatternSvg(`
+            <svg width="140" height="80" xmlns="http://www.w3.org/2000/svg">
+                <path d="M25 5 L60 28 L45 28 L82 60 L50 52 L65 78 L18 45 L35 45 Z" fill="rgba(255,255,0,0.65)" stroke="rgba(255,255,255,0.25)" stroke-width="3" />
+            </svg>
+        `),
+        chains: encodePatternSvg(`
+            <svg width="160" height="80" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="30" cy="40" rx="18" ry="12" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="4" />
+                <ellipse cx="70" cy="40" rx="18" ry="12" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="4" />
+                <ellipse cx="110" cy="40" rx="18" ry="12" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="4" />
+                <ellipse cx="150" cy="40" rx="18" ry="12" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="4" />
+            </svg>
+        `),
+        plaid: encodePatternSvg(`
+            <svg width="120" height="120" xmlns="http://www.w3.org/2000/svg">
+                <rect width="120" height="120" fill="rgba(255,255,255,0.05)" />
+                <rect x="0" y="0" width="20" height="120" fill="rgba(255,0,120,0.15)" />
+                <rect x="40" y="0" width="20" height="120" fill="rgba(0,200,255,0.2)" />
+                <rect x="80" y="0" width="20" height="120" fill="rgba(255,120,0,0.2)" />
+                <rect x="0" y="0" width="120" height="20" fill="rgba(255,0,120,0.15)" />
+                <rect x="0" y="40" width="120" height="20" fill="rgba(0,200,255,0.2)" />
+                <rect x="0" y="80" width="120" height="20" fill="rgba(255,120,0,0.2)" />
+            </svg>
+        `),
+        galaxy: encodePatternSvg(`
+            <svg width="200" height="120" xmlns="http://www.w3.org/2000/svg">
+                <rect width="200" height="120" fill="rgba(5,0,25,0.9)" />
+                <circle cx="40" cy="30" r="3" fill="rgba(255,255,255,0.8)" />
+                <circle cx="120" cy="50" r="2" fill="rgba(255,200,255,0.8)" />
+                <circle cx="170" cy="25" r="4" fill="rgba(100,220,255,0.8)" />
+                <circle cx="90" cy="90" r="35" fill="rgba(70,0,140,0.35)" />
+                <path d="M20 80 Q60 40 120 80 T220 80" fill="none" stroke="rgba(255,120,255,0.3)" stroke-width="4" />
+            </svg>
+        `),
+        gradmesh: encodePatternSvg(`
+            <svg width="200" height="120" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="g" gradientTransform="rotate(45)">
+                        <stop offset="0%" stop-color="#ff9ed4" />
+                        <stop offset="45%" stop-color="#98f6ff" />
+                        <stop offset="100%" stop-color="#9a7bff" />
+                    </linearGradient>
+                </defs>
+                <rect width="200" height="120" fill="url(#g)" />
+                <circle cx="60" cy="40" r="25" fill="rgba(255,255,255,0.2)" />
+                <circle cx="150" cy="90" r="30" fill="rgba(255,255,255,0.15)" />
+            </svg>
+        `),
+        spiderweb: encodePatternSvg(`
+            <svg width="160" height="160" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="80" cy="80" r="75" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" />
+                <circle cx="80" cy="80" r="55" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1.2" />
+                <circle cx="80" cy="80" r="35" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+                <line x1="80" y1="5" x2="80" y2="155" stroke="rgba(255,255,255,0.2)" stroke-width="1" />
+                <line x1="5" y1="80" x2="155" y2="80" stroke="rgba(255,255,255,0.2)" stroke-width="1" />
+                <line x1="20" y1="20" x2="140" y2="140" stroke="rgba(255,255,255,0.2)" stroke-width="1" />
+                <line x1="140" y1="20" x2="20" y2="140" stroke="rgba(255,255,255,0.2)" stroke-width="1" />
+            </svg>
+        `),
+        tribal: encodePatternSvg(`
+            <svg width="200" height="120" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 60 Q40 30 80 60 T160 60 T240 60" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="6" stroke-linecap="round" />
+                <path d="M0 60 Q40 90 80 60 T160 60 T240 60" fill="none" stroke="rgba(255,0,120,0.25)" stroke-width="3" />
+            </svg>
+        `),
+        circuit: encodePatternSvg(`
+            <svg width="200" height="120" xmlns="http://www.w3.org/2000/svg">
+                <rect width="200" height="120" fill="rgba(0,20,35,0.85)" />
+                <path d="M10 30 H80 V10 H130 V50 H190" stroke="rgba(0,255,200,0.6)" stroke-width="4" fill="none" />
+                <circle cx="80" cy="30" r="6" fill="rgba(0,255,200,0.8)" />
+                <circle cx="130" cy="50" r="6" fill="rgba(0,255,200,0.8)" />
+                <path d="M30 90 H110 V70 H170" stroke="rgba(100,180,255,0.6)" stroke-width="3" fill="none" />
+                <circle cx="110" cy="70" r="5" fill="rgba(100,180,255,0.8)" />
+            </svg>
+        `),
+        scales: encodePatternSvg(`
+            <svg width="120" height="80" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 80 Q60 0 120 80" stroke="rgba(0,255,200,0.3)" stroke-width="6" fill="none" />
+                <path d="M0 40 Q60 -40 120 40" stroke="rgba(255,0,150,0.25)" stroke-width="6" fill="none" />
+            </svg>
+        `),
+        honeycomb: encodePatternSvg(`
+            <svg width="140" height="120" xmlns="http://www.w3.org/2000/svg">
+                <path d="M30 10 L60 10 L75 35 L60 60 L30 60 L15 35 Z" fill="none" stroke="rgba(255,200,0,0.35)" stroke-width="3" />
+                <path d="M95 45 L125 45 L140 70 L125 95 L95 95 L80 70 Z" fill="none" stroke="rgba(255,200,0,0.35)" stroke-width="3" />
+            </svg>
+        `),
+        graffiti: encodePatternSvg(`
+            <svg width="160" height="100" xmlns="http://www.w3.org/2000/svg">
+                <rect width="160" height="100" fill="rgba(20,0,30,0.85)" />
+                <path d="M10 70 L40 20 L70 70 Z" fill="rgba(255,20,147,0.55)" />
+                <path d="M80 30 L120 80 L140 20" stroke="rgba(0,255,255,0.6)" stroke-width="6" fill="none" />
+                <circle cx="60" cy="50" r="12" fill="rgba(255,255,0,0.5)" />
+            </svg>
+        `),
+        morse: encodePatternSvg(`
+            <svg width="160" height="60" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="25" width="30" height="8" fill="rgba(255,255,255,0.7)" />
+                <rect x="50" y="25" width="60" height="8" fill="rgba(255,255,255,0.7)" />
+                <circle cx="125" cy="29" r="5" fill="rgba(255,255,255,0.7)" />
+                <circle cx="145" cy="29" r="5" fill="rgba(255,255,255,0.7)" />
+            </svg>
+        `),
+        hieroglyphs: encodePatternSvg(`
+            <svg width="160" height="100" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="20" width="25" height="50" rx="6" fill="rgba(255,180,0,0.4)" />
+                <path d="M60 70 L80 30 L100 70 Z" stroke="rgba(0,255,200,0.5)" stroke-width="4" fill="none" />
+                <circle cx="125" cy="45" r="18" fill="none" stroke="rgba(255,0,140,0.5)" stroke-width="4" />
+            </svg>
+        `),
+        constellation: encodePatternSvg(`
+            <svg width="200" height="120" xmlns="http://www.w3.org/2000/svg">
+                <rect width="200" height="120" fill="rgba(5,5,30,0.95)" />
+                <circle cx="30" cy="40" r="4" fill="rgba(255,255,255,0.85)" />
+                <circle cx="90" cy="60" r="3" fill="rgba(102,204,255,0.85)" />
+                <circle cx="150" cy="35" r="4" fill="rgba(255,180,255,0.85)" />
+                <circle cx="170" cy="80" r="3" fill="rgba(255,255,255,0.85)" />
+                <path d="M30 40 L90 60 L150 35 L170 80" stroke="rgba(255,255,255,0.4)" stroke-width="2" fill="none" />
+            </svg>
+        `),
+        crystals: encodePatternSvg(`
+            <svg width="160" height="120" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="30,90 45,30 60,90" fill="rgba(126,255,255,0.45)" stroke="rgba(255,255,255,0.3)" />
+                <polygon points="90,100 110,20 130,100" fill="rgba(255,150,255,0.4)" stroke="rgba(255,255,255,0.3)" />
+            </svg>
+        `),
+        vines: encodePatternSvg(`
+            <svg width="160" height="120" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 100 Q40 40 80 100 T160 100" fill="none" stroke="rgba(0,255,140,0.5)" stroke-width="5" />
+                <circle cx="40" cy="70" r="6" fill="rgba(0,255,140,0.6)" />
+                <circle cx="120" cy="70" r="6" fill="rgba(0,255,140,0.6)" />
+            </svg>
+        `),
+        binary: encodePatternSvg(`
+            <svg width="180" height="100" xmlns="http://www.w3.org/2000/svg">
+                <rect width="180" height="100" fill="rgba(0,10,20,0.9)" />
+                <text x="10" y="35" font-size="28" fill="rgba(0,255,140,0.65)" font-family="Courier New">0101</text>
+                <text x="100" y="80" font-size="28" fill="rgba(0,180,255,0.65)" font-family="Courier New">1010</text>
+            </svg>
+        `),
+        runes: encodePatternSvg(`
+            <svg width="160" height="100" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 80 L20 20 L45 50" stroke="rgba(255,0,120,0.7)" stroke-width="5" fill="none" />
+                <path d="M70 80 L90 20 L110 80" stroke="rgba(0,255,210,0.7)" stroke-width="5" fill="none" />
+                <path d="M130 80 L150 20" stroke="rgba(255,255,255,0.6)" stroke-width="5" fill="none" />
+            </svg>
+        `),
+        sakura: encodePatternSvg(`
+            <svg width="140" height="100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="40" cy="40" r="10" fill="rgba(255,180,220,0.8)" />
+                <circle cx="40" cy="25" r="8" fill="rgba(255,220,240,0.7)" />
+                <circle cx="25" cy="40" r="8" fill="rgba(255,220,240,0.7)" />
+                <circle cx="55" cy="40" r="8" fill="rgba(255,220,240,0.7)" />
+                <circle cx="40" cy="55" r="8" fill="rgba(255,220,240,0.7)" />
+                <circle cx="100" cy="60" r="10" fill="rgba(255,150,200,0.8)" />
+                <circle cx="100" cy="45" r="8" fill="rgba(255,220,240,0.7)" />
+                <circle cx="85" cy="60" r="8" fill="rgba(255,220,240,0.7)" />
+                <circle cx="115" cy="60" r="8" fill="rgba(255,220,240,0.7)" />
+                <circle cx="100" cy="75" r="8" fill="rgba(255,220,240,0.7)" />
+            </svg>
+        `),
+        houndstooth: encodePatternSvg(`
+            <svg width="120" height="120" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 0 H60 L40 20 H60 V60 H40 V40 H0 Z" fill="rgba(255,255,255,0.7)" />
+                <path d="M60 60 H120 L100 80 H120 V120 H100 V100 H60 Z" fill="rgba(0,0,0,0.35)" />
+            </svg>
+        `),
+        peacock: encodePatternSvg(`
+            <svg width="160" height="120" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="40" cy="80" rx="28" ry="14" fill="rgba(0,120,200,0.5)" />
+                <circle cx="40" cy="80" r="8" fill="rgba(255,220,0,0.6)" />
+                <ellipse cx="100" cy="60" rx="32" ry="16" fill="rgba(0,200,180,0.5)" />
+                <circle cx="100" cy="60" r="10" fill="rgba(255,120,200,0.6)" />
+            </svg>
+        `),
+        mandala: encodePatternSvg(`
+            <svg width="160" height="160" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="4" />
+                <circle cx="80" cy="80" r="40" fill="none" stroke="rgba(255,100,200,0.4)" stroke-width="6" />
+                <circle cx="80" cy="80" r="20" fill="none" stroke="rgba(100,200,255,0.5)" stroke-width="4" />
+            </svg>
+        `),
+        tentacles: encodePatternSvg(`
+            <svg width="200" height="120" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 110 C30 70 60 70 90 110" fill="none" stroke="rgba(120,0,150,0.5)" stroke-width="8" stroke-linecap="round" />
+                <path d="M60 110 C90 60 130 60 160 110" fill="none" stroke="rgba(0,200,170,0.5)" stroke-width="8" stroke-linecap="round" />
+            </svg>
+        `),
+        pixel: encodePatternSvg(`
+            <svg width="120" height="120" xmlns="http://www.w3.org/2000/svg">
+                <rect width="120" height="120" fill="rgba(10,10,40,0.95)" />
+                <rect x="0" y="80" width="40" height="40" fill="rgba(255,80,0,0.6)" />
+                <rect x="40" y="40" width="40" height="40" fill="rgba(255,0,120,0.6)" />
+                <rect x="80" y="0" width="40" height="40" fill="rgba(0,200,255,0.6)" />
+            </svg>
+        `),
+        prism: encodePatternSvg(`
+            <svg width="200" height="120" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="p" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#ff00ff" />
+                        <stop offset="50%" stop-color="#00f5ff" />
+                        <stop offset="100%" stop-color="#ffff00" />
+                    </linearGradient>
+                </defs>
+                <rect width="200" height="120" fill="url(#p)" />
+                <path d="M0 30 L200 0 L200 120 L0 90 Z" fill="rgba(255,255,255,0.15)" />
+            </svg>
+        `)
+    });
+
     // Default profile data structure
     const DEFAULT_PROFILE = {
         version: "1.0",
@@ -128,6 +476,13 @@
                     mode: "normal",
                     opacity: 100
                 }
+            },
+            tweaks: {
+                radius: 10,
+                border: 3,
+                blur: 0,
+                glowColor: '#00ffff',
+                glowStrength: 20
             },
             effects: JSON.parse(JSON.stringify(EFFECT_DEFAULTS))
         },
@@ -927,6 +1282,19 @@
             const widgetBg = this.hexToRgba(theme.colors.widgetBg, opacity);
             document.documentElement.style.setProperty('--custom-widget-bg', widgetBg);
 
+            if (!this.profile.theme.tweaks || typeof this.profile.theme.tweaks !== 'object') {
+                this.profile.theme.tweaks = {};
+            }
+            const tweakDefaults = { radius: 10, border: 3, blur: 0, glowColor: '#00ffff', glowStrength: 20 };
+            const tweaks = Object.assign({}, tweakDefaults, this.profile.theme.tweaks);
+            this.profile.theme.tweaks = tweaks;
+            document.documentElement.style.setProperty('--widget-radius', `${tweaks.radius || 0}px`);
+            document.documentElement.style.setProperty('--widget-border-size', `${tweaks.border || 0}px`);
+            document.documentElement.style.setProperty('--widget-blur', `${tweaks.blur || 0}px`);
+            const widgetGlow = this.hexToRgba(tweaks.glowColor || '#00ffff', 0.55);
+            document.documentElement.style.setProperty('--widget-glow-color', widgetGlow);
+            document.documentElement.style.setProperty('--widget-glow-strength', `${tweaks.glowStrength || 0}px`);
+
             // Apply layout
             const grid = document.getElementById('content-grid');
             if (grid) {
@@ -1091,44 +1459,7 @@
 
         // Helper: Get pattern URL
         getPatternUrl: function(patternName) {
-            const patterns = {
-                // Star pattern - 5-pointed stars
-                stars: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M20,5 L23,15 L33,15 L25,21 L28,31 L20,25 L12,31 L15,21 L7,15 L17,15 Z\' fill=\'rgba(255,255,255,0.3)\' /%3E%3C/svg%3E")',
-
-                // Heart pattern
-                hearts: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M20,30 C20,30 8,22 8,15 C8,10 11,8 14,8 C17,8 20,11 20,11 C20,11 23,8 26,8 C29,8 32,10 32,15 C32,22 20,30 20,30 Z\' fill=\'rgba(255,100,150,0.4)\' /%3E%3C/svg%3E")',
-
-                // Flame pattern
-                flames: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M20,5 Q18,15 20,18 Q22,15 20,5 M20,18 Q15,25 20,35 Q25,25 20,18\' fill=\'rgba(255,150,50,0.5)\' /%3E%3C/svg%3E")',
-
-                // Sparkle pattern - 4-pointed stars
-                sparkles: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M20,8 L21,18 L20,19 L19,18 Z M20,22 L21,32 L20,33 L19,32 Z M12,20 L8,21 L7,20 L8,19 Z M28,20 L32,21 L33,20 L32,19 Z\' fill=\'rgba(255,255,100,0.6)\' /%3E%3Ccircle cx=\'10\' cy=\'10\' r=\'1.5\' fill=\'rgba(255,255,255,0.8)\' /%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'2\' fill=\'rgba(255,255,255,0.7)\' /%3E%3C/svg%3E")',
-
-                // Checkerboard pattern - high contrast
-                checkers: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'20\' height=\'20\' fill=\'rgba(255,255,255,0.15)\' /%3E%3Crect x=\'20\' y=\'20\' width=\'20\' height=\'20\' fill=\'rgba(255,255,255,0.15)\' /%3E%3Crect x=\'20\' y=\'0\' width=\'20\' height=\'20\' fill=\'rgba(0,0,0,0.15)\' /%3E%3Crect x=\'0\' y=\'20\' width=\'20\' height=\'20\' fill=\'rgba(0,0,0,0.15)\' /%3E%3C/svg%3E")',
-
-                // Dots pattern - polka dots
-                dots: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ccircle cx=\'10\' cy=\'10\' r=\'6\' fill=\'rgba(255,255,255,0.25)\' /%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'6\' fill=\'rgba(255,255,255,0.25)\' /%3E%3C/svg%3E")',
-
-                // Diagonal stripes
-                stripes: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0,40 L40,0 M-10,10 L10,-10 M30,50 L50,30\' stroke=\'rgba(255,255,255,0.2)\' stroke-width=\'8\' /%3E%3C/svg%3E")',
-
-                // Glitter - random sparkles
-                glitter: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M8,8 L9,12 L8,13 L7,12 Z M8,8 L12,9 L13,8 L12,7 Z\' fill=\'rgba(255,255,255,0.6)\' /%3E%3Cpath d=\'M28,15 L29,18 L28,19 L27,18 Z M28,15 L31,16 L32,15 L31,14 Z\' fill=\'rgba(255,255,100,0.5)\' /%3E%3Cpath d=\'M15,28 L16,30 L15,31 L14,30 Z M15,28 L17,29 L18,28 L17,27 Z\' fill=\'rgba(255,200,255,0.5)\' /%3E%3Ccircle cx=\'32\' cy=\'8\' r=\'1.5\' fill=\'rgba(255,255,255,0.7)\' /%3E%3Ccircle cx=\'10\' cy=\'35\' r=\'1\' fill=\'rgba(255,255,255,0.8)\' /%3E%3C/svg%3E")',
-
-                // Tiger print remix
-                tigerprint: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(0,0,0,0)\'/%3E%3Cpath d=\'M10 20 C30 5 50 5 70 20\' stroke=\'rgba(0,0,0,0.35)\' stroke-width=\'10\' stroke-linecap=\'round\'/%3E%3Cpath d=\'M5 50 C25 35 55 35 75 50\' stroke=\'rgba(0,0,0,0.35)\' stroke-width=\'10\' stroke-linecap=\'round\'/%3E%3Ccircle cx=\'20\' cy=\'15\' r=\'8\' fill=\'rgba(0,150,255,0.4)\'/%3E%3Ccircle cx=\'55\' cy=\'40\' r=\'10\' fill=\'rgba(0,150,255,0.4)\'/%3E%3Ccircle cx=\'25\' cy=\'60\' r=\'7\' fill=\'rgba(0,150,255,0.4)\'/%3E%3C/svg%3E")',
-
-                // Mall goth glitch
-                mallgoth: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(255,0,0,0.12)\'/%3E%3Crect x=\'0\' y=\'0\' width=\'40\' height=\'10\' fill=\'rgba(255,0,0,0.35)\'/%3E%3Crect x=\'45\' y=\'25\' width=\'35\' height=\'12\' fill=\'rgba(255,0,0,0.45)\'/%3E%3Crect x=\'10\' y=\'45\' width=\'25\' height=\'15\' fill=\'rgba(255,60,60,0.4)\'/%3E%3Crect x=\'40\' y=\'65\' width=\'30\' height=\'10\' fill=\'rgba(255,0,0,0.35)\'/%3E%3C/svg%3E")',
-
-                // Pop punk doodles
-                poppunk: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(0,0,0,0)\'/%3E%3Ccircle cx=\'20\' cy=\'15\' r=\'4\' fill=\'%23ff5bff\'/%3E%3Ccircle cx=\'60\' cy=\'25\' r=\'4\' fill=\'%2336fffb\'/%3E%3Cpath d=\'M5 60 L25 40\' stroke=\'%23ffef5a\' stroke-width=\'4\'/%3E%3Cpath d=\'M35 70 L55 50\' stroke=\'%23ff5bff\' stroke-width=\'4\'/%3E%3Crect x=\'50\' y=\'5\' width=\'12\' height=\'12\' fill=\'rgba(255,255,255,0.25)\'/%3E%3Crect x=\'10\' y=\'35\' width=\'12\' height=\'12\' fill=\'rgba(255,255,255,0.25)\'/%3E%3C/svg%3E")',
-
-                // Evanescent swirls
-                evanescent: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(0,0,0,0)\'/%3E%3Cpath d=\'M10 40 Q30 20 50 40 T90 40\' fill=\'none\' stroke=\'rgba(126, 230, 255, 0.35)\' stroke-width=\'6\'/%3E%3Cpath d=\'M-10 60 Q10 80 30 60 T70 60\' fill=\'none\' stroke=\'rgba(240, 89, 255, 0.3)\' stroke-width=\'5\'/%3E%3Ccircle cx=\'25\' cy=\'50\' r=\'5\' fill=\'rgba(126,230,255,0.4)\'/%3E%3Ccircle cx=\'55\' cy=\'30\' r=\'4\' fill=\'rgba(240,89,255,0.4)\'/%3E%3C/svg%3E")'
-            };
-            return patterns[patternName] || patterns.stars;
+            return PATTERN_LIBRARY[patternName] || PATTERN_LIBRARY.stars;
         },
 
         sanitizeCustomHtml: function(html) {

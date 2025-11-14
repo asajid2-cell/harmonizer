@@ -941,3 +941,205 @@ body.lightning-rumble {
 
 
 
+
+.emoji-orbit-overlay,
+.emoji-burst-container,
+.emoji-wave-container,
+.emoji-pop-layer,
+.emoji-lantern-layer,
+.screen-vignette,
+.screen-haze,
+.screen-grid,
+.screen-holo,
+.screen-prism {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.emoji-orbit-overlay.active,
+.emoji-burst-container.active,
+.emoji-wave-container.active,
+.emoji-pop-layer.active,
+.emoji-lantern-layer.active,
+.screen-vignette.active,
+.screen-haze.active,
+.screen-grid.active,
+.screen-holo.active,
+.screen-prism.active {
+    opacity: 1;
+}
+
+.emoji-orbit-overlay {
+    z-index: 9994;
+}
+
+.emoji-orbit-overlay span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    font-size: 1.8rem;
+    opacity: 0.85;
+    transform-origin: 0 0;
+    animation: emojiOrbit 14s linear infinite;
+}
+
+@keyframes emojiOrbit {
+    from {
+        transform: rotate(var(--orbit-angle, 0deg)) translateY(calc(var(--orbit-radius, 150px) * -1)) rotate(0deg);
+    }
+    to {
+        transform: rotate(calc(var(--orbit-angle, 0deg) + 360deg)) translateY(calc(var(--orbit-radius, 150px) * -1)) rotate(-360deg);
+    }
+}
+
+.emoji-burst-container {
+    z-index: 9993;
+}
+
+.emoji-burst {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    font-size: 1.6rem;
+    animation: emojiBurstPop 1.2s ease-out forwards;
+    transform-origin: center;
+}
+
+@keyframes emojiBurstPop {
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(var(--burst-angle, 0deg)) translateY(0) scale(0.4);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) rotate(var(--burst-angle, 0deg)) translateY(calc(var(--burst-distance, 120px) * -1)) scale(1.1);
+    }
+}
+
+.emoji-wave-container {
+    z-index: 9992;
+    overflow: hidden;
+}
+
+.emoji-wave {
+    position: absolute;
+    left: -10%;
+    animation: emojiWave linear forwards;
+}
+
+@keyframes emojiWave {
+    0% {
+        transform: translateX(-15vw);
+        opacity: 0;
+    }
+    15% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(120vw);
+        opacity: 0;
+    }
+}
+
+.emoji-pop-layer {
+    z-index: 9996;
+}
+
+.emoji-pop {
+    position: absolute;
+    font-size: 1.4rem;
+    animation: emojiPop 0.6s ease-out forwards;
+}
+
+@keyframes emojiPop {
+    0% {
+        opacity: 0.9;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -120%) scale(0.1);
+    }
+}
+
+.emoji-lantern-layer {
+    z-index: 9991;
+}
+
+.emoji-lantern {
+    position: absolute;
+    bottom: -10%;
+    font-size: 1.5rem;
+    animation: emojiLantern 10s linear forwards;
+}
+
+@keyframes emojiLantern {
+    0% {
+        opacity: 0;
+        transform: translateY(0) scale(0.8);
+    }
+    15% {
+        opacity: 0.85;
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-110vh) scale(1.1);
+    }
+}
+
+.screen-vignette {
+    z-index: 9989;
+    background: radial-gradient(circle at center, rgba(255,255,255,0) 45%, rgba(0,0,0,0.45) 90%);
+}
+
+.screen-haze {
+    z-index: 9988;
+    mix-blend-mode: screen;
+    background: conic-gradient(from var(--screen-haze-hue, 0deg), rgba(255,0,150,0.12), rgba(0,255,255,0.12), rgba(255,255,0,0.12), rgba(255,0,150,0.12));
+    animation: screenHaze 12s linear infinite;
+}
+
+@keyframes screenHaze {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.screen-grid {
+    z-index: 9987;
+    background-image:
+        linear-gradient(rgba(0,255,200,0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,200,0.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+.screen-holo {
+    z-index: 9986;
+    mix-blend-mode: lighten;
+    background: repeating-linear-gradient(120deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 2px, transparent 2px, transparent 6px);
+    animation: holoShift 6s linear infinite;
+}
+
+@keyframes holoShift {
+    0% { transform: translate3d(0,0,0); }
+    100% { transform: translate3d(30px, -30px, 0); }
+}
+
+.screen-prism {
+    z-index: 9985;
+    mix-blend-mode: screen;
+    background: linear-gradient(135deg, rgba(255,0,255,0.15), rgba(0,255,255,0.12), rgba(255,255,0,0.12));
+    animation: screenPrism 10s ease-in-out infinite;
+    background-size: 300% 300%;
+}
+
+@keyframes screenPrism {
+    0% { background-position: 0% 50%; transform: rotate(0deg); }
+    50% { background-position: 100% 50%; transform: rotate(10deg); }
+    100% { background-position: 0% 50%; transform: rotate(0deg); }
+}

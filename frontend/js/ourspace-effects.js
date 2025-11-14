@@ -17,6 +17,10 @@
     let bubbleWarpHandler = null;
     let chromaticTrailHandler = null;
     let prismTrailConfig = null;
+    let emojiBurstInterval = null;
+    let emojiWaveInterval = null;
+    let emojiLanternInterval = null;
+    let emojiPopHandler = null;
 
     function getEffectsStore() {
         return (window.OurSpace && window.OurSpace.profile && window.OurSpace.profile.theme && window.OurSpace.profile.theme.effects) || {};
@@ -88,6 +92,16 @@
         toggleChromaticTrails(getEffectConfig('chromaticTrails', { length: 0.9, mode: "sunset" }));
         toggleFloatingEmojis(getEffectConfig('floatingEmojis', { density: 1 }));
         toggleLightningFlickers(getEffectConfig('lightningFlickers', { intensity: 0.8, frequency: 6 }));
+        toggleEmojiOrbit(getEffectConfig('emojiOrbit', { emojis: ['💫', '🦋', '🌙', '⭐', '💖'] }));
+        toggleEmojiBurst(getEffectConfig('emojiBurst', { frequency: 2, emojis: ['🎉', '💥', '💎', '✨'] }));
+        toggleEmojiWave(getEffectConfig('emojiWave', { speed: 4000, emojis: ['🌈', '🌊', '💜', '⭐'] }));
+        toggleEmojiPop(getEffectConfig('emojiPop', { emojis: ['✨', '💛', '💙', '💜'] }));
+        toggleEmojiLanterns(getEffectConfig('emojiLanterns', { speed: 1.2, emojis: ['🏮', '🌙', '🪷', '🦋'] }));
+        toggleScreenVignette(getEffectConfig('screenVignette', {}));
+        toggleScreenHaze(getEffectConfig('screenHaze', {}));
+        toggleScreenGrid(getEffectConfig('screenGrid', {}));
+        toggleScreenHolo(getEffectConfig('screenHolo', {}));
+        toggleScreenPrism(getEffectConfig('screenPrism', {}));
     }
 
     // Falling Effects
@@ -638,6 +652,175 @@
             document.body.appendChild(el);
         }
         return el;
+    }
+
+    function toggleEmojiOrbit(config) {
+        const overlay = ensureOverlay('emoji-orbit-overlay', 'emoji-orbit-overlay');
+        if (!config.enabled) {
+            overlay.classList.remove('active');
+            overlay.innerHTML = '';
+            return;
+        }
+        const emojiSet = Array.isArray(config.emojis) && config.emojis.length ? config.emojis : ['💫', '🦋', '🌙', '⭐', '💖'];
+        overlay.classList.add('active');
+        overlay.innerHTML = '';
+        const count = Math.max(emojiSet.length, 6);
+        for (let i = 0; i < count; i++) {
+            const span = document.createElement('span');
+            span.textContent = emojiSet[i % emojiSet.length];
+            span.style.setProperty('--orbit-angle', `${(360 / count) * i}deg`);
+            span.style.setProperty('--orbit-radius', `${120 + (i % 4) * 18}px`);
+            overlay.appendChild(span);
+        }
+    }
+
+    function toggleEmojiBurst(config) {
+        const container = ensureOverlay('emoji-burst-container', 'emoji-burst-container');
+        if (emojiBurstInterval) {
+            clearInterval(emojiBurstInterval);
+            emojiBurstInterval = null;
+        }
+        container.innerHTML = '';
+        if (!config.enabled) {
+            container.classList.remove('active');
+            return;
+        }
+        container.classList.add('active');
+        const emojis = Array.isArray(config.emojis) && config.emojis.length ? config.emojis : ['🎉', '💥', '💎', '✨', '🦄'];
+        const frequency = Math.max(1, config.frequency || 2) * 1000;
+        emojiBurstInterval = setInterval(() => createEmojiBurst(container, emojis), frequency);
+    }
+
+    function toggleEmojiWave(config) {
+        const container = ensureOverlay('emoji-wave-container', 'emoji-wave-container');
+        if (emojiWaveInterval) {
+            clearInterval(emojiWaveInterval);
+            emojiWaveInterval = null;
+        }
+        container.innerHTML = '';
+        if (!config.enabled) {
+            container.classList.remove('active');
+            return;
+        }
+        container.classList.add('active');
+        const emojis = Array.isArray(config.emojis) && config.emojis.length ? config.emojis : ['🌈', '🌊', '💜', '⭐'];
+        const delay = Math.max(1500, config.speed || 3500);
+        emojiWaveInterval = setInterval(() => createEmojiWave(container, emojis), delay);
+    }
+
+    function toggleEmojiPop(config) {
+        const layer = ensureOverlay('emoji-pop-layer', 'emoji-pop-layer');
+        if (emojiPopHandler) {
+            document.removeEventListener('mousemove', emojiPopHandler);
+            emojiPopHandler = null;
+        }
+        layer.innerHTML = '';
+        if (!config.enabled) {
+            layer.classList.remove('active');
+            return;
+        }
+        const emojis = Array.isArray(config.emojis) && config.emojis.length ? config.emojis : ['✨', '💛', '💙', '💜', '🌟'];
+        layer.classList.add('active');
+        emojiPopHandler = function(e) {
+            createEmojiPop(layer, emojis, e.clientX, e.clientY);
+        };
+        document.addEventListener('mousemove', emojiPopHandler);
+    }
+
+    function toggleEmojiLanterns(config) {
+        const layer = ensureOverlay('emoji-lantern-layer', 'emoji-lantern-layer');
+        if (emojiLanternInterval) {
+            clearInterval(emojiLanternInterval);
+            emojiLanternInterval = null;
+        }
+        layer.innerHTML = '';
+        if (!config.enabled) {
+            layer.classList.remove('active');
+            return;
+        }
+        layer.classList.add('active');
+        const emojis = Array.isArray(config.emojis) && config.emojis.length ? config.emojis : ['🏮', '🌙', '🪷', '🦋'];
+        const speed = Math.max(0.4, config.speed || 1.2);
+        emojiLanternInterval = setInterval(() => createEmojiLantern(layer, emojis, speed), 900);
+    }
+
+    function toggleScreenVignette(config) {
+        const overlay = ensureOverlay('screen-vignette', 'screen-vignette');
+        overlay.classList.toggle('active', !!config.enabled);
+    }
+
+    function toggleScreenHaze(config) {
+        const overlay = ensureOverlay('screen-haze', 'screen-haze');
+        if (config.enabled) {
+            overlay.classList.add('active');
+            root.style.setProperty('--screen-haze-hue', `${Math.floor(Math.random() * 360)}deg`);
+        } else {
+            overlay.classList.remove('active');
+        }
+    }
+
+    function toggleScreenGrid(config) {
+        const overlay = ensureOverlay('screen-grid', 'screen-grid');
+        overlay.classList.toggle('active', !!config.enabled);
+    }
+
+    function toggleScreenHolo(config) {
+        const overlay = ensureOverlay('screen-holo', 'screen-holo');
+        overlay.classList.toggle('active', !!config.enabled);
+    }
+
+    function toggleScreenPrism(config) {
+        const overlay = ensureOverlay('screen-prism', 'screen-prism');
+        if (config.enabled) {
+            overlay.classList.add('active');
+            root.style.setProperty('--screen-prism-rotation', `${Math.floor(Math.random() * 360)}deg`);
+        } else {
+            overlay.classList.remove('active');
+        }
+    }
+
+    function createEmojiBurst(container, emojis) {
+        const count = 6;
+        for (let i = 0; i < count; i++) {
+            const burst = document.createElement('span');
+            burst.className = 'emoji-burst';
+            burst.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            burst.style.setProperty('--burst-angle', `${Math.random() * 360}deg`);
+            burst.style.setProperty('--burst-distance', `${100 + Math.random() * 100}px`);
+            container.appendChild(burst);
+            setTimeout(() => burst.remove(), 1200);
+        }
+    }
+
+    function createEmojiWave(container, emojis) {
+        const wave = document.createElement('span');
+        wave.className = 'emoji-wave';
+        wave.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        wave.style.top = Math.random() * 80 + '%';
+        wave.style.fontSize = 18 + Math.random() * 12 + 'px';
+        wave.style.animationDuration = 6 + Math.random() * 4 + 's';
+        container.appendChild(wave);
+        setTimeout(() => wave.remove(), 7000);
+    }
+
+    function createEmojiPop(layer, emojis, x, y) {
+        const pop = document.createElement('span');
+        pop.className = 'emoji-pop';
+        pop.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        pop.style.left = x + (Math.random() * 20 - 10) + 'px';
+        pop.style.top = y + (Math.random() * 20 - 10) + 'px';
+        layer.appendChild(pop);
+        setTimeout(() => pop.remove(), 600);
+    }
+
+    function createEmojiLantern(layer, emojis, speed) {
+        const lantern = document.createElement('span');
+        lantern.className = 'emoji-lantern';
+        lantern.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        lantern.style.left = Math.random() * 90 + '%';
+        lantern.style.animationDuration = (10 / speed) + 's';
+        layer.appendChild(lantern);
+        setTimeout(() => lantern.remove(), (11 / speed) * 1000);
     }
 
 })();
