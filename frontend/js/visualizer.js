@@ -5029,7 +5029,7 @@ function average_volume(q) {
     var sum = 0;
     if (q.loudness_max !== undefined) {
         return q.loudness_max;
-    } else if (q.overlappingSegments.length > 0) {
+    } else if (q.overlappingSegments && q.overlappingSegments.length > 0) {
         _.each(q.overlappingSegments, function(seg, i) {
                 sum += seg.loudness_max;
             }
