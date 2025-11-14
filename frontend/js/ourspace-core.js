@@ -1020,6 +1020,19 @@
                 customHtmlGlobal.innerHTML = safeGlobalHtml;
             }
 
+            // Hide Custom HTML widget in view mode if empty
+            const customHtmlWidget = document.getElementById('custom-html-widget');
+            if (customHtmlWidget) {
+                const isViewMode = document.body.classList.contains('view-mode');
+                const hasContent = safeWidgetHtml.trim().length > 0 || safeGlobalHtml.trim().length > 0;
+
+                if (isViewMode && !hasContent) {
+                    customHtmlWidget.style.display = 'none';
+                } else {
+                    customHtmlWidget.style.display = '';
+                }
+            }
+
             this.renderCustomGlobalCode();
 
             this.renderStickers();
@@ -1284,6 +1297,23 @@
             }
             if (typeof this.profile.widgets.customHtml.global !== 'string') {
                 this.profile.widgets.customHtml.global = '';
+            }
+        },
+
+        updateCustomHtmlWidgetVisibility: function() {
+            this.ensureCustomHtmlData();
+            const customHtmlWidget = document.getElementById('custom-html-widget');
+            if (customHtmlWidget) {
+                const isViewMode = document.body.classList.contains('view-mode');
+                const safeWidgetHtml = this.sanitizeCustomHtml(this.profile.widgets.customHtml.html || '');
+                const safeGlobalHtml = this.sanitizeCustomHtml(this.profile.widgets.customHtml.global || '');
+                const hasContent = safeWidgetHtml.trim().length > 0 || safeGlobalHtml.trim().length > 0;
+
+                if (isViewMode && !hasContent) {
+                    customHtmlWidget.style.display = 'none';
+                } else {
+                    customHtmlWidget.style.display = '';
+                }
             }
         },
 
@@ -1910,6 +1940,9 @@
                     layoutControls.style.display = 'none';
                 }
             }
+
+            // Update Custom HTML widget visibility
+            this.updateCustomHtmlWidgetVisibility();
 
             console.log("[OurSpace] View mode:", this.viewMode ? 'ON' : 'OFF');
         },

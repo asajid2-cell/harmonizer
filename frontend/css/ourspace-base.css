@@ -491,7 +491,9 @@ body.view-mode .mode-toggle-btn:hover {
 
 body.view-mode .remove-banner-btn,
 body.view-mode .pic-remove-btn,
-body.view-mode #remove-audio-btn {
+body.view-mode #remove-audio-btn,
+body.view-mode #pictures-reorder-btn,
+body.view-mode #friends-reorder-btn {
     display: none !important;
 }
 
@@ -2232,38 +2234,7 @@ body.view-mode #mood-icon {
     flex-shrink: 0;
 }
 
-/* Drag Handle */
-.drag-handle {
-    position: absolute !important;
-    top: 5px !important;
-    left: 5px !important;
-    width: 30px !important;
-    height: 30px !important;
-    background: rgba(0, 255, 255, 0.8) !important;
-    border: 2px solid #00ffff !important;
-    border-radius: 5px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    cursor: move !important;
-    font-size: 18px !important;
-    color: #000 !important;
-    font-weight: bold !important;
-    z-index: 10000 !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
-    pointer-events: auto !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-.drag-handle:hover {
-    background: rgba(0, 255, 255, 1);
-    transform: scale(1.1);
-}
-
 /* Hide all editor controls in view mode */
-body.view-mode .drag-handle,
-body.view-mode .resize-handle,
 body.view-mode .zindex-controls,
 body.view-mode .snapline-container {
     display: none !important;
@@ -2276,34 +2247,6 @@ body.view-mode .layout-editable {
 body.view-mode .layout-editable:hover {
     box-shadow: none !important;
     outline: none !important;
-}
-
-/* Resize Handle */
-.resize-handle {
-    position: absolute !important;
-    bottom: 0 !important;
-    right: 0 !important;
-    width: 20px !important;
-    height: 20px !important;
-    background: rgba(255, 0, 255, 0.8) !important;
-    border: 2px solid #ff00ff !important;
-    border-radius: 0 0 5px 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    cursor: nwse-resize !important;
-    font-size: 12px !important;
-    color: #fff !important;
-    z-index: 10000 !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
-    pointer-events: auto !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-.resize-handle:hover {
-    background: rgba(255, 0, 255, 1);
-    transform: scale(1.1);
 }
 
 /* Z-Index Controls */
