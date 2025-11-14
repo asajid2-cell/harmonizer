@@ -2677,5 +2677,268 @@ body.view-mode .layout-editable:hover {
     cursor: grabbing;
 }
 
+/* Block List Modal */
+.blocklist-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+}
+
+.blocklist-modal.active {
+    display: flex;
+}
+
+.blocklist-modal .modal-content {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 3px solid #00ffff;
+    border-radius: 15px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+}
+
+.blocklist-modal .modal-header {
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 2px solid #00ffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.blocklist-modal .modal-header h2 {
+    margin: 0;
+    color: #fff;
+    font-family: 'Comic Sans MS', cursive;
+    font-size: 24px;
+}
+
+.blocklist-modal .close-btn {
+    background: rgba(255, 0, 0, 0.7);
+    border: 2px solid #ff0000;
+    color: #fff;
+    font-size: 28px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.blocklist-modal .close-btn:hover {
+    background: rgba(255, 0, 0, 0.9);
+}
+
+.blocklist-modal .modal-body {
+    padding: 20px;
+    max-height: calc(80vh - 100px);
+    overflow-y: auto;
+}
+
+.blocked-users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.blocked-user-item {
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.blocked-username {
+    color: #fff;
+    font-family: 'Comic Sans MS', cursive;
+    font-size: 18px;
+    font-weight: bold;
+    flex: 1;
+}
+
+.blocked-date {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+}
+
+.unblock-btn {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border: 2px solid #ff00ff;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Arial', sans-serif;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.unblock-btn:hover {
+    background: linear-gradient(135deg, #ff00ff 0%, #f5576c 100%);
+    box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+    transform: scale(1.05);
+}
+
+/* Friends List Modal */
+.friends-list-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+}
+
+.friends-list-modal.active {
+    display: flex;
+}
+
+.friends-list-modal .modal-content {
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid rgba(0, 255, 255, 0.5);
+    border-radius: 12px;
+    padding: 0;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+}
+
+.friends-list-modal .modal-header {
+    background: rgba(0, 255, 255, 0.1);
+    border-bottom: 2px solid rgba(0, 255, 255, 0.3);
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 10px 10px 0 0;
+}
+
+.friends-list-modal .modal-header h2 {
+    margin: 0;
+    color: #00ffff;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.friends-list-modal .close-btn {
+    background: transparent;
+    border: none;
+    color: #00ffff;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.friends-list-modal .close-btn:hover {
+    color: #ff0066;
+    transform: rotate(90deg);
+}
+
+.friends-list-modal .modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.friends-list-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.friend-list-item {
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.2s;
+}
+
+.friend-list-item:hover {
+    border-color: rgba(0, 255, 255, 0.6);
+    background: rgba(0, 255, 255, 0.05);
+}
+
+.friend-list-item img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid rgba(0, 255, 255, 0.3);
+}
+
+.friend-list-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.friend-list-item-name {
+    font-weight: bold;
+    color: #00ffff;
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.friend-list-item-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.friend-list-item .remove-btn {
+    background: rgba(255, 0, 102, 0.2);
+    border: 1px solid rgba(255, 0, 102, 0.5);
+    color: #ff0066;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.friend-list-item .remove-btn:hover {
+    background: rgba(255, 0, 102, 0.4);
+    border-color: #ff0066;
+    transform: scale(1.05);
+}
+
+.friends-list-empty {
+    text-align: center;
+    padding: 40px;
+    opacity: 0.6;
+    font-size: 16px;
+}
+
 
 

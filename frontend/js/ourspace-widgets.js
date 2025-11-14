@@ -14,6 +14,12 @@
         initWidgets();
     });
 
+    // Reload widgets when content is loaded/reloaded
+    window.addEventListener('ourspace:contentLoaded', function() {
+        console.log('[Widgets] Content loaded event received, reloading friends grid');
+        loadFriendsGrid();
+    });
+
     function initWidgets() {
         console.log("[Widgets] Initializing widgets...");
 
@@ -464,6 +470,7 @@
     function setupTopFriendsWidget() {
         const friendsSlots = document.getElementById('friends-slots');
         const friendsGrid = document.getElementById('friends-grid');
+        const viewAllBtn = document.getElementById('view-all-friends-btn');
 
         // Load friends
         loadFriendsGrid();
@@ -479,6 +486,13 @@
                 }
                 window.OurSpace.saveProfile();
                 loadFriendsGrid();
+            });
+        }
+
+        // View all friends button
+        if (viewAllBtn) {
+            viewAllBtn.addEventListener('click', function() {
+                showAllFriends();
             });
         }
     }
@@ -501,7 +515,7 @@
 
             if (friend && friend.image) {
                 slotDiv.innerHTML = `
-                    <img src="${friend.image}" alt="${friend.name}">
+                    <img src="${friend.image}" alt="${friend.name}" loading="lazy" decoding="async">
                     <div class="friend-name">${escapeHtml(friend.name)}</div>
                 `;
             } else {
@@ -525,6 +539,102 @@
 
             friendsGrid.appendChild(slotDiv);
         }
+    }
+
+    function showAllFriends() {
+        const friends = window.OurSpace.profile.widgets.topFriends.friends;
+
+        // Create or get modal
+        let modal = document.querySelector('.friends-list-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.className = 'friends-list-modal';
+            document.body.appendChild(modal);
+        }
+
+        let html = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>All Friends (${friends.length})</h2>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+        `;
+
+        if (friends.length === 0) {
+            html += '<div class="friends-list-empty">No friends yet. Add some friends to your Top Friends widget!</div>';
+        } else {
+            html += '<div class="friends-list-container">';
+            friends.forEach((friend, index) => {
+                if (friend && friend.image && friend.name) {
+                    html += `
+                        <div class="friend-list-item" data-index="${index}">
+                            <img src="${friend.image}" alt="${escapeHtml(friend.name)}" loading="lazy" decoding="async">
+                            <div class="friend-list-item-info">
+                                <div class="friend-list-item-name">${escapeHtml(friend.name)}</div>
+                            </div>
+                            <div class="friend-list-item-actions">
+                                <button class="remove-btn" data-index="${index}">Remove</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            html += '</div>';
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        modal.innerHTML = html;
+        modal.classList.add('active');
+
+        // Close button
+        const closeBtn = modal.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
+        }
+
+        // Click outside to close
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+
+        // Remove buttons
+        const removeBtns = modal.querySelectorAll('.remove-btn');
+        removeBtns.forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const index = parseInt(this.dataset.index);
+                const friend = friends[index];
+
+                if (confirm(`Remove ${friend.name} from your friends list?`)) {
+                    // Remove from array
+                    window.OurSpace.profile.widgets.topFriends.friends.splice(index, 1);
+
+                    // Save profile
+                    await window.OurSpace.saveProfile();
+
+                    // Reload both the modal and the grid
+                    loadFriendsGrid();
+                    showAllFriends();
+                }
+            });
+        });
+
+        // Close on Escape key
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                modal.classList.remove('active');
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
     }
 
     function addFriend(index) {

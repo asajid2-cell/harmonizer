@@ -7,6 +7,12 @@
         initImages();
     });
 
+    // Reload images when content is loaded/reloaded
+    window.addEventListener('ourspace:contentLoaded', function() {
+        console.log('[Images] Content loaded event received, reloading picture grid');
+        loadPictureGrid();
+    });
+
     function initImages() {
         console.log("[Images] Initializing picture wall...");
 
@@ -155,7 +161,7 @@
             pictureItem.draggable = true;
 
             pictureItem.innerHTML = `
-                <img src="${image.url}" alt="${escapeHtml(image.caption)}" loading="lazy" style="object-position: ${position.x}% ${position.y}%">
+                <img src="${image.url}" alt="${escapeHtml(image.caption)}" loading="lazy" decoding="async" style="object-position: ${position.x}% ${position.y}%">
                 <button class="frame-btn" title="Adjust framing">Frame</button>
                 <button class="delete-btn" title="Delete">x</button>
                 ${image.caption ? `<div class="caption">${escapeHtml(image.caption)}</div>` : ''}

@@ -2036,11 +2036,31 @@ def ourspace_upload():
 
 @app.route("/api/ourspace/media/<user_id>/<filename>")
 def ourspace_media(user_id: str, filename: str):
-    """Serve OurSpace media files."""
+    """Serve OurSpace media files with fallback logic."""
     filepath = ourspace_DATA_DIR / user_id / filename
-    if not filepath.exists():
-        abort(404)
-    return send_file(filepath)
+
+    # If file exists at requested path, serve it
+    if filepath.exists():
+        return send_file(filepath)
+
+    # If user is authenticated and requesting temp file, try authenticated directory
+    if user_id.startswith("temp_"):
+        ourspace_user_id = session.get("ourspace_user_id")
+        if ourspace_user_id:
+            auth_filepath = ourspace_DATA_DIR / str(ourspace_user_id) / filename
+            if auth_filepath.exists():
+                return send_file(auth_filepath)
+
+    # If authenticated user requesting file, also check all temp directories as fallback
+    # (in case session changed before migration completed)
+    if not user_id.startswith("temp_"):
+        for temp_dir in ourspace_DATA_DIR.glob("temp_*"):
+            if temp_dir.is_dir():
+                fallback_path = temp_dir / filename
+                if fallback_path.exists():
+                    return send_file(fallback_path)
+
+    abort(404)
 
 
 # OurSpace Authentication Endpoints
@@ -2232,6 +2252,9 @@ def ourspace_register():
     if not re.match(r'^[a-zA-Z0-9_]+$', username):
         return jsonify({"error": "Username can only contain letters, numbers, and underscores"}), 400
 
+    # Get temp user_id before creating new user
+    temp_user_id = session.get("user_id")
+
     # Create user
     user_id = create_user(username, password)
 
@@ -2242,11 +2265,99 @@ def ourspace_register():
     session["ourspace_user_id"] = user_id
     session["ourspace_username"] = username
 
+    # Migrate temp media files if temp session existed
+    url_mapping = {}
+    if temp_user_id:
+        url_mapping = _migrate_temp_media_on_login(temp_user_id, user_id)
+
+    # If there's a temp profile with URLs that need updating, migrate it
+    if url_mapping and temp_user_id:
+        temp_profile_file = ourspace_DATA_DIR / f"temp_{temp_user_id}.json"
+        if temp_profile_file.exists():
+            try:
+                with open(temp_profile_file, "r") as f:
+                    temp_profile = json.load(f)
+
+                # Update URLs in profile
+                updated_profile = _update_profile_urls(temp_profile, url_mapping)
+
+                # Save to authenticated user's database profile
+                if save_user_profile:
+                    save_user_profile(user_id, updated_profile)
+
+                # Remove temp profile file
+                temp_profile_file.unlink()
+            except Exception as e:
+                print(f"[OurSpace] Warning: Failed to migrate temp profile on register: {e}")
+
     return jsonify({
         "success": True,
         "user_id": user_id,
         "username": username
     })
+
+
+def _migrate_temp_media_on_login(temp_user_id, authenticated_user_id):
+    """Migrate media files from temp directory to authenticated user directory and return URL mapping."""
+    import shutil
+    import re
+
+    temp_dir = ourspace_DATA_DIR / f"temp_{temp_user_id}"
+    auth_dir = ourspace_DATA_DIR / str(authenticated_user_id)
+
+    if not temp_dir.exists():
+        return {}
+
+    # Create authenticated user directory if it doesn't exist
+    auth_dir.mkdir(exist_ok=True)
+
+    url_mapping = {}
+
+    # Move all files from temp directory to authenticated directory
+    for file_path in temp_dir.iterdir():
+        if file_path.is_file():
+            old_filename = file_path.name
+            new_path = auth_dir / old_filename
+
+            # If file already exists, generate unique name
+            counter = 1
+            while new_path.exists():
+                stem = file_path.stem
+                ext = file_path.suffix
+                new_path = auth_dir / f"{stem}_{counter}{ext}"
+                counter += 1
+
+            # Move file
+            shutil.move(str(file_path), str(new_path))
+
+            # Record URL mapping
+            old_url = f"/api/ourspace/media/temp_{temp_user_id}/{old_filename}"
+            new_url = f"/api/ourspace/media/{authenticated_user_id}/{new_path.name}"
+            url_mapping[old_url] = new_url
+
+    # Remove empty temp directory
+    try:
+        temp_dir.rmdir()
+    except:
+        pass
+
+    return url_mapping
+
+
+def _update_profile_urls(profile_data, url_mapping):
+    """Recursively update all URLs in profile data using url_mapping."""
+    if not url_mapping:
+        return profile_data
+
+    import json
+
+    # Convert to JSON string to do simple find/replace
+    profile_json = json.dumps(profile_data)
+
+    for old_url, new_url in url_mapping.items():
+        profile_json = profile_json.replace(old_url, new_url)
+
+    return json.loads(profile_json)
 
 
 @app.route("/api/ourspace/login", methods=["POST", "OPTIONS"])
@@ -2271,9 +2382,37 @@ def ourspace_login():
     if user is None:
         return jsonify({"error": "Invalid username or password"}), 401
 
+    # Get temp user_id before setting authenticated session
+    temp_user_id = session.get("user_id")
+
     # Set session
     session["ourspace_user_id"] = user["id"]
     session["ourspace_username"] = user["username"]
+
+    # Migrate temp media files if temp session existed
+    url_mapping = {}
+    if temp_user_id:
+        url_mapping = _migrate_temp_media_on_login(temp_user_id, user["id"])
+
+    # If there's a temp profile with URLs that need updating, migrate it
+    if url_mapping and temp_user_id:
+        temp_profile_file = ourspace_DATA_DIR / f"temp_{temp_user_id}.json"
+        if temp_profile_file.exists():
+            try:
+                with open(temp_profile_file, "r") as f:
+                    temp_profile = json.load(f)
+
+                # Update URLs in profile
+                updated_profile = _update_profile_urls(temp_profile, url_mapping)
+
+                # Save to authenticated user's database profile
+                if save_user_profile:
+                    save_user_profile(user["id"], updated_profile)
+
+                # Remove temp profile file
+                temp_profile_file.unlink()
+            except Exception as e:
+                print(f"[OurSpace] Warning: Failed to migrate temp profile: {e}")
 
     return jsonify({
         "success": True,

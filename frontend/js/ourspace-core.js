@@ -532,7 +532,7 @@
                 // Update source to reflect where we successfully saved
                 this.profileSource = useDatabase ? 'database' : 'session';
                 this.backupProfileLocally();
-                console.log(`[OurSpace] Profile saved successfully to ${primaryLabel}`);
+                console.log(`[OurSpace] Profile saved successfully to ${primaryLabel} at ${new Date(this.profile.meta.lastModified).toLocaleTimeString()}`);
                 return true;
             } catch (e) {
                 console.error("[OurSpace] Error saving profile:", e);
@@ -925,6 +925,12 @@
 
             this.renderStickers();
             this.renderStickerDeck();
+
+            // Preload critical images for faster display
+            this.preloadCriticalImages();
+
+            // Trigger custom event so other modules can respond to content load
+            window.dispatchEvent(new CustomEvent('ourspace:contentLoaded'));
 
             console.log("[OurSpace] Content loaded");
         },
@@ -1834,6 +1840,47 @@
                     if (text) text.textContent = 'Customize';
                 }
             }
+        },
+
+        // Preload critical images for faster initial display
+        preloadCriticalImages: function() {
+            const imagesToPreload = [];
+
+            // Profile picture
+            if (this.profile.profilePicture) {
+                imagesToPreload.push(this.profile.profilePicture);
+            }
+
+            // Banner image
+            if (this.profile.banner && this.profile.banner.image) {
+                imagesToPreload.push(this.profile.banner.image);
+            }
+
+            // Top friends (first 4 only for above-the-fold)
+            if (this.profile.widgets.topFriends && this.profile.widgets.topFriends.friends) {
+                this.profile.widgets.topFriends.friends.slice(0, 4).forEach(friend => {
+                    if (friend && friend.image) {
+                        imagesToPreload.push(friend.image);
+                    }
+                });
+            }
+
+            // Picture wall (first 6 only)
+            if (this.profile.widgets.pictureWall && this.profile.widgets.pictureWall.images) {
+                this.profile.widgets.pictureWall.images.slice(0, 6).forEach(img => {
+                    if (img && img.url) {
+                        imagesToPreload.push(img.url);
+                    }
+                });
+            }
+
+            // Preload images in the background
+            imagesToPreload.forEach(src => {
+                const img = new Image();
+                img.src = src;
+            });
+
+            console.log(`[OurSpace] Preloading ${imagesToPreload.length} critical images`);
         }
     };
 

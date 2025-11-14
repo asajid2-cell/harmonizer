@@ -164,6 +164,10 @@
 
                 if (response.ok) {
                     alert(`${username} has been blocked`);
+                    // Refresh block list if it's open
+                    if (document.querySelector('.blocklist-modal.active')) {
+                        this.showBlockList();
+                    }
                     return true;
                 } else {
                     alert(data.error || 'Failed to block user');
@@ -173,6 +177,125 @@
                 console.error('[Block] Error blocking user:', e);
                 alert('Error blocking user');
                 return false;
+            }
+        },
+
+        // Unblock user
+        unblockUser: async function(username) {
+            if (!window.OurSpaceAuth || !window.OurSpaceAuth.isAuthenticated) {
+                alert('You must be logged in to unblock users');
+                return false;
+            }
+
+            if (!confirm(`Are you sure you want to unblock ${username}?`)) {
+                return false;
+            }
+
+            try {
+                const response = await fetch('/api/ourspace/unblock', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username: username})
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`${username} has been unblocked`);
+                    // Refresh block list
+                    this.showBlockList();
+                    return true;
+                } else {
+                    alert(data.error || 'Failed to unblock user');
+                    return false;
+                }
+            } catch (e) {
+                console.error('[Block] Error unblocking user:', e);
+                alert('Error unblocking user');
+                return false;
+            }
+        },
+
+        // Show block list
+        showBlockList: async function() {
+            if (!window.OurSpaceAuth || !window.OurSpaceAuth.isAuthenticated) {
+                alert('You must be logged in to view blocked users');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/ourspace/blocked');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch blocked users');
+                }
+
+                const data = await response.json();
+                const blockedUsers = data.blocked || [];
+
+                // Create or get modal
+                let modal = document.querySelector('.blocklist-modal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.className = 'blocklist-modal';
+                    document.body.appendChild(modal);
+                }
+
+                let html = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Blocked Users</h2>
+                            <button class="close-btn">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                `;
+
+                if (blockedUsers.length === 0) {
+                    html += '<p style="text-align: center; padding: 20px; opacity: 0.6;">No blocked users</p>';
+                } else {
+                    html += '<div class="blocked-users-list">';
+                    blockedUsers.forEach(user => {
+                        html += `
+                            <div class="blocked-user-item">
+                                <span class="blocked-username">${escapeHtml(user.blocked_username)}</span>
+                                <span class="blocked-date">${new Date(user.created_at).toLocaleDateString()}</span>
+                                <button class="unblock-btn" data-username="${escapeHtml(user.blocked_username)}">Unblock</button>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+
+                modal.innerHTML = html;
+                modal.classList.add('active');
+
+                // Close button
+                modal.querySelector('.close-btn').addEventListener('click', () => {
+                    modal.classList.remove('active');
+                });
+
+                // Click outside to close
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.remove('active');
+                    }
+                });
+
+                // Unblock buttons
+                modal.querySelectorAll('.unblock-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const username = btn.dataset.username;
+                        this.unblockUser(username);
+                    });
+                });
+
+            } catch (e) {
+                console.error('[Block] Error loading blocked users:', e);
+                alert('Error loading blocked users');
             }
         },
 
@@ -321,6 +444,10 @@
                             window.OurSpaceFriends.blockUser(username.trim());
                         }
                     }
+                });
+            } else if (text.includes('View Blocked Users')) {
+                button.addEventListener('click', function() {
+                    window.OurSpaceFriends.showBlockList();
                 });
             }
         });

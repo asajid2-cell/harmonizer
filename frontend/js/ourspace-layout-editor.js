@@ -24,7 +24,7 @@
 
         toggle: function(enable) {
             this.enabled = enable;
-            const widgets = document.querySelectorAll('.widget, #profile-header, .profile-header, .profile-picture, .profile-pic-container, .profile-banner, .contact-section, .stat-container, .profile-info');
+            const widgets = document.querySelectorAll('.widget, #profile-header, .profile-header, .profile-picture, .profile-pic-container, .profile-banner, .contact-section, .stat-container, .profile-info, .friend-slot, .picture-item, .gallery-item');
 
             if (enable) {
                 // Ensure view mode is disabled so editor controls are visible
