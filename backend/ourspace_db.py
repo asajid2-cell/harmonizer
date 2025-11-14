@@ -8,7 +8,7 @@ from typing import Optional, Dict, List, Any
 from datetime import datetime
 
 # Database file location
-DB_PATH = Path(__file__).parent / "ourspace_data" / "OurSpace.db"
+DB_PATH = Path(__file__).parent / "ourspace_data" / "ourspace.db"
 
 
 def get_db():
@@ -1068,9 +1068,25 @@ def is_blocked(user_id: int, other_user_id: int) -> bool:
         return False
 
 
+def check_db() -> bool:
+    """Check if database is accessible and properly initialized"""
+    try:
+        if not DB_PATH.exists():
+            return False
+
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # Try a simple query to verify database is functional
+        cursor.execute("SELECT COUNT(*) FROM users")
+        cursor.fetchone()
+
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"[DB] Health check failed: {e}")
+        return False
+
+
 # Initialize database on module import
 init_db()
-
-
-
-

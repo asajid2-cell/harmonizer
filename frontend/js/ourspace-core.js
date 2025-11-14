@@ -1553,6 +1553,9 @@
             const element = this.stickerLayer.querySelector(`[data-sticker-id="${id}"]`);
             if (!element) return;
 
+            // Add cutout-mode class to disable sticker dragging
+            element.classList.add('cutout-mode');
+
             const canvas = document.createElement('canvas');
             canvas.className = 'sticker-cutout-canvas';
             element.appendChild(canvas);
@@ -1600,6 +1603,9 @@
                 window.removeEventListener('pointerup', endHandler);
                 window.removeEventListener('pointercancel', endHandler);
                 element.removeChild(canvas);
+
+                // Remove cutout-mode class to re-enable sticker dragging
+                element.classList.remove('cutout-mode');
 
                 if (points.length >= 3) {
                     const coords = points.map(p => {

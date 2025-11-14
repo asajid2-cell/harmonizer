@@ -539,9 +539,113 @@
         }
     };
 
+    // Database health check function
+    async function checkDatabaseHealth() {
+        try {
+            const response = await fetch('/api/ourspace/health');
+            const data = await response.json();
+
+            if (!response.ok || !data.database_available) {
+                console.error('[Auth] Database unavailable:', data);
+                showDatabaseWarning();
+                return false;
+            }
+            return true;
+        } catch (e) {
+            console.error('[Auth] Database health check failed:', e);
+            showDatabaseWarning();
+            return false;
+        }
+    }
+
+    // Show database warning popup
+    function showDatabaseWarning() {
+        // Create modal if it doesn't exist
+        let warningModal = document.getElementById('db-warning-modal');
+        if (!warningModal) {
+            warningModal = document.createElement('div');
+            warningModal.id = 'db-warning-modal';
+            warningModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.85);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 100000;
+                font-family: 'Comic Sans MS', cursive;
+            `;
+
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: linear-gradient(135deg, #1a1a2e, #16213e);
+                border: 3px solid #ff00ff;
+                border-radius: 15px;
+                padding: 30px;
+                max-width: 500px;
+                text-align: center;
+                box-shadow: 0 0 30px rgba(255, 0, 255, 0.5);
+            `;
+
+            content.innerHTML = `
+                <h2 style="color: #00ffff; margin: 0 0 15px 0; text-shadow: 0 0 10px #00ffff;">
+                    ⚠️ Database Connection Issue
+                </h2>
+                <p style="color: #ffffff; margin: 0 0 20px 0; line-height: 1.6;">
+                    The OurSpace database is currently unavailable. Authentication features may not work properly.
+                </p>
+                <p style="color: #ffff00; margin: 0 0 25px 0; font-size: 0.95em;">
+                    Please try refreshing the page. If the issue persists, the server may need to be restarted.
+                </p>
+                <button id="db-warning-refresh" style="
+                    background: #00ffff;
+                    color: #000;
+                    border: none;
+                    padding: 12px 30px;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    margin-right: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                ">Refresh Page</button>
+                <button id="db-warning-close" style="
+                    background: transparent;
+                    color: #ffffff;
+                    border: 2px solid #ffffff;
+                    padding: 12px 30px;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    cursor: pointer;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                ">Continue Anyway</button>
+            `;
+
+            warningModal.appendChild(content);
+            document.body.appendChild(warningModal);
+
+            // Set up button handlers
+            document.getElementById('db-warning-refresh').addEventListener('click', () => {
+                window.location.reload();
+            });
+
+            document.getElementById('db-warning-close').addEventListener('click', () => {
+                warningModal.remove();
+            });
+        }
+    }
+
     // Initialize when DOM is ready
     window.addEventListener('DOMContentLoaded', async function() {
         console.log('[Auth] Initializing...');
+
+        // Check database health first
+        await checkDatabaseHealth();
 
         // Check if user is logged in
         await window.OurSpaceAuth.checkAuth();

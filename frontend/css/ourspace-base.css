@@ -24,9 +24,15 @@ body {
 #ourspace-main h3,
 #ourspace-main h4,
 #ourspace-main h5,
-#ourspace-main h6 {
+#ourspace-main h6,
+#ourspace-main label,
+#ourspace-main button,
+#ourspace-main input,
+#ourspace-main textarea,
+#ourspace-main select {
     color: var(--custom-text-color, #ffffff);
     text-shadow: var(--text-glow-shadow, none);
+    font-family: inherit !important;
 }
 
 #ourspace-main a {
@@ -365,6 +371,17 @@ body.view-mode #sticker-layer .sticker-item {
     width: 100%;
     height: 100%;
     cursor: crosshair;
+    z-index: 1000;
+    pointer-events: auto;
+    touch-action: none;
+}
+
+#sticker-layer .sticker-item.cutout-mode {
+    pointer-events: none !important;
+}
+
+#sticker-layer .sticker-item.cutout-mode .sticker-cutout-canvas {
+    pointer-events: auto !important;
 }
 
 /* Mode Toggle Button - Oldschool OurSpace Style */

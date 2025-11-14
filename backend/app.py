@@ -260,7 +260,7 @@ def _save_cheatsheet_entries(entries: list[dict]) -> None:
 ELDRICHIFY_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 IMGEN_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 
 app = Flask(__name__, static_folder=None)
 
@@ -2295,6 +2295,36 @@ def ourspace_logout():
     return jsonify({"success": True})
 
 
+@app.route("/api/ourspace/health", methods=["GET", "OPTIONS"])
+def ourspace_health():
+    """Check database and server health."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    db_available = False
+    db_error = None
+
+    try:
+        # Try to check if database helper is available
+        if _ourspace_db_helpers and "check_db" in _ourspace_db_helpers:
+            check_db = _ourspace_db_helpers["check_db"]
+            db_available = check_db()
+        else:
+            # Fallback: check if DB_PATH exists
+            from pathlib import Path
+            db_path = Path(__file__).parent / "ourspace_data" / "ourspace.db"
+            db_available = db_path.exists()
+    except Exception as e:
+        db_error = str(e)
+        db_available = False
+
+    return jsonify({
+        "status": "ok" if db_available else "degraded",
+        "database_available": db_available,
+        "database_error": db_error
+    })
+
+
 @app.route("/api/ourspace/me", methods=["GET", "OPTIONS"])
 def ourspace_me():
     """Get current user info."""
@@ -2957,6 +2987,15 @@ def serve_frontend_asset(asset_path: str):
 
 
 if __name__ == "__main__":
+    # Initialize OurSpace database
+    init_ourspace_db = _ourspace_db_helpers.get("init_db")
+    if init_ourspace_db:
+        try:
+            init_ourspace_db()
+            print("[OurSpace] Database initialized successfully")
+        except Exception as e:
+            print(f"[OurSpace] Database initialization warning: {e}")
+
     app.run(debug=True, port=4000)
 
 
