@@ -12,10 +12,6 @@ body.theme-classic {
     font-family: 'Arial', sans-serif;
 }
 
-body.theme-classic #myspace-background {
-    background: linear-gradient(135deg, #0066cc 0%, #003366 100%);
-}
-
 /* Glitter Girl Theme */
 body.theme-glitter {
     --bg-color: #ff69b4;
@@ -26,10 +22,6 @@ body.theme-glitter {
     --widget-bg: rgba(199, 21, 133, 0.7);
     --accent-color: #ff69b4;
     font-family: 'Comic Sans MS', cursive;
-}
-
-body.theme-glitter #myspace-background {
-    background: linear-gradient(135deg, #ff69b4 0%, #ff1493 50%, #c71585 100%);
 }
 
 body.theme-glitter .widget,
@@ -48,10 +40,6 @@ body.theme-emo {
     --widget-bg: rgba(0, 0, 0, 0.9);
     --accent-color: #ff00ff;
     font-family: 'Arial', sans-serif;
-}
-
-body.theme-emo #myspace-background {
-    background: #000000;
 }
 
 body.theme-emo .profile-name,
@@ -78,27 +66,6 @@ body.theme-rainbow {
     --widget-bg: rgba(255, 255, 255, 0.9);
     --accent-color: #ff00ff;
     font-family: 'Comic Sans MS', cursive;
-}
-
-body.theme-rainbow #myspace-background {
-    background: linear-gradient(
-        135deg,
-        #ff0000 0%,
-        #ff7700 16.66%,
-        #ffff00 33.33%,
-        #00ff00 50%,
-        #0000ff 66.66%,
-        #8b00ff 83.33%,
-        #ff00ff 100%
-    );
-    background-size: 400% 400%;
-    animation: rainbowShift 10s ease infinite;
-}
-
-@keyframes rainbowShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
 }
 
 body.theme-rainbow .widget-header {
@@ -133,10 +100,6 @@ body.theme-goth {
     font-family: 'Times New Roman', serif;
 }
 
-body.theme-goth #myspace-background {
-    background: linear-gradient(135deg, #1a0000 0%, #000000 100%);
-}
-
 body.theme-goth .widget {
     border-style: double;
     border-width: 5px;
@@ -159,10 +122,6 @@ body.theme-y2k {
     --widget-bg: rgba(0, 0, 0, 0.9);
     --accent-color: #00ff00;
     font-family: 'Courier New', monospace;
-}
-
-body.theme-y2k #myspace-background {
-    background: #000000;
 }
 
 body.theme-y2k .widget {

@@ -108,23 +108,43 @@
         const removeAudioBtn = document.getElementById('remove-audio-btn');
 
         if (audioUpload) {
-            audioUpload.addEventListener('change', function() {
+            audioUpload.addEventListener('change', async function() {
                 const file = this.files[0];
                 if (file && file.type.startsWith('audio/')) {
                     const title = prompt('Song title:', file.name.replace(/\.[^/.]+$/, ""));
 
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        window.MySpace.profile.widgets.music.audioData = e.target.result;
-                        window.MySpace.profile.widgets.music.title = title || file.name;
-                        window.MySpace.saveProfile();
+                    try {
+                        // Upload to server
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('type', 'audio');
 
-                        loadAudioIntoPlayer(e.target.result, title || file.name);
+                        const response = await fetch('/api/myspace/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
 
-                        // Show remove button
-                        if (removeAudioBtn) removeAudioBtn.style.display = 'inline-block';
-                    };
-                    reader.readAsDataURL(file);
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('[Audio] Upload successful, URL:', data.url);
+                            window.MySpace.profile.widgets.music.audioData = data.url;
+                            window.MySpace.profile.widgets.music.title = title || file.name;
+                            console.log('[Audio] Saving profile with audio data');
+                            await window.MySpace.saveProfile();
+                            console.log('[Audio] Profile saved');
+
+                            loadAudioIntoPlayer(data.url, title || file.name);
+
+                            // Show remove button
+                            if (removeAudioBtn) removeAudioBtn.style.display = 'inline-block';
+                        } else {
+                            console.error('[Audio] Failed to upload audio');
+                            alert('Failed to upload audio file');
+                        }
+                    } catch (e) {
+                        console.error('[Audio] Error uploading audio:', e);
+                        alert('Error uploading audio file');
+                    }
                 }
 
                 // Reset input
@@ -244,5 +264,31 @@
             bar.style.height = '10px';
         });
     }
+
+    // Export public API
+    window.MySpaceAudio = {
+        reloadAudio: function() {
+            console.log('[Audio] Reloading audio from profile');
+            loadSavedAudio();
+
+            // Update remove button visibility
+            const removeAudioBtn = document.getElementById('remove-audio-btn');
+            if (removeAudioBtn && window.MySpace.profile.widgets.music.audioData) {
+                removeAudioBtn.style.display = 'inline-block';
+            } else if (removeAudioBtn) {
+                removeAudioBtn.style.display = 'none';
+            }
+
+            // Restore autoplay checkbox state
+            const autoplayCheckbox = document.getElementById('autoplay-checkbox');
+            if (autoplayCheckbox) {
+                autoplayCheckbox.checked = window.MySpace.profile.widgets.music.autoplay;
+                console.log('[Audio] Autoplay setting restored:', window.MySpace.profile.widgets.music.autoplay);
+            }
+
+            // Check and enforce autoplay
+            checkAutoplay();
+        }
+    };
 
 })();

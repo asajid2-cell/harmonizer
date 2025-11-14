@@ -30,31 +30,48 @@
         const pictureUpload = document.getElementById('picture-upload');
 
         if (pictureUpload) {
-            pictureUpload.addEventListener('change', function() {
+            pictureUpload.addEventListener('change', async function() {
                 const files = Array.from(this.files);
 
                 if (files.length === 0) return;
 
-                files.forEach(file => {
+                for (const file of files) {
                     if (file.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            const caption = prompt(`Caption for ${file.name}:`, '');
+                        const caption = prompt(`Caption for ${file.name}:`, '');
 
-                            const image = {
-                                id: Date.now() + Math.random(),
-                                url: e.target.result,
-                                caption: caption || '',
-                                order: window.MySpace.profile.widgets.pictureWall.images.length
-                            };
+                        try {
+                            // Upload to server
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            formData.append('type', 'picture');
 
-                            window.MySpace.profile.widgets.pictureWall.images.push(image);
-                            window.MySpace.saveProfile();
-                            loadPictureGrid();
-                        };
-                        reader.readAsDataURL(file);
+                            const response = await fetch('/api/myspace/upload', {
+                                method: 'POST',
+                                body: formData
+                            });
+
+                            if (response.ok) {
+                                const data = await response.json();
+                                const image = {
+                                    id: Date.now() + Math.random(),
+                                    url: data.url,
+                                    caption: caption || '',
+                                    order: window.MySpace.profile.widgets.pictureWall.images.length
+                                };
+
+                                window.MySpace.profile.widgets.pictureWall.images.push(image);
+                                await window.MySpace.saveProfile();
+                                loadPictureGrid();
+                            } else {
+                                console.error('[Images] Failed to upload image:', file.name);
+                                alert(`Failed to upload ${file.name}`);
+                            }
+                        } catch (e) {
+                            console.error('[Images] Error uploading image:', e);
+                            alert(`Error uploading ${file.name}`);
+                        }
                     }
-                });
+                }
 
                 // Reset input
                 this.value = '';

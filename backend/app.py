@@ -20,7 +20,7 @@ from flask import (
     session,
     url_for,
 )
-from flask_session import Session
+# from flask_session import Session  # Not needed for MySpace functionality
 from werkzeug.utils import secure_filename
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
@@ -234,9 +234,9 @@ app = Flask(__name__, static_folder=None)
 
 # Configure session for OAuth
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(24))
-app.config["SESSION_TYPE"] = "filesystem"
-app.config["SESSION_FILE_DIR"] = str(BASE_DIR / "flask_session")
-Session(app)
+# app.config["SESSION_TYPE"] = "filesystem"
+# app.config["SESSION_FILE_DIR"] = str(BASE_DIR / "flask_session")
+# Session(app)  # Not needed for MySpace functionality - using Flask's built-in session
 app.config["RL_LABELER_TOKEN"] = RL_LABELER_TOKEN
 app.config["RL_POLICY_MODE"] = rl_policy_override
 
@@ -1804,6 +1804,771 @@ def api_rl_telemetry():
         "model": model_meta,
     }
     return jsonify(telemetry)
+
+
+# MySpace Profile Storage
+MYSPACE_DATA_DIR = BASE_DIR / "myspace_data"
+MYSPACE_DATA_DIR.mkdir(exist_ok=True)
+
+
+@app.route("/api/myspace/profile", methods=["GET", "POST", "OPTIONS"])
+def myspace_profile():
+    """[DEPRECATED] Save or load MySpace profile data (for local changes only)."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    # For local editing without login, use temporary session ID
+    if "user_id" not in session:
+        session["user_id"] = str(uuid.uuid4())
+
+    user_id = session["user_id"]
+    profile_file = MYSPACE_DATA_DIR / f"temp_{user_id}.json"
+
+    if request.method == "POST":
+        # Save profile to temp file
+        try:
+            profile_data = request.get_json()
+            with open(profile_file, "w") as f:
+                json.dump(profile_data, f)
+            return jsonify({"success": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    else:  # GET
+        # Load profile from temp file
+        if profile_file.exists():
+            with open(profile_file, "r") as f:
+                profile_data = json.load(f)
+            return jsonify(profile_data)
+        else:
+            return jsonify(None)
+
+
+@app.route("/api/myspace/upload", methods=["POST", "OPTIONS"])
+def myspace_upload():
+    """Upload and store MySpace media files (images, audio). Requires authentication to save permanently."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    # Use authenticated user ID if available, otherwise temp ID
+    myspace_user_id = session.get("myspace_user_id")
+    if myspace_user_id:
+        user_id = str(myspace_user_id)
+    else:
+        if "user_id" not in session:
+            session["user_id"] = str(uuid.uuid4())
+        user_id = f"temp_{session['user_id']}"
+
+    user_media_dir = MYSPACE_DATA_DIR / user_id
+    user_media_dir.mkdir(exist_ok=True)
+
+    try:
+        # Expect form data with file and type
+        if "file" not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+
+        file = request.files["file"]
+        file_type = request.form.get("type", "image")  # image, audio, banner, etc.
+
+        if file.filename == "":
+            return jsonify({"error": "Empty filename"}), 400
+
+        # Generate unique filename
+        ext = Path(file.filename).suffix
+        filename = f"{file_type}_{uuid.uuid4()}{ext}"
+        filepath = user_media_dir / filename
+
+        file.save(filepath)
+
+        # Return URL to access the file
+        url = f"/api/myspace/media/{user_id}/{filename}"
+        return jsonify({"success": True, "url": url, "filename": filename})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/myspace/media/<user_id>/<filename>")
+def myspace_media(user_id: str, filename: str):
+    """Serve MySpace media files."""
+    filepath = MYSPACE_DATA_DIR / user_id / filename
+    if not filepath.exists():
+        abort(404)
+    return send_file(filepath)
+
+
+# MySpace Authentication Endpoints
+try:
+    from myspace_db import (
+        create_user,
+        authenticate_user,
+        get_user_profile,
+        get_user_profile_by_username,
+        save_user_profile,
+        publish_profile,
+        add_friend,
+        remove_friend,
+        get_friends,
+        search_users,
+        reset_user_password,
+        send_friend_request,
+        get_pending_friend_requests,
+        accept_friend_request,
+        reject_friend_request,
+        send_message,
+        get_inbox,
+        get_sent_messages,
+        mark_message_read,
+        get_unread_count,
+        delete_message,
+        block_user,
+        unblock_user,
+        get_blocked_users,
+        is_blocked
+    )
+except ImportError:
+    # Module not available
+    create_user = None
+
+
+@app.route("/api/myspace/register", methods=["POST", "OPTIONS"])
+def myspace_register():
+    """Register a new MySpace user."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    if create_user is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+
+    # Validation
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
+
+    if len(username) < 3:
+        return jsonify({"error": "Username must be at least 3 characters"}), 400
+
+    if len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters"}), 400
+
+    # Check for valid username (alphanumeric and underscores only)
+    import re
+    if not re.match(r'^[a-zA-Z0-9_]+$', username):
+        return jsonify({"error": "Username can only contain letters, numbers, and underscores"}), 400
+
+    # Create user
+    user_id = create_user(username, password)
+
+    if user_id is None:
+        return jsonify({"error": "Username already exists"}), 409
+
+    # Set session
+    session["myspace_user_id"] = user_id
+    session["myspace_username"] = username
+
+    return jsonify({
+        "success": True,
+        "user_id": user_id,
+        "username": username
+    })
+
+
+@app.route("/api/myspace/login", methods=["POST", "OPTIONS"])
+def myspace_login():
+    """Login to MySpace."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    if authenticate_user is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
+
+    # Authenticate
+    user = authenticate_user(username, password)
+
+    if user is None:
+        return jsonify({"error": "Invalid username or password"}), 401
+
+    # Set session
+    session["myspace_user_id"] = user["id"]
+    session["myspace_username"] = user["username"]
+
+    return jsonify({
+        "success": True,
+        "user_id": user["id"],
+        "username": user["username"],
+        "profile_published": user["profile_published"]
+    })
+
+
+@app.route("/api/myspace/logout", methods=["POST", "OPTIONS"])
+def myspace_logout():
+    """Logout from MySpace."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    session.pop("myspace_user_id", None)
+    session.pop("myspace_username", None)
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/me", methods=["GET", "OPTIONS"])
+def myspace_me():
+    """Get current user info."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    username = session.get("myspace_username")
+
+    if not user_id:
+        return jsonify({"authenticated": False})
+
+    return jsonify({
+        "authenticated": True,
+        "user_id": user_id,
+        "username": username
+    })
+
+
+@app.route("/api/myspace/profile/load", methods=["GET", "OPTIONS"])
+def myspace_load_profile():
+    """Load user's own profile."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if get_user_profile is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    profile = get_user_profile(user_id)
+
+    if profile is None:
+        return jsonify({"error": "Profile not found"}), 404
+
+    return jsonify(profile["data"])
+
+
+@app.route("/api/myspace/profile/save", methods=["POST", "OPTIONS"])
+def myspace_save_profile():
+    """Save user's profile (does not publish)."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if save_user_profile is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    profile_data = request.get_json()
+
+    success = save_user_profile(user_id, profile_data)
+
+    if not success:
+        return jsonify({"error": "Failed to save profile"}), 500
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/profile/publish", methods=["POST", "OPTIONS"])
+def myspace_publish_profile():
+    """Publish user's profile to make it visible to others."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if publish_profile is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    success = publish_profile(user_id)
+
+    if not success:
+        return jsonify({"error": "Failed to publish profile"}), 500
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/profile/<username>", methods=["GET", "OPTIONS"])
+def myspace_view_profile(username: str):
+    """View another user's published profile."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    if get_user_profile_by_username is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    profile = get_user_profile_by_username(username)
+
+    if profile is None:
+        return jsonify({"error": "User not found"}), 404
+
+    if not profile["published"]:
+        return jsonify({"error": "Profile not published"}), 403
+
+    return jsonify({
+        "username": profile["username"],
+        "data": profile["data"],
+        "visits": profile["visits"]
+    })
+
+
+@app.route("/api/myspace/friends", methods=["GET", "OPTIONS"])
+def myspace_get_friends():
+    """Get user's friends list."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if get_friends is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    friends = get_friends(user_id)
+
+    return jsonify({"friends": friends})
+
+
+@app.route("/api/myspace/friends/add", methods=["POST", "OPTIONS"])
+def myspace_add_friend():
+    """Add a friend."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if add_friend is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    friend_id = data.get("friend_id")
+
+    if not friend_id:
+        return jsonify({"error": "Friend ID required"}), 400
+
+    success = add_friend(user_id, friend_id)
+
+    if not success:
+        return jsonify({"error": "Failed to add friend"}), 500
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/friends/remove", methods=["POST", "OPTIONS"])
+def myspace_remove_friend():
+    """Remove a friend."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if remove_friend is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    friend_id = data.get("friend_id")
+
+    if not friend_id:
+        return jsonify({"error": "Friend ID required"}), 400
+
+    success = remove_friend(user_id, friend_id)
+
+    if not success:
+        return jsonify({"error": "Failed to remove friend"}), 500
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/search", methods=["GET", "OPTIONS"])
+def myspace_search_users():
+    """Search for users."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    if search_users is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    query = request.args.get("q", "")
+
+    if not query:
+        return jsonify({"users": []})
+
+    users = search_users(query)
+
+    return jsonify({"users": users})
+
+
+# Friend Request Endpoints
+
+@app.route("/api/myspace/friends/request/send", methods=["POST", "OPTIONS"])
+def myspace_send_friend_request():
+    """Send a friend request."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if send_friend_request is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    to_username = data.get("username", "").strip()
+
+    if not to_username:
+        return jsonify({"error": "Username required"}), 400
+
+    success = send_friend_request(user_id, to_username)
+
+    if not success:
+        return jsonify({"error": "Failed to send friend request. User may not exist, is blocked, or request already sent."}), 400
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/friends/requests", methods=["GET", "OPTIONS"])
+def myspace_get_friend_requests():
+    """Get pending friend requests."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if get_pending_friend_requests is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    requests = get_pending_friend_requests(user_id)
+
+    return jsonify({"requests": requests})
+
+
+@app.route("/api/myspace/friends/request/accept", methods=["POST", "OPTIONS"])
+def myspace_accept_friend_request():
+    """Accept a friend request."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if accept_friend_request is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    request_id = data.get("request_id")
+
+    if not request_id:
+        return jsonify({"error": "Request ID required"}), 400
+
+    success = accept_friend_request(request_id, user_id)
+
+    if not success:
+        return jsonify({"error": "Failed to accept friend request"}), 400
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/friends/request/reject", methods=["POST", "OPTIONS"])
+def myspace_reject_friend_request():
+    """Reject a friend request."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if reject_friend_request is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    request_id = data.get("request_id")
+
+    if not request_id:
+        return jsonify({"error": "Request ID required"}), 400
+
+    success = reject_friend_request(request_id, user_id)
+
+    if not success:
+        return jsonify({"error": "Failed to reject friend request"}), 400
+
+    return jsonify({"success": True})
+
+
+# Message Endpoints
+
+@app.route("/api/myspace/messages/send", methods=["POST", "OPTIONS"])
+def myspace_send_message():
+    """Send a message to another user."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if send_message is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    to_username = data.get("to_username", "").strip()
+    subject = data.get("subject", "").strip()
+    body = data.get("body", "").strip()
+
+    if not to_username or not subject or not body:
+        return jsonify({"error": "Username, subject, and body required"}), 400
+
+    success = send_message(user_id, to_username, subject, body)
+
+    if not success:
+        return jsonify({"error": "Failed to send message. User may not exist or has blocked you."}), 400
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/messages/inbox", methods=["GET", "OPTIONS"])
+def myspace_get_inbox():
+    """Get inbox messages."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if get_inbox is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    messages = get_inbox(user_id)
+
+    return jsonify({"messages": messages})
+
+
+@app.route("/api/myspace/messages/sent", methods=["GET", "OPTIONS"])
+def myspace_get_sent():
+    """Get sent messages."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if get_sent_messages is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    messages = get_sent_messages(user_id)
+
+    return jsonify({"messages": messages})
+
+
+@app.route("/api/myspace/messages/read", methods=["POST", "OPTIONS"])
+def myspace_mark_read():
+    """Mark a message as read."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if mark_message_read is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    message_id = data.get("message_id")
+
+    if not message_id:
+        return jsonify({"error": "Message ID required"}), 400
+
+    success = mark_message_read(message_id, user_id)
+
+    if not success:
+        return jsonify({"error": "Failed to mark message as read"}), 400
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/messages/unread-count", methods=["GET", "OPTIONS"])
+def myspace_unread_count():
+    """Get unread message count."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if get_unread_count is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    count = get_unread_count(user_id)
+
+    return jsonify({"count": count})
+
+
+@app.route("/api/myspace/messages/delete", methods=["POST", "OPTIONS"])
+def myspace_delete_message():
+    """Delete a message."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if delete_message is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    message_id = data.get("message_id")
+
+    if not message_id:
+        return jsonify({"error": "Message ID required"}), 400
+
+    success = delete_message(message_id, user_id)
+
+    if not success:
+        return jsonify({"error": "Failed to delete message"}), 400
+
+    return jsonify({"success": True})
+
+
+# Blocking Endpoints
+
+@app.route("/api/myspace/block", methods=["POST", "OPTIONS"])
+def myspace_block_user():
+    """Block a user."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if block_user is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    block_username = data.get("username", "").strip()
+
+    if not block_username:
+        return jsonify({"error": "Username required"}), 400
+
+    success = block_user(user_id, block_username)
+
+    if not success:
+        return jsonify({"error": "Failed to block user"}), 400
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/unblock", methods=["POST", "OPTIONS"])
+def myspace_unblock_user():
+    """Unblock a user."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if unblock_user is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    unblock_username = data.get("username", "").strip()
+
+    if not unblock_username:
+        return jsonify({"error": "Username required"}), 400
+
+    success = unblock_user(user_id, unblock_username)
+
+    if not success:
+        return jsonify({"error": "Failed to unblock user"}), 400
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/blocked", methods=["GET", "OPTIONS"])
+def myspace_get_blocked():
+    """Get blocked users list."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if get_blocked_users is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    blocked = get_blocked_users(user_id)
+
+    return jsonify({"blocked": blocked})
+
+
+@app.route("/api/myspace/reset-password", methods=["POST", "OPTIONS"])
+def myspace_reset_password():
+    """Reset user password with admin password verification."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    if reset_user_password is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json()
+    username = data.get("username", "").strip()
+    admin_password = data.get("admin_password", "")
+    new_password = data.get("new_password", "")
+
+    # Validation
+    if not username or not admin_password or not new_password:
+        return jsonify({"error": "Username, admin password, and new password are required"}), 400
+
+    if len(new_password) < 6:
+        return jsonify({"error": "New password must be at least 6 characters"}), 400
+
+    # Attempt password reset
+    success = reset_user_password(username, new_password, admin_password)
+
+    if not success:
+        return jsonify({"error": "Password reset failed. Check username and admin password."}), 401
+
+    return jsonify({"success": True, "message": "Password reset successfully"})
 
 
 @app.route("/Study/<path:study_path>")

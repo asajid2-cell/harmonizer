@@ -22,6 +22,7 @@
                 links: "#00ffff",
                 linksHover: "#ff00ff",
                 borders: "#ffffff",
+                labelText: "#00aaff",
                 widgetBg: "#000000",
                 widgetBgOpacity: 70
             },
@@ -39,7 +40,32 @@
                 image: "",
                 repeat: "repeat",
                 attachment: "fixed",
-                gradient: ""
+                gradient: "",
+                size: "auto",
+                customSize: 100,
+                position: "center",
+                transform: {
+                    scale: 1,
+                    rotate: 0,
+                    skewX: 0,
+                    skewY: 0,
+                    flipX: false,
+                    flipY: false
+                },
+                filter: {
+                    blur: 0,
+                    brightness: 100,
+                    contrast: 100,
+                    saturate: 100,
+                    hueRotate: 0,
+                    invert: 0,
+                    sepia: 0,
+                    grayscale: 0
+                },
+                blend: {
+                    mode: "normal",
+                    opacity: 100
+                }
             },
             effects: {
                 falling: { enabled: false, type: "hearts", speed: 2 },
@@ -100,15 +126,15 @@
 
     // Global MySpace object
     window.MySpace = {
-        profile: null,
+        profile: JSON.parse(JSON.stringify(DEFAULT_PROFILE)), // Initialize with default to prevent null errors
         viewMode: false,
 
         // Initialize the MySpace page
-        init: function() {
+        init: async function() {
             console.log("[MySpace] Initializing...");
 
-            // Load profile from localStorage or use default
-            this.loadProfile();
+            // Load profile from server or localStorage
+            await this.loadProfile();
 
             // Load view mode preference
             this.loadViewMode();
@@ -116,7 +142,7 @@
             // Increment visit counter
             this.profile.meta.visits++;
             this.profile.meta.lastModified = Date.now();
-            this.saveProfile();
+            await this.saveProfile();
 
             // Apply theme and customizations
             this.applyTheme();
@@ -129,13 +155,28 @@
             console.log("[MySpace] Initialization complete");
         },
 
-        // Load profile from localStorage
-        loadProfile: function() {
+        // Load profile from server
+        loadProfile: async function() {
+            try {
+                const response = await fetch('/api/myspace/profile');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data) {
+                        this.profile = data;
+                        console.log("[MySpace] Loaded profile from server");
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error("[MySpace] Error loading from server:", e);
+            }
+
+            // Fallback to localStorage
             const saved = localStorage.getItem('myspace-profile');
             if (saved) {
                 try {
                     this.profile = JSON.parse(saved);
-                    console.log("[MySpace] Loaded saved profile");
+                    console.log("[MySpace] Loaded saved profile from localStorage");
                 } catch (e) {
                     console.error("[MySpace] Error loading profile:", e);
                     this.profile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
@@ -146,17 +187,52 @@
             }
         },
 
-        // Save profile to localStorage
-        saveProfile: function() {
+        // Save profile to server
+        saveProfile: async function() {
             try {
                 this.profile.meta.lastModified = Date.now();
-                localStorage.setItem('myspace-profile', JSON.stringify(this.profile));
-                console.log("[MySpace] Profile saved");
+
+                // Check if user is authenticated
+                const isAuthenticated = window.MySpaceAuth && window.MySpaceAuth.isAuthenticated;
+                console.log(`[MySpace] saveProfile called - isAuthenticated: ${isAuthenticated}`);
+
+                let response;
+                if (isAuthenticated) {
+                    // Save to database for authenticated users
+                    console.log('[MySpace] Saving to database via /api/myspace/profile/save');
+                    response = await fetch('/api/myspace/profile/save', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(this.profile)
+                    });
+                } else {
+                    // Save to temp storage for non-authenticated users
+                    console.log('[MySpace] Saving to temp storage via /api/myspace/profile');
+                    response = await fetch('/api/myspace/profile', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(this.profile)
+                    });
+                }
+
+                if (response.ok) {
+                    console.log(`[MySpace] Profile saved successfully to ${isAuthenticated ? 'database' : 'temp storage'}`);
+                } else {
+                    throw new Error('Server save failed');
+                }
+
                 return true;
             } catch (e) {
                 console.error("[MySpace] Error saving profile:", e);
-                alert("Error saving profile. Your browser's storage might be full.");
-                return false;
+                // Fallback to localStorage
+                try {
+                    localStorage.setItem('myspace-profile', JSON.stringify(this.profile));
+                    console.log("[MySpace] Profile saved to localStorage (fallback)");
+                } catch (localErr) {
+                    alert("Error saving profile. Storage might be full.");
+                    return false;
+                }
+                return true;
             }
         },
 
@@ -205,6 +281,24 @@
         applyTheme: function() {
             const theme = this.profile.theme;
 
+            // Initialize background properties if they don't exist (backwards compatibility)
+            if (!theme.background.transform) {
+                theme.background.transform = { scale: 1, rotate: 0, skewX: 0, skewY: 0, flipX: false, flipY: false };
+            }
+            if (!theme.background.filter) {
+                theme.background.filter = { blur: 0, brightness: 100, contrast: 100, saturate: 100, hueRotate: 0, invert: 0, sepia: 0, grayscale: 0 };
+            }
+            if (!theme.background.blend) {
+                theme.background.blend = { mode: 'normal', opacity: 100 };
+            }
+            if (!theme.background.size) theme.background.size = 'cover';
+            if (!theme.background.customSize) theme.background.customSize = 100;
+            if (!theme.background.position) theme.background.position = 'center';
+
+            console.log("[MySpace] Applying theme:", theme.name);
+            console.log("[MySpace] Background type:", theme.background.type);
+            console.log("[MySpace] Background color:", theme.colors.background);
+
             // Apply theme class (preserve view-mode class)
             const viewMode = document.body.classList.contains('view-mode');
             document.body.className = `theme-${theme.name}`;
@@ -214,6 +308,7 @@
 
             // Apply custom colors
             const bg = document.getElementById('myspace-background');
+            console.log("[MySpace] Background element:", bg);
             if (bg) {
                 // Clear all background styles first
                 bg.style.background = '';
@@ -226,25 +321,97 @@
 
                 if (theme.background.type === 'solid') {
                     // Solid color background
+                    console.log("[MySpace] Applying solid color:", theme.colors.background);
                     bg.style.backgroundColor = theme.colors.background;
                 } else if (theme.background.type === 'gradient') {
                     // Gradient background
-                    bg.style.background = theme.background.gradient ||
+                    const gradient = theme.background.gradient ||
                         `linear-gradient(135deg, ${theme.colors.background} 0%, #000000 100%)`;
+                    console.log("[MySpace] Applying gradient:", gradient);
+                    bg.style.background = gradient;
                 } else if (theme.background.type === 'pattern') {
                     // Pattern background with color
+                    const patternUrl = this.getPatternUrl(theme.background.pattern);
+                    console.log("[MySpace] Applying pattern:", theme.background.pattern);
+                    console.log("[MySpace] Pattern URL:", patternUrl);
                     bg.style.backgroundColor = theme.colors.background;
-                    bg.style.backgroundImage = this.getPatternUrl(theme.background.pattern);
+                    bg.style.backgroundImage = patternUrl;
                     bg.style.backgroundRepeat = 'repeat';
                     bg.style.backgroundAttachment = 'fixed';
                 } else if (theme.background.type === 'image' && theme.background.image) {
-                    // Custom image background
+                    // Custom image background with transformations
+                    console.log("[MySpace] Applying custom image with transformations");
                     bg.style.backgroundImage = `url(${theme.background.image})`;
-                    bg.style.backgroundSize = 'cover';
-                    bg.style.backgroundPosition = 'center';
-                    bg.style.backgroundAttachment = 'fixed';
-                    bg.style.backgroundRepeat = 'no-repeat';
+
+                    // Handle custom size
+                    const bgSize = theme.background.size === 'custom'
+                        ? `${theme.background.customSize}px ${theme.background.customSize}px`
+                        : (theme.background.size || 'cover');
+                    bg.style.backgroundSize = bgSize;
+
+                    bg.style.backgroundPosition = theme.background.position || 'center';
+                    bg.style.backgroundAttachment = theme.background.attachment || 'fixed';
+                    bg.style.backgroundRepeat = theme.background.repeat || 'no-repeat';
+
+                    // Apply CSS filters
+                    const filters = [];
+                    if (theme.background.filter) {
+                        const f = theme.background.filter;
+                        if (f.blur > 0) filters.push(`blur(${f.blur}px)`);
+                        if (f.brightness !== 100) filters.push(`brightness(${f.brightness}%)`);
+                        if (f.contrast !== 100) filters.push(`contrast(${f.contrast}%)`);
+                        if (f.saturate !== 100) filters.push(`saturate(${f.saturate}%)`);
+                        if (f.hueRotate !== 0) filters.push(`hue-rotate(${f.hueRotate}deg)`);
+                        if (f.invert > 0) filters.push(`invert(${f.invert}%)`);
+                        if (f.sepia > 0) filters.push(`sepia(${f.sepia}%)`);
+                        if (f.grayscale > 0) filters.push(`grayscale(${f.grayscale}%)`);
+                    }
+
+                    // Apply blend mode and opacity
+                    if (theme.background.blend) {
+                        bg.style.mixBlendMode = theme.background.blend.mode || 'normal';
+                        bg.style.opacity = (theme.background.blend.opacity || 100) / 100;
+                    }
+
+                    // Apply transformations using a pseudo-element approach
+                    const transform = theme.background.transform || {};
+                    const transforms = [];
+                    if (transform.scale !== 1) transforms.push(`scale(${transform.scale})`);
+                    if (transform.rotate !== 0) transforms.push(`rotate(${transform.rotate}deg)`);
+                    if (transform.skewX !== 0) transforms.push(`skewX(${transform.skewX}deg)`);
+                    if (transform.skewY !== 0) transforms.push(`skewY(${transform.skewY}deg)`);
+                    if (transform.flipX) transforms.push(`scaleX(-1)`);
+                    if (transform.flipY) transforms.push(`scaleY(-1)`);
+
+                    // Create or update the transform overlay
+                    let overlay = document.getElementById('bg-transform-overlay');
+                    if (!overlay) {
+                        overlay = document.createElement('div');
+                        overlay.id = 'bg-transform-overlay';
+                        overlay.style.cssText = `
+                            position: fixed;
+                            top: -50%;
+                            left: -50%;
+                            width: 200%;
+                            height: 200%;
+                            pointer-events: none;
+                            z-index: -1;
+                        `;
+                        bg.appendChild(overlay);
+                    }
+
+                    overlay.style.backgroundImage = `url(${theme.background.image})`;
+                    overlay.style.backgroundSize = bgSize;
+                    overlay.style.backgroundPosition = 'center';
+                    overlay.style.backgroundRepeat = theme.background.repeat || 'no-repeat';
+                    overlay.style.transform = transforms.length > 0 ? transforms.join(' ') : 'none';
+                    overlay.style.filter = filters.length > 0 ? filters.join(' ') : 'none';
                 }
+                console.log("[MySpace] Final background styles:", {
+                    background: bg.style.background,
+                    backgroundColor: bg.style.backgroundColor,
+                    backgroundImage: bg.style.backgroundImage
+                });
             }
 
             // Apply font
@@ -264,6 +431,7 @@
             document.documentElement.style.setProperty('--custom-link-color', theme.colors.links);
             document.documentElement.style.setProperty('--custom-link-hover', theme.colors.linksHover);
             document.documentElement.style.setProperty('--custom-border-color', theme.colors.borders);
+            document.documentElement.style.setProperty('--custom-label-color', theme.colors.labelText || '#00aaff');
 
             // Apply widget background with opacity
             const opacity = theme.colors.widgetBgOpacity / 100;
@@ -372,14 +540,29 @@
         // Helper: Get pattern URL
         getPatternUrl: function(patternName) {
             const patterns = {
-                stars: 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRleHQgeD0iMTAiIHk9IjI1IiBmb250LXNpemU9IjIwIj7imrQ8L3RleHQ+PC9zdmc+)',
-                hearts: 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRleHQgeD0iMTAiIHk9IjI1IiBmb250LXNpemU9IjIwIj7wn5KWPC90ZXh0Pjwvc3ZnPg==)',
-                flames: 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRleHQgeD0iMTAiIHk9IjI1IiBmb250LXNpemU9IjIwIj7wn5SlPC90ZXh0Pjwvc3ZnPg==)',
-                sparkles: 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRleHQgeD0iMTAiIHk9IjI1IiBmb250LXNpemU9IjIwIj7inajvuI88L3RleHQ+PC9zdmc+)',
-                checkers: 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMSkiLz48cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIi8+PC9zdmc+)',
-                dots: 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iNSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjIpIi8+PC9zdmc+)',
-                stripes: 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGxpbmUgeDE9IjAiIHkxPSIwIiB4Mj0iNDAiIHkyPSI0MCIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMSkiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg==)',
-                glitter: 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRleHQgeD0iNSIgeT0iMTUiIGZvbnQtc2l6ZT0iMTAiPuKcqDwvdGV4dD48dGV4dCB4PSIyNSIgeT0iMzAiIGZvbnQtc2l6ZT0iOCI+4pyoPC90ZXh0Pjwvc3ZnPg==)'
+                // Star pattern - 5-pointed stars
+                stars: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M20,5 L23,15 L33,15 L25,21 L28,31 L20,25 L12,31 L15,21 L7,15 L17,15 Z\' fill=\'rgba(255,255,255,0.3)\' /%3E%3C/svg%3E")',
+
+                // Heart pattern
+                hearts: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M20,30 C20,30 8,22 8,15 C8,10 11,8 14,8 C17,8 20,11 20,11 C20,11 23,8 26,8 C29,8 32,10 32,15 C32,22 20,30 20,30 Z\' fill=\'rgba(255,100,150,0.4)\' /%3E%3C/svg%3E")',
+
+                // Flame pattern
+                flames: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M20,5 Q18,15 20,18 Q22,15 20,5 M20,18 Q15,25 20,35 Q25,25 20,18\' fill=\'rgba(255,150,50,0.5)\' /%3E%3C/svg%3E")',
+
+                // Sparkle pattern - 4-pointed stars
+                sparkles: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M20,8 L21,18 L20,19 L19,18 Z M20,22 L21,32 L20,33 L19,32 Z M12,20 L8,21 L7,20 L8,19 Z M28,20 L32,21 L33,20 L32,19 Z\' fill=\'rgba(255,255,100,0.6)\' /%3E%3Ccircle cx=\'10\' cy=\'10\' r=\'1.5\' fill=\'rgba(255,255,255,0.8)\' /%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'2\' fill=\'rgba(255,255,255,0.7)\' /%3E%3C/svg%3E")',
+
+                // Checkerboard pattern - high contrast
+                checkers: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'20\' height=\'20\' fill=\'rgba(255,255,255,0.15)\' /%3E%3Crect x=\'20\' y=\'20\' width=\'20\' height=\'20\' fill=\'rgba(255,255,255,0.15)\' /%3E%3Crect x=\'20\' y=\'0\' width=\'20\' height=\'20\' fill=\'rgba(0,0,0,0.15)\' /%3E%3Crect x=\'0\' y=\'20\' width=\'20\' height=\'20\' fill=\'rgba(0,0,0,0.15)\' /%3E%3C/svg%3E")',
+
+                // Dots pattern - polka dots
+                dots: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ccircle cx=\'10\' cy=\'10\' r=\'6\' fill=\'rgba(255,255,255,0.25)\' /%3E%3Ccircle cx=\'30\' cy=\'30\' r=\'6\' fill=\'rgba(255,255,255,0.25)\' /%3E%3C/svg%3E")',
+
+                // Diagonal stripes
+                stripes: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0,40 L40,0 M-10,10 L10,-10 M30,50 L50,30\' stroke=\'rgba(255,255,255,0.2)\' stroke-width=\'8\' /%3E%3C/svg%3E")',
+
+                // Glitter - random sparkles
+                glitter: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M8,8 L9,12 L8,13 L7,12 Z M8,8 L12,9 L13,8 L12,7 Z\' fill=\'rgba(255,255,255,0.6)\' /%3E%3Cpath d=\'M28,15 L29,18 L28,19 L27,18 Z M28,15 L31,16 L32,15 L31,14 Z\' fill=\'rgba(255,255,100,0.5)\' /%3E%3Cpath d=\'M15,28 L16,30 L15,31 L14,30 Z M15,28 L17,29 L18,28 L17,27 Z\' fill=\'rgba(255,200,255,0.5)\' /%3E%3Ccircle cx=\'32\' cy=\'8\' r=\'1.5\' fill=\'rgba(255,255,255,0.7)\' /%3E%3Ccircle cx=\'10\' cy=\'35\' r=\'1\' fill=\'rgba(255,255,255,0.8)\' /%3E%3C/svg%3E")'
             };
             return patterns[patternName] || patterns.stars;
         },

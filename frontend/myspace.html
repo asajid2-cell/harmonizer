@@ -105,6 +105,10 @@
                             <input type="color" id="color-borders" value="#ffffff">
                         </label>
                         <label>
+                            Labels (Music, TV, etc)
+                            <input type="color" id="color-labels" value="#00aaff">
+                        </label>
+                        <label>
                             Widget BG
                             <input type="color" id="color-widget-bg" value="#000000">
                             <input type="range" id="widget-bg-opacity" min="0" max="100" value="70">
@@ -136,6 +140,170 @@
 
                     <input type="file" id="bg-image-upload" accept="image/*" style="display: none;">
                     <button id="upload-bg-btn" class="upload-btn">Upload Background</button>
+                    <button id="remove-bg-btn" class="remove-btn" style="display: none; margin-top: 10px; background: #ff3366;">Remove Custom Background</button>
+
+                    <!-- Background Transformations (shown only for image type) -->
+                    <div id="bg-transform-panel" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
+                        <h4 style="margin-bottom: 10px; font-size: 14px;">🎨 Image Transformations</h4>
+
+                        <!-- Repeat & Size -->
+                        <label style="font-size: 12px;">
+                            Repeat:
+                            <select id="bg-repeat" style="width: 100%; margin-top: 5px;">
+                                <option value="no-repeat">No Repeat</option>
+                                <option value="repeat">Tile (Repeat)</option>
+                                <option value="repeat-x">Repeat Horizontally</option>
+                                <option value="repeat-y">Repeat Vertically</option>
+                                <option value="space">Space</option>
+                                <option value="round">Round</option>
+                            </select>
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 10px; display: block;">
+                            Size:
+                            <select id="bg-size" style="width: 100%; margin-top: 5px;">
+                                <option value="cover">Cover (Fill)</option>
+                                <option value="contain">Contain (Fit)</option>
+                                <option value="auto">Auto (Original)</option>
+                                <option value="10%">10% (Tiny Tiles)</option>
+                                <option value="20%">20% (Small Tiles)</option>
+                                <option value="30%">30%</option>
+                                <option value="50%">50%</option>
+                                <option value="75%">75%</option>
+                                <option value="100%">100%</option>
+                                <option value="150%">150%</option>
+                                <option value="200%">200%</option>
+                                <option value="300%">300%</option>
+                                <option value="400%">400%</option>
+                                <option value="custom">Custom (px)</option>
+                            </select>
+                        </label>
+
+                        <label id="bg-size-custom-label" style="font-size: 12px; margin-top: 8px; display: none;">
+                            Custom Size (px): <span id="bg-size-custom-display">100px</span>
+                            <input type="range" id="bg-size-custom" min="10" max="500" step="10" value="100" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 10px; display: block;">
+                            Position:
+                            <select id="bg-position" style="width: 100%; margin-top: 5px;">
+                                <option value="center">Center</option>
+                                <option value="top">Top</option>
+                                <option value="bottom">Bottom</option>
+                                <option value="left">Left</option>
+                                <option value="right">Right</option>
+                                <option value="top left">Top Left</option>
+                                <option value="top right">Top Right</option>
+                                <option value="bottom left">Bottom Left</option>
+                                <option value="bottom right">Bottom Right</option>
+                            </select>
+                        </label>
+
+                        <!-- Transforms -->
+                        <h4 style="margin: 15px 0 10px 0; font-size: 13px;">Transform</h4>
+
+                        <label style="font-size: 12px;">
+                            Scale: <span id="bg-scale-display">1.0</span>
+                            <input type="range" id="bg-scale" min="0.1" max="3" step="0.1" value="1" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Rotate: <span id="bg-rotate-display">0°</span>
+                            <input type="range" id="bg-rotate" min="0" max="360" step="1" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Skew X: <span id="bg-skewx-display">0°</span>
+                            <input type="range" id="bg-skewx" min="-45" max="45" step="1" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Skew Y: <span id="bg-skewy-display">0°</span>
+                            <input type="range" id="bg-skewy" min="-45" max="45" step="1" value="0" style="width: 100%;">
+                        </label>
+
+                        <div class="checkbox-group" style="margin-top: 10px;">
+                            <label style="font-size: 12px;"><input type="checkbox" id="bg-flipx"> Flip Horizontal</label>
+                            <label style="font-size: 12px;"><input type="checkbox" id="bg-flipy"> Flip Vertical</label>
+                        </div>
+
+                        <!-- Filters -->
+                        <h4 style="margin: 15px 0 10px 0; font-size: 13px;">Filters</h4>
+
+                        <label style="font-size: 12px;">
+                            Blur: <span id="bg-blur-display">0px</span>
+                            <input type="range" id="bg-blur" min="0" max="20" step="1" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Brightness: <span id="bg-brightness-display">100%</span>
+                            <input type="range" id="bg-brightness" min="0" max="200" step="5" value="100" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Contrast: <span id="bg-contrast-display">100%</span>
+                            <input type="range" id="bg-contrast" min="0" max="200" step="5" value="100" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Saturation: <span id="bg-saturate-display">100%</span>
+                            <input type="range" id="bg-saturate" min="0" max="200" step="5" value="100" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Hue Rotate: <span id="bg-hue-display">0°</span>
+                            <input type="range" id="bg-hue" min="0" max="360" step="5" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Invert: <span id="bg-invert-display">0%</span>
+                            <input type="range" id="bg-invert" min="0" max="100" step="5" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Sepia: <span id="bg-sepia-display">0%</span>
+                            <input type="range" id="bg-sepia" min="0" max="100" step="5" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Grayscale: <span id="bg-grayscale-display">0%</span>
+                            <input type="range" id="bg-grayscale" min="0" max="100" step="5" value="0" style="width: 100%;">
+                        </label>
+
+                        <!-- Blend Mode -->
+                        <h4 style="margin: 15px 0 10px 0; font-size: 13px;">Blend</h4>
+
+                        <label style="font-size: 12px;">
+                            Mode:
+                            <select id="bg-blend-mode" style="width: 100%; margin-top: 5px;">
+                                <option value="normal">Normal</option>
+                                <option value="multiply">Multiply</option>
+                                <option value="screen">Screen</option>
+                                <option value="overlay">Overlay</option>
+                                <option value="darken">Darken</option>
+                                <option value="lighten">Lighten</option>
+                                <option value="color-dodge">Color Dodge</option>
+                                <option value="color-burn">Color Burn</option>
+                                <option value="hard-light">Hard Light</option>
+                                <option value="soft-light">Soft Light</option>
+                                <option value="difference">Difference</option>
+                                <option value="exclusion">Exclusion</option>
+                                <option value="hue">Hue</option>
+                                <option value="saturation">Saturation</option>
+                                <option value="color">Color</option>
+                                <option value="luminosity">Luminosity</option>
+                            </select>
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Opacity: <span id="bg-opacity-display">100%</span>
+                            <input type="range" id="bg-opacity" min="0" max="100" step="5" value="100" style="width: 100%;">
+                        </label>
+
+                        <button id="bg-reset-transforms" style="margin-top: 15px; width: 100%; padding: 8px; background: #ff3366; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Reset All Transformations
+                        </button>
+                    </div>
                 </section>
 
                 <!-- Fonts -->
@@ -191,6 +359,20 @@
                         <button class="layout-btn" data-layout="split">Split</button>
                         <button class="layout-btn" data-layout="centered">Centered</button>
                     </div>
+                </section>
+
+                <!-- Authentication & Account -->
+                <section class="panel-section">
+                    <h3>Account</h3>
+                    <div id="auth-info" class="auth-info">
+                        <span class="auth-message">Checking login status...</span>
+                    </div>
+                    <div id="auth-actions" class="auth-actions">
+                        <!-- Auth buttons will be injected here -->
+                    </div>
+                    <button id="save-publish-btn" class="action-btn" style="display: none; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); margin-top: 10px;">
+                        💾 Save & Publish Profile
+                    </button>
                 </section>
 
                 <!-- Save/Load -->
@@ -479,6 +661,39 @@
         <div class="lightbox-caption" id="lightbox-caption"></div>
     </div>
 
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="auth-modal" style="display: none;">
+        <div class="auth-modal-content">
+            <span class="auth-modal-close" id="close-auth-modal">×</span>
+            <h2 id="auth-modal-title">Login to MySpace</h2>
+            <form id="auth-form">
+                <div class="auth-form-group">
+                    <label for="auth-username">Username:</label>
+                    <input type="text" id="auth-username" name="username" required autocomplete="username">
+                </div>
+                <div class="auth-form-group" id="auth-password-group">
+                    <label for="auth-password">Password:</label>
+                    <input type="password" id="auth-password" name="password" required autocomplete="current-password">
+                </div>
+                <div class="auth-form-group" id="auth-admin-password-group" style="display: none;">
+                    <label for="auth-admin-password">Admin Password:</label>
+                    <input type="password" id="auth-admin-password" name="admin_password" autocomplete="off">
+                </div>
+                <div class="auth-form-group" id="auth-new-password-group" style="display: none;">
+                    <label for="auth-new-password">New Password:</label>
+                    <input type="password" id="auth-new-password" name="new_password" autocomplete="new-password">
+                </div>
+                <div class="auth-error" id="auth-error"></div>
+                <button type="submit" id="auth-submit-btn" class="auth-submit-btn">Login</button>
+            </form>
+            <div class="auth-switch" id="auth-switch-link">
+                Don't have an account? <a href="#" id="switch-to-register">Sign up</a>
+                <br>
+                <a href="#" id="forgot-password-link" style="margin-top: 5px; display: inline-block;">Forgot password?</a>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="js/persistent-player.js"></script>
     <script src="js/myspace-core.js"></script>
@@ -487,5 +702,7 @@
     <script src="js/myspace-images.js"></script>
     <script src="js/myspace-audio.js"></script>
     <script src="js/myspace-effects.js"></script>
+    <script src="js/myspace-auth.js"></script>
+    <script src="js/myspace-friends.js"></script>
 </body>
 </html>

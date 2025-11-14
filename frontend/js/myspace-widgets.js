@@ -324,24 +324,41 @@
         input.type = 'file';
         input.accept = 'image/*';
 
-        input.addEventListener('change', function() {
+        input.addEventListener('change', async function() {
             const file = this.files[0];
             if (file && file.type.startsWith('image/')) {
                 const name = prompt('Friend\'s name:');
                 if (!name) return;
 
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const friend = {
-                        name: name,
-                        image: e.target.result
-                    };
+                try {
+                    // Upload to server
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('type', 'friend');
 
-                    window.MySpace.profile.widgets.topFriends.friends[index] = friend;
-                    window.MySpace.saveProfile();
-                    loadFriendsGrid();
-                };
-                reader.readAsDataURL(file);
+                    const response = await fetch('/api/myspace/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const friend = {
+                            name: name,
+                            image: data.url
+                        };
+
+                        window.MySpace.profile.widgets.topFriends.friends[index] = friend;
+                        await window.MySpace.saveProfile();
+                        loadFriendsGrid();
+                    } else {
+                        console.error('[Widgets] Failed to upload friend image');
+                        alert('Failed to upload friend image');
+                    }
+                } catch (e) {
+                    console.error('[Widgets] Error uploading friend image:', e);
+                    alert('Error uploading friend image');
+                }
             }
         });
 
@@ -382,25 +399,42 @@
         // Banner upload
         const bannerUpload = document.getElementById('banner-upload');
         if (bannerUpload) {
-            bannerUpload.addEventListener('change', function() {
+            bannerUpload.addEventListener('change', async function() {
                 const file = this.files[0];
                 if (file && file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        window.MySpace.profile.profile.bannerImage = e.target.result;
-                        window.MySpace.saveProfile();
+                    try {
+                        // Upload to server
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('type', 'banner');
 
-                        const banner = document.getElementById('banner-image');
-                        if (banner) {
-                            banner.style.backgroundImage = `url(${e.target.result})`;
-                            const overlay = banner.querySelector('.upload-overlay');
-                            if (overlay) overlay.style.display = 'none';
+                        const response = await fetch('/api/myspace/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
 
-                            const removeBtn = document.getElementById('remove-banner-btn');
-                            if (removeBtn) removeBtn.style.display = 'block';
+                        if (response.ok) {
+                            const data = await response.json();
+                            window.MySpace.profile.profile.bannerImage = data.url;
+                            await window.MySpace.saveProfile();
+
+                            const banner = document.getElementById('banner-image');
+                            if (banner) {
+                                banner.style.backgroundImage = `url(${data.url})`;
+                                const overlay = banner.querySelector('.upload-overlay');
+                                if (overlay) overlay.style.display = 'none';
+
+                                const removeBtn = document.getElementById('remove-banner-btn');
+                                if (removeBtn) removeBtn.style.display = 'block';
+                            }
+                        } else {
+                            console.error('[Widgets] Failed to upload banner');
+                            alert('Failed to upload banner image');
                         }
-                    };
-                    reader.readAsDataURL(file);
+                    } catch (e) {
+                        console.error('[Widgets] Error uploading banner:', e);
+                        alert('Error uploading banner image');
+                    }
                 }
             });
         }
@@ -428,24 +462,41 @@
         // Profile pic upload
         const profilePicUpload = document.getElementById('profile-pic-upload');
         if (profilePicUpload) {
-            profilePicUpload.addEventListener('change', function() {
+            profilePicUpload.addEventListener('change', async function() {
                 const file = this.files[0];
                 if (file && file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        window.MySpace.profile.profile.profilePic = e.target.result;
-                        window.MySpace.saveProfile();
+                    try {
+                        // Upload to server
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('type', 'profile');
 
-                        const profilePic = document.getElementById('profile-pic');
-                        if (profilePic) {
-                            profilePic.src = e.target.result;
-                            profilePic.style.display = 'block';
+                        const response = await fetch('/api/myspace/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            window.MySpace.profile.profile.profilePic = data.url;
+                            await window.MySpace.saveProfile();
+
+                            const profilePic = document.getElementById('profile-pic');
+                            if (profilePic) {
+                                profilePic.src = data.url;
+                                profilePic.style.display = 'block';
+                            }
+
+                            const removeBtn = document.getElementById('remove-profile-pic-btn');
+                            if (removeBtn) removeBtn.style.display = 'flex';
+                        } else {
+                            console.error('[Widgets] Failed to upload profile pic');
+                            alert('Failed to upload profile picture');
                         }
-
-                        const removeBtn = document.getElementById('remove-profile-pic-btn');
-                        if (removeBtn) removeBtn.style.display = 'flex';
-                    };
-                    reader.readAsDataURL(file);
+                    } catch (e) {
+                        console.error('[Widgets] Error uploading profile pic:', e);
+                        alert('Error uploading profile picture');
+                    }
                 }
             });
         }
