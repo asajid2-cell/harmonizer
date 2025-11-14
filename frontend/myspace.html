@@ -55,6 +55,12 @@
     <!-- Background Layer -->
     <div id="myspace-background"></div>
 
+    <!-- Mode Toggle Button -->
+    <button id="mode-toggle-btn" class="mode-toggle-btn" title="Toggle Customize/View Mode">
+        <span class="mode-icon">🎨</span>
+        <span class="mode-text">Customize</span>
+    </button>
+
     <!-- Main Container -->
     <div id="myspace-container">
         <!-- Customization Sidebar -->
@@ -206,6 +212,9 @@
                     <button class="upload-overlay" onclick="document.getElementById('banner-upload').click()">
                         + Upload Banner
                     </button>
+                    <button class="remove-banner-btn" id="remove-banner-btn" style="display: none;">
+                        ✕ Remove
+                    </button>
                 </div>
                 <div class="profile-header-content">
                     <div class="profile-pic-container">
@@ -213,6 +222,9 @@
                         <img id="profile-pic" src="" alt="Profile" class="profile-pic">
                         <button class="pic-upload-btn" onclick="document.getElementById('profile-pic-upload').click()">
                             📷
+                        </button>
+                        <button class="pic-remove-btn" id="remove-profile-pic-btn" style="display: none;">
+                            ✕
                         </button>
                     </div>
                     <div class="profile-info">
@@ -321,6 +333,9 @@
                                     <input type="file" id="audio-upload" accept="audio/*" style="display: none;">
                                     <button onclick="document.getElementById('audio-upload').click()" class="upload-btn">
                                         🎵 Upload Song
+                                    </button>
+                                    <button id="remove-audio-btn" class="upload-btn" style="display: none; background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);">
+                                        🗑️ Remove Song
                                     </button>
                                     <label>
                                         <input type="checkbox" id="autoplay-checkbox"> Autoplay on page load

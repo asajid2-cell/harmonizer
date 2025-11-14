@@ -395,9 +395,32 @@
                             banner.style.backgroundImage = `url(${e.target.result})`;
                             const overlay = banner.querySelector('.upload-overlay');
                             if (overlay) overlay.style.display = 'none';
+
+                            const removeBtn = document.getElementById('remove-banner-btn');
+                            if (removeBtn) removeBtn.style.display = 'block';
                         }
                     };
                     reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // Remove banner button
+        const removeBannerBtn = document.getElementById('remove-banner-btn');
+        if (removeBannerBtn) {
+            removeBannerBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (confirm('Remove banner image?')) {
+                    window.MySpace.profile.profile.bannerImage = '';
+                    window.MySpace.saveProfile();
+
+                    const banner = document.getElementById('banner-image');
+                    if (banner) {
+                        banner.style.backgroundImage = '';
+                        const overlay = banner.querySelector('.upload-overlay');
+                        if (overlay) overlay.style.display = 'block';
+                    }
+                    this.style.display = 'none';
                 }
             });
         }
@@ -418,10 +441,42 @@
                             profilePic.src = e.target.result;
                             profilePic.style.display = 'block';
                         }
+
+                        const removeBtn = document.getElementById('remove-profile-pic-btn');
+                        if (removeBtn) removeBtn.style.display = 'flex';
                     };
                     reader.readAsDataURL(file);
                 }
             });
+        }
+
+        // Remove profile pic button
+        const removeProfilePicBtn = document.getElementById('remove-profile-pic-btn');
+        if (removeProfilePicBtn) {
+            removeProfilePicBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (confirm('Remove profile picture?')) {
+                    window.MySpace.profile.profile.profilePic = '';
+                    window.MySpace.saveProfile();
+
+                    const profilePic = document.getElementById('profile-pic');
+                    if (profilePic) {
+                        profilePic.src = '';
+                        profilePic.style.display = 'none';
+                    }
+                    this.style.display = 'none';
+                }
+            });
+        }
+
+        // Show remove buttons if images exist
+        if (window.MySpace.profile.profile.bannerImage) {
+            const removeBtn = document.getElementById('remove-banner-btn');
+            if (removeBtn) removeBtn.style.display = 'block';
+        }
+        if (window.MySpace.profile.profile.profilePic) {
+            const removeBtn = document.getElementById('remove-profile-pic-btn');
+            if (removeBtn) removeBtn.style.display = 'flex';
         }
     }
 

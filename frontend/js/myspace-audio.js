@@ -105,6 +105,7 @@
     function setupAudioUpload() {
         const audioUpload = document.getElementById('audio-upload');
         const autoplayCheckbox = document.getElementById('autoplay-checkbox');
+        const removeAudioBtn = document.getElementById('remove-audio-btn');
 
         if (audioUpload) {
             audioUpload.addEventListener('change', function() {
@@ -119,6 +120,9 @@
                         window.MySpace.saveProfile();
 
                         loadAudioIntoPlayer(e.target.result, title || file.name);
+
+                        // Show remove button
+                        if (removeAudioBtn) removeAudioBtn.style.display = 'inline-block';
                     };
                     reader.readAsDataURL(file);
                 }
@@ -126,6 +130,36 @@
                 // Reset input
                 this.value = '';
             });
+        }
+
+        // Remove audio button
+        if (removeAudioBtn) {
+            removeAudioBtn.addEventListener('click', function() {
+                if (confirm('Remove uploaded song?')) {
+                    window.MySpace.profile.widgets.music.audioData = '';
+                    window.MySpace.profile.widgets.music.title = 'No track loaded';
+                    window.MySpace.saveProfile();
+
+                    // Clear player
+                    if (audioPlayer) {
+                        audioPlayer.pause();
+                        audioPlayer.src = '';
+                    }
+
+                    const trackTitle = document.getElementById('track-title');
+                    if (trackTitle) {
+                        trackTitle.textContent = 'No track loaded';
+                    }
+
+                    stopVisualizer();
+                    this.style.display = 'none';
+                }
+            });
+
+            // Show remove button if audio exists
+            if (window.MySpace.profile.widgets.music.audioData) {
+                removeAudioBtn.style.display = 'inline-block';
+            }
         }
 
         // Autoplay checkbox

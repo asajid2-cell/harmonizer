@@ -35,10 +35,11 @@
             },
             background: {
                 type: "pattern",
-                pattern: "stars",
+                pattern: "hearts",
                 image: "",
                 repeat: "repeat",
-                attachment: "fixed"
+                attachment: "fixed",
+                gradient: ""
             },
             effects: {
                 falling: { enabled: false, type: "hearts", speed: 2 },
@@ -100,6 +101,7 @@
     // Global MySpace object
     window.MySpace = {
         profile: null,
+        viewMode: false,
 
         // Initialize the MySpace page
         init: function() {
@@ -107,6 +109,9 @@
 
             // Load profile from localStorage or use default
             this.loadProfile();
+
+            // Load view mode preference
+            this.loadViewMode();
 
             // Increment visit counter
             this.profile.meta.visits++;
@@ -117,6 +122,9 @@
             this.applyTheme();
             this.loadContent();
             this.updateStats();
+
+            // Setup mode toggle
+            this.setupModeToggle();
 
             console.log("[MySpace] Initialization complete");
         },
@@ -197,24 +205,45 @@
         applyTheme: function() {
             const theme = this.profile.theme;
 
-            // Apply theme class
+            // Apply theme class (preserve view-mode class)
+            const viewMode = document.body.classList.contains('view-mode');
             document.body.className = `theme-${theme.name}`;
+            if (viewMode) {
+                document.body.classList.add('view-mode');
+            }
 
             // Apply custom colors
             const bg = document.getElementById('myspace-background');
             if (bg) {
+                // Clear all background styles first
+                bg.style.background = '';
+                bg.style.backgroundColor = '';
+                bg.style.backgroundImage = '';
+                bg.style.backgroundRepeat = '';
+                bg.style.backgroundSize = '';
+                bg.style.backgroundPosition = '';
+                bg.style.backgroundAttachment = '';
+
                 if (theme.background.type === 'solid') {
-                    bg.style.background = theme.colors.background;
+                    // Solid color background
+                    bg.style.backgroundColor = theme.colors.background;
+                } else if (theme.background.type === 'gradient') {
+                    // Gradient background
+                    bg.style.background = theme.background.gradient ||
+                        `linear-gradient(135deg, ${theme.colors.background} 0%, #000000 100%)`;
                 } else if (theme.background.type === 'pattern') {
-                    bg.style.background = theme.colors.background;
+                    // Pattern background with color
+                    bg.style.backgroundColor = theme.colors.background;
                     bg.style.backgroundImage = this.getPatternUrl(theme.background.pattern);
-                    bg.style.backgroundRepeat = theme.background.repeat;
-                    bg.style.backgroundAttachment = theme.background.attachment;
+                    bg.style.backgroundRepeat = 'repeat';
+                    bg.style.backgroundAttachment = 'fixed';
                 } else if (theme.background.type === 'image' && theme.background.image) {
+                    // Custom image background
                     bg.style.backgroundImage = `url(${theme.background.image})`;
                     bg.style.backgroundSize = 'cover';
                     bg.style.backgroundPosition = 'center';
-                    bg.style.backgroundAttachment = theme.background.attachment;
+                    bg.style.backgroundAttachment = 'fixed';
+                    bg.style.backgroundRepeat = 'no-repeat';
                 }
             }
 
@@ -353,6 +382,63 @@
                 glitter: 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRleHQgeD0iNSIgeT0iMTUiIGZvbnQtc2l6ZT0iMTAiPuKcqDwvdGV4dD48dGV4dCB4PSIyNSIgeT0iMzAiIGZvbnQtc2l6ZT0iOCI+4pyoPC90ZXh0Pjwvc3ZnPg==)'
             };
             return patterns[patternName] || patterns.stars;
+        },
+
+        // Load view mode preference
+        loadViewMode: function() {
+            const saved = localStorage.getItem('myspace-view-mode');
+            this.viewMode = saved === 'true';
+            this.applyViewMode();
+        },
+
+        // Save view mode preference
+        saveViewMode: function() {
+            localStorage.setItem('myspace-view-mode', this.viewMode);
+        },
+
+        // Apply view mode
+        applyViewMode: function() {
+            if (this.viewMode) {
+                document.body.classList.add('view-mode');
+            } else {
+                document.body.classList.remove('view-mode');
+            }
+            this.updateModeButton();
+        },
+
+        // Toggle view mode
+        toggleViewMode: function() {
+            this.viewMode = !this.viewMode;
+            this.saveViewMode();
+            this.applyViewMode();
+            console.log("[MySpace] View mode:", this.viewMode ? 'ON' : 'OFF');
+        },
+
+        // Setup mode toggle button
+        setupModeToggle: function() {
+            const toggleBtn = document.getElementById('mode-toggle-btn');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', () => {
+                    this.toggleViewMode();
+                });
+            }
+        },
+
+        // Update mode button text
+        updateModeButton: function() {
+            const toggleBtn = document.getElementById('mode-toggle-btn');
+            if (toggleBtn) {
+                const icon = toggleBtn.querySelector('.mode-icon');
+                const text = toggleBtn.querySelector('.mode-text');
+
+                if (this.viewMode) {
+                    if (icon) icon.textContent = '👁️';
+                    if (text) text.textContent = 'View';
+                } else {
+                    if (icon) icon.textContent = '🎨';
+                    if (text) text.textContent = 'Customize';
+                }
+            }
         }
     };
 

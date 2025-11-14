@@ -13,8 +13,108 @@
     width: 100%;
     height: 100%;
     z-index: -1;
-    background: #ff69b4;
-    background-attachment: fixed;
+}
+
+/* Mode Toggle Button */
+.mode-toggle-btn {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 10001;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 3px solid #00ffff;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-family: 'Comic Sans MS', cursive;
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.mode-toggle-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 255, 255, 0.5);
+}
+
+.mode-toggle-btn .mode-icon {
+    font-size: 18px;
+}
+
+.mode-toggle-btn .mode-text {
+    font-size: 13px;
+}
+
+/* View Mode Styles */
+body.view-mode .customize-panel {
+    display: none;
+}
+
+body.view-mode #myspace-main {
+    margin-left: 0;
+}
+
+body.view-mode #custom-html-widget {
+    display: none;
+}
+
+body.view-mode .mode-toggle-btn .mode-icon {
+    content: '👁️';
+}
+
+body.view-mode .mode-toggle-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Remove buttons - only show in customize mode */
+.remove-banner-btn,
+.pic-remove-btn {
+    position: absolute;
+    background: rgba(255, 0, 0, 0.8);
+    border: 2px solid #fff;
+    color: #fff;
+    padding: 8px 15px;
+    cursor: pointer;
+    font-family: 'Comic Sans MS', cursive;
+    font-size: 12px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.remove-banner-btn {
+    top: 10px;
+    right: 10px;
+}
+
+.pic-remove-btn {
+    bottom: 5px;
+    left: 5px;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.remove-banner-btn:hover,
+.pic-remove-btn:hover {
+    background: rgba(255, 0, 0, 1);
+    transform: scale(1.1);
+}
+
+body.view-mode .remove-banner-btn,
+body.view-mode .pic-remove-btn,
+body.view-mode #remove-audio-btn {
+    display: none !important;
 }
 
 #myspace-container {

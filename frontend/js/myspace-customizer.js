@@ -309,6 +309,11 @@
         if (bgType) {
             bgType.value = window.MySpace.profile.theme.background.type;
 
+            // Show/hide pattern grid based on initial type
+            if (patternGrid) {
+                patternGrid.style.display = (bgType.value === 'pattern') ? 'grid' : 'none';
+            }
+
             bgType.addEventListener('change', function() {
                 window.MySpace.profile.theme.background.type = this.value;
 
