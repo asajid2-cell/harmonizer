@@ -330,13 +330,29 @@
 
         // Background color
         if (colorBg) {
+            console.log('[Customizer] Background color picker found:', colorBg);
+            console.log('[Customizer] Current value:', colorBg.value);
+
             colorBg.addEventListener('input', function() {
+                console.log('[Customizer] Background color changed to:', this.value);
                 window.OurSpace.profile.theme.colors.background = this.value;
+                // Automatically switch to solid color background when user picks a color
+                window.OurSpace.profile.theme.background.type = 'solid';
+                console.log('[Customizer] Switched background type to solid');
+                // Update the bg-type selector to reflect the change
+                const bgTypeSelect = document.getElementById('bg-type');
+                if (bgTypeSelect) {
+                    bgTypeSelect.value = 'solid';
+                    console.log('[Customizer] Updated dropdown to solid');
+                }
                 window.OurSpace.applyTheme();
             });
             colorBg.addEventListener('change', function() {
+                console.log('[Customizer] Saving profile with new background color');
                 window.OurSpace.saveProfile();
             });
+        } else {
+            console.error('[Customizer] Background color picker NOT FOUND! Element #color-bg is missing.');
         }
 
         // Text color

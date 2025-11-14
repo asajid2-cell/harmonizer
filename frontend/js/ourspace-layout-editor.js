@@ -8,8 +8,8 @@
         enabled: false,
         allowOverlap: true,
         draggedElement: null,
-        snapThreshold: 10,
-        gridSize: 20,
+        snapThreshold: 5,
+        gridSize: 5,
         snaplines: {
             vertical: [],
             horizontal: []
@@ -24,7 +24,7 @@
 
         toggle: function(enable) {
             this.enabled = enable;
-            const widgets = document.querySelectorAll('.widget, #profile-header, .profile-header, .profile-picture, .profile-banner, .contact-section, .stat-container, .profile-info');
+            const widgets = document.querySelectorAll('.widget, #profile-header, .profile-header, .profile-picture, .profile-pic-container, .profile-banner, .contact-section, .stat-container, .profile-info');
 
             if (enable) {
                 // Ensure view mode is disabled so editor controls are visible
@@ -51,26 +51,38 @@
                     widgets.forEach((widget, index) => {
                         console.log('[Layout Editor] Processing widget', index, widget.id || widget.className);
 
-                        // Store original positioning for restoration later
-                        if (!widget.dataset.originalPosition) {
-                            widget.dataset.originalPosition = widget.style.position || '';
-                            widget.dataset.originalLeft = widget.style.left || '';
-                            widget.dataset.originalTop = widget.style.top || '';
-                            widget.dataset.originalWidth = widget.style.width || '';
-                            widget.dataset.originalHeight = widget.style.height || '';
-                        }
-
-                        // Set initial position before making editable (to prevent jumps)
-                        if (!widget.style.position || widget.style.position !== 'absolute') {
+                        // Convert to absolute positioning if not already
+                        if (widget.style.position !== 'absolute') {
+                            // Get current visual position BEFORE any style changes
                             const rect = widget.getBoundingClientRect();
                             const left = rect.left - containerRect.left;
                             const top = rect.top - containerRect.top;
+                            const width = rect.width;
+                            const height = rect.height;
 
+                            // Apply absolute positioning with exact visual position
                             widget.style.position = 'absolute';
                             widget.style.left = left + 'px';
                             widget.style.top = top + 'px';
-                            widget.style.width = rect.width + 'px';
-                            widget.style.height = rect.height + 'px';
+                            widget.style.width = width + 'px';
+                            widget.style.height = height + 'px';
+                            widget.style.marginBottom = '0';
+                            widget.style.marginTop = '0';
+                            widget.style.marginLeft = '0';
+                            widget.style.marginRight = '0';
+
+                            console.log(`[Layout Editor] Converted ${widget.id || widget.className} to absolute: ${left}px, ${top}px`);
+                        } else {
+                            // Already absolute - log current position and keep it
+                            const currentLeft = widget.style.left;
+                            const currentTop = widget.style.top;
+                            console.log(`[Layout Editor] Widget ${widget.id || widget.className} already absolute at: ${currentLeft}, ${currentTop}`);
+
+                            // Just ensure margins are zero during editing (don't reposition)
+                            widget.style.marginBottom = '0';
+                            widget.style.marginTop = '0';
+                            widget.style.marginLeft = '0';
+                            widget.style.marginRight = '0';
                         }
 
                         widget.classList.add('layout-editable');
@@ -87,36 +99,15 @@
             } else {
                 console.log('[Layout Editor] Disabled');
                 widgets.forEach(widget => {
+                    // Simply remove the editor UI - keep all positioning exactly as-is
                     widget.classList.remove('layout-editable');
                     this.removeDragHandlers(widget);
                     this.removeResizeHandles(widget);
                     this.removeZIndexControls(widget);
                     this.removeContentFit(widget);
 
-                    // Only restore original positioning if the user hasn't customized the layout
-                    // If they have absolute positioning with specific values, keep them
-                    if (widget.dataset.originalPosition !== undefined) {
-                        // Check if positions were modified from original
-                        const hasCustomLayout = widget.style.position === 'absolute' &&
-                                               (widget.style.left !== widget.dataset.originalLeft ||
-                                                widget.style.top !== widget.dataset.originalTop);
-
-                        // Only restore if no custom layout was created
-                        if (!hasCustomLayout) {
-                            widget.style.position = widget.dataset.originalPosition;
-                            widget.style.left = widget.dataset.originalLeft;
-                            widget.style.top = widget.dataset.originalTop;
-                            widget.style.width = widget.dataset.originalWidth;
-                            widget.style.height = widget.dataset.originalHeight;
-
-                            // Clear dataset after restoring
-                            delete widget.dataset.originalPosition;
-                            delete widget.dataset.originalLeft;
-                            delete widget.dataset.originalTop;
-                            delete widget.dataset.originalWidth;
-                            delete widget.dataset.originalHeight;
-                        }
-                    }
+                    // DO NOT change any positioning or margins
+                    // Widgets stay exactly where they are visually
                 });
                 document.body.classList.remove('layout-editor-active');
                 this.hideSnaplines();
@@ -638,6 +629,11 @@
                 return { width: 350, height: 120 };
             }
 
+            // Profile picture container
+            if (classList.contains('profile-pic-container')) {
+                return { width: 100, height: 100 };
+            }
+
             // Contact section with buttons
             if (id === 'contact-widget' || classList.contains('contact-section')) {
                 return { width: 180, height: 160 };
@@ -658,20 +654,21 @@
         },
 
         makeContentFit: function(element) {
+            // Skip if already processed
+            if (element.dataset.contentFitted === 'true') {
+                return;
+            }
+            element.dataset.contentFitted = 'true';
+
             // Store original overflow settings
             element.dataset.originalOverflow = element.style.overflow || '';
             element.dataset.originalOverflowX = element.style.overflowX || '';
             element.dataset.originalOverflowY = element.style.overflowY || '';
 
-            // Make content fit and scroll within container
-            element.style.overflow = 'auto';
-
-            // Find widget content and make it fit
-            const content = element.querySelector('.widget-content, .profile-info, .banner-content, .stat-item');
-            if (content) {
-                content.style.height = '100%';
-                content.style.overflow = 'auto';
-            }
+            // Only enable scrolling, don't force it
+            // This allows content to be visible until the widget is actually resized small
+            element.style.overflowY = 'auto';
+            element.style.overflowX = 'hidden';
 
             // For music widget, ensure controls remain visible
             if (element.id === 'music-widget') {
@@ -692,6 +689,9 @@
         },
 
         removeContentFit: function(element) {
+            // Clear the fitted flag so it can be reprocessed
+            delete element.dataset.contentFitted;
+
             // Restore original overflow settings
             if (element.dataset.originalOverflow !== undefined) {
                 element.style.overflow = element.dataset.originalOverflow;
@@ -735,8 +735,8 @@
                 };
             });
 
-            // Very minimal gap between elements for tight layouts
-            const gap = 2; // Minimal gap for compact layouts
+            // Consistent 5px gap between elements
+            const gap = 5; // Consistent gap matching grid size
 
             // Check for overlaps and reposition with minimal movement
             for (let i = 0; i < bounds.length; i++) {
@@ -770,15 +770,22 @@
         },
 
         isOverlapping: function(a, b) {
-            // Add tolerance margin - only consider it overlapping if there's significant overlap
-            const tolerance = 30; // Allow up to 30px of overlap before triggering repositioning (more lenient)
+            // Check if widgets overlap both horizontally AND vertically
+            // Vertical stacking is OK, only prevent horizontal overlap
 
-            return !(
-                a.left + a.width - tolerance <= b.left ||
-                b.left + b.width - tolerance <= a.left ||
-                a.top + a.height - tolerance <= b.top ||
-                b.top + b.height - tolerance <= a.top
+            const horizontalOverlap = !(
+                a.left + a.width <= b.left ||  // a is completely to the left of b
+                b.left + b.width <= a.left     // b is completely to the left of a
             );
+
+            const verticalOverlap = !(
+                a.top + a.height <= b.top ||   // a is completely above b
+                b.top + b.height <= a.top      // b is completely above a
+            );
+
+            // Only consider it overlapping if BOTH horizontal AND vertical overlap
+            // This allows vertical stacking (same horizontal position, different vertical)
+            return horizontalOverlap && verticalOverlap;
         }
     };
 

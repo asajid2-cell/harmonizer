@@ -1244,7 +1244,7 @@ body.view-mode #mood-icon {
 
 /* Widgets */
 .widget {
-    background: rgba(0, 0, 0, 0.7);
+    background: var(--custom-widget-bg, rgba(0, 0, 0, 0.7));
     border: 3px solid;
     border-radius: 10px;
     margin-bottom: 20px;
@@ -2130,7 +2130,7 @@ body.view-mode #mood-icon {
 }
 
 .layout-editable {
-    position: relative !important;
+    /* Don't override position - JavaScript sets it to absolute */
     transition: box-shadow 0.2s ease;
     cursor: move;
 }

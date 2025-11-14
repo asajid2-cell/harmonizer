@@ -474,6 +474,13 @@
 
         // Save profile to server
         saveProfile: async function() {
+            // Throttle saves to prevent spam (but allow preset changes)
+            const now = Date.now();
+            if (this._lastSave && (now - this._lastSave) < 100) {
+                return;
+            }
+            this._lastSave = now;
+
             try {
                 if (this.isAuthenticated && this.profileSource === 'default') {
                     this.updateProfileLoadWarning();
@@ -623,6 +630,13 @@
                 });
                 return;
             }
+
+            // Prevent recursive execution
+            if (this._applyingTheme) {
+                console.warn('[OurSpace] applyTheme called recursively, ignoring');
+                return;
+            }
+            this._applyingTheme = true;
 
             const theme = this.profile.theme;
 
@@ -812,6 +826,9 @@
             }
 
             console.log("[OurSpace] Theme applied:", theme.name);
+
+            // Reset execution flag
+            this._applyingTheme = false;
         },
 
         // Load content into page
