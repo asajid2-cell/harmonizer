@@ -6694,8 +6694,8 @@ function createAutoharmonizerDriver(player) {
     var processTimer = null;
     var mtime = $("#mtime");
     var beatsSinceCross = 0;
-    var MIN_BEATS_BEFORE_CROSS = 3;  // Reduced from 4 to allow earlier crosses
-    var FORCE_CROSS_AFTER = 8;        // Reduced from 12 to force crosses more frequently
+    var MIN_BEATS_BEFORE_CROSS = 2;  // Allow cross-track jumps after just 2 beats
+    var FORCE_CROSS_AFTER = 6;        // Force cross-track jump after 6 beats on same track
 
     var autoharmonizerData = curTrack && curTrack.analysis && curTrack.analysis.autoharmonizer;
     if (!autoharmonizerData) {
@@ -6840,13 +6840,19 @@ function createAutoharmonizerDriver(player) {
             duration: crossfadeMs || 450
         });
 
-        // Seek and play target track
-        syncControllerToBeat(targetController, beat, { forceSeek: true });
+        // Start target track at the jump point
+        targetController.setVolume(0);
+        targetController.playFrom(beat.start);
         targetController.fadeTo(0.72, crossfadeMs || 450);
 
-        // Fade out source track
+        // Fade out and pause source track after crossfade completes
         if (sourceController) {
             sourceController.fadeTo(0, crossfadeMs || 450);
+            setTimeout(function() {
+                if (sourceController.audio && !sourceController.audio.paused) {
+                    sourceController.audio.pause();
+                }
+            }, (crossfadeMs || 450) + 50);
         }
 
         currentTrack = targetTrack;
@@ -7012,12 +7018,12 @@ function updateHudForBeat(beat) {
 
         var beatDuration = Math.max(currentBeat.duration || 0.25, 0.15);
         var crossPressure = beatsSinceCross >= FORCE_CROSS_AFTER;
-        // Improved jump probability: starts at 30%, increases by 8% per beat after minimum
-        var jumpChance = Math.min(0.85, 0.3 + Math.max(0, beatsSinceCross - MIN_BEATS_BEFORE_CROSS) * 0.08);
+        // Aggressive jump probability: starts at 40%, increases by 12% per beat after minimum
+        var jumpChance = Math.min(0.9, 0.4 + Math.max(0, beatsSinceCross - MIN_BEATS_BEFORE_CROSS) * 0.12);
         var roll = Math.random();
-        var shouldJump = crossPressure || roll < jumpChance;
+        var shouldJump = crossPressure || (beatsSinceCross >= MIN_BEATS_BEFORE_CROSS && roll < jumpChance);
 
-        if (beatsSinceCross % 4 === 0) {
+        if (beatsSinceCross % 3 === 0 || crossPressure) {
             console.log("[Autoharmonizer] Jump decision at beat", curQ, "on Track", currentTrack, {
                 beatsSinceCross: beatsSinceCross,
                 crossPressure: crossPressure,
@@ -7050,8 +7056,14 @@ function updateHudForBeat(beat) {
             }
         }
 
+        // Sequential playback - continue to next beat
         curQ = (curQ + 1) % beats.length;
         beatsSinceCross++;
+
+        if (curQ === 0) {
+            console.log("[Autoharmonizer] Wrapped around to beat 0 on Track", currentTrack, "- continuing loop");
+        }
+
         scheduleNextProcess(beatDuration);
     }
 
@@ -7070,11 +7082,13 @@ function updateHudForBeat(beat) {
             track1Controller.setVolume(0.72);
             track1Controller.playFrom(track1Data.beats[0] ? track1Data.beats[0].start : 0);
 
-            // CRITICAL FIX: Start track2 playing (muted) so it's ready for instant switching
+            // Keep track2 paused and ready for crossfading
             track2Controller.setVolume(0);
-            track2Controller.playFrom(track2Data.beats[0] ? track2Data.beats[0].start : 0);
+            if (track2Controller.audio) {
+                track2Controller.audio.pause();
+            }
 
-            console.log("[Autoharmonizer] Both tracks started - Track 1 audible, Track 2 muted and ready");
+            console.log("[Autoharmonizer] Track 1 started audibly, Track 2 ready for crossfade");
 
             $("#play").text("Pause");
             setPlayingClass(mode);
