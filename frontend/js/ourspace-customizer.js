@@ -665,9 +665,9 @@
         const bgRotateDisplay = document.getElementById('bg-rotate-display');
         if (bgRotate && bgRotateDisplay) {
             bgRotate.value = transform.rotate || 0;
-            bgRotateDisplay.textContent = (transform.rotate || 0) + 'Â°';
+            bgRotateDisplay.textContent = (transform.rotate || 0) + '°';
             bgRotate.addEventListener('input', function() {
-                bgRotateDisplay.textContent = this.value + 'Â°';
+                bgRotateDisplay.textContent = this.value + '°';
                 window.OurSpace.profile.theme.background.transform.rotate = parseInt(this.value);
                 window.OurSpace.applyTheme();
             });
@@ -681,9 +681,9 @@
         const bgSkewXDisplay = document.getElementById('bg-skewx-display');
         if (bgSkewX && bgSkewXDisplay) {
             bgSkewX.value = transform.skewX || 0;
-            bgSkewXDisplay.textContent = (transform.skewX || 0) + 'Â°';
+            bgSkewXDisplay.textContent = (transform.skewX || 0) + '°';
             bgSkewX.addEventListener('input', function() {
-                bgSkewXDisplay.textContent = this.value + 'Â°';
+                bgSkewXDisplay.textContent = this.value + '°';
                 window.OurSpace.profile.theme.background.transform.skewX = parseInt(this.value);
                 window.OurSpace.applyTheme();
             });
@@ -697,9 +697,9 @@
         const bgSkewYDisplay = document.getElementById('bg-skewy-display');
         if (bgSkewY && bgSkewYDisplay) {
             bgSkewY.value = transform.skewY || 0;
-            bgSkewYDisplay.textContent = (transform.skewY || 0) + 'Â°';
+            bgSkewYDisplay.textContent = (transform.skewY || 0) + '°';
             bgSkewY.addEventListener('input', function() {
-                bgSkewYDisplay.textContent = this.value + 'Â°';
+                bgSkewYDisplay.textContent = this.value + '°';
                 window.OurSpace.profile.theme.background.transform.skewY = parseInt(this.value);
                 window.OurSpace.applyTheme();
             });
@@ -802,9 +802,9 @@
         const bgHueDisplay = document.getElementById('bg-hue-display');
         if (bgHue && bgHueDisplay) {
             bgHue.value = filter.hueRotate || 0;
-            bgHueDisplay.textContent = (filter.hueRotate || 0) + 'Â°';
+            bgHueDisplay.textContent = (filter.hueRotate || 0) + '°';
             bgHue.addEventListener('input', function() {
-                bgHueDisplay.textContent = this.value + 'Â°';
+                bgHueDisplay.textContent = this.value + '°';
                 window.OurSpace.profile.theme.background.filter.hueRotate = parseInt(this.value);
                 window.OurSpace.applyTheme();
             });

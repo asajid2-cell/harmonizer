@@ -748,10 +748,10 @@
                     overlay.id = 'bg-transform-overlay';
                     overlay.style.cssText = `
                         position: fixed;
-                        top: -50%;
-                        left: -50%;
-                        width: 200%;
-                        height: 200%;
+                        top: -100%;
+                        left: -100%;
+                        width: 300%;
+                        height: 300%;
                         pointer-events: none;
                         z-index: -1;
                     `;
