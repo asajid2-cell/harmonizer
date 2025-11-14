@@ -1260,7 +1260,8 @@ body.eldrichify-terminal {
 
 .eld-ascii-grid {
     display: flex;
-    gap: 16px;
+    gap: 28px;
+    justify-content: space-between;
     overflow-x: auto;
     padding-bottom: 8px;
     scroll-snap-type: x proximity;
