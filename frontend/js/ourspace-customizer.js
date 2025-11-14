@@ -540,7 +540,7 @@
                             if (removeBgBtn) removeBgBtn.style.display = 'block';
 
                             window.OurSpace.applyTheme();
-                            await // Auto-save removed - only save when user clicks Save Profile button
+                            // Auto-save removed - only save when user clicks Save Profile button
                         } else {
                             console.error('[Customizer] Failed to upload background image');
                             alert('Failed to upload background image');
