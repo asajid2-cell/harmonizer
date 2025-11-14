@@ -439,6 +439,60 @@ body.eldrichify-terminal {
   color: #000;
 }
 
+.eld-terminal-mode-buttons {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.eld-terminal-mode-buttons button {
+  background: rgba(0, 255, 225, 0.08);
+  border: 1px solid #00ffe1;
+  color: #00ffe1;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.eld-terminal-mode-buttons button:hover {
+  background: #00ffe1;
+  color: #010409;
+  box-shadow: 0 0 12px rgba(0, 255, 225, 0.45);
+}
+
+.eld-terminal-textarea {
+  width: 100%;
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 255, 225, 0.4);
+  border-radius: 4px;
+  padding: 8px;
+  color: #e2f8ff;
+  font-family: "IBM Plex Mono", monospace;
+  resize: vertical;
+}
+
+.eld-terminal-submit {
+  margin-top: 8px;
+  align-self: flex-start;
+  background: linear-gradient(90deg, #00ffe1, #00a4ff);
+  color: #010409;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-family: "IBM Plex Mono", monospace;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.eld-terminal-submit:hover {
+  opacity: 0.85;
+}
+
 /* Chat console (Disco-teque) */
 .eld-terminal-chat-form {
   margin-top: 20px;
@@ -620,6 +674,10 @@ body.eldrichify-terminal {
   padding: 16px;
   background: rgba(0, 20, 30, 0.6);
   transition: all 0.3s;
+}
+
+.eld-result-item[hidden] {
+  display: none;
 }
 
 .eld-result-item:hover {

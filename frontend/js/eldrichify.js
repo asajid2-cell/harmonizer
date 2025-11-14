@@ -1,6 +1,7 @@
 (() => {
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
   const API_ENDPOINT = "/api/eldrichify";
+  const PROMPT_ENDPOINT = "/api/imgen";
   const MIN_DOWNLOAD_SIZE = 32;
   const MAX_DOWNLOAD_SIZE = 4096;
 
@@ -19,6 +20,7 @@
 
   let selectedFile = null;
   let isProcessing = false;
+  let currentMode = null;
   const stageDownloads = {};
 
   // Initialize
@@ -92,9 +94,9 @@
 
     setTimeout(() => {
       addTerminalLine("");
-      addTerminalLine("Ready for image upload.", "info");
+      addTerminalLine("Ready for pipeline selection.", "info");
       addTerminalLine("");
-      showFilePrompt();
+      showModePrompt();
     }, 600);
   }
 
@@ -113,6 +115,7 @@
     clearStageDownloads();
     selectedFile = null;
     isProcessing = false;
+    currentMode = null;
   }
 
   function clearStageDownloads() {
@@ -135,6 +138,168 @@
 
     // Auto-scroll to bottom
     terminalOutput.parentElement.scrollTop = terminalOutput.parentElement.scrollHeight;
+  }
+
+  function showModePrompt() {
+    const block = document.createElement("div");
+    block.className = "eld-terminal-line info";
+    block.innerHTML = `<span style="color: #00ffe1;">$ mode</span>`;
+    const buttonRow = document.createElement("div");
+    buttonRow.className = "eld-terminal-mode-buttons";
+
+    [
+      {
+        id: "upload",
+        label: "Reconstruct Upload",
+        note: "Enhance an existing photo",
+        handler: () => showFilePrompt(),
+      },
+      {
+        id: "prompt",
+        label: "Prompt Synth",
+        note: "Generate from text prompt",
+        handler: () => showPromptInput(),
+      },
+    ].forEach((mode) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = mode.label;
+      btn.addEventListener("click", () => {
+        currentMode = mode.id;
+        const note = mode.note ? ` (${mode.note})` : "";
+        addTerminalLine(`$ Mode selected: ${mode.label}${note}`, "info");
+        block.remove();
+        mode.handler();
+      });
+      buttonRow.appendChild(btn);
+    });
+
+    block.appendChild(buttonRow);
+    terminalOutput.appendChild(block);
+  }
+
+  function showPromptInput(prefill = "") {
+    const promptDiv = document.createElement("div");
+    promptDiv.className = "eld-terminal-line info terminal-prompt-entry";
+    promptDiv.innerHTML = `<span style="color: #00ffe1;">$ prompt</span>`;
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "eld-terminal-textarea";
+    textarea.placeholder = "Describe the scene you want...";
+    textarea.rows = 3;
+    textarea.value = prefill;
+
+    const submitBtn = document.createElement("button");
+    submitBtn.type = "button";
+    submitBtn.className = "eld-terminal-submit";
+    submitBtn.textContent = "Generate";
+
+    promptDiv.appendChild(textarea);
+    promptDiv.appendChild(submitBtn);
+    terminalOutput.appendChild(promptDiv);
+    textarea.focus();
+
+    const submit = () => {
+      handlePromptSubmit(textarea.value, promptDiv);
+    };
+
+    submitBtn.addEventListener("click", submit);
+    textarea.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        submit();
+      }
+    });
+  }
+
+  async function handlePromptSubmit(rawPrompt, promptDiv) {
+    const promptText = (rawPrompt || "").trim();
+    if (!promptText) {
+      addTerminalLine("? Error: Prompt is required", "error");
+      return;
+    }
+    if (isProcessing) return;
+    isProcessing = true;
+    clearStageDownloads();
+    if (downloadPanel) {
+      downloadPanel.setAttribute("hidden", "");
+    }
+    if (promptDiv) {
+      promptDiv.remove();
+    }
+
+    addTerminalLine("");
+    addTerminalLine(`$ prompt --len ${promptText.length}`, "info");
+    const seed = Math.floor(Math.random() * 1_000_000);
+    await simulatePromptProgress(seed);
+    addTerminalLine("$ Uploading to server...", "info");
+
+    try {
+      const response = await fetch(PROMPT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: promptText, seed }),
+      });
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+      const data = await response.json();
+      addTerminalLine("✔ Server processing complete", "success");
+      addTerminalLine("");
+      await sleep(500);
+      addTerminalLine("$ Displaying results...", "info");
+      await sleep(600);
+      displayResults(null, data);
+    } catch (error) {
+      console.error("Prompt error:", error);
+      addTerminalLine("");
+      addTerminalLine(`✖ Error: ${error.message}`, "error");
+      addTerminalLine("");
+      addTerminalLine("$ Restoring prompt input...", "warning");
+      await sleep(600);
+      showPromptInput(promptText);
+    } finally {
+      isProcessing = false;
+    }
+  }
+
+  async function simulatePromptProgress(seed) {
+    await sleep(150);
+    addTerminalLine(`[seed] ${seed}`, "info");
+    await sleep(250);
+    addTerminalLine("[1/4] Tokenizing prompt", "warning");
+    await sleep(350);
+    addTerminalLine("  ↳ Applying tiny-BERT encoder", "info");
+    await sleep(300);
+    addTerminalLine("[2/4] Sampling latent noise", "warning");
+    await sleep(400);
+    addTerminalLine("  ↳ Drawing 128×128×3 gaussian field", "info");
+    await sleep(300);
+    addTerminalLine("[3/4] Guidance fusion", "warning");
+    await sleep(450);
+    addTerminalLine("  ↳ CFG passes over unconditional/text embeddings", "info");
+    await sleep(350);
+    addTerminalLine("[4/4] Diffusion steps", "warning");
+    await sleep(500);
+    addTerminalLine("  ↳ Progressing through scheduler timesteps", "info");
+    await sleep(400);
+    addTerminalLine("  ↳ Collapsing latent to RGB image", "info");
+    await sleep(350);
+    addTerminalLine("✔ Prompt synthesis complete", "success");
+    addTerminalLine("");
+  }
+
+  function setResultVisibility(visibleTypes) {
+    const allowed = new Set(visibleTypes);
+    document.querySelectorAll(".eld-result-item").forEach((item) => {
+      const type = item.getAttribute("data-type");
+      if (!type) return;
+      if (allowed.has(type)) {
+        item.removeAttribute("hidden");
+      } else {
+        item.setAttribute("hidden", "");
+      }
+    });
   }
 
   function showFilePrompt() {
@@ -305,6 +470,15 @@
   }
 
   function displayResults(file, data) {
+    const mode = data?.mode || (file ? "upload" : "prompt");
+    const hasInputFile = !!file;
+    const stageOrder = mode === "prompt" ? ["hd"] : ["vae", "refined", "upsampled", "hd"];
+    if (mode === "prompt") {
+      setResultVisibility(["hd"]);
+    } else {
+      setResultVisibility(["input", "vae", "refined", "upsampled", "hd"]);
+    }
+
     // Close terminal and size selector, show results
     setTimeout(() => {
       terminalWindow.setAttribute("hidden", "");
@@ -320,25 +494,24 @@
     }, 1000);
 
     // Display input image (original, not resized)
-    const inputImg = document.getElementById("result-input");
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      inputImg.src = dataUrl;
-      // Set up download for original input
-      const downloadInput = document.getElementById("download-input");
-      const filename = `input_${file.name}`;
-      downloadInput.href = dataUrl;
-      downloadInput.download = filename;
-      stageDownloads.input = { dataUrl, filename };
-    };
-    reader.readAsDataURL(file);
+    if (hasInputFile) {
+      const inputImg = document.getElementById("result-input");
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        inputImg.src = dataUrl;
+        const downloadInput = document.getElementById("download-input");
+        const filename = `input_${file.name}`;
+        downloadInput.href = dataUrl;
+        downloadInput.download = filename;
+        stageDownloads.input = { dataUrl, filename };
+      };
+      reader.readAsDataURL(file);
+    }
 
     // Display server results if available
     if (data && data.previews) {
-      // API returns previews object with base64 data URLs
-      const stages = ['vae', 'refined', 'upsampled', 'hd'];
-      stages.forEach(stage => {
+      stageOrder.forEach(stage => {
         if (data.previews[stage]) {
           const img = document.getElementById(`result-${stage}`);
           const downloadBtn = document.getElementById(`download-${stage}`);
@@ -350,18 +523,23 @@
           stageDownloads[stage] = { dataUrl, filename };
         }
       });
-    } else {
-      // Fallback: duplicate input for all stages
+    } else if (hasInputFile) {
+      // Fallback: duplicate input for all stages when working offline
       setTimeout(() => {
-        const inputSrc = inputImg.src;
-        ['vae', 'refined', 'upsampled', 'hd'].forEach(stage => {
+        const inputImg = document.getElementById("result-input");
+        const inputSrc = inputImg?.src;
+        stageOrder.forEach(stage => {
           const stageImg = document.getElementById(`result-${stage}`);
           const downloadBtn = document.getElementById(`download-${stage}`);
           const filename = `${stage}_${Date.now()}.png`;
-          stageImg.src = inputSrc;
-          downloadBtn.href = inputSrc;
-          downloadBtn.download = filename;
-          stageDownloads[stage] = { dataUrl: inputSrc, filename };
+          if (stageImg && inputSrc) {
+            stageImg.src = inputSrc;
+          }
+          if (downloadBtn && inputSrc) {
+            downloadBtn.href = inputSrc;
+            downloadBtn.download = filename;
+            stageDownloads[stage] = { dataUrl: inputSrc, filename };
+          }
         });
       }, 500);
     }

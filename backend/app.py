@@ -193,6 +193,11 @@ try:
 except ImportError:  # pragma: no cover
     from eldrichify import EldrichifyPipeline  # type: ignore
 
+try:
+    from .imgen_pipeline import PromptImageGenerator
+except ImportError:  # pragma: no cover
+    from imgen_pipeline import PromptImageGenerator  # type: ignore
+
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
 STUDY_DIR = BASE_DIR.parent / "Study"
 
@@ -206,6 +211,7 @@ FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
 STUDY_DIR.mkdir(parents=True, exist_ok=True)
 DISCO_MEMORY_PATH = DATA_FOLDER / "discoteque_memory.jsonl"
 ELDRICHIFY_OUTPUT_DIR = UPLOAD_FOLDER / "eldrichify"
+IMGEN_OUTPUT_DIR = UPLOAD_FOLDER / "imgen"
 CHEATSHEET_UPLOAD_DIR = UPLOAD_FOLDER / "cheatsheets"
 CHEATSHEET_META_PATH = CHEATSHEET_UPLOAD_DIR / "entries.json"
 CHEATSHEET_ALLOWED_EXTENSIONS = {".txt", ".md", ".markdown"}
@@ -227,6 +233,7 @@ def _save_cheatsheet_entries(entries: list[dict]) -> None:
     with CHEATSHEET_META_PATH.open("w", encoding="utf-8") as handle:
         json.dump(entries, handle, indent=2)
 ELDRICHIFY_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+IMGEN_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 
@@ -283,6 +290,7 @@ def allowed_file(filename: str) -> bool:
 
 
 _eldrichify_pipeline: Optional[EldrichifyPipeline] = None
+_prompt_pipeline: Optional[PromptImageGenerator] = None
 
 
 def get_eldrichify_pipeline() -> EldrichifyPipeline:
@@ -292,9 +300,23 @@ def get_eldrichify_pipeline() -> EldrichifyPipeline:
     return _eldrichify_pipeline
 
 
+def get_prompt_pipeline() -> PromptImageGenerator:
+    global _prompt_pipeline
+    if _prompt_pipeline is None:
+        _prompt_pipeline = PromptImageGenerator()
+    return _prompt_pipeline
+
+
 def _tensor_to_data_url(pipeline: EldrichifyPipeline, tensor) -> str:
     buffer = io.BytesIO()
     pipeline.to_pil(tensor).save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
+def _image_to_data_url(image) -> str:
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
     encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
     return f"data:image/png;base64,{encoded}"
 
@@ -582,10 +604,66 @@ def api_eldrichify():
     }
     return jsonify(
         {
+            "mode": "upload",
             "image_url": f"/media/{relative_path.as_posix()}",
             "filename": filename,
             "original_size": {"width": result.original_size[0], "height": result.original_size[1]},
             "previews": previews,
+        }
+    )
+
+
+@app.route("/api/imgen", methods=["POST"])
+def api_imgen():
+    payload = request.get_json(silent=True) or {}
+    prompt = str(payload.get("prompt") or "").strip()
+    guidance = _coerce_float(payload.get("guidance")) or 5.5
+    steps = payload.get("steps")
+    seed = payload.get("seed")
+
+    if not prompt:
+        return jsonify({"error": "Prompt text is required."}), 400
+
+    try:
+        steps_value = int(steps) if steps is not None else None
+    except (TypeError, ValueError):
+        steps_value = None
+
+    try:
+        seed_value = int(seed) if seed is not None else None
+    except (TypeError, ValueError):
+        seed_value = None
+
+    pipeline = get_prompt_pipeline()
+    try:
+        result = pipeline.generate(
+            prompt,
+            guidance_scale=guidance,
+            num_inference_steps=steps_value,
+            seed=seed_value,
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:  # pragma: no cover - runtime safety
+        print(f"[imgen] failed to synthesize prompt: {exc}", flush=True)
+        return jsonify({"error": "Prompt pipeline failed to generate an image."}), 500
+
+    filename = f"prompt_{uuid.uuid4().hex}.png"
+    relative_path = Path("imgen") / filename
+    absolute_path = IMGEN_OUTPUT_DIR / filename
+    absolute_path.parent.mkdir(parents=True, exist_ok=True)
+    result.image.save(absolute_path, format="PNG")
+
+    preview_url = _image_to_data_url(result.image)
+
+    return jsonify(
+        {
+            "mode": "prompt",
+            "image_url": f"/media/{relative_path.as_posix()}",
+            "filename": filename,
+            "prompt": result.prompt,
+            "seed": result.seed,
+            "previews": {"hd": preview_url},
         }
     )
 
