@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMPUT 328 Assignment 5: Object Detection - Complete Study Guide</title>
+    <style>
+*{scrollbar-width:none!important;-ms-overflow-style:none!important}
+*::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+*::-webkit-scrollbar-track{display:none!important}
+*::-webkit-scrollbar-thumb{display:none!important}
+html::-webkit-scrollbar{display:none!important;width:0!important}
+html{scrollbar-width:none!important;-ms-overflow-style:none!important}
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1.6;
+            color: #ffffff;
+            background-color: #000000;
+            background-image: radial-gradient(circle, #ffffff 1px, transparent 1px), radial-gradient(circle, #ffffff 1px, transparent 1px);
+            background-size: 50px 50px, 80px 80px;
+            background-position: 0 0, 40px 40px;
+            background-attachment: fixed;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #ffffff;
+            border-bottom: 3px solid #ffffff;
+            padding-bottom: 10px;
+            margin: 30px 0 20px 0;
+            font-size: 2.2em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        h2 {
+            color: #ffffff;
+            margin: 25px 0 15px 0;
+            padding: 10px;
+            background-color: #ffffff;
+            color: #000000;
+            font-size: 1.6em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        h3 {
+            color: #ffffff;
+            margin: 20px 0 10px 0;
+            font-size: 1.3em;
+            border-left: 4px solid #ffffff;
+            padding-left: 10px;
+        }
+
+        h4 {
+            color: #cccccc;
+            margin: 15px 0 8px 0;
+            font-size: 1.1em;
+        }
+
+        p {
+            margin: 10px 0;
+            text-align: justify;
+            color: #ffffff;
+        }
+
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #0a0a0a;
+            border: 1px solid #333333;
+        }
+
+        .key-concept {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #ffffff;
+        }
+
+        .formula {
+            background-color: #111111;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #666666;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            color: #cccccc;
+        }
+
+        .code-block {
+            background-color: #0a0a0a;
+            color: #cccccc;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', Consolas, Monaco, monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            border: 1px solid #333333;
+        }
+
+        .warning {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #666666;
+        }
+
+        .tip {
+            background-color: #0f0f0f;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #888888;
+        }
+
+        ul, ol {
+            margin: 10px 0 10px 30px;
+            color: #ffffff;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        strong {
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background-color: #0a0a0a;
+            border: 1px solid #ffffff;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #333333;
+            color: #ffffff;
+        }
+
+        th {
+            background-color: #ffffff;
+            color: #000000;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #0f0f0f;
+        }
+
+        .toc {
+            background-color: #0f0f0f;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #333333;
+        }
+
+        .toc ul {
+            list-style-type: none;
+            margin-left: 0;
+        }
+
+        .toc a {
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        code {
+            background-color: #1a1a1a;
+            padding: 2px 6px;
+            border: 1px solid #333333;
+            font-family: 'Courier New', monospace;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            margin: 50px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .action-button {
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            padding: 15px 25px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 1em;
+            cursor: pointer;
+            min-width: 220px;
+            text-align: center;
+        }
+
+        .action-button:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .action-button:active {
+            transform: translateY(1px);
+        }
+
+        @media print {
+            .action-buttons {
+                display: none;
+            }
+        }
+    
+        .nav-back {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            padding: 10px 16px;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-size: 0.85rem;
+            z-index: 1000;
+            transition: all 0.2s ease;
+        }
+
+        .nav-back:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+    </style>
+</head>
+<body>
+    <a href="./" class="nav-back">&#8592; Back to Topics</a>
+    <h1>CMPUT 328 ASSIGNMENT 5: OBJECT DETECTION</h1>
+    <p><strong>Complete Study Guide - From R-CNN to YOLO, Evaluation Metrics, and Modern Architectures</strong></p>
+
+    <div class="toc">
+        <h3>Table of Contents</h3>
+        <ul>
+            <li><a href="#intro">1. Introduction to Object Detection</a></li>
+            <li><a href="#history">2. History of Object Detection (R-CNN → Faster R-CNN)</a></li>
+            <li><a href="#roi-anchors">3. ROI Pooling, Anchors, and Region Proposals</a></li>
+            <li><a href="#yolo">4. YOLO: Single-Stage Detection</a></li>
+            <li><a href="#modern">5. Modern Approaches (CenterNet, DETR)</a></li>
+            <li><a href="#bboxes">6. Bounding Box Representations</a></li>
+            <li><a href="#iou">7. IoU and NMS</a></li>
+            <li><a href="#metrics">8. Evaluation Metrics (mAP, Precision, Recall)</a></li>
+            <li><a href="#training">9. Training & Fine-Tuning</a></li>
+            <li><a href="#mnistdd">10. MNISTDD-RGB Dataset & Assignment</a></li>
+        </ul>
+    </div>
+
+    <div class="section" id="intro">
+        <h2>1. INTRODUCTION TO OBJECT DETECTION</h2>
+
+        <div class="key-concept">
+            <h3>What is Object Detection?</h3>
+            <p><strong>Object detection</strong> localizes and classifies multiple objects in an image.</p>
+            <p><strong>Output:</strong> For each object: (bounding box, class label, confidence score)</p>
+        </div>
+
+        <h3>Object Detection vs Other Vision Tasks</h3>
+        <table>
+            <tr>
+                <th>Task</th>
+                <th>Input</th>
+                <th>Output</th>
+                <th>Example</th>
+            </tr>
+            <tr>
+                <td>Classification</td>
+                <td>Image</td>
+                <td>Single class label</td>
+                <td>"dog"</td>
+            </tr>
+            <tr>
+                <td>Object Detection</td>
+                <td>Image</td>
+                <td>Multiple (bbox, class, conf)</td>
+                <td>[(box, "dog", 0.95), (box, "cat", 0.87)]</td>
+            </tr>
+            <tr>
+                <td>Segmentation</td>
+                <td>Image</td>
+                <td>Pixel-wise masks</td>
+                <td>Per-pixel class labels</td>
+            </tr>
+        </table>
+
+        <div class="warning">
+            <h4>Key Challenge: Variable Output Length</h4>
+            <p><strong>Problem:</strong> The network doesn't know how many objects are in each image.</p>
+            <p><strong>Solutions over time:</strong></p>
+            <ul>
+                <li><strong>Older methods:</strong> Sliding window, selective search (region proposals)</li>
+                <li><strong>Modern methods:</strong> Anchor boxes, objectness score thresholding, NMS</li>
+                <li><strong>Latest methods:</strong> Transformer-based sequential outputs (DETR)</li>
+            </ul>
+        </div>
+
+        <h3>Hierarchical Representations</h3>
+        <p>Neural networks learn hierarchical features for object detection:</p>
+        <ul>
+            <li><strong>Input layer:</strong> Raw pixel values</li>
+            <li><strong>Early layers:</strong> Edges, corners, textures</li>
+            <li><strong>Middle layers:</strong> Parts of objects (wheels, faces)</li>
+            <li><strong>Deep layers:</strong> Whole objects (cars, people)</li>
+            <li><strong>Output layer:</strong> Bounding boxes + class predictions</li>
+        </ul>
+    </div>
+
+    <div class="section" id="history">
+        <h2>2. HISTORY OF OBJECT DETECTION (R-CNN → FASTER R-CNN)</h2>
+
+        <h3>Evolution of Two-Stage Detectors</h3>
+
+        <div class="key-concept">
+            <h3>Selective Search (Pre-Deep Learning)</h3>
+            <p><strong>Selective Search:</strong> Algorithm to generate ~2000 region proposals per image</p>
+            <p><strong>How it works:</strong></p>
+            <ul>
+                <li>Over-segment image into many small regions</li>
+                <li>Hierarchically group regions based on color, texture, size, fill</li>
+                <li>Generate bounding boxes around grouped regions</li>
+                <li>Output: ~2000 region proposals that likely contain objects</li>
+            </ul>
+        </div>
+
+        <h3>R-CNN (2014)</h3>
+        <div class="formula">
+<strong>R-CNN Pipeline:</strong>
+
+1. Input image
+2. Selective Search → ~2000 region proposals
+3. Warp each region to fixed size (227×227)
+4. Pass each warped region through CNN (AlexNet)
+5. Extract CNN features for each region
+6. SVM classifier per class
+7. Bounding box regressor to refine boxes
+
+<strong>Problem:</strong> Very slow (~47 seconds per image)
+- Must run CNN forward pass ~2000 times per image
+        </div>
+
+        <h3>Fast R-CNN (2015)</h3>
+        <div class="key-concept">
+            <p><strong>Key innovation:</strong> Pass image through CNN only once, then extract features for each region</p>
+        </div>
+
+        <div class="formula">
+<strong>Fast R-CNN Pipeline:</strong>
+
+1. Input image → CNN backbone (single forward pass)
+2. Get feature map from last conv layer
+3. Selective Search → ~2000 region proposals (on original image)
+4. Project each proposal onto feature map → RoI (Region of Interest)
+5. **ROI Pooling**: Convert each RoI to fixed-size feature vector
+6. Fully connected layers → (classification, bbox regression)
+
+<strong>Speed up:</strong> ~0.3 seconds per image (from 47s)
+<strong>Bottleneck:</strong> Selective search still slow
+        </div>
+
+        <h3>ROI Pooling Explained</h3>
+        <div class="code-block">ROI Pooling converts variable-sized regions into fixed-size features
+
+Example:
+- Feature map: 512 × 20 × 15 (channels × height × width)
+- RoI on feature map: Variable size (e.g., 7×5 region)
+- Target output: 512 × 2 × 2 (fixed size)
+
+Process:
+1. Divide RoI into 2×2 grid (target output size)
+2. Max pool within each grid cell
+3. Result: 512 × 2 × 2 fixed-size feature
+
+Benefits:
+- Variable input → fixed output (required for FC layers)
+- Differentiable (can backprop)
+- Fast (just max pooling)</div>
+
+        <h3>Faster R-CNN (2016)</h3>
+        <div class="key-concept">
+            <p><strong>Key innovation:</strong> Replace selective search with Region Proposal Network (RPN)</p>
+            <p><strong>RPN:</strong> Neural network that predicts region proposals</p>
+        </div>
+
+        <div class="formula">
+<strong>Faster R-CNN Pipeline:</strong>
+
+1. Input image → CNN backbone (shared)
+2. Feature map → **Region Proposal Network (RPN)**
+   - RPN outputs ~300 region proposals
+   - Much faster than selective search
+3. ROI Pooling on proposed regions
+4. Classification + bbox regression heads
+
+<strong>Two-stage training:</strong>
+Stage 1: Train backbone + RPN
+Stage 2: Train backbone + detection heads (classification + bbox)
+
+<strong>Speed:</strong> ~0.2 seconds per image (5 FPS)
+        </div>
+
+        <h3>Region Proposal Network (RPN) Details</h3>
+        <div class="code-block">RPN predicts whether each location contains an object
+
+At each location in feature map:
+1. Place K anchor boxes of different scales/aspect ratios
+   - Example: 3 scales × 3 aspect ratios = 9 anchors
+2. For each anchor, predict:
+   - Objectness score (1 value): does anchor contain object?
+   - Box offsets (4 values): how to adjust anchor to fit object?
+
+Output per location: K anchors × (1 objectness + 4 offsets) = K × 5 values
+
+Full output for 20×15 feature map:
+- Objectness: 20 × 15 × K
+- Box transforms: 20 × 15 × K × 4
+
+Post-processing:
+1. Apply objectness threshold (e.g., > 0.5)
+2. Apply box transforms to anchors
+3. Apply NMS to remove duplicates
+4. Keep top ~300 proposals</div>
+
+        <div class="warning">
+            <h4>Why Anchors?</h4>
+            <p><strong>Problem:</strong> Neural networks need fixed-size outputs, but objects have variable sizes/shapes</p>
+            <p><strong>Solution:</strong> Anchor boxes</p>
+            <ul>
+                <li>Pre-define K box shapes at each location</li>
+                <li>Network predicts adjustments to these anchors</li>
+                <li>Anchors designed using k-means on training data</li>
+            </ul>
+            <p><strong>Without anchors (selective search):</strong> Can generate arbitrary proposals, but not differentiable</p>
+            <p><strong>With anchors (RPN):</strong> Differentiable, learnable, but constrained to anchor shapes</p>
+        </div>
+
+        <h3>Bounding Box Regression in R-CNN</h3>
+        <div class="formula">
+<strong>Box Parameterization:</strong>
+
+Anchor/proposal box: p = (pₓ, pᵧ, pᵥ, pₕ)
+Ground truth box: g = (gₓ, gᵧ, gᵥ, gₕ)
+
+Network predicts transformations d(p):
+ĝₓ = pᵥ·dₓ(p) + pₓ
+ĝᵧ = pₕ·dᵧ(p) + pᵧ
+ĝᵥ = pᵥ·exp(dᵥ(p))
+ĝₕ = pₕ·exp(dₕ(p))
+
+Target transformations:
+tₓ = (gₓ - pₓ) / pᵥ
+tᵧ = (gᵧ - pᵧ) / pₕ
+tᵥ = log(gᵥ / pᵥ)
+tₕ = log(gₕ / pₕ)
+
+Loss: L_reg = Σ (tᵢ - dᵢ(p))² + λ||w||²
+        </div>
+
+        <h3>Performance Comparison</h3>
+        <table>
+            <tr>
+                <th>Method</th>
+                <th>Year</th>
+                <th>Speed (sec/img)</th>
+                <th>Region Proposals</th>
+                <th>mAP</th>
+            </tr>
+            <tr>
+                <td>R-CNN</td>
+                <td>2014</td>
+                <td>49</td>
+                <td>Selective Search</td>
+                <td>~58%</td>
+            </tr>
+            <tr>
+                <td>SPP-Net</td>
+                <td>2014</td>
+                <td>4.3</td>
+                <td>Selective Search</td>
+                <td>~59%</td>
+            </tr>
+            <tr>
+                <td>Fast R-CNN</td>
+                <td>2015</td>
+                <td>2.3</td>
+                <td>Selective Search</td>
+                <td>~66%</td>
+            </tr>
+            <tr>
+                <td>Faster R-CNN</td>
+                <td>2016</td>
+                <td>0.2</td>
+                <td>RPN (neural net)</td>
+                <td>~73%</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section" id="roi-anchors">
+        <h2>3. ROI POOLING, ANCHORS, AND REGION PROPOSALS</h2>
+
+        <h3>Why Selective Search Doesn't Need Anchors</h3>
+        <div class="key-concept">
+            <p><strong>Selective Search:</strong> Can generate proposals of any shape/size</p>
+            <ul>
+                <li>Bottom-up approach based on image segmentation</li>
+                <li>Not constrained by pre-defined shapes</li>
+                <li><strong>Downside:</strong> Not learnable, slow, hand-crafted heuristics</li>
+            </ul>
+            <p><strong>RPN with Anchors:</strong> Must predict from fixed set of shapes</p>
+            <ul>
+                <li>Top-down approach using neural network</li>
+                <li>Anchors provide starting points</li>
+                <li><strong>Upside:</strong> Learnable, fast, end-to-end trainable</li>
+            </ul>
+        </div>
+
+        <h3>Anchor Box Design</h3>
+        <table>
+            <tr>
+                <th>Aspect Ratio</th>
+                <th>Scale</th>
+                <th>Purpose</th>
+            </tr>
+            <tr>
+                <td>1:1</td>
+                <td>Small, Medium, Large</td>
+                <td>Square objects (faces, balls)</td>
+            </tr>
+            <tr>
+                <td>1:2</td>
+                <td>Small, Medium, Large</td>
+                <td>Tall objects (people, bottles)</td>
+            </tr>
+            <tr>
+                <td>2:1</td>
+                <td>Small, Medium, Large</td>
+                <td>Wide objects (cars, buses)</td>
+            </tr>
+        </table>
+
+        <p>Common configuration: 3 scales × 3 aspect ratios = 9 anchors per location</p>
+
+        <h3>ROI Pooling vs ROI Align</h3>
+        <div class="warning">
+            <h4>ROI Pooling Problem</h4>
+            <p><strong>Quantization:</strong> ROI pooling uses integer coordinates, causing misalignment</p>
+            <p><strong>Example:</strong> RoI at (6.5, 4.7, 18.3, 12.9) → rounded to (6, 4, 18, 12)</p>
+            <p><strong>Impact:</strong> Slight misalignment, especially bad for segmentation</p>
+        </div>
+
+        <div class="tip">
+            <h4>ROI Align Solution (Mask R-CNN)</h4>
+            <p><strong>ROI Align:</strong> Use bilinear interpolation instead of rounding</p>
+            <ul>
+                <li>Preserve exact spatial locations</li>
+                <li>Better for pixel-level tasks (segmentation)</li>
+                <li>Standard in modern detectors</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section" id="yolo">
+        <h2>4. YOLO: SINGLE-STAGE DETECTION</h2>
+
+        <div class="key-concept">
+            <h3>YOLO Philosophy</h3>
+            <p><strong>You Only Look Once:</strong> Predict bounding boxes and classes in a single forward pass</p>
+            <p><strong>Key insight:</strong> Frame detection as regression, not classification on proposals</p>
+            <p><strong>Speed advantage:</strong> >10× faster than Faster R-CNN</p>
+        </div>
+
+        <h3>YOLOv1 (2016)</h3>
+        <div class="formula">
+<strong>YOLOv1 Architecture:</strong>
+
+1. Divide image into S × S grid (e.g., 7×7)
+2. Each grid cell predicts:
+   - B bounding boxes (x, y, w, h, confidence)
+   - C class probabilities
+
+Output tensor: S × S × (B×5 + C)
+Example (S=7, B=2, C=20): 7 × 7 × 30
+
+Grid cell responsible for object if:
+- Object's center falls in that cell
+
+Confidence score:
+- Pr(Object) × IoU(pred, truth)
+- 0 if no object in cell
+        </div>
+
+        <h3>YOLO Evolution</h3>
+        <table>
+            <tr>
+                <th>Version</th>
+                <th>Year</th>
+                <th>Key Improvements</th>
+            </tr>
+            <tr>
+                <td>YOLOv1</td>
+                <td>2016</td>
+                <td>Single-stage, grid-based, real-time</td>
+            </tr>
+            <tr>
+                <td>YOLOv2</td>
+                <td>2017</td>
+                <td>Batch norm, anchor boxes, multi-scale training</td>
+            </tr>
+            <tr>
+                <td>YOLOv3</td>
+                <td>2018</td>
+                <td>FPN (3 scales), better for small objects</td>
+            </tr>
+            <tr>
+                <td>YOLOv4</td>
+                <td>2020</td>
+                <td>CSPDarknet, Mish activation, mosaic augmentation</td>
+            </tr>
+            <tr>
+                <td>YOLOv5</td>
+                <td>2020</td>
+                <td>PyTorch, auto-anchor, production-ready</td>
+            </tr>
+            <tr>
+                <td>YOLOv8</td>
+                <td>2023</td>
+                <td>Anchor-free, C2f blocks, improved neck</td>
+            </tr>
+            <tr>
+                <td>YOLO11</td>
+                <td>2024</td>
+                <td>Latest state-of-the-art</td>
+            </tr>
+        </table>
+
+        <h3>YOLOv8 Architecture (Used in Assignment)</h3>
+        <div class="code-block">YOLOv8 Components:
+
+Backbone: CSPDarknet
+├─ Extracts features at multiple scales
+├─ CSP (Cross Stage Partial) blocks
+└─ SPPF (Spatial Pyramid Pooling - Fast)
+
+Neck: PANet (Path Aggregation Network)
+├─ Top-down: FPN for multi-scale fusion
+└─ Bottom-up: PAN for feature enhancement
+
+Head: Decoupled anchor-free head
+├─ Classification head → class probabilities
+└─ Regression head → bbox coordinates (direct prediction)
+
+Key differences from earlier YOLO:
+- No anchor boxes (anchor-free)
+- Separate heads for classification and localization
+- C2f modules instead of C3 (faster, better gradient flow)</div>
+
+        <div class="tip">
+            <h4>Why Anchor-Free?</h4>
+            <ul>
+                <li><strong>Simpler:</strong> No need to tune anchor sizes/ratios</li>
+                <li><strong>Better generalization:</strong> Not constrained to pre-defined shapes</li>
+                <li><strong>Fewer hyperparameters:</strong> Easier to use</li>
+                <li><strong>Direct prediction:</strong> Predict box center and size directly</li>
+            </ul>
+        </div>
+
+        <h3>YOLO Loss Function</h3>
+        <div class="formula">
+<strong>YOLOv1 Loss (Multi-part):</strong>
+
+L_total = λ_coord × L_box + L_obj + L_noobj + L_class
+
+L_box: Localization loss (coordinates + size)
+L_obj: Confidence loss (cells with objects)
+L_noobj: Confidence loss (cells without objects)
+L_class: Classification loss
+
+<strong>YOLOv8 Loss:</strong>
+
+L_total = L_cls + L_box + L_dfl
+
+L_cls: Classification loss (BCE)
+L_box: Box loss (CIoU - Complete IoU)
+L_dfl: Distribution Focal Loss (for bbox refinement)
+        </div>
+    </div>
+
+    <div class="section" id="modern">
+        <h2>5. MODERN APPROACHES (CENTERNET, DETR)</h2>
+
+        <h3>Anchor-less Object Detection</h3>
+        <div class="key-concept">
+            <p><strong>Motivation:</strong> Anchors add complexity and hyperparameters</p>
+            <p><strong>Anchor-less approaches:</strong></p>
+            <ul>
+                <li><strong>Keypoint-based:</strong> CenterNet - detect object centers as keypoints</li>
+                <li><strong>Transformer-based:</strong> DETR - set prediction with transformers</li>
+            </ul>
+        </div>
+
+        <h3>CenterNet (2019)</h3>
+        <div class="formula">
+<strong>CenterNet: Objects as Points</strong>
+
+Key idea: Represent each object as a single point (its center)
+
+Architecture:
+1. Input image → Backbone CNN → Feature map
+2. Three prediction heads:
+   a) Heatmap: Detect object centers (Gaussian peaks)
+   b) Size: Predict width and height at center
+   c) Offset: Sub-pixel offset (for quantization correction)
+
+Training:
+- Ground truth: Gaussian heatmap around object centers
+- Loss: Focal loss for heatmap + L1 loss for size/offset
+
+Inference:
+1. Find local maxima in heatmap (object centers)
+2. Read size and offset at each center
+3. Reconstruct bounding boxes
+
+Advantages:
+- No anchors, no NMS needed (few duplicate detections)
+- Simple and fast
+        </div>
+
+        <h3>DETR (2020) - End-to-End Detection with Transformers</h3>
+        <div class="key-concept">
+            <h3>DETR Philosophy</h3>
+            <p><strong>Set prediction:</strong> Predict a fixed-size set of objects in parallel</p>
+            <p><strong>No hand-crafted components:</strong> No anchors, no NMS, learned end-to-end</p>
+        </div>
+
+        <div class="formula">
+<strong>DETR Architecture:</strong>
+
+1. Input image → CNN backbone → Feature map
+2. Flatten feature map → Sequence of features
+3. Add positional encodings
+4. Transformer encoder-decoder:
+   - Encoder: Process image features
+   - Decoder: N object queries → N predictions
+5. FFN heads → (class, bbox) for each query
+
+<strong>Object queries:</strong>
+- N learned embeddings (e.g., N=100)
+- Each query predicts one object (or "no object")
+- Transformer learns to assign queries to objects
+
+<strong>Hungarian Matching:</strong>
+- Bipartite matching between predictions and ground truth
+- Find optimal 1-to-1 assignment
+- Loss computed only on matched pairs
+
+<strong>Training:</strong>
+- Classification loss: Cross-entropy
+- Box loss: L1 + GIoU loss
+- Hungarian matching provides assignment</div>
+
+        <div class="warning">
+            <h4>Hungarian Matching: Non-Differentiable Step</h4>
+            <p><strong>Problem:</strong> Hungarian algorithm uses discrete argmin/argmax (not differentiable)</p>
+            <p><strong>Training still works:</strong></p>
+            <ul>
+                <li>Matching done in torch.no_grad() (no gradient through matching)</li>
+                <li>Matching provides indices: which prediction matches which ground truth</li>
+                <li>Loss computed using these indices (loss is differentiable)</li>
+                <li>Gradients flow through predictions, not through matching</li>
+            </ul>
+            <p><strong>Issues:</strong></p>
+            <ul>
+                <li>Noisy early supervision (random matches initially)</li>
+                <li>Discontinuous loss surface when assignments flip</li>
+                <li>Slow convergence (hundreds of epochs)</li>
+            </ul>
+        </div>
+
+        <h3>Improvements to DETR</h3>
+        <table>
+            <tr>
+                <th>Method</th>
+                <th>Key Improvement</th>
+            </tr>
+            <tr>
+                <td>Deformable DETR</td>
+                <td>Multi-scale deformable attention (faster, better convergence)</td>
+            </tr>
+            <tr>
+                <td>Conditional DETR</td>
+                <td>Condition queries on spatial priors (reduce matching ambiguity)</td>
+            </tr>
+            <tr>
+                <td>DN-DETR</td>
+                <td>Add noised ground-truth queries (stabilize early training)</td>
+            </tr>
+            <tr>
+                <td>DINO</td>
+                <td>Contrastive denoising + mixed query selection</td>
+            </tr>
+            <tr>
+                <td>Group DETR / Co-DETR</td>
+                <td>Multi-group matching, current SOTA on COCO</td>
+            </tr>
+        </table>
+
+        <h3>Performance on COCO</h3>
+        <div class="formula">
+<strong>Historical Progress (mAP on COCO):</strong>
+
+Fast R-CNN (2015):    ~21%
+Faster R-CNN (2016):  ~37%
+Mask R-CNN (2017):    ~42%
+YOLO v3 (2018):       ~47%
+Cascade R-CNN (2019): ~50%
+DetectoRS (2020):     ~55%
+DETR v2 (2023):       ~66%
+Co-DETR (2024):       ~67%
+
+Note: mAP = mAP@[0.5:0.95] (average over IoU 0.5 to 0.95)
+        </div>
+    </div>
+
+    <div class="section" id="bboxes">
+        <h2>6. BOUNDING BOX REPRESENTATIONS</h2>
+
+        <h3>Common Bounding Box Formats</h3>
+        <table>
+            <tr>
+                <th>Format</th>
+                <th>Representation</th>
+                <th>Description</th>
+                <th>Use Case</th>
+            </tr>
+            <tr>
+                <td><strong>XYXY</strong></td>
+                <td>(x1, y1, x2, y2)</td>
+                <td>Top-left + bottom-right corners</td>
+                <td>PyTorch, easy IoU calculation</td>
+            </tr>
+            <tr>
+                <td><strong>XYWH</strong></td>
+                <td>(x, y, w, h)</td>
+                <td>Top-left + width/height</td>
+                <td>Intuitive, COCO dataset</td>
+            </tr>
+            <tr>
+                <td><strong>CXCYWH</strong></td>
+                <td>(cx, cy, w, h)</td>
+                <td>Center + width/height</td>
+                <td>DETR, transformers</td>
+            </tr>
+            <tr>
+                <td><strong>YOLO Format</strong></td>
+                <td>(cx, cy, w, h) normalized</td>
+                <td>Center + size, all in [0,1]</td>
+                <td>YOLO training labels</td>
+            </tr>
+        </table>
+
+        <h3>Format Conversions</h3>
+        <div class="code-block">def xyxy_to_xywh(boxes):
+    """XYXY to XYWH"""
+    x1, y1, x2, y2 = boxes[..., 0], boxes[..., 1], boxes[..., 2], boxes[..., 3]
+    x = x1
+    y = y1
+    w = x2 - x1
+    h = y2 - y1
+    return torch.stack([x, y, w, h], dim=-1)
+
+def xywh_to_xyxy(boxes):
+    """XYWH to XYXY"""
+    x, y, w, h = boxes[..., 0], boxes[..., 1], boxes[..., 2], boxes[..., 3]
+    x1 = x
+    y1 = y
+    x2 = x + w
+    y2 = y + h
+    return torch.stack([x1, y1, x2, y2], dim=-1)
+
+def xyxy_to_yolo(boxes, image_size):
+    """XYXY to YOLO (normalized center format)"""
+    width, height = image_size
+    x1, y1, x2, y2 = boxes[..., 0], boxes[..., 1], boxes[..., 2], boxes[..., 3]
+
+    cx = (x1 + x2) / (2 * width)
+    cy = (y1 + y2) / (2 * height)
+    w = (x2 - x1) / width
+    h = (y2 - y1) / height
+
+    return torch.stack([cx, cy, w, h], dim=-1)</div>
+
+        <div class="warning">
+            <h4>Coordinate System</h4>
+            <ul>
+                <li><strong>Origin (0,0):</strong> Top-left corner</li>
+                <li><strong>x-axis:</strong> Left to right</li>
+                <li><strong>y-axis:</strong> Top to bottom</li>
+                <li><strong>Normalized coords:</strong> Divide by width/height → [0, 1]</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section" id="iou">
+        <h2>7. IoU AND NON-MAXIMUM SUPPRESSION</h2>
+
+        <h3>Intersection over Union (IoU)</h3>
+        <div class="formula">
+<strong>IoU Formula:</strong>
+
+IoU = Area of Intersection / Area of Union
+
+Where:
+- Intersection = Overlapping region
+- Union = Total area covered by both boxes
+- Range: [0, 1] (0 = no overlap, 1 = perfect match)
+
+Mathematical:
+IoU = (A ∩ B) / (A + B - A ∩ B)
+        </div>
+
+        <div class="code-block">def box_iou(box1, box2):
+    """
+    Compute IoU between two boxes (XYXY format)
+
+    Args:
+        box1, box2: (x1, y1, x2, y2)
+
+    Returns:
+        iou: float in [0, 1]
+    """
+    # Intersection rectangle
+    inter_x1 = max(box1[0], box2[0])
+    inter_y1 = max(box1[1], box2[1])
+    inter_x2 = min(box1[2], box2[2])
+    inter_y2 = min(box1[3], box2[3])
+
+    # Intersection area
+    inter_w = max(0, inter_x2 - inter_x1)
+    inter_h = max(0, inter_y2 - inter_y1)
+    inter_area = inter_w * inter_h
+
+    # Box areas
+    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+
+    # Union area
+    union_area = box1_area + box2_area - inter_area
+
+    # IoU
+    iou = inter_area / (union_area + 1e-6)
+    return iou</div>
+
+        <h3>IoU Thresholds in Practice</h3>
+        <table>
+            <tr>
+                <th>IoU Range</th>
+                <th>Quality</th>
+                <th>Usage</th>
+            </tr>
+            <tr>
+                <td>IoU ≥ 0.5</td>
+                <td>Good match</td>
+                <td>Standard threshold for TP</td>
+            </tr>
+            <tr>
+                <td>IoU ≥ 0.7</td>
+                <td>Strong match</td>
+                <td>Stricter evaluation</td>
+            </tr>
+            <tr>
+                <td>IoU ≥ 0.9</td>
+                <td>Excellent</td>
+                <td>Very precise localization</td>
+            </tr>
+            <tr>
+                <td>IoU < 0.5</td>
+                <td>Poor match</td>
+                <td>False positive</td>
+            </tr>
+        </table>
+
+        <h3>Non-Maximum Suppression (NMS)</h3>
+        <div class="key-concept">
+            <h3>Why NMS?</h3>
+            <p><strong>Problem:</strong> Multiple detections for same object</p>
+            <p><strong>Solution:</strong> Keep highest confidence, remove overlapping detections</p>
+        </div>
+
+        <div class="formula">
+<strong>NMS Algorithm:</strong>
+
+1. Sort all detections by confidence score (high → low)
+2. While detections remain:
+   a. Take highest confidence detection
+   b. Add to final output
+   c. Remove all detections with IoU > threshold (e.g., 0.45) with this detection
+3. Return final output
+
+<strong>When is NMS applied?</strong>
+- Only during inference (not training)
+- After confidence thresholding
+- Per class (separately for each object class)
+        </div>
+
+        <div class="code-block">def nms(boxes, scores, iou_threshold=0.45):
+    """
+    Non-Maximum Suppression
+
+    Args:
+        boxes: (N, 4) in XYXY format
+        scores: (N,) confidence scores
+        iou_threshold: IoU threshold for suppression
+
+    Returns:
+        keep: Indices of boxes to keep
+    """
+    # Sort by score
+    sorted_indices = torch.argsort(scores, descending=True)
+
+    keep = []
+    while len(sorted_indices) > 0:
+        # Take highest confidence
+        current = sorted_indices[0]
+        keep.append(current.item())
+
+        if len(sorted_indices) == 1:
+            break
+
+        # Compute IoU with remaining boxes
+        ious = box_iou_matrix(boxes[current:current+1], boxes[sorted_indices[1:]])
+
+        # Keep boxes with IoU < threshold
+        mask = ious[0] < iou_threshold
+        sorted_indices = sorted_indices[1:][mask]
+
+    return keep</div>
+
+        <div class="tip">
+            <h4>NMS Hyperparameters</h4>
+            <ul>
+                <li><strong>Confidence threshold (e.g., 0.25):</strong> Filter low-confidence predictions before NMS</li>
+                <li><strong>IoU threshold (e.g., 0.45):</strong> How much overlap allowed before suppression</li>
+                <li><strong>Lower IoU threshold:</strong> More aggressive (fewer boxes, may remove valid detections)</li>
+                <li><strong>Higher IoU threshold:</strong> Less aggressive (more boxes, may keep duplicates)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section" id="metrics">
+        <h2>8. EVALUATION METRICS (mAP, PRECISION, RECALL)</h2>
+
+        <h3>Confusion Matrix for Object Detection</h3>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Definition</th>
+                <th>Condition</th>
+            </tr>
+            <tr>
+                <td><strong>True Positive (TP)</strong></td>
+                <td>Correct detection</td>
+                <td>IoU ≥ threshold AND correct class</td>
+            </tr>
+            <tr>
+                <td><strong>False Positive (FP)</strong></td>
+                <td>Incorrect detection</td>
+                <td>IoU < threshold OR wrong class</td>
+            </tr>
+            <tr>
+                <td><strong>False Negative (FN)</strong></td>
+                <td>Missed object</td>
+                <td>No prediction matched this ground truth</td>
+            </tr>
+            <tr>
+                <td><strong>True Negative (TN)</strong></td>
+                <td>N/A</td>
+                <td>Not applicable (infinite background)</td>
+            </tr>
+        </table>
+
+        <h3>Precision and Recall</h3>
+        <div class="formula">
+<strong>Precision:</strong> Of all detections, how many are correct?
+Precision = TP / (TP + FP)
+
+<strong>Recall:</strong> Of all ground truth objects, how many detected?
+Recall = TP / (TP + FN)
+
+<strong>Trade-off:</strong>
+- Lower confidence threshold → higher recall, lower precision
+- Higher confidence threshold → lower recall, higher precision
+
+<strong>F1 Score:</strong> Harmonic mean
+F1 = 2 × (Precision × Recall) / (Precision + Recall)
+        </div>
+
+        <h3>Average Precision (AP)</h3>
+        <div class="key-concept">
+            <h3>AP Calculation</h3>
+            <ol>
+                <li>Sort all detections by confidence (high to low)</li>
+                <li>For each detection threshold, compute precision and recall</li>
+                <li>Plot precision-recall curve</li>
+                <li>AP = Area under the interpolated precision-recall curve</li>
+            </ol>
+        </div>
+
+        <div class="formula">
+<strong>AP Formula:</strong>
+
+AP = Σ (Rₙ - Rₙ₋₁) × Pₙ
+
+Where:
+- Rₙ = recall at nth threshold
+- Pₙ = precision at nth threshold
+
+<strong>11-point interpolation (PASCAL VOC):</strong>
+AP = (1/11) × Σ P_interp(r)    for r ∈ {0, 0.1, ..., 1.0}
+
+<strong>All-point interpolation (COCO):</strong>
+Use all unique recall values (more accurate)
+        </div>
+
+        <h3>Mean Average Precision (mAP)</h3>
+        <div class="formula">
+<strong>mAP Calculation:</strong>
+
+1. Compute AP for each class
+2. Average over all classes
+
+mAP = (1/N) × Σ APᵢ    (for N classes)
+
+<strong>COCO Metrics:</strong>
+- mAP or mAP@[0.5:0.95]: Average over IoU thresholds 0.5, 0.55, ..., 0.95
+- mAP@0.5: mAP at IoU threshold = 0.5 (more lenient)
+- mAP@0.75: mAP at IoU threshold = 0.75 (stricter)
+- mAP_small: mAP for small objects (area < 32²)
+- mAP_medium: mAP for medium objects (32² < area < 96²)
+- mAP_large: mAP for large objects (area > 96²)
+        </div>
+
+        <div class="warning">
+            <h4>mAP Interpretation</h4>
+            <ul>
+                <li><strong>mAP@0.5 = 0.5:</strong> Decent detector</li>
+                <li><strong>mAP@0.5 = 0.7:</strong> Good detector</li>
+                <li><strong>mAP@0.5 = 0.9+:</strong> Excellent (rare on complex datasets)</li>
+                <li><strong>High mAP@0.5, low mAP@0.75:</strong> Finds objects but localizes poorly</li>
+                <li><strong>High mAP@0.75:</strong> Accurate localization</li>
+            </ul>
+        </div>
+
+        <h3>Example Calculation</h3>
+        <div class="code-block">Example: 10 detections for "cat" class
+
+Detections sorted by confidence:
+Detection | Conf  | IoU  | TP/FP | Precision | Recall
+    1     | 0.95  | 0.88 | TP    | 1/1=1.00  | 1/5=0.20
+    2     | 0.90  | 0.67 | TP    | 2/2=1.00  | 2/5=0.40
+    3     | 0.85  | 0.42 | FP    | 2/3=0.67  | 2/5=0.40
+    4     | 0.80  | 0.73 | TP    | 3/4=0.75  | 3/5=0.60
+    5     | 0.75  | 0.35 | FP    | 3/5=0.60  | 3/5=0.60
+    6     | 0.70  | 0.81 | TP    | 4/6=0.67  | 4/5=0.80
+    7     | 0.60  | 0.92 | TP    | 5/7=0.71  | 5/5=1.00
+    8     | 0.55  | 0.23 | FP    | 5/8=0.63  | 5/5=1.00
+    9     | 0.50  | 0.15 | FP    | 5/9=0.56  | 5/5=1.00
+   10     | 0.45  | 0.08 | FP    | 5/10=0.50 | 5/5=1.00
+
+(Assume 5 ground truth cats total)
+
+Precision-Recall pairs: (1.00, 0.20), (1.00, 0.40), (0.75, 0.60), (0.71, 1.00)
+AP ≈ area under this curve ≈ 0.87 (for this class)</div>
+    </div>
+
+    <div class="section" id="training">
+        <h2>9. TRAINING & FINE-TUNING</h2>
+
+        <h3>Transfer Learning</h3>
+        <div class="key-concept">
+            <p><strong>Pre-trained models:</strong> Trained on COCO (80 classes, 120k images)</p>
+            <p><strong>Fine-tuning:</strong> Adapt to custom dataset</p>
+            <p><strong>Benefits:</strong></p>
+            <ul>
+                <li>Faster convergence (fewer epochs)</li>
+                <li>Better performance with less data</li>
+                <li>Learned features transfer across domains</li>
+            </ul>
+        </div>
+
+        <h3>YOLO Training Configuration</h3>
+        <div class="code-block">from ultralytics import YOLO
+
+# Load pre-trained model
+model = YOLO('yolov8n.pt')  # nano (fastest)
+
+# Train
+results = model.train(
+    data='dataset.yaml',
+    epochs=50,
+    imgsz=64,              # MNISTDD-RGB is 64×64
+    batch=16,
+    lr0=0.01,              # Initial learning rate
+    device='cuda:0',
+
+    # Data augmentation
+    hsv_h=0.015,           # Hue
+    hsv_s=0.7,             # Saturation
+    hsv_v=0.4,             # Value
+    degrees=0.0,           # Rotation (keep 0 for upright digits)
+    translate=0.1,         # Translation
+    scale=0.5,             # Scale
+    fliplr=0.5,            # Horizontal flip
+    mosaic=1.0,            # Mosaic augmentation
+
+    # Loss weights
+    box=7.5,               # Box loss gain
+    cls=0.5,               # Class loss gain
+    dfl=1.5,               # DFL loss gain
+)</div>
+
+        <h3>Dataset Format (YOLO)</h3>
+        <div class="code-block"># dataset.yaml structure
+path: /path/to/dataset
+train: images/train
+val: images/val
+
+names:
+  0: digit_0
+  1: digit_1
+  # ... up to digit_9
+
+# Label files (one per image)
+# images/train/img001.jpg → labels/train/img001.txt
+# Format: <class_id> <x_center> <y_center> <width> <height>
+# All coordinates normalized to [0, 1]
+#
+# Example label file content:
+# 3 0.500 0.500 0.200 0.300
+# 7 0.250 0.750 0.150 0.200</div>
+
+        <h3>Data Augmentation</h3>
+        <table>
+            <tr>
+                <th>Augmentation</th>
+                <th>Effect</th>
+                <th>Recommended Value</th>
+            </tr>
+            <tr>
+                <td>Mosaic</td>
+                <td>Combine 4 images</td>
+                <td>1.0 (always apply)</td>
+            </tr>
+            <tr>
+                <td>Horizontal flip</td>
+                <td>Mirror image</td>
+                <td>0.5 (50% chance)</td>
+            </tr>
+            <tr>
+                <td>HSV jitter</td>
+                <td>Color variation</td>
+                <td>h=0.015, s=0.7, v=0.4</td>
+            </tr>
+            <tr>
+                <td>Scale</td>
+                <td>Zoom in/out</td>
+                <td>0.5 (±50%)</td>
+            </tr>
+            <tr>
+                <td>Translation</td>
+                <td>Shift image</td>
+                <td>0.1 (10%)</td>
+            </tr>
+            <tr>
+                <td>Rotation</td>
+                <td>Rotate</td>
+                <td>0.0 (digits are upright)</td>
+            </tr>
+        </table>
+
+        <h3>Fine-Tuning Strategies</h3>
+        <ul>
+            <li><strong>Freeze backbone:</strong> Only train head (fast, less overfitting)</li>
+            <li><strong>Lower learning rate:</strong> 0.001-0.01 for fine-tuning</li>
+            <li><strong>Fewer epochs:</strong> 50-100 epochs usually enough</li>
+            <li><strong>Monitor validation mAP:</strong> Stop when it plateaus</li>
+        </ul>
+    </div>
+
+    <div class="section" id="mnistdd">
+        <h2>10. MNISTDD-RGB DATASET & ASSIGNMENT</h2>
+
+        <div class="key-concept">
+            <h3>MNISTDD-RGB Dataset</h3>
+            <p><strong>Purpose:</strong> Simple object detection dataset for learning</p>
+            <ul>
+                <li><strong>Images:</strong> 64×64 RGB</li>
+                <li><strong>Objects:</strong> MNIST digits (0-9)</li>
+                <li><strong>Per image:</strong> 1-3 digits at random positions</li>
+                <li><strong>Format:</strong> NPZ files with images and bboxes</li>
+            </ul>
+        </div>
+
+        <h3>Dataset Structure</h3>
+        <div class="code-block"># Load dataset
+data = np.load('train.npz')
+images = data['images']    # (N, 64, 64, 3)
+bboxes = data['bboxes']    # (N, max_objs, 4) in XYXY format
+
+# Example
+img = images[0]            # 64×64×3 RGB image
+boxes = bboxes[0]          # Multiple bounding boxes for this image</div>
+
+        <h3>Assignment 5 Tasks</h3>
+        <table>
+            <tr>
+                <th>Part</th>
+                <th>Task</th>
+                <th>Classes</th>
+                <th>Goal</th>
+            </tr>
+            <tr>
+                <td>Part A</td>
+                <td>Fine-tune YOLOv8n</td>
+                <td>1 (generic "digit")</td>
+                <td>Detect any digit</td>
+            </tr>
+            <tr>
+                <td>Part B</td>
+                <td>Fine-tune YOLOv8n</td>
+                <td>10 (digit 0-9)</td>
+                <td>Detect and classify which digit</td>
+            </tr>
+        </table>
+
+        <h3>Manual IoU Evaluation (Assignment Metric)</h3>
+        <div class="formula">
+<strong>Mean IoU (Matched):</strong>
+
+For each image:
+1. Run model to get predictions
+2. Compute IoU matrix between predictions and ground truth
+3. Greedy matching:
+   - For each ground truth, find best prediction (highest IoU)
+   - Match only if IoU ≥ 0.5
+   - Each prediction matched at most once
+4. Compute mean IoU of matched pairs
+5. If no matches, IoU = 0 for this image
+
+Final metric: Average over all images
+
+<strong>This measures localization quality of correct detections</strong>
+        </div>
+
+        <div class="code-block">def greedy_match_ious(iou_matrix, threshold=0.5):
+    """
+    Greedy matching algorithm
+
+    Args:
+        iou_matrix: (N_pred, N_gt) IoU values
+        threshold: Minimum IoU to match
+
+    Returns:
+        matches: List of IoU values for matched pairs
+    """
+    matches = []
+    used_preds = set()
+
+    # For each ground truth
+    for gt_idx in range(iou_matrix.shape[1]):
+        # Find best prediction
+        best_pred_idx = torch.argmax(iou_matrix[:, gt_idx]).item()
+        best_iou = iou_matrix[best_pred_idx, gt_idx].item()
+
+        # Match if IoU >= threshold and prediction not used
+        if best_iou >= threshold and best_pred_idx not in used_preds:
+            matches.append(best_iou)
+            used_preds.add(best_pred_idx)
+
+    return matches</div>
+
+        <h3>Complete Training Pipeline</h3>
+        <div class="code-block"># 1. Convert NPZ to YOLO format
+# (create images/labels folders with YOLO format annotations)
+
+# 2. Train model
+model = YOLO('yolov8n.pt')
+results = model.train(
+    data='mnistdd.yaml',
+    epochs=50,
+    imgsz=64,
+    batch=16,
+    device='cuda:0'
+)
+
+# 3. Validate (automatic mAP computation)
+metrics = model.val()
+print(f"mAP@0.5: {metrics.box.map50:.3f}")
+print(f"mAP@0.5:0.95: {metrics.box.map:.3f}")
+
+# 4. Predict on validation set
+preds = model.predict(val_images, conf=0.25, iou=0.45)
+
+# 5. Compute manual IoU
+mean_ious = []
+for pred, gt_boxes in zip(preds, ground_truth):
+    iou_matrix = box_iou_matrix(pred.boxes.xyxy, gt_boxes)
+    matches = greedy_match_ious(iou_matrix, threshold=0.5)
+    mean_ious.append(np.mean(matches) if matches else 0.0)
+
+mean_iou_matched = np.mean(mean_ious)
+print(f"Mean IoU (matched): {mean_iou_matched:.3f}")</div>
+
+        <h3>Expected Performance</h3>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Part A (1 class)</th>
+                <th>Part B (10 classes)</th>
+            </tr>
+            <tr>
+                <td>mAP@0.5</td>
+                <td>0.90-0.95</td>
+                <td>0.85-0.90</td>
+            </tr>
+            <tr>
+                <td>Mean IoU (matched)</td>
+                <td>0.80-0.85</td>
+                <td>0.75-0.80</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>SUMMARY: KEY TAKEAWAYS</h2>
+
+        <div class="key-concept">
+            <h3>Evolution of Object Detection</h3>
+            <ul>
+                <li><strong>R-CNN (2014):</strong> Selective search + CNN features (slow)</li>
+                <li><strong>Fast R-CNN (2015):</strong> ROI pooling (faster)</li>
+                <li><strong>Faster R-CNN (2016):</strong> RPN with anchors (end-to-end)</li>
+                <li><strong>YOLO (2016):</strong> Single-stage, real-time (10× faster)</li>
+                <li><strong>CenterNet (2019):</strong> Anchor-free keypoint detection</li>
+                <li><strong>DETR (2020):</strong> Transformers, set prediction, no NMS</li>
+            </ul>
+        </div>
+
+        <div class="key-concept">
+            <h3>Core Concepts</h3>
+            <ul>
+                <li><strong>ROI Pooling:</strong> Fixed-size features from variable regions</li>
+                <li><strong>Anchors:</strong> Pre-defined boxes for neural network predictions</li>
+                <li><strong>IoU:</strong> Measures overlap (0=none, 1=perfect)</li>
+                <li><strong>NMS:</strong> Remove duplicate detections (inference only)</li>
+                <li><strong>mAP:</strong> Average AP across classes (primary metric)</li>
+            </ul>
+        </div>
+
+        <div class="key-concept">
+            <h3>YOLO for Assignment 5</h3>
+            <ul>
+                <li><strong>YOLOv8:</strong> Anchor-free, fast, accurate</li>
+                <li><strong>Transfer learning:</strong> Pre-train on COCO, fine-tune on MNISTDD</li>
+                <li><strong>Data augmentation:</strong> Mosaic, flip, color jitter</li>
+                <li><strong>Evaluation:</strong> mAP@0.5, mean IoU (matched)</li>
+            </ul>
+        </div>
+
+        <div class="key-concept">
+            <h3>Evaluation Metrics</h3>
+            <ul>
+                <li><strong>Precision:</strong> TP / (TP + FP) - how many detections correct?</li>
+                <li><strong>Recall:</strong> TP / (TP + FN) - how many objects found?</li>
+                <li><strong>AP:</strong> Area under precision-recall curve (per class)</li>
+                <li><strong>mAP:</strong> Average AP over all classes</li>
+                <li><strong>mAP@[0.5:0.95]:</strong> COCO standard (stricter)</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer style="margin-top: 50px; padding: 20px; background-color: #0f0f0f; border: 1px solid #333333; text-align: center;">
+        <p><strong>CMPUT 328 ASSIGNMENT 5 STUDY GUIDE</strong></p>
+        <p>Object Detection: From R-CNN to Modern Architectures</p>
+        <p>Comprehensive reference covering lecture content and assignment implementation</p>
+    </footer>
+
+    <div class="action-buttons">
+        <button class="action-button" onclick="exportToPDF()">EXPORT AS PDF</button>
+        <a href="data/object-detection/Object_Detection.apkg" download class="action-button">DOWNLOAD ANKI DECK</a>
+    </div>
+
+    <script>
+        function exportToPDF() {
+            window.print();
+        }
+    </script>
+<script src="../../js/persistent-player.js" defer></script>
+</body>
+</html>

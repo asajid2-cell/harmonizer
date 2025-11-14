@@ -1002,6 +1002,9 @@
             document.querySelectorAll('.track-item[data-persistent-active="true"]').forEach((el) => {
                 el.removeAttribute('data-persistent-active');
             });
+            // Re-show the play button on homepage
+            this.autoStartAttempted = false;
+            this.showPlayButtonIfHome();
         }
 
         maybeAutoplayFromHome() {
@@ -1009,15 +1012,93 @@
             if (!this.isHomePage()) return;
             if (this.state?.src) return;
             if (!this.catalogOrder.length) return;
-            this.autoStartAttempted = true;
-            this.playbackSettings.shuffle = true;
-            this.updateModeButtons();
-            this.persistState();
-            const randomMeta = this.catalogOrder[Math.floor(Math.random() * this.catalogOrder.length)];
-            if (!randomMeta) return;
-            this.setTrack(randomMeta, { startTime: 0, autoPlay: true }).catch((err) => {
-                console.warn('[PersistentPlayer] Autoplay blocked', err);
-            });
+
+            this.showPlayButtonIfHome();
+        }
+
+        showPlayButtonIfHome() {
+            if (!this.isHomePage()) return;
+            if (this.state?.src) return;
+            if (!this.catalogOrder.length) return;
+
+            // Remove existing button if present
+            const existing = document.getElementById('autoplay-trigger');
+            if (existing) existing.remove();
+
+            // Find the credits section to inject the button
+            const creditsSection = document.querySelector('.retro-credits');
+            if (!creditsSection) return;
+
+            // Create an autoplay trigger button
+            const autoplayTrigger = document.createElement('button');
+            autoplayTrigger.id = 'autoplay-trigger';
+            autoplayTrigger.textContent = '► PLAY';
+            autoplayTrigger.setAttribute('aria-label', 'Start playing music');
+
+            // Add styles if not already present
+            if (!document.getElementById('autoplay-trigger-styles')) {
+                const style = document.createElement('style');
+                style.id = 'autoplay-trigger-styles';
+                style.textContent = `
+                    #autoplay-trigger {
+                        display: inline-block;
+                        margin-top: 16px;
+                        padding: 8px 20px;
+                        background: transparent;
+                        color: #66d9ff;
+                        border: 2px solid #66d9ff;
+                        font-family: Courier New, monospace;
+                        font-size: 16px;
+                        font-weight: normal;
+                        letter-spacing: 0.12em;
+                        text-transform: uppercase;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        box-shadow: 0 0 10px rgba(102, 217, 255, 0.3);
+                        animation: buttonGlow 2s ease-in-out infinite;
+                    }
+                    @keyframes buttonGlow {
+                        0%, 100% {
+                            box-shadow: 0 0 10px rgba(102, 217, 255, 0.3);
+                            text-shadow: 0 0 8px rgba(102, 217, 255, 0.5);
+                        }
+                        50% {
+                            box-shadow: 0 0 20px rgba(102, 217, 255, 0.6);
+                            text-shadow: 0 0 12px rgba(102, 217, 255, 0.8);
+                        }
+                    }
+                    #autoplay-trigger:hover {
+                        color: #3f9;
+                        border-color: #3f9;
+                        box-shadow: 0 0 20px rgba(51, 255, 153, 0.5);
+                        text-shadow: 0 0 12px rgba(51, 255, 153, 0.8);
+                    }
+                    #autoplay-trigger:active {
+                        transform: scale(0.98);
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            autoplayTrigger.addEventListener('click', () => {
+                this.autoStartAttempted = true;
+                this.playbackSettings.shuffle = true;
+                this.updateModeButtons();
+                this.persistState();
+                const randomMeta = this.catalogOrder[Math.floor(Math.random() * this.catalogOrder.length)];
+                if (!randomMeta) return;
+                this.setTrack(randomMeta, { startTime: 0, autoPlay: true })
+                    .then(() => {
+                        autoplayTrigger.style.opacity = '0';
+                        autoplayTrigger.style.transform = 'scale(0.9)';
+                        setTimeout(() => autoplayTrigger.remove(), 300);
+                    })
+                    .catch((err) => {
+                        console.warn('[PersistentPlayer] Autoplay failed', err);
+                    });
+            }, { once: true });
+
+            creditsSection.appendChild(autoplayTrigger);
         }
 
         isHomePage() {

@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMPUT 328 Assignment 4: Vision Transformers & LoRA - Complete Study Guide</title>
+    <style>
+*{scrollbar-width:none!important;-ms-overflow-style:none!important}
+*::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+*::-webkit-scrollbar-track{display:none!important}
+*::-webkit-scrollbar-thumb{display:none!important}
+html::-webkit-scrollbar{display:none!important;width:0!important}
+html{scrollbar-width:none!important;-ms-overflow-style:none!important}
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1.6;
+            color: #ffffff;
+            background-color: #000000;
+            background-image: radial-gradient(circle, #ffffff 1px, transparent 1px), radial-gradient(circle, #ffffff 1px, transparent 1px);
+            background-size: 50px 50px, 80px 80px;
+            background-position: 0 0, 40px 40px;
+            background-attachment: fixed;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #ffffff;
+            border-bottom: 3px solid #ffffff;
+            padding-bottom: 10px;
+            margin: 30px 0 20px 0;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #ffffff;
+            margin: 25px 0 15px 0;
+            padding: 10px;
+            background-color: #000000;
+            border: 2px solid #ffffff;
+            border-radius: 4px;
+            font-size: 1.8em;
+        }
+
+        h3 {
+            color: #ffffff;
+            margin: 20px 0 10px 0;
+            font-size: 1.4em;
+            border-left: 4px solid #ffffff;
+            padding-left: 10px;
+        }
+
+        h4 {
+            color: #ffffff;
+            margin: 15px 0 8px 0;
+            font-size: 1.2em;
+        }
+
+        p {
+            margin: 10px 0;
+            text-align: justify;
+        }
+
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #000000;
+            border-radius: 4px;
+            border: 1px solid #ffffff;
+        }
+
+        .key-concept {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #ffffff;
+            border-radius: 4px;
+        }
+
+        .formula {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #ffffff;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+
+        .code-block {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            border: 1px solid #333333;
+            font-family: 'Courier New', Consolas, Monaco, monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .warning {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #ffffff;
+            border-radius: 4px;
+        }
+
+        .tip {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #ffffff;
+            border-radius: 4px;
+        }
+
+        ul, ol {
+            margin: 10px 0 10px 30px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        strong {
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background-color: #000000;
+            border: 1px solid #ffffff;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ffffff;
+        }
+
+        th {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #0a0a0a;
+        }
+
+        .toc {
+            background-color: #1a1a1a;
+            padding: 20px;
+            border-radius: 4px;
+            border: 1px solid #ffffff;
+            margin: 20px 0;
+        }
+
+        .toc ul {
+            list-style-type: none;
+            margin-left: 0;
+        }
+
+        .toc a {
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            margin: 50px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .action-button {
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            padding: 15px 25px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 1em;
+            cursor: pointer;
+            min-width: 220px;
+            text-align: center;
+        }
+
+        .action-button:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .action-button:active {
+            transform: translateY(1px);
+        }
+
+        @media print {
+            .action-buttons {
+                display: none;
+            }
+        }
+    
+        .nav-back {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            padding: 10px 16px;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-size: 0.85rem;
+            z-index: 1000;
+            transition: all 0.2s ease;
+        }
+
+        .nav-back:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+    </style>
+</head>
+<body>
+    <a href="./" class="nav-back">&#8592; Back to Topics</a>
+    <h1>CMPUT 328 Assignment 4: Vision Transformers & LoRA</h1>
+    <p><strong>Complete Study Guide for Vision Transformers, Transfer Learning, and Low-Rank Adaptation</strong></p>
+
+    <div class="toc">
+        <h3>Table of Contents</h3>
+        <ul>
+            <li><a href="#intro">1. Introduction to Vision Transformers</a></li>
+            <li><a href="#patches">2. Image Patches & Tokenization</a></li>
+            <li><a href="#attention">3. Self-Attention Mechanism</a></li>
+            <li><a href="#vit-arch">4. ViT Architecture</a></li>
+            <li><a href="#training">5. Training Vision Transformers</a></li>
+            <li><a href="#comparison">6. ViT vs CNN Comparison</a></li>
+            <li><a href="#lora">7. LoRA (Low-Rank Adaptation)</a></li>
+            <li><a href="#clip">8. CLIP & Zero-Shot Learning</a></li>
+            <li><a href="#implementation">9. Implementation Details</a></li>
+        </ul>
+    </div>
+
+    <div class="section" id="intro">
+        <h2>1. Introduction to Vision Transformers</h2>
+
+        <div class="key-concept">
+            <h3>What is a Vision Transformer (ViT)?</h3>
+            <p><strong>Vision Transformer (ViT)</strong> applies the transformer architecture (originally designed for NLP) directly to images by treating image patches as tokens.</p>
+            <p><strong>Key innovation:</strong> Instead of using convolutions, ViT relies entirely on self-attention mechanisms to process visual information.</p>
+        </div>
+
+        <h3>Why Vision Transformers?</h3>
+        <ul>
+            <li><strong>Global receptive field:</strong> Self-attention can attend to any part of the image from layer 1</li>
+            <li><strong>Scalability:</strong> Performance improves with more data and larger models</li>
+            <li><strong>Architectural simplicity:</strong> No need for hand-crafted convolution hierarchies</li>
+            <li><strong>Transfer learning:</strong> Pre-trained on large datasets, fine-tune on smaller tasks</li>
+        </ul>
+
+        <h3>ViT vs CNN: Philosophical Difference</h3>
+        <table>
+            <tr>
+                <th>Aspect</th>
+                <th>CNN</th>
+                <th>Vision Transformer</th>
+            </tr>
+            <tr>
+                <td>Inductive bias</td>
+                <td>Strong (locality, translation equivariance)</td>
+                <td>Minimal (learns from data)</td>
+            </tr>
+            <tr>
+                <td>Receptive field</td>
+                <td>Grows gradually layer-by-layer</td>
+                <td>Global from first layer</td>
+            </tr>
+            <tr>
+                <td>Data requirement</td>
+                <td>Works well with small datasets</td>
+                <td>Needs large datasets to excel</td>
+            </tr>
+            <tr>
+                <td>Computational cost</td>
+                <td>O(n) per layer (local operations)</td>
+                <td>O(n²) self-attention (global)</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section" id="patches">
+        <h2>2. Image Patches & Tokenization</h2>
+
+        <div class="key-concept">
+            <h3>Converting Images to Sequences</h3>
+            <p>Since transformers process sequences, ViT divides an image into <strong>fixed-size patches</strong> and treats each patch as a token.</p>
+        </div>
+
+        <h3>Patch Extraction Process</h3>
+        <div class="formula">
+<strong>For a 32×32 image with patch_size=4:</strong>
+
+Number of patches per dimension: 32 ÷ 4 = 8
+Total patches: 8 × 8 = 64 patches
+
+Each patch: 4×4×3 (RGB) = 48 values
+Flattened patch dimension: 48
+        </div>
+
+        <div class="code-block">def img_to_patch(x, patch_size, flatten_channels=True):
+    """
+    Convert image to patches
+
+    Args:
+        x: [B, C, H, W] image tensor
+        patch_size: Size of each patch (e.g., 4)
+        flatten_channels: If True, flatten to [B, num_patches, C*P*P]
+
+    Returns:
+        patches: [B, num_patches, patch_dim] if flatten_channels=True
+    """
+    b, c, h, w = x.shape
+    patch_h = h // patch_size
+    patch_w = w // patch_size
+
+    # Unfold creates patches
+    patches = x.unfold(2, patch_size, patch_size)
+                .unfold(3, patch_size, patch_size)
+
+    # Reshape: [B, C, patch_h, patch_w, patch_size, patch_size]
+    # → [B, num_patches, C, patch_size, patch_size]
+    patches = patches.contiguous().view(
+        b, c, patch_h * patch_w, patch_size, patch_size
+    )
+    patches = patches.permute(0, 2, 1, 3, 4)
+
+    if flatten_channels:
+        # Flatten to [B, num_patches, C*patch_size*patch_size]
+        patches = patches.view(b, patch_h * patch_w, -1)
+
+    return patches</div>
+
+        <h3>Linear Projection (Patch Embedding)</h3>
+        <p>After extracting patches, a <strong>linear layer</strong> projects each patch to the embedding dimension:</p>
+        <div class="formula">
+<strong>Patch Embedding:</strong>
+patch_embed = Linear(C × P × P, embed_dim)
+
+For CIFAR-10 (patch_size=4, embed_dim=256):
+Input: 3 × 4 × 4 = 48 dimensions
+Output: 256 dimensions (embedding)
+        </div>
+
+        <div class="warning">
+            <h4>Important: Positional Information</h4>
+            <p>Unlike CNNs, transformers have <strong>no inherent spatial awareness</strong>. Positional encodings must be added to tell the model where each patch came from in the original image.</p>
+        </div>
+    </div>
+
+    <div class="section" id="attention">
+        <h2>3. Self-Attention Mechanism</h2>
+
+        <div class="key-concept">
+            <h3>What is Self-Attention?</h3>
+            <p><strong>Self-attention</strong> allows each patch to attend to all other patches, learning which parts of the image are relevant to each other.</p>
+        </div>
+
+        <h3>Attention Formula</h3>
+        <div class="formula">
+<strong>Scaled Dot-Product Attention:</strong>
+
+Q = x × W_Q    (Query)
+K = x × W_K    (Key)
+V = x × W_V    (Value)
+
+Attention(Q, K, V) = softmax(Q × K^T / √d_k) × V
+
+Where:
+- d_k: dimension of key vectors (for scaling)
+- Softmax normalizes attention scores to sum to 1
+- Result: weighted combination of values
+        </div>
+
+        <h3>Multi-Head Attention</h3>
+        <p>Instead of single attention, <strong>multi-head attention</strong> uses multiple parallel attention heads:</p>
+        <div class="formula">
+<strong>Multi-Head Attention:</strong>
+
+For num_heads = 8:
+- Split embed_dim (256) into 8 heads of 32 dimensions each
+- Each head learns different relationships
+- Concatenate outputs from all heads
+- Final linear projection
+
+Benefit: Captures different types of relationships simultaneously
+        </div>
+
+        <div class="code-block">class AttentionBlock(nn.Module):
+    def __init__(self, embed_dim, hidden_dim, num_heads, dropout=0.0):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.attn = nn.MultiheadAttention(
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            batch_first=True
+        )
+        self.norm2 = nn.LayerNorm(embed_dim)
+        self.ff = nn.Sequential(
+            nn.Linear(embed_dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, embed_dim),
+            nn.Dropout(dropout),
+        )
+
+    def forward(self, x):
+        # Pre-norm architecture
+        attn_input = self.norm1(x)
+        attn_output, _ = self.attn(attn_input, attn_input, attn_input)
+        x = x + attn_output  # Residual connection
+
+        # Feed-forward network
+        ff_input = self.norm2(x)
+        x = x + self.ff(ff_input)  # Residual connection
+        return x</div>
+
+        <h3>Why Self-Attention for Vision?</h3>
+        <ul>
+            <li><strong>Long-range dependencies:</strong> Can relate distant parts of image in one step</li>
+            <li><strong>Adaptive receptive fields:</strong> Learns what to attend to based on content</li>
+            <li><strong>Interpretable:</strong> Attention maps show what the model focuses on</li>
+        </ul>
+    </div>
+
+    <div class="section" id="vit-arch">
+        <h2>4. ViT Architecture</h2>
+
+        <div class="key-concept">
+            <h3>Complete ViT Pipeline</h3>
+            <ol>
+                <li><strong>Patch Extraction:</strong> Split image into patches</li>
+                <li><strong>Linear Projection:</strong> Embed patches to embed_dim</li>
+                <li><strong>Add [CLS] Token:</strong> Prepend learnable classification token</li>
+                <li><strong>Add Positional Embeddings:</strong> Encode spatial positions</li>
+                <li><strong>Transformer Encoder:</strong> Stack of attention blocks</li>
+                <li><strong>Classification Head:</strong> MLP on [CLS] token output</li>
+            </ol>
+        </div>
+
+        <h3>[CLS] Token</h3>
+        <div class="key-concept">
+            <p>The <strong>[CLS] token</strong> is a learnable embedding prepended to the sequence. After passing through all transformer layers, its final representation is used for classification.</p>
+            <p><strong>Intuition:</strong> The [CLS] token aggregates information from all patches through self-attention, creating a global image representation.</p>
+        </div>
+
+        <h3>Positional Embeddings</h3>
+        <div class="formula">
+<strong>Learnable Positional Embeddings:</strong>
+
+pos_embedding = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
+
+- Shape: [1, 65, 256] for 64 patches + 1 CLS token
+- Learned during training (not fixed sinusoidal)
+- Added element-wise to patch embeddings
+        </div>
+
+        <div class="code-block">class VisionTransformer(nn.Module):
+    def __init__(self, embed_dim, hidden_dim, num_channels,
+                 num_heads, num_layers, num_classes,
+                 patch_size, num_patches, dropout=0.0):
+        super().__init__()
+
+        self.patch_size = patch_size
+        self.num_patches = num_patches
+        patch_dim = num_channels * patch_size * patch_size
+
+        # Patch embedding
+        self.patch_embed = nn.Linear(patch_dim, embed_dim)
+
+        # Transformer blocks
+        self.transformer = nn.ModuleList([
+            AttentionBlock(embed_dim, hidden_dim, num_heads, dropout)
+            for _ in range(num_layers)
+        ])
+
+        # Classification head
+        self.mlp_head = nn.Sequential(
+            nn.LayerNorm(embed_dim),
+            nn.Linear(embed_dim, num_classes),
+        )
+
+        # Learnable parameters
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.pos_embedding = nn.Parameter(
+            torch.zeros(1, num_patches + 1, embed_dim)
+        )
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        # Extract and embed patches
+        patches = img_to_patch(x, self.patch_size)
+        tokens = self.patch_embed(patches)
+
+        # Add CLS token
+        batch_size = tokens.size(0)
+        cls_tokens = self.cls_token.expand(batch_size, -1, -1)
+        x = torch.cat((cls_tokens, tokens), dim=1)
+
+        # Add positional encoding
+        x = x + self.pos_embedding[:, :x.size(1)]
+        x = self.dropout(x)
+
+        # Apply transformer blocks
+        for block in self.transformer:
+            x = block(x)
+
+        # Classification from CLS token
+        cls = x[:, 0]  # Extract [CLS] token
+        out = self.mlp_head(cls)
+        return out</div>
+
+        <h3>ViT Configuration for CIFAR-10</h3>
+        <table>
+            <tr>
+                <th>Parameter</th>
+                <th>Value</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td>patch_size</td>
+                <td>4</td>
+                <td>Each patch is 4×4 pixels</td>
+            </tr>
+            <tr>
+                <td>num_patches</td>
+                <td>64</td>
+                <td>32÷4 = 8, so 8×8 = 64 patches</td>
+            </tr>
+            <tr>
+                <td>embed_dim</td>
+                <td>256</td>
+                <td>Embedding dimension</td>
+            </tr>
+            <tr>
+                <td>hidden_dim</td>
+                <td>512</td>
+                <td>Feed-forward hidden size (2×embed_dim)</td>
+            </tr>
+            <tr>
+                <td>num_heads</td>
+                <td>8</td>
+                <td>Multi-head attention heads</td>
+            </tr>
+            <tr>
+                <td>num_layers</td>
+                <td>6</td>
+                <td>Number of transformer blocks</td>
+            </tr>
+            <tr>
+                <td>dropout</td>
+                <td>0.1</td>
+                <td>Dropout rate</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section" id="training">
+        <h2>5. Training Vision Transformers</h2>
+
+        <h3>Optimizer: AdamW</h3>
+        <div class="key-concept">
+            <p><strong>AdamW</strong> (Adam with decoupled weight decay) is the standard optimizer for training transformers.</p>
+            <ul>
+                <li><strong>Learning rate:</strong> 3e-4 (typical for ViT)</li>
+                <li><strong>Weight decay:</strong> 5e-5 (regularization)</li>
+                <li><strong>Gradient clipping:</strong> max_norm=1.0 (stability)</li>
+            </ul>
+        </div>
+
+        <h3>Learning Rate Schedule: Cosine Annealing</h3>
+        <div class="formula">
+<strong>Cosine Annealing LR:</strong>
+
+η_t = η_min + (η_max - η_min) × (1 + cos(πt/T)) / 2
+
+Where:
+- η_max: initial learning rate (3e-4)
+- η_min: minimum LR (typically 0)
+- t: current epoch
+- T: total epochs (T_max)
+
+Effect: Gradually decreases LR following a cosine curve
+        </div>
+
+        <div class="code-block">def configure_optimizers(self):
+    optimizer = optim.AdamW(
+        self.parameters(),
+        lr=self.lr,
+        weight_decay=self.weight_decay
+    )
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(
+        optimizer,
+        T_max=self.max_epochs
+    )
+    return {
+        "optimizer": optimizer,
+        "lr_scheduler": scheduler,
+    }</div>
+
+        <h3>Data Augmentation for CIFAR-10</h3>
+        <div class="code-block">train_transform = transforms.Compose([
+    transforms.RandomCrop(32, padding=4),  # Random crop with padding
+    transforms.RandomHorizontalFlip(),      # 50% chance horizontal flip
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=(0.4914, 0.4822, 0.4465),  # CIFAR-10 mean
+        std=(0.2023, 0.1994, 0.2010)     # CIFAR-10 std
+    ),
+])</div>
+
+        <h3>Training Tips</h3>
+        <div class="tip">
+            <ul>
+                <li><strong>Warm-up:</strong> Gradually increase LR for first few epochs (optional)</li>
+                <li><strong>Gradient clipping:</strong> Prevents exploding gradients (max_norm=1.0)</li>
+                <li><strong>LayerNorm:</strong> Use Pre-LN (normalize before attention) for stability</li>
+                <li><strong>Initialization:</strong> Truncated normal for positional embeddings</li>
+            </ul>
+        </div>
+
+        <h3>Expected Performance on CIFAR-10</h3>
+        <table>
+            <tr>
+                <th>Model</th>
+                <th>Test Accuracy</th>
+                <th>Training Time</th>
+            </tr>
+            <tr>
+                <td>ViT-Small (from scratch)</td>
+                <td>~75-80%</td>
+                <td>10 epochs</td>
+            </tr>
+            <tr>
+                <td>CNN (Assignment 3)</td>
+                <td>~85-90%</td>
+                <td>Comparable</td>
+            </tr>
+            <tr>
+                <td>Pre-trained ViT (fine-tuned)</td>
+                <td>~90-95%</td>
+                <td>Much faster</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section" id="comparison">
+        <h2>6. ViT vs CNN Comparison</h2>
+
+        <div class="key-concept">
+            <h3>Why Does CNN Outperform ViT on Small Datasets?</h3>
+            <p><strong>Inductive biases</strong> built into CNNs (locality, translation equivariance) help with small datasets. ViT needs to learn these patterns from data.</p>
+        </div>
+
+        <h3>Detailed Comparison</h3>
+        <table>
+            <tr>
+                <th>Aspect</th>
+                <th>CNN</th>
+                <th>ViT (from scratch)</th>
+                <th>ViT (pre-trained)</th>
+            </tr>
+            <tr>
+                <td>Small dataset (<50k)</td>
+                <td>Excellent</td>
+                <td>Mediocre</td>
+                <td>Excellent</td>
+            </tr>
+            <tr>
+                <td>Large dataset (>1M)</td>
+                <td>Good</td>
+                <td>Excellent</td>
+                <td>Excellent</td>
+            </tr>
+            <tr>
+                <td>Training time</td>
+                <td>Fast</td>
+                <td>Slow (quadratic attention)</td>
+                <td>Very fast (fine-tuning)</td>
+            </tr>
+            <tr>
+                <td>Transfer learning</td>
+                <td>Good</td>
+                <td>Excellent</td>
+                <td>Excellent</td>
+            </tr>
+            <tr>
+                <td>Interpretability</td>
+                <td>Moderate (feature maps)</td>
+                <td>Good (attention maps)</td>
+                <td>Good (attention maps)</td>
+            </tr>
+            <tr>
+                <td>Parameters</td>
+                <td>Fewer</td>
+                <td>More</td>
+                <td>More</td>
+            </tr>
+        </table>
+
+        <div class="warning">
+            <h4>Key Insight from Assignment</h4>
+            <p>On CIFAR-10 (50k training samples), CNN achieves <strong>~85-90%</strong> accuracy, while ViT from scratch achieves <strong>~75-80%</strong>. This demonstrates the data-hungry nature of transformers.</p>
+            <p>However, a <strong>pre-trained ViT</strong> fine-tuned on CIFAR-10 can match or exceed CNN performance!</p>
+        </div>
+    </div>
+
+    <div class="section" id="lora">
+        <h2>7. LoRA (Low-Rank Adaptation)</h2>
+
+        <div class="key-concept">
+            <h3>What is LoRA?</h3>
+            <p><strong>LoRA (Low-Rank Adaptation)</strong> is a parameter-efficient fine-tuning technique that freezes pre-trained weights and injects trainable low-rank decomposition matrices.</p>
+        </div>
+
+        <h3>LoRA Concept</h3>
+        <div class="formula">
+<strong>Standard Fine-tuning:</strong>
+W_new = W_pretrained + ΔW
+All parameters updated → expensive!
+
+<strong>LoRA:</strong>
+W_new = W_pretrained + B × A
+Where:
+- W: [d × k] original weight matrix (FROZEN)
+- A: [r × k] trainable matrix
+- B: [d × r] trainable matrix
+- r: rank (r << min(d, k))
+
+Trainable parameters: r(d + k) instead of d×k
+        </div>
+
+        <h3>LoRA Benefits</h3>
+        <ul>
+            <li><strong>Memory efficient:</strong> Only store small A, B matrices per layer</li>
+            <li><strong>Fast training:</strong> Fewer parameters to update</li>
+            <li><strong>Modular:</strong> Can swap different LoRA adapters for different tasks</li>
+            <li><strong>No inference overhead:</strong> Merge A×B into W at deployment</li>
+        </ul>
+
+        <h3>LoRA Configuration</h3>
+        <div class="code-block">from peft import LoraConfig, get_peft_model
+
+lora_config = LoraConfig(
+    r=16,                    # Rank (bottleneck dimension)
+    lora_alpha=32,           # Scaling factor (typically 2×r)
+    lora_dropout=0.05,       # Dropout for regularization
+    bias="none",             # Don't adapt bias terms
+    target_modules=[         # Which layers to adapt
+        "attn.c_attn",       # Query, key, value projections
+        "attn.c_proj",       # Output projection
+        "mlp.c_fc",          # MLP first layer
+        "mlp.c_proj",        # MLP second layer
+    ],
+    task_type="CAUSAL_LM",   # Task type
+)
+
+# Apply LoRA to model
+model.decoder = get_peft_model(model.decoder, lora_config)
+model.decoder.print_trainable_parameters()
+# Output: trainable params: ~0.5M / total: ~100M (0.5%)</div>
+
+        <h3>LoRA for Image Captioning (Assignment Task)</h3>
+        <p>In Assignment 4, LoRA is applied to a <strong>ViT-GPT2</strong> image captioning model:</p>
+        <ul>
+            <li><strong>Encoder (ViT):</strong> FROZEN - extracts image features</li>
+            <li><strong>Decoder (GPT-2):</strong> LoRA adapters added - generates captions</li>
+            <li><strong>Dataset:</strong> CIFAR-10 images with captions like "A photo of a dog"</li>
+            <li><strong>Result:</strong> Model learns to caption CIFAR-10 classes with <1% of parameters</li>
+        </ul>
+
+        <div class="tip">
+            <h4>Choosing Rank (r)</h4>
+            <ul>
+                <li><strong>r = 4-8:</strong> Very parameter-efficient, may underfit</li>
+                <li><strong>r = 16-32:</strong> Good balance (common choice)</li>
+                <li><strong>r = 64+:</strong> More capacity, diminishing returns</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section" id="clip">
+        <h2>8. CLIP & Zero-Shot Learning</h2>
+
+        <div class="key-concept">
+            <h3>What is CLIP?</h3>
+            <p><strong>CLIP (Contrastive Language-Image Pre-training)</strong> learns to match images with text descriptions by training on 400M image-text pairs from the internet.</p>
+        </div>
+
+        <h3>CLIP Architecture</h3>
+        <ul>
+            <li><strong>Image Encoder:</strong> ViT or ResNet extracts image features</li>
+            <li><strong>Text Encoder:</strong> Transformer encodes text descriptions</li>
+            <li><strong>Training:</strong> Contrastive loss - match correct image-text pairs</li>
+        </ul>
+
+        <h3>Zero-Shot Classification with CLIP</h3>
+        <div class="formula">
+<strong>Zero-Shot Inference:</strong>
+
+1. Encode class names as text:
+   text_features = encode_text(["a dog", "a cat", ...])
+
+2. Encode test image:
+   image_features = encode_image(image)
+
+3. Compute similarity (cosine):
+   similarity = image_features @ text_features.T
+
+4. Predict class with highest similarity:
+   prediction = argmax(similarity)
+        </div>
+
+        <div class="code-block">import clip
+
+# Load pre-trained CLIP
+model, preprocess = clip.load("ViT-B/32", device=device)
+
+# Class prompts
+class_names = ["airplane", "automobile", "bird", ...]
+text_inputs = clip.tokenize(class_names).to(device)
+
+# Encode text
+text_features = model.encode_text(text_inputs)
+text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
+# Zero-shot prediction
+def predict(image):
+    image_input = preprocess(image).unsqueeze(0).to(device)
+    image_features = model.encode_image(image_input)
+    image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+
+    # Cosine similarity
+    logits = 100.0 * image_features @ text_features.T
+    return logits.argmax(dim=-1)</div>
+
+        <h3>CLIP Performance on CIFAR-10</h3>
+        <div class="key-concept">
+            <p><strong>Zero-shot CLIP</strong> (no training on CIFAR-10) achieves <strong>~88-90%</strong> accuracy on CIFAR-10 test set!</p>
+            <p>This demonstrates the power of large-scale pre-training and vision-language alignment.</p>
+        </div>
+    </div>
+
+    <div class="section" id="implementation">
+        <h2>9. Implementation Details</h2>
+
+        <h3>PyTorch Lightning for Training</h3>
+        <p>Assignment 4 uses <strong>PyTorch Lightning</strong> for clean, modular training code:</p>
+        <div class="code-block">class ViT(pl.LightningModule):
+    def __init__(self, model_kwargs, lr, weight_decay, max_epochs):
+        super().__init__()
+        self.model = VisionTransformer(**model_kwargs)
+        self.criterion = nn.CrossEntropyLoss()
+        self.train_acc = MulticlassAccuracy(num_classes=10)
+        self.val_acc = MulticlassAccuracy(num_classes=10)
+
+    def forward(self, x):
+        return self.model(x)
+
+    def training_step(self, batch, batch_idx):
+        images, targets = batch
+        logits = self(images)
+        loss = self.criterion(logits, targets)
+        preds = logits.argmax(dim=1)
+        self.train_acc(preds, targets)
+        self.log("train_loss", loss)
+        self.log("train_acc", self.train_acc)
+        return loss
+
+    def configure_optimizers(self):
+        optimizer = optim.AdamW(
+            self.parameters(),
+            lr=self.lr,
+            weight_decay=self.weight_decay
+        )
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=self.max_epochs
+        )
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}</div>
+
+        <h3>Training LoRA on Custom Dataset</h3>
+        <div class="code-block">def finetune_lora(model, dataloader, epochs, max_steps,
+                  optimizer, scaler, grad_accum=1):
+    global_step = 0
+    for epoch in range(epochs):
+        for step, batch in enumerate(dataloader):
+            pixel_values, input_ids, attention_mask = batch
+
+            # Mixed precision forward pass
+            with torch.cuda.amp.autocast(enabled=True):
+                outputs = model(
+                    pixel_values=pixel_values,
+                    labels=input_ids,
+                    decoder_attention_mask=attention_mask
+                )
+                loss = outputs.loss / grad_accum
+
+            # Backward with gradient scaling
+            scaler.scale(loss).backward()
+
+            if (step + 1) % grad_accum == 0:
+                scaler.unscale_(optimizer)
+                clip_grad_norm_(model.decoder.parameters(), max_norm=1.0)
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad()
+
+            global_step += 1
+            if global_step >= max_steps:
+                break</div>
+
+        <h3>Key Implementation Choices</h3>
+        <table>
+            <tr>
+                <th>Component</th>
+                <th>Choice</th>
+                <th>Reason</th>
+            </tr>
+            <tr>
+                <td>Optimizer</td>
+                <td>AdamW</td>
+                <td>Standard for transformers, decoupled weight decay</td>
+            </tr>
+            <tr>
+                <td>LR Schedule</td>
+                <td>Cosine Annealing</td>
+                <td>Smooth decay, good for transformers</td>
+            </tr>
+            <tr>
+                <td>Normalization</td>
+                <td>Pre-LN (LayerNorm before attention)</td>
+                <td>More stable training than Post-LN</td>
+            </tr>
+            <tr>
+                <td>Activation</td>
+                <td>GELU</td>
+                <td>Standard for transformers (smoother than ReLU)</td>
+            </tr>
+            <tr>
+                <td>Gradient Clip</td>
+                <td>1.0</td>
+                <td>Prevents exploding gradients</td>
+            </tr>
+            <tr>
+                <td>Mixed Precision</td>
+                <td>Enabled (FP16)</td>
+                <td>Faster training, lower memory</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Summary: Key Takeaways</h2>
+
+        <div class="key-concept">
+            <h3>Vision Transformers</h3>
+            <ul>
+                <li>Apply transformers to vision by treating image patches as tokens</li>
+                <li>Global receptive field from layer 1 via self-attention</li>
+                <li>Data-hungry: need large datasets or pre-training to excel</li>
+                <li>Strong transfer learning capabilities</li>
+            </ul>
+        </div>
+
+        <div class="key-concept">
+            <h3>LoRA (Low-Rank Adaptation)</h3>
+            <ul>
+                <li>Parameter-efficient fine-tuning: train <1% of parameters</li>
+                <li>Inject low-rank matrices A, B instead of full updates</li>
+                <li>Modular: swap adapters for different tasks</li>
+                <li>Ideal for adapting large pre-trained models</li>
+            </ul>
+        </div>
+
+        <div class="key-concept">
+            <h3>CLIP</h3>
+            <ul>
+                <li>Vision-language model trained on 400M image-text pairs</li>
+                <li>Zero-shot classification: no training on target dataset</li>
+                <li>Achieves ~90% on CIFAR-10 without seeing any CIFAR-10 training data</li>
+                <li>Demonstrates power of large-scale pre-training</li>
+            </ul>
+        </div>
+
+        <div class="key-concept">
+            <h3>Assignment Results</h3>
+            <ul>
+                <li><strong>ViT from scratch:</strong> ~75-80% on CIFAR-10</li>
+                <li><strong>CNN (Assignment 3):</strong> ~85-90% on CIFAR-10</li>
+                <li><strong>Pre-trained ViT:</strong> ~90-95% on CIFAR-10</li>
+                <li><strong>CLIP zero-shot:</strong> ~88-90% on CIFAR-10</li>
+                <li><strong>LoRA captioning:</strong> Successfully adapted with <0.5% trainable parameters</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer style="margin-top: 50px; padding: 20px; background-color: #f5f5f5; border-radius: 4px; text-align: center; border: 1px solid #dddddd;">
+        <p><strong>CMPUT 328 Assignment 4 Study Guide</strong></p>
+        <p>Vision Transformers, LoRA, and CLIP</p>
+        <p>Generated for comprehensive review and exam preparation</p>
+    </footer>
+
+    <div class="action-buttons">
+        <button class="action-button" onclick="exportToPDF()">EXPORT AS PDF</button>
+        <a href="data/vit/vision_transformers_lora.apkg" download class="action-button">DOWNLOAD ANKI DECK</a>
+    </div>
+
+    <script>
+        function exportToPDF() {
+            window.print();
+        }
+    </script>
+<script src="../../js/persistent-player.js" defer></script>
+</body>
+</html>

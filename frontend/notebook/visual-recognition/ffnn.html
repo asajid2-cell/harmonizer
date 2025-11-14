@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FULLY CONNECTED NEURAL NETWORKS - CMPUT 328</title>
+    <style>
+*{scrollbar-width:none!important;-ms-overflow-style:none!important}
+*::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+*::-webkit-scrollbar-track{display:none!important}
+*::-webkit-scrollbar-thumb{display:none!important}
+html::-webkit-scrollbar{display:none!important;width:0!important}
+html{scrollbar-width:none!important;-ms-overflow-style:none!important}
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', Consolas, Monaco, monospace;
+            background-color: #000000;
+            background-image: radial-gradient(circle, #ffffff 1px, transparent 1px), radial-gradient(circle, #ffffff 1px, transparent 1px);
+            background-size: 50px 50px, 80px 80px;
+            background-position: 0 0, 40px 40px;
+            background-attachment: fixed;
+            color: #ffffff;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            text-align: left;
+            margin: 30px 0 15px 0;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            border-bottom: 3px solid #ffffff;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            font-size: 2em;
+            border-bottom: 2px solid #ffffff;
+            padding-bottom: 8px;
+            margin-top: 50px;
+        }
+
+        h3 {
+            font-size: 1.5em;
+            border-left: 5px solid #ffffff;
+            padding-left: 15px;
+        }
+
+        h4 {
+            font-size: 1.2em;
+            text-decoration: underline;
+        }
+
+        p {
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 40px;
+            text-align: left;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        code {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', Consolas, Monaco, monospace;
+            border: 1px solid #333333;
+        }
+
+        pre {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid #333333;
+            text-align: left;
+            font-size: 0.9em;
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: #0a0a0a;
+        }
+
+        th, td {
+            border: 1px solid #ffffff;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #1a1a1a;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #0f0f0f;
+        }
+
+        .toc {
+            background-color: #1a1a1a;
+            border: 2px solid #ffffff;
+            padding: 20px;
+            margin: 30px 0;
+        }
+
+        .toc h2 {
+            margin-top: 0;
+            border: none;
+        }
+
+        .toc ul {
+            list-style-type: none;
+            padding-left: 20px;
+        }
+
+        .toc a {
+            color: #ffffff;
+            text-decoration: none;
+            border-bottom: 1px dotted #ffffff;
+        }
+
+        .toc a:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .section {
+            margin: 40px 0;
+            padding: 20px 0;
+        }
+
+        .highlight {
+            background-color: #1a1a1a;
+            border-left: 5px solid #ffffff;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .formula {
+            text-align: center;
+            font-size: 1.2em;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #1a1a1a;
+            border: 1px solid #ffffff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .important {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .note {
+            background-color: #1a1a1a;
+            border: 2px solid #ffffff;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .note::before {
+            content: "NOTE: ";
+            font-weight: bold;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #ffffff;
+            margin: 40px 0;
+        }
+
+        a {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+
+        a:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 30px;
+            border: 3px solid #ffffff;
+            background-color: #0a0a0a;
+        }
+
+        .header h1 {
+            border: none;
+            margin: 0;
+            font-size: 2.2em;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .diagram {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            border: 1px solid #ffffff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .ascii-art {
+            display: inline-block;
+            text-align: left;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            margin: 50px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .action-button {
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            padding: 15px 25px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 1em;
+            cursor: pointer;
+            min-width: 220px;
+            text-align: center;
+        }
+
+        .action-button:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .action-button:active {
+            transform: translateY(1px);
+        }
+
+        @media print {
+            .action-buttons {
+                display: none;
+            }
+            body {
+                background-color: #ffffff;
+                color: #000000;
+            }
+            .header {
+                background-color: #ffffff;
+                border: 3px solid #000000;
+            }
+            .toc {
+                background-color: #ffffff;
+                border: 2px solid #000000;
+            }
+            .highlight, .note, .diagram {
+                background-color: #f5f5f5;
+                border: 1px solid #000000;
+            }
+            code, pre {
+                background-color: #f5f5f5;
+                color: #000000;
+                border: 1px solid #000000;
+            }
+            table {
+                background-color: #ffffff;
+            }
+            th {
+                background-color: #e0e0e0;
+            }
+            tr:nth-child(even) {
+                background-color: #f5f5f5;
+            }
+            a {
+                color: #000000;
+            }
+        }
+    
+        .nav-back {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            padding: 10px 16px;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-size: 0.85rem;
+            z-index: 1000;
+            transition: all 0.2s ease;
+        }
+
+        .nav-back:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+    </style>
+</head>
+<body>
+    <a href="./" class="nav-back">&#8592; Back to Topics</a>
+    <div class="header">
+        <h1>FULLY CONNECTED NEURAL NETWORKS</h1>
+        <p>FOR CIFAR-10 CLASSIFICATION</p>
+        <p>CMPUT 328 - ASSIGNMENT 2 STUDY GUIDE</p>
+    </div>
+
+    <div class="toc">
+        <h2>TABLE OF CONTENTS</h2>
+        <ul>
+            <li><a href="#section1">1. Introduction to Feedforward Neural Networks</a></li>
+            <li><a href="#section2">2. CIFAR-10 Dataset</a></li>
+            <li><a href="#section3">3. Neural Network Architecture</a></li>
+            <li><a href="#section4">4. Forward Pass: Matrix Operations</a></li>
+            <li><a href="#section5">5. Activation Functions</a></li>
+            <li><a href="#section6">6. Loss Functions</a></li>
+            <li><a href="#section7">7. Backpropagation Algorithm</a></li>
+            <li><a href="#section8">8. Gradient Descent Optimization</a></li>
+            <li><a href="#section9">9. Training Process</a></li>
+            <li><a href="#section10">10. Evaluation Metrics</a></li>
+            <li><a href="#section11">11. Confusion Matrix Analysis</a></li>
+            <li><a href="#section12">12. Hyperparameter Tuning</a></li>
+            <li><a href="#section13">13. Common Pitfalls and Solutions</a></li>
+            <li><a href="#section14">14. Implementation Guide</a></li>
+            <li><a href="#section15">15. Assignment Requirements Summary</a></li>
+        </ul>
+    </div>
+
+    <div class="section" id="section1">
+        <h2>1. INTRODUCTION TO FEEDFORWARD NEURAL NETWORKS</h2>
+
+        <h3>What is a Feedforward Neural Network?</h3>
+        <p>A <span class="important">Feedforward Neural Network (FFNN)</span>, also called a <span class="important">Fully Connected Neural Network</span>, is the simplest type of artificial neural network where information flows in one direction: from input to output.</p>
+
+        <h4>Key Characteristics</h4>
+        <ul>
+            <li><strong>No cycles</strong>: Data flows forward through layers without loops</li>
+            <li><strong>Fully connected</strong>: Every neuron in layer i connects to every neuron in layer i+1</li>
+            <li><strong>Universal function approximators</strong>: Can approximate any continuous function given enough neurons</li>
+            <li><strong>Directed acyclic graph</strong>: Can be represented as a computational graph</li>
+        </ul>
+
+        <h3>Why Use Neural Networks for Images?</h3>
+        <p>Neural networks can learn <strong>hierarchical representations</strong> of data:</p>
+        <ul>
+            <li><strong>Input layer</strong>: Raw pixel values</li>
+            <li><strong>Hidden layers</strong>: Learn features (edges → shapes → objects)</li>
+            <li><strong>Output layer</strong>: Class predictions</li>
+        </ul>
+
+        <h3>Mathematical Representation</h3>
+        <p>For a simple FFNN with one hidden layer:</p>
+
+        <pre><code>h = f(W₁x + b₁)
+y = g(W₂h + b₂)</code></pre>
+
+        <p>Where:</p>
+        <ul>
+            <li><code>x</code> is the input vector</li>
+            <li><code>W₁, b₁</code> are weights and biases for hidden layer</li>
+            <li><code>f</code> is a non-linear activation function</li>
+            <li><code>h</code> is the hidden layer output</li>
+            <li><code>W₂, b₂</code> are weights and biases for output layer</li>
+            <li><code>g</code> is the output activation function</li>
+            <li><code>y</code> is the final prediction</li>
+        </ul>
+    </div>
+
+    <div class="section" id="section2">
+        <h2>2. CIFAR-10 DATASET</h2>
+
+        <h3>Dataset Overview</h3>
+        <p><span class="important">CIFAR-10</span> is a benchmark dataset for image classification consisting of 60,000 32×32 color images in 10 classes.</p>
+
+        <h4>Dataset Statistics</h4>
+        <pre><code>Total images:     60,000
+Training images:  50,000
+Test images:      10,000
+Image size:       32 × 32 × 3 (RGB)
+Number of classes: 10
+Images per class: 6,000</code></pre>
+
+        <h3>Class Labels</h3>
+        <p>The 10 classes are:</p>
+        <pre><code>0: airplane
+1: automobile
+2: bird
+3: cat
+4: deer
+5: dog
+6: frog
+7: horse
+8: ship
+9: truck</code></pre>
+
+        <h3>Data Splits</h3>
+        <p>For proper evaluation, split the data:</p>
+        <pre><code>Training set:   45,000 images (90% of 50,000)
+Validation set:  5,000 images (10% of 50,000)
+Test set:       10,000 images (held out)</code></pre>
+
+        <div class="important note">
+            Use the validation set for hyperparameter tuning, NOT the test set!
+        </div>
+
+        <h3>Normalization</h3>
+        <p>CIFAR-10 normalization values (empirically computed):</p>
+        <pre><code>mean = (0.4914, 0.4822, 0.4465)  # RGB channels
+std  = (0.2470, 0.2435, 0.2616)  # RGB channels</code></pre>
+
+        <p>Normalization formula:</p>
+        <div class="formula">
+            normalized_pixel = (pixel - mean) / std
+        </div>
+
+        <p>This standardizes inputs to have mean ≈ 0 and std ≈ 1, which helps with:</p>
+        <ul>
+            <li>Faster convergence</li>
+            <li>More stable gradients</li>
+            <li>Better generalization</li>
+        </ul>
+
+        <h3>Loading CIFAR-10 in PyTorch</h3>
+        <pre><code>from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, random_split
+
+# Define transforms
+transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465),
+                         (0.2470, 0.2435, 0.2616))
+])
+
+# Load datasets
+train_val_ds = datasets.CIFAR10(root='./data', train=True,
+                                 download=True, transform=transform)
+test_ds = datasets.CIFAR10(root='./data', train=False,
+                           download=True, transform=transform)
+
+# Split train into train/val
+train_ds, val_ds = random_split(train_val_ds, [45000, 5000],
+                                 generator=torch.Generator().manual_seed(42))
+
+# Create data loaders
+train_loader = DataLoader(train_ds, batch_size=256, shuffle=True)
+val_loader = DataLoader(val_ds, batch_size=256, shuffle=False)
+test_loader = DataLoader(test_ds, batch_size=256, shuffle=False)</code></pre>
+    </div>
+
+    <div class="section" id="section3">
+        <h2>3. NEURAL NETWORK ARCHITECTURE</h2>
+
+        <h3>FFNN Architecture for CIFAR-10</h3>
+        <p>A typical FFNN for CIFAR-10:</p>
+        <pre><code>Input Layer:    3072 neurons (32×32×3 flattened)
+Hidden Layer 1:  512 neurons + ReLU
+Hidden Layer 2:  256 neurons + ReLU
+Output Layer:     10 neurons (one per class)</code></pre>
+
+        <h3>Architecture Diagram</h3>
+        <div class="diagram">
+            <pre class="ascii-art">┌──────────────┐
+│ Input (3072) │
+└──────┬───────┘
+       │ W₁ (3072×512)
+       ↓
+┌──────────────┐
+│ Hidden (512) │ + ReLU
+└──────┬───────┘
+       │ W₂ (512×256)
+       ↓
+┌──────────────┐
+│ Hidden (256) │ + ReLU
+└──────┬───────┘
+       │ W₃ (256×10)
+       ↓
+┌──────────────┐
+│ Output (10)  │ + Softmax
+└──────────────┘</pre>
+        </div>
+
+        <h3>Why Flatten Images?</h3>
+        <p>FFNNs require <strong>1D input vectors</strong>:</p>
+        <pre><code>Original shape:  (32, 32, 3)
+Flattened shape: (3072,)
+
+Calculation: 32 × 32 × 3 = 3072</code></pre>
+
+        <p><strong>Note</strong>: This destroys spatial structure, which is why CNNs (Assignment 3) work better for images!</p>
+
+        <h3>Parameter Count</h3>
+        <p>For the architecture above:</p>
+        <pre><code>Layer 1: (3072 × 512) + 512 = 1,573,376
+Layer 2: (512 × 256) + 256  = 131,328
+Layer 3: (256 × 10) + 10    = 2,570
+
+Total parameters: 1,707,274</code></pre>
+
+        <p>Formula: For a layer with <code>n_in</code> inputs and <code>n_out</code> outputs:</p>
+        <div class="formula">
+            parameters = (n_in × n_out) + n_out = n_out × (n_in + 1)
+        </div>
+    </div>
+
+    <div class="section" id="section4">
+        <h2>4. FORWARD PASS: MATRIX OPERATIONS</h2>
+
+        <h3>Matrix-Vector Multiplication</h3>
+        <p>For a batch of <code>B</code> images, each with <code>D</code> features:</p>
+        <pre><code>Input X:     B × D matrix
+Weights W:   D × H matrix
+Bias b:      H vector (broadcasted)
+Output Z:    B × H matrix</code></pre>
+
+        <p>Forward pass equation:</p>
+        <div class="formula">
+            Z = XW + b
+        </div>
+
+        <p>Where:</p>
+        <ul>
+            <li>Each row of X is one image (flattened)</li>
+            <li>Matrix multiplication: (B×D) @ (D×H) = (B×H)</li>
+            <li>Broadcasting adds b to each row</li>
+        </ul>
+
+        <h3>Example Calculation</h3>
+        <pre><code># Input: batch of 256 images, each 3072 pixels
+X = torch.randn(256, 3072)  # 256×3072
+
+# Layer 1 weights
+W1 = torch.randn(3072, 512)  # 3072×512
+b1 = torch.randn(512)         # 512
+
+# Forward pass
+Z1 = X @ W1 + b1  # (256×3072) @ (3072×512) = 256×512</code></pre>
+
+        <h3>Computational Graph</h3>
+        <p>The full forward pass:</p>
+        <pre><code>X (256×3072)
+    ↓ × W₁
+Z₁ (256×512)
+    ↓ + b₁
+Z₂ (256×512)
+    ↓ ReLU
+H₁ (256×512)
+    ↓ × W₂
+Z₃ (256×256)
+    ↓ + b₂
+Z₄ (256×256)
+    ↓ ReLU
+H₂ (256×256)
+    ↓ × W₃
+Z₅ (256×10)
+    ↓ + b₃
+Z₆ (256×10)
+    ↓ Softmax
+Ŷ (256×10)</code></pre>
+    </div>
+
+    <div class="section" id="section5">
+        <h2>5. ACTIVATION FUNCTIONS</h2>
+
+        <h3>Why Non-Linear Activations?</h3>
+        <p>Without non-linearity, stacking layers is pointless:</p>
+        <pre><code>Layer 1: h₁ = W₁x + b₁
+Layer 2: y = W₂h₁ + b₂
+       = W₂(W₁x + b₁) + b₂
+       = (W₂W₁)x + (W₂b₁ + b₂)
+       = W'x + b'  ← Still linear!</code></pre>
+
+        <p>Non-linear activations allow networks to learn complex patterns.</p>
+
+        <h3>ReLU (Rectified Linear Unit)</h3>
+        <p><span class="important">Most common activation function for hidden layers.</span></p>
+
+        <p>Formula:</p>
+        <div class="formula">
+            ReLU(x) = max(0, x)
+        </div>
+
+        <h4>Properties</h4>
+        <ul>
+            <li><strong>Simple</strong>: Computationally cheap</li>
+            <li><strong>Non-saturating</strong>: No vanishing gradient for x > 0</li>
+            <li><strong>Sparse activations</strong>: About 50% of neurons are 0</li>
+            <li><strong>Dead neurons</strong>: If neuron always outputs 0, it stops learning</li>
+        </ul>
+
+        <p>Derivative:</p>
+        <div class="formula">
+            ReLU'(x) = 1 if x > 0, else 0
+        </div>
+
+        <p>PyTorch implementation:</p>
+        <pre><code>import torch.nn.functional as F
+
+# Option 1: Functional
+output = F.relu(input)
+
+# Option 2: Module
+relu = nn.ReLU()
+output = relu(input)</code></pre>
+
+        <h3>Sigmoid</h3>
+        <p><strong>Rarely used in hidden layers, sometimes for output.</strong></p>
+
+        <p>Formula:</p>
+        <div class="formula">
+            σ(x) = 1 / (1 + e⁻ˣ)
+        </div>
+
+        <h4>Properties</h4>
+        <ul>
+            <li><strong>Output range</strong>: (0, 1)</li>
+            <li><strong>Saturates</strong>: Gradients → 0 for large |x|</li>
+            <li><strong>Not zero-centered</strong>: Causes zig-zagging during optimization</li>
+        </ul>
+
+        <p>Derivative:</p>
+        <div class="formula">
+            σ'(x) = σ(x)(1 - σ(x))
+        </div>
+
+        <h3>Softmax (Output Layer)</h3>
+        <p><strong>Used for multi-class classification.</strong></p>
+
+        <p>Formula:</p>
+        <div class="formula">
+            Softmax(zᵢ) = e^zᵢ / Σⱼ e^zⱼ
+        </div>
+
+        <h4>Properties</h4>
+        <ul>
+            <li><strong>Outputs</strong>: Probabilities that sum to 1</li>
+            <li><strong>Differentiable</strong>: Smooth gradients</li>
+            <li><strong>Temperature</strong>: Can adjust confidence with scaling</li>
+        </ul>
+
+        <p>PyTorch implementation:</p>
+        <pre><code># Softmax is typically combined with CrossEntropyLoss
+# Don't apply softmax manually before nn.CrossEntropyLoss!
+
+logits = model(x)  # Raw scores
+loss = nn.CrossEntropyLoss()(logits, targets)
+
+# For inference only:
+probs = F.softmax(logits, dim=1)</code></pre>
+    </div>
+
+    <div class="section" id="section6">
+        <h2>6. LOSS FUNCTIONS</h2>
+
+        <h3>Cross-Entropy Loss</h3>
+        <p><strong>Standard loss for classification.</strong></p>
+
+        <p>Formula:</p>
+        <div class="formula">
+            L = -Σᵢ yᵢ log(ŷᵢ)
+        </div>
+
+        <p>Where:</p>
+        <ul>
+            <li><code>y</code> is the true label (one-hot encoded)</li>
+            <li><code>ŷ</code> is the predicted probability</li>
+        </ul>
+
+        <p>For a single correct class c:</p>
+        <div class="formula">
+            L = -log(ŷ_c)
+        </div>
+
+        <h4>Properties</h4>
+        <ul>
+            <li><strong>Penalizes confident wrong predictions</strong> more than uncertain ones</li>
+            <li><strong>Works well with softmax</strong>: Smooth gradients</li>
+            <li><strong>Probabilistic interpretation</strong>: Maximizes likelihood</li>
+        </ul>
+
+        <h3>Cross-Entropy + Softmax Gradient</h3>
+        <p><strong>Beautiful property: The gradient simplifies!</strong></p>
+
+        <div class="formula">
+            ∂L/∂z = ŷ - y
+        </div>
+
+        <p>Where <code>z</code> is the logits (pre-softmax scores).</p>
+
+        <h3>Mean Squared Error (MSE)</h3>
+        <p><strong>Not recommended for classification, but useful to understand.</strong></p>
+
+        <p>Formula:</p>
+        <div class="formula">
+            L = (1/2) Σᵢ (ŷᵢ - yᵢ)²
+        </div>
+
+        <p>Gradient:</p>
+        <div class="formula">
+            ∂L/∂ŷ = ŷ - y
+        </div>
+
+        <p>Why not for classification?</p>
+        <ul>
+            <li>Cross-entropy has better gradients for probabilities</li>
+            <li>MSE doesn't penalize confident wrong predictions enough</li>
+        </ul>
+
+        <h3>PyTorch Implementation</h3>
+        <pre><code># For classification (includes softmax internally)
+criterion = nn.CrossEntropyLoss()
+
+# Model outputs logits (raw scores), NOT probabilities!
+logits = model(images)  # Shape: (batch_size, 10)
+targets = labels         # Shape: (batch_size,) with values 0-9
+
+loss = criterion(logits, targets)</code></pre>
+
+        <div class="important note">
+            Don't apply softmax before CrossEntropyLoss!
+        </div>
+    </div>
+
+    <div class="section" id="section7">
+        <h2>7. BACKPROPAGATION ALGORITHM</h2>
+
+        <h3>What is Backpropagation?</h3>
+        <p><span class="important">Backpropagation</span> is an algorithm to compute gradients of the loss with respect to all parameters using the <strong>chain rule</strong>.</p>
+
+        <p><strong>Goal</strong>: Compute <code>∂L/∂W</code> and <code>∂L/∂b</code> for all weights and biases.</p>
+
+        <h3>Chain Rule Review</h3>
+        <p>For composite functions:</p>
+        <pre><code>If z = f(g(x)), then:
+dz/dx = (dz/dg) × (dg/dx)</code></pre>
+
+        <p>For neural networks with many layers:</p>
+        <pre><code>∂L/∂W₁ = (∂L/∂Z₆) × (∂Z₆/∂Z₅) × ... × (∂Z₂/∂W₁)</code></pre>
+
+        <h3>Computational Graph Approach</h3>
+        <p>Forward pass (left to right):</p>
+        <pre><code>X → Z₁ → H₁ → Z₂ → H₂ → ... → Ŷ → L</code></pre>
+
+        <p>Backward pass (right to left):</p>
+        <pre><code>∂L/∂L ← ∂L/∂Ŷ ← ... ← ∂L/∂H₂ ← ∂L/∂Z₂ ← ∂L/∂H₁ ← ∂L/∂Z₁ ← ∂L/∂X
+       │              │              │              │
+       └─ ∂L/∂W₃     └─ ∂L/∂W₂     └─ ∂L/∂W₁     └─ (not needed)</code></pre>
+
+        <h3>Backprop Formulas for One Layer</h3>
+        <p>For a layer: <code>Z = f(XW + b)</code></p>
+
+        <p><strong>Given</strong>: <code>∂L/∂Z</code> (gradient from next layer)</p>
+
+        <p><strong>Compute</strong>:</p>
+        <pre><code>∂L/∂X = [f'(XW + b) ⊙ ∂L/∂Z] Wᵀ
+∂L/∂W = Xᵀ [f'(XW + b) ⊙ ∂L/∂Z]
+∂L/∂b = Σᵢ [f'(XW + b) ⊙ ∂L/∂Z]ᵢ</code></pre>
+
+        <p>Where:</p>
+        <ul>
+            <li><code>⊙</code> denotes element-wise multiplication</li>
+            <li><code>Wᵀ</code> is the transpose of W</li>
+            <li><code>Xᵀ</code> is the transpose of X</li>
+            <li><code>Σᵢ</code> sums over the batch dimension</li>
+        </ul>
+
+        <h3>Example: Backprop Through ReLU</h3>
+        <p><strong>Forward</strong>:</p>
+        <pre><code>Z = ReLU(X) = max(0, X)</code></pre>
+
+        <p><strong>Backward</strong>:</p>
+        <pre><code>∂L/∂X = ∂L/∂Z ⊙ ReLU'(X)
+      = ∂L/∂Z ⊙ (X > 0)  # Mask: 1 where X > 0, else 0</code></pre>
+
+        <h3>Example: Backprop Through Linear Layer</h3>
+        <p><strong>Forward</strong>:</p>
+        <pre><code>Z = XW + b</code></pre>
+
+        <p><strong>Backward</strong>:</p>
+        <pre><code>∂L/∂X = (∂L/∂Z) Wᵀ
+∂L/∂W = Xᵀ (∂L/∂Z)
+∂L/∂b = Σᵢ (∂L/∂Z)ᵢ</code></pre>
+
+        <h3>Full Network Backpropagation</h3>
+        <p>For the 3-layer FFNN:</p>
+        <pre><code># Forward pass
+Z1 = X @ W1 + b1
+H1 = relu(Z1)
+Z2 = H1 @ W2 + b2
+H2 = relu(Z2)
+Z3 = H2 @ W3 + b3
+Y_hat = softmax(Z3)
+L = cross_entropy(Y_hat, Y)
+
+# Backward pass
+dZ3 = Y_hat - Y  # Softmax + CrossEntropy gradient
+dW3 = H2.T @ dZ3
+db3 = dZ3.sum(dim=0)
+
+dH2 = dZ3 @ W3.T
+dZ2 = dH2 * (Z2 > 0)  # ReLU gradient
+dW2 = H1.T @ dZ2
+db2 = dZ2.sum(dim=0)
+
+dH1 = dZ2 @ W2.T
+dZ1 = dH1 * (Z1 > 0)  # ReLU gradient
+dW1 = X.T @ dZ1
+db1 = dZ1.sum(dim=0)</code></pre>
+
+        <p><strong>Note</strong>: PyTorch does this automatically with <code>loss.backward()</code>!</p>
+    </div>
+
+    <div class="section" id="section8">
+        <h2>8. GRADIENT DESCENT OPTIMIZATION</h2>
+
+        <h3>Gradient Descent Intuition</h3>
+        <p><strong>Goal</strong>: Minimize loss L(θ) by adjusting parameters θ.</p>
+
+        <p><strong>Key idea</strong>: Move in the direction opposite to the gradient.</p>
+        <div class="formula">
+            θ_new = θ_old - α ∇L(θ_old)
+        </div>
+
+        <p>Where:</p>
+        <ul>
+            <li><code>α</code> is the learning rate</li>
+            <li><code>∇L(θ)</code> is the gradient of loss with respect to parameters</li>
+        </ul>
+
+        <h3>Gradient as Steepest Ascent</h3>
+        <p>The gradient <code>∇L(θ)</code> points in the direction of <strong>steepest increase</strong> of L.</p>
+
+        <p>Therefore, <code>-∇L(θ)</code> points in the direction of <strong>steepest decrease</strong>.</p>
+
+        <h3>Batch Gradient Descent</h3>
+        <p><strong>Compute gradient using entire dataset</strong>:</p>
+        <div class="formula">
+            ∇L(θ) = (1/N) Σᵢ ∇L(θ; xᵢ, yᵢ)
+        </div>
+
+        <h4>Pros</h4>
+        <ul>
+            <li>Accurate gradient</li>
+            <li>Smooth convergence</li>
+        </ul>
+
+        <h4>Cons</h4>
+        <ul>
+            <li>Slow for large datasets</li>
+            <li>Requires all data in memory</li>
+        </ul>
+
+        <h3>Stochastic Gradient Descent (SGD)</h3>
+        <p><strong>Compute gradient using one random example</strong>:</p>
+        <div class="formula">
+            ∇L(θ) ≈ ∇L(θ; xᵢ, yᵢ)
+        </div>
+
+        <h4>Pros</h4>
+        <ul>
+            <li>Fast updates</li>
+            <li>Can escape local minima (noise helps!)</li>
+        </ul>
+
+        <h4>Cons</h4>
+        <ul>
+            <li>Noisy gradient</li>
+            <li>Erratic convergence</li>
+        </ul>
+
+        <h3>Mini-Batch Gradient Descent</h3>
+        <p><strong>Compute gradient using a small batch</strong>:</p>
+        <div class="formula">
+            ∇L(θ) ≈ (1/B) Σᵢ₌₁ᴮ ∇L(θ; xᵢ, yᵢ)
+        </div>
+
+        <p><strong>Best of both worlds</strong>:</p>
+        <ul>
+            <li>More accurate than SGD</li>
+            <li>Faster than full batch</li>
+            <li>Can use GPU parallelization</li>
+        </ul>
+
+        <p><strong>Typical batch sizes</strong>: 32, 64, 128, 256, 512</p>
+
+        <h3>Learning Rate Selection</h3>
+
+        <h4>Too large: Overshoots, diverges</h4>
+        <pre><code>Loss oscillates or explodes</code></pre>
+
+        <h4>Too small: Slow convergence</h4>
+        <pre><code>Takes forever to converge</code></pre>
+
+        <h4>Just right: Smooth, fast convergence</h4>
+        <pre><code>Steady decrease to minimum</code></pre>
+
+        <p><strong>Typical values</strong>: 0.001, 0.0001, 0.01</p>
+
+        <h3>Adam Optimizer</h3>
+        <p><span class="important">Adaptive Moment Estimation</span> - most popular optimizer.</p>
+
+        <h4>Key ideas</h4>
+        <ul>
+            <li><strong>Momentum</strong>: Use exponential moving average of gradients</li>
+            <li><strong>Adaptive learning rates</strong>: Different rates for each parameter</li>
+        </ul>
+
+        <p>Formula (simplified):</p>
+        <pre><code>m_t = β₁ m_{t-1} + (1-β₁) g_t        # First moment (momentum)
+v_t = β₂ v_{t-1} + (1-β₂) g_t²       # Second moment (variance)
+θ_t = θ_{t-1} - α m_t / (√v_t + ε)   # Update</code></pre>
+
+        <p>Default hyperparameters:</p>
+        <pre><code>lr = 0.001
+betas = (0.9, 0.999)
+eps = 1e-8</code></pre>
+
+        <p>PyTorch implementation:</p>
+        <pre><code>optimizer = torch.optim.Adam(model.parameters(), lr=0.001)</code></pre>
+
+        <h3>Optimization Algorithm Comparison</h3>
+        <table>
+            <tr>
+                <th>Algorithm</th>
+                <th>Characteristics</th>
+            </tr>
+            <tr>
+                <td><strong>SGD</strong></td>
+                <td>Simple, well-understood. Requires careful LR tuning. Can escape sharp minima.</td>
+            </tr>
+            <tr>
+                <td><strong>Adam</strong></td>
+                <td>Adapts LR automatically. Works well with defaults. Faster convergence. More memory.</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section" id="section9">
+        <h2>9. TRAINING PROCESS</h2>
+
+        <h3>Training Loop Structure</h3>
+        <pre><code>for epoch in range(num_epochs):
+    # Training phase
+    model.train()
+    for images, labels in train_loader:
+        # 1. Forward pass
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+
+        # 2. Backward pass
+        optimizer.zero_grad()
+        loss.backward()
+
+        # 3. Update weights
+        optimizer.step()
+
+    # Validation phase
+    model.eval()
+    with torch.no_grad():
+        for images, labels in val_loader:
+            outputs = model(images)
+            # Compute validation metrics</code></pre>
+
+        <h3>Important Steps Explained</h3>
+
+        <h4>1. model.train() vs model.eval()</h4>
+        <pre><code>model.train()  # Enable dropout, batch norm training mode
+model.eval()   # Disable dropout, batch norm inference mode</code></pre>
+
+        <h4>2. optimizer.zero_grad()</h4>
+        <p>PyTorch <strong>accumulates</strong> gradients. Must zero them each iteration!</p>
+        <pre><code>optimizer.zero_grad()  # Clear previous gradients
+loss.backward()        # Compute new gradients
+optimizer.step()       # Update weights</code></pre>
+
+        <h4>3. torch.no_grad()</h4>
+        <p>Don't compute gradients during validation (saves memory):</p>
+        <pre><code>with torch.no_grad():
+    outputs = model(images)  # No gradient tracking</code></pre>
+
+        <h3>Early Stopping</h3>
+        <p><strong>Problem</strong>: Model may overfit if trained too long.</p>
+
+        <p><strong>Solution</strong>: Stop when validation performance stops improving.</p>
+
+        <p><strong>Implementation</strong>:</p>
+        <pre><code>best_val_acc = 0
+patience = 5
+epochs_without_improvement = 0
+
+for epoch in range(max_epochs):
+    train(...)
+    val_acc = validate(...)
+
+    if val_acc > best_val_acc:
+        best_val_acc = val_acc
+        epochs_without_improvement = 0
+        save_model(model)  # Save best model
+    else:
+        epochs_without_improvement += 1
+
+    if epochs_without_improvement >= patience:
+        print("Early stopping!")
+        break
+
+model.load(best_model)  # Restore best model</code></pre>
+
+        <h3>Learning Rate Scheduling</h3>
+        <p><strong>Gradually decrease learning rate during training.</strong></p>
+
+        <p><strong>Common schedules</strong>:</p>
+        <pre><code># Step decay: multiply by 0.1 every 30 epochs
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+                                             step_size=30,
+                                             gamma=0.1)
+
+# Cosine annealing: smooth decrease
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,
+                                                        T_max=100)
+
+# Reduce on plateau: decrease when validation stops improving
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                        patience=5)</code></pre>
+
+        <p><strong>Usage</strong>:</p>
+        <pre><code>for epoch in range(num_epochs):
+    train(...)
+    validate(...)
+    scheduler.step()  # Update learning rate</code></pre>
+
+        <h3>Monitoring Training</h3>
+        <p><strong>Track these metrics</strong>:</p>
+        <pre><code>history = {
+    'train_loss': [],
+    'train_acc': [],
+    'val_loss': [],
+    'val_acc': []
+}
+
+# Each epoch
+history['train_loss'].append(train_loss)
+history['train_acc'].append(train_acc)
+history['val_loss'].append(val_loss)
+history['val_acc'].append(val_acc)</code></pre>
+    </div>
+
+    <div class="section" id="section10">
+        <h2>10. EVALUATION METRICS</h2>
+
+        <h3>Accuracy</h3>
+        <p><strong>Most intuitive metric for classification.</strong></p>
+
+        <p>Formula:</p>
+        <div class="formula">
+            Accuracy = (Number of correct predictions) / (Total predictions) = (TP + TN) / (TP + TN + FP + FN)
+        </div>
+
+        <p>PyTorch implementation:</p>
+        <pre><code>def compute_accuracy(model, dataloader):
+    model.eval()
+    correct = 0
+    total = 0
+
+    with torch.no_grad():
+        for images, labels in dataloader:
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    return correct / total</code></pre>
+
+        <h4>Limitations</h4>
+        <ul>
+            <li>Doesn't show <strong>per-class</strong> performance</li>
+            <li>Misleading for <strong>imbalanced</strong> datasets</li>
+        </ul>
+
+        <h3>Per-Class Accuracy</h3>
+        <p><strong>Compute accuracy for each class separately.</strong></p>
+
+        <pre><code>def per_class_accuracy(model, dataloader, num_classes=10):
+    model.eval()
+    class_correct = [0] * num_classes
+    class_total = [0] * num_classes
+
+    with torch.no_grad():
+        for images, labels in dataloader:
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)
+
+            for i in range(len(labels)):
+                label = labels[i]
+                class_correct[label] += (predicted[i] == label).item()
+                class_total[label] += 1
+
+    return [class_correct[i] / class_total[i] for i in range(num_classes)]</code></pre>
+
+        <h3>Top-K Accuracy</h3>
+        <p><strong>Measures if correct class is in top K predictions.</strong></p>
+
+        <pre><code>def top_k_accuracy(model, dataloader, k=5):
+    model.eval()
+    correct = 0
+    total = 0
+
+    with torch.no_grad():
+        for images, labels in dataloader:
+            outputs = model(images)
+            _, top_k = torch.topk(outputs, k, dim=1)
+
+            for i in range(len(labels)):
+                if labels[i] in top_k[i]:
+                    correct += 1
+                total += 1
+
+    return correct / total</code></pre>
+    </div>
+
+    <div class="section" id="section11">
+        <h2>11. CONFUSION MATRIX ANALYSIS</h2>
+
+        <h3>What is a Confusion Matrix?</h3>
+        <p>A <strong>confusion matrix</strong> shows the performance of a classification model by comparing predicted vs actual labels.</p>
+
+        <h3>Structure (for 10 classes)</h3>
+        <pre><code>              Predicted Class
+           0   1   2   3  ...  9
+        ┌──────────────────────┐
+      0 │ TP  FP  FP  FP ... FP│
+      1 │ FP  TP  FP  FP ... FP│
+Actual 2 │ FP  FP  TP  FP ... FP│
+Class  3 │ FP  FP  FP  TP ... FP│
+     ... │ .....................│
+      9 │ FP  FP  FP  FP ... TP│
+        └──────────────────────┘</code></pre>
+
+        <ul>
+            <li><strong>Diagonal</strong>: Correct predictions</li>
+            <li><strong>Off-diagonal</strong>: Misclassifications</li>
+        </ul>
+
+        <h3>Computing Confusion Matrix</h3>
+        <pre><code>def compute_confusion_matrix(model, dataloader, num_classes=10):
+    model.eval()
+    confusion_matrix = torch.zeros(num_classes, num_classes, dtype=torch.int64)
+
+    with torch.no_grad():
+        for images, labels in dataloader:
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)
+
+            for true, pred in zip(labels, predicted):
+                confusion_matrix[true, pred] += 1
+
+    return confusion_matrix</code></pre>
+
+        <h3>Interpreting Confusion Matrix</h3>
+        <p><strong>What to look for</strong>:</p>
+
+        <ol>
+            <li><strong>Strong diagonal</strong>: High accuracy</li>
+            <li><strong>Weak diagonal</strong>: Poor overall performance</li>
+            <li><strong>Hot spots off diagonal</strong>: Specific confusion patterns</li>
+        </ol>
+
+        <p><strong>Example insights</strong>:</p>
+        <pre><code>If cm[3, 5] is high (cat predicted as dog):
+→ Model confuses cats and dogs
+→ Maybe add more training data for these classes
+→ Or use data augmentation
+
+If cm[2, :].sum() is low (few bird examples classified):
+→ Model struggles with birds overall
+→ Check if bird images are underrepresented</code></pre>
+
+        <h3>Normalized Confusion Matrix</h3>
+        <p><strong>Show percentages instead of counts</strong>:</p>
+
+        <pre><code>def normalize_confusion_matrix(cm):
+    row_sums = cm.sum(axis=1, keepdims=True)
+    return cm.astype(float) / row_sums</code></pre>
+
+        <p>Each row sums to 1.0 (100%).</p>
+    </div>
+
+    <div class="section" id="section12">
+        <h2>12. HYPERPARAMETER TUNING</h2>
+
+        <h3>Key Hyperparameters</h3>
+
+        <h4>Architecture</h4>
+        <ul>
+            <li>Number of hidden layers</li>
+            <li>Hidden layer sizes</li>
+            <li>Activation functions</li>
+        </ul>
+
+        <h4>Training</h4>
+        <ul>
+            <li>Learning rate</li>
+            <li>Batch size</li>
+            <li>Number of epochs</li>
+            <li>Optimizer choice</li>
+        </ul>
+
+        <h4>Regularization</h4>
+        <ul>
+            <li>Dropout rate</li>
+            <li>Weight decay (L2 regularization)</li>
+        </ul>
+
+        <h3>Systematic Tuning Process</h3>
+
+        <h4>1. Start with baseline</h4>
+        <pre><code>baseline = {
+    'hidden_dims': (512, 256),
+    'dropout': 0.1,
+    'lr': 0.001,
+    'batch_size': 256,
+    'epochs': 20
+}</code></pre>
+
+        <h4>2. Change ONE variable at a time</h4>
+        <pre><code># Experiment 1: Larger network
+config1 = baseline.copy()
+config1['hidden_dims'] = (1024, 512, 256)
+
+# Experiment 2: Lower learning rate
+config2 = baseline.copy()
+config2['lr'] = 0.0001
+
+# Experiment 3: More dropout
+config3 = baseline.copy()
+config3['dropout'] = 0.3</code></pre>
+
+        <h4>3. Compare results</h4>
+        <table>
+            <tr>
+                <th>Config</th>
+                <th>Val Acc</th>
+                <th>Time/Epoch</th>
+            </tr>
+            <tr>
+                <td>Baseline</td>
+                <td>54.2%</td>
+                <td>12s</td>
+            </tr>
+            <tr>
+                <td>Larger net</td>
+                <td>56.0%</td>
+                <td>18s</td>
+            </tr>
+            <tr>
+                <td>Lower LR</td>
+                <td>51.8%</td>
+                <td>12s</td>
+            </tr>
+            <tr>
+                <td>More dropout</td>
+                <td>53.1%</td>
+                <td>12s</td>
+            </tr>
+        </table>
+
+        <h3>Learning Rate Guidelines</h3>
+        <p><strong>Start with</strong>: <code>0.001</code> (Adam) or <code>0.01</code> (SGD)</p>
+
+        <h4>Too high indicators</h4>
+        <ul>
+            <li>Loss increases or oscillates wildly</li>
+            <li>NaN values appear</li>
+        </ul>
+
+        <h4>Too low indicators</h4>
+        <ul>
+            <li>Very slow decrease in loss</li>
+            <li>Taking many epochs to converge</li>
+        </ul>
+
+        <h4>Finding good LR</h4>
+        <pre><code># Try: [0.1, 0.01, 0.001, 0.0001, 0.00001]
+# Pick the largest that doesn't diverge</code></pre>
+
+        <h3>Hidden Layer Size Guidelines</h3>
+        <p><strong>Rule of thumb</strong>:</p>
+        <pre><code>Input size: 3072
+Hidden 1:   512-2048  (smaller than input)
+Hidden 2:   256-512   (smaller than Hidden 1)
+Output:     10        (number of classes)</code></pre>
+
+        <h4>More neurons</h4>
+        <ul>
+            <li>✓ More capacity to learn</li>
+            <li>✗ More parameters → slower, more memory</li>
+            <li>✗ More prone to overfitting</li>
+        </ul>
+
+        <h4>Fewer neurons</h4>
+        <ul>
+            <li>✓ Faster training</li>
+            <li>✓ Less overfitting</li>
+            <li>✗ May underfit (can't learn complex patterns)</li>
+        </ul>
+
+        <h3>Dropout Guidelines</h3>
+        <p><strong>Typical values</strong>: 0.1 - 0.5</p>
+
+        <pre><code>class FFNN(nn.Module):
+    def __init__(self, dropout=0.2):
+        super().__init__()
+        self.fc1 = nn.Linear(3072, 512)
+        self.dropout1 = nn.Dropout(dropout)
+        self.fc2 = nn.Linear(512, 256)
+        self.dropout2 = nn.Dropout(dropout)
+        self.fc3 = nn.Linear(256, 10)
+
+    def forward(self, x):
+        x = x.view(x.size(0), -1)
+        x = F.relu(self.fc1(x))
+        x = self.dropout1(x)
+        x = F.relu(self.fc2(x))
+        x = self.dropout2(x)
+        x = self.fc3(x)
+        return x</code></pre>
+
+        <h4>Higher dropout (0.4-0.5)</h4>
+        <ul>
+            <li>Use when overfitting is severe</li>
+            <li>More regularization</li>
+        </ul>
+
+        <h4>Lower dropout (0.1-0.2)</h4>
+        <ul>
+            <li>Use when model is underfitting</li>
+            <li>Less regularization</li>
+        </ul>
+
+        <h3>Batch Size Guidelines</h3>
+        <p><strong>Common values</strong>: 32, 64, 128, 256, 512</p>
+
+        <h4>Larger batches</h4>
+        <ul>
+            <li>✓ More stable gradients</li>
+            <li>✓ Better GPU utilization</li>
+            <li>✗ Less noise → may converge to sharp minima</li>
+            <li>✗ More memory</li>
+        </ul>
+
+        <h4>Smaller batches</h4>
+        <ul>
+            <li>✓ More noise → better exploration</li>
+            <li>✓ Less memory</li>
+            <li>✗ Noisier gradients</li>
+            <li>✗ Slower convergence</li>
+        </ul>
+
+        <p><strong>For CIFAR-10</strong>: 256 is a good default</p>
+    </div>
+
+    <div class="section" id="section13">
+        <h2>13. COMMON PITFALLS AND SOLUTIONS</h2>
+
+        <h3>Pitfall 1: Not Shuffling Training Data</h3>
+        <p><strong>Problem</strong>: Model sees data in same order every epoch.</p>
+
+        <p><strong>Solution</strong>:</p>
+        <pre><code>train_loader = DataLoader(train_ds, batch_size=256,
+                          shuffle=True)  # ← IMPORTANT!</code></pre>
+
+        <h3>Pitfall 2: Forgetting to Normalize</h3>
+        <p><strong>Problem</strong>: Raw pixel values [0, 255] cause unstable training.</p>
+
+        <p><strong>Solution</strong>:</p>
+        <pre><code>transform = transforms.Compose([
+    transforms.ToTensor(),  # Scales to [0, 1]
+    transforms.Normalize((0.4914, 0.4822, 0.4465),
+                         (0.2470, 0.2435, 0.2616))  # ← IMPORTANT!
+])</code></pre>
+
+        <h3>Pitfall 3: Using Test Set for Hyperparameter Tuning</h3>
+        <p><strong>Problem</strong>: Test set performance is overly optimistic.</p>
+
+        <p><strong>Solution</strong>: Use validation set for tuning, test set ONLY for final evaluation.</p>
+        <pre><code>Training set   → Train model
+Validation set → Tune hyperparameters
+Test set       → Report final performance (once!)</code></pre>
+
+        <h3>Pitfall 4: Not Using model.eval() During Validation</h3>
+        <p><strong>Problem</strong>: Dropout stays active, giving inconsistent results.</p>
+
+        <p><strong>Solution</strong>:</p>
+        <pre><code>model.eval()  # ← Disables dropout
+with torch.no_grad():
+    # Validation code</code></pre>
+
+        <h3>Pitfall 5: Forgetting optimizer.zero_grad()</h3>
+        <p><strong>Problem</strong>: Gradients accumulate, causing wrong updates.</p>
+
+        <p><strong>Solution</strong>:</p>
+        <pre><code>for images, labels in train_loader:
+    optimizer.zero_grad()  # ← MUST come before backward()
+    loss = criterion(model(images), labels)
+    loss.backward()
+    optimizer.step()</code></pre>
+
+        <h3>Pitfall 6: Applying Softmax Before CrossEntropyLoss</h3>
+        <p><strong>Problem</strong>: <code>nn.CrossEntropyLoss</code> applies softmax internally!</p>
+
+        <p><strong>Wrong</strong>:</p>
+        <pre><code>outputs = F.softmax(model(images), dim=1)
+loss = nn.CrossEntropyLoss()(outputs, labels)  # ✗ WRONG!</code></pre>
+
+        <p><strong>Correct</strong>:</p>
+        <pre><code>logits = model(images)  # Raw scores
+loss = nn.CrossEntropyLoss()(logits, labels)  # ✓ CORRECT!</code></pre>
+
+        <h3>Pitfall 7: Incorrect Input Shape</h3>
+        <p><strong>Problem</strong>: FFNN expects flattened images, not 2D.</p>
+
+        <p><strong>Wrong</strong>:</p>
+        <pre><code># images shape: (batch_size, 3, 32, 32)
+outputs = model(images)  # ✗ WRONG!</code></pre>
+
+        <p><strong>Correct</strong>:</p>
+        <pre><code># Flatten in forward()
+def forward(self, x):
+    x = x.view(x.size(0), -1)  # (batch, 3, 32, 32) → (batch, 3072)
+    ...</code></pre>
+
+        <h3>Pitfall 8: Overfitting</h3>
+        <p><strong>Symptoms</strong>:</p>
+        <ul>
+            <li>Training accuracy high, validation accuracy low</li>
+            <li>Large gap between training and validation loss</li>
+        </ul>
+
+        <p><strong>Solutions</strong>:</p>
+        <pre><code># 1. Add dropout
+model = FFNN(dropout=0.3)
+
+# 2. Add weight decay
+optimizer = torch.optim.Adam(model.parameters(),
+                             lr=0.001,
+                             weight_decay=1e-4)
+
+# 3. Early stopping
+if val_acc_not_improving_for_N_epochs:
+    stop_training()
+
+# 4. Get more training data (if possible)</code></pre>
+
+        <h3>Pitfall 9: Underfitting</h3>
+        <p><strong>Symptoms</strong>:</p>
+        <ul>
+            <li>Both training and validation accuracy low</li>
+            <li>Loss decreases very slowly</li>
+        </ul>
+
+        <p><strong>Solutions</strong>:</p>
+        <pre><code># 1. Larger network
+model = FFNN(hidden_dims=(1024, 512, 256))
+
+# 2. Train longer
+num_epochs = 50
+
+# 3. Lower learning rate (paradoxically can help)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+
+# 4. Remove/reduce regularization
+model = FFNN(dropout=0.0)  # No dropout</code></pre>
+
+        <h3>Pitfall 10: Exploding/Vanishing Gradients</h3>
+        <p><strong>Symptoms</strong>:</p>
+        <ul>
+            <li>Loss becomes NaN (exploding)</li>
+            <li>Loss stops decreasing (vanishing)</li>
+        </ul>
+
+        <p><strong>Solutions</strong>:</p>
+        <pre><code># 1. Gradient clipping
+torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+# 2. Lower learning rate
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+
+# 3. Better weight initialization (PyTorch does this by default)
+# 4. Use batch normalization (for deeper networks)</code></pre>
+    </div>
+
+    <div class="section" id="section14">
+        <h2>14. IMPLEMENTATION GUIDE</h2>
+
+        <h3>Complete FFNN Implementation</h3>
+        <pre><code>import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class FFNN(nn.Module):
+    def __init__(self, input_dim=3072, hidden_dims=(512, 256),
+                 dropout=0.1, num_classes=10):
+        super().__init__()
+
+        layers = []
+        in_dim = input_dim
+
+        for hidden_dim in hidden_dims:
+            layers.append(nn.Linear(in_dim, hidden_dim))
+            layers.append(nn.ReLU())
+            layers.append(nn.Dropout(dropout))
+            in_dim = hidden_dim
+
+        layers.append(nn.Linear(in_dim, num_classes))
+        self.network = nn.Sequential(*layers)
+
+    def forward(self, x):
+        # Flatten image: (batch, 3, 32, 32) → (batch, 3072)
+        x = x.view(x.size(0), -1)
+        return self.network(x)
+
+# Create model
+model = FFNN(hidden_dims=(512, 256), dropout=0.1)
+print(f"Total parameters: {sum(p.numel() for p in model.parameters())}")</code></pre>
+
+        <h3>Training Function</h3>
+        <pre><code>def train_one_epoch(model, train_loader, optimizer, criterion, device):
+    model.train()
+    total_loss = 0
+    correct = 0
+    total = 0
+
+    for images, labels in train_loader:
+        images, labels = images.to(device), labels.to(device)
+
+        # Forward pass
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+
+        # Backward pass
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        # Metrics
+        total_loss += loss.item() * images.size(0)
+        _, predicted = torch.max(outputs, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+    avg_loss = total_loss / total
+    accuracy = correct / total
+    return avg_loss, accuracy</code></pre>
+
+        <h3>Validation Function</h3>
+        <pre><code>def validate(model, val_loader, criterion, device):
+    model.eval()
+    total_loss = 0
+    correct = 0
+    total = 0
+
+    with torch.no_grad():
+        for images, labels in val_loader:
+            images, labels = images.to(device), labels.to(device)
+
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+
+            total_loss += loss.item() * images.size(0)
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    avg_loss = total_loss / total
+    accuracy = correct / total
+    return avg_loss, accuracy</code></pre>
+
+        <h3>Complete Training Loop</h3>
+        <pre><code># Setup
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = FFNN(hidden_dims=(512, 256), dropout=0.1).to(device)
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+
+# Training
+num_epochs = 20
+history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []}
+
+for epoch in range(num_epochs):
+    # Train
+    train_loss, train_acc = train_one_epoch(model, train_loader,
+                                             optimizer, criterion, device)
+
+    # Validate
+    val_loss, val_acc = validate(model, val_loader, criterion, device)
+
+    # Record
+    history['train_loss'].append(train_loss)
+    history['train_acc'].append(train_acc)
+    history['val_loss'].append(val_loss)
+    history['val_acc'].append(val_acc)
+
+    # Print
+    print(f"Epoch {epoch+1}/{num_epochs}")
+    print(f"  Train Loss: {train_loss:.4f}, Train Acc: {train_acc*100:.2f}%")
+    print(f"  Val Loss:   {val_loss:.4f}, Val Acc:   {val_acc*100:.2f}%")</code></pre>
+
+        <h3>Gathering Misclassifications</h3>
+        <pre><code>def gather_misclassifications(model, dataloader, device, max_samples=16):
+    model.eval()
+    misclassified_images = []
+    misclassified_preds = []
+    misclassified_labels = []
+
+    with torch.no_grad():
+        for images, labels in dataloader:
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)
+
+            # Find misclassified
+            mask = predicted != labels
+
+            misclassified_images.extend(images[mask].cpu())
+            misclassified_preds.extend(predicted[mask].cpu().tolist())
+            misclassified_labels.extend(labels[mask].cpu().tolist())
+
+            if len(misclassified_images) >= max_samples:
+                break
+
+    return (misclassified_images[:max_samples],
+            misclassified_preds[:max_samples],
+            misclassified_labels[:max_samples])</code></pre>
+    </div>
+
+    <div class="section" id="section15">
+        <h2>15. ASSIGNMENT REQUIREMENTS SUMMARY</h2>
+
+        <h3>Part A: In-Lab (2%)</h3>
+
+        <h4>Requirements</h4>
+
+        <h4>1. Load CIFAR-10 (0.25%)</h4>
+        <ul>
+            <li>✓ Create train/val/test splits</li>
+            <li>✓ Normalize images</li>
+            <li>✓ Use DataLoader</li>
+        </ul>
+
+        <h4>2. Implement FFNN (1.0%)</h4>
+        <ul>
+            <li>✓ Define fully connected network</li>
+            <li>✓ Train to at least 50% accuracy</li>
+        </ul>
+
+        <h4>3. Plot Training Curves (0.25%)</h4>
+        <ul>
+            <li>✓ Training vs validation loss</li>
+            <li>✓ Training vs validation accuracy</li>
+        </ul>
+
+        <h4>4. Confusion Matrix (0.25%)</h4>
+        <ul>
+            <li>✓ Compute on validation set</li>
+            <li>✓ Show CIFAR-10 class names</li>
+            <li>✓ Diagonal should be notably larger than off-diagonal</li>
+        </ul>
+
+        <h4>5. Misclassification Grid (0.25%)</h4>
+        <ul>
+            <li>✓ Display at least 16 misclassified examples</li>
+            <li>✓ Show predicted vs true labels</li>
+        </ul>
+
+        <h3>Part B: Take-Home (3%)</h3>
+
+        <h4>Requirements</h4>
+
+        <h4>1. Modifications (1.0%)</h4>
+        <ul>
+            <li>Change at least 1 hyperparameter</li>
+            <li>Justify your choice</li>
+        </ul>
+
+        <h4>2. Updated Plots (1.0%)</h4>
+        <ul>
+            <li>Same plots as Part A</li>
+            <li>Compare baseline vs modified</li>
+        </ul>
+
+        <h4>3. Short Report (1.0%)</h4>
+        <ul>
+            <li>1-2 pages</li>
+            <li>Discuss training dynamics</li>
+            <li>Analyze confusion patterns</li>
+            <li>Explain impact of your changes</li>
+        </ul>
+
+        <h3>Expected Results</h3>
+
+        <h4>Baseline FFNN Performance</h4>
+        <pre><code>Architecture: (512, 256)
+Validation Accuracy: 50-55%
+Training Time: ~12s/epoch (GPU)
+Parameters: ~1.7M</code></pre>
+
+        <h4>Improved Configuration</h4>
+        <pre><code>Architecture: (1024, 512, 256)
+Validation Accuracy: 55-58%
+Training Time: ~18s/epoch (GPU)
+Parameters: ~3.8M</code></pre>
+
+        <p><span class="important">Note</span>: FFNN performance on CIFAR-10 is limited! CNNs (Assignment 3) achieve 80-90%.</p>
+
+        <h3>Submission Checklist</h3>
+        <ul>
+            <li>[ ] Jupyter notebook with all code and outputs</li>
+            <li>[ ] PDF report (1-2 pages) for Part B</li>
+            <li>[ ] Name and student ID included</li>
+            <li>[ ] Submit within 1 week of lab</li>
+        </ul>
+    </div>
+
+    <hr>
+
+    <div style="text-align: center; margin: 50px 0; padding: 30px; border: 2px solid #ffffff;">
+        <p style="font-size: 1.5em; text-align: center;"><strong>END OF LESSON</strong></p>
+        <p style="text-align: center;">CMPUT 328 - FULLY CONNECTED NEURAL NETWORKS</p>
+        <p style="text-align: center;">ASSIGNMENT 2 STUDY GUIDE</p>
+    </div>
+
+    <div class="action-buttons">
+        <button class="action-button" onclick="exportToPDF()">EXPORT AS PDF</button>
+        <a href="data/ffnn/FFNN_CIFAR10_Classification.apkg" download class="action-button">DOWNLOAD ANKI DECK</a>
+    </div>
+
+    <script>
+        function exportToPDF() {
+            window.print();
+        }
+    </script>
+<script src="../../js/persistent-player.js" defer></script>
+</body>
+</html>

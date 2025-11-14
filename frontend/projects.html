@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Showcase â€” Internet Discotheque</title>
+    <title>Showcase - Internet Discotheque</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -440,8 +440,9 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
                         Opening track that sets the tone for the album. Smooth bass grooves with layered synth pads create a dreamy atmosphere.
                     </p>
                     <div class="audio-player">
-                        <audio controls preload="metadata">
+                        <audio controls preload="metadata" crossorigin="anonymous">
                             <source src="./assets/audio/moves-so-sweet.wav" type="audio/wav">
+                            Your browser does not support the audio element.
                         </audio>
                     </div>
                 </div>
@@ -648,6 +649,14 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
                 }
             }
         }, true);
+
+        // Ensure audio elements are properly initialized
+        document.addEventListener('DOMContentLoaded', function() {
+            const audios = document.querySelectorAll('audio');
+            audios.forEach(audio => {
+                audio.load();
+            });
+        });
     </script>
 <script src="./js/persistent-player.js" defer></script>
 </body>

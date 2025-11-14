@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMPUT 328 Assignment 1: Logistic Regression - Complete Study Guide</title>
+    <style>
+*{scrollbar-width:none!important;-ms-overflow-style:none!important}
+*::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+*::-webkit-scrollbar-track{display:none!important}
+*::-webkit-scrollbar-thumb{display:none!important}
+html::-webkit-scrollbar{display:none!important;width:0!important}
+html{scrollbar-width:none!important;-ms-overflow-style:none!important}
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1.6;
+            color: #ffffff;
+            background-color: #000000;
+            background-image: radial-gradient(circle, #ffffff 1px, transparent 1px), radial-gradient(circle, #ffffff 1px, transparent 1px);
+            background-size: 50px 50px, 80px 80px;
+            background-position: 0 0, 40px 40px;
+            background-attachment: fixed;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .nav-back {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            padding: 10px 16px;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-size: 0.85rem;
+            z-index: 1000;
+            transition: all 0.2s ease;
+        }
+
+        .nav-back:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        h1 {
+            color: #ffffff;
+            border-bottom: 4px solid #ffffff;
+            padding-bottom: 10px;
+            margin: 30px 0 20px 0;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #ffffff;
+            margin: 25px 0 15px 0;
+            padding: 10px;
+            background-color: #000000;
+            border: 2px solid #ffffff;
+            border-radius: 5px;
+            font-size: 1.8em;
+        }
+
+        h3 {
+            color: #ffffff;
+            margin: 20px 0 10px 0;
+            font-size: 1.4em;
+            border-left: 4px solid #ffffff;
+            padding-left: 10px;
+        }
+
+        h4 {
+            color: #ffffff;
+            margin: 15px 0 8px 0;
+            font-size: 1.2em;
+        }
+
+        p {
+            margin: 10px 0;
+            text-align: justify;
+        }
+
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #000000;
+            border-radius: 8px;
+            border: 1px solid #ffffff;
+        }
+
+        .key-concept {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #ffffff;
+            border-radius: 4px;
+        }
+
+        .formula {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #ffffff;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+
+        .code-block {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border: 1px solid #333333;
+            font-family: 'Courier New', Consolas, Monaco, monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .warning {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #ffffff;
+            border-radius: 4px;
+        }
+
+        .tip {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #ffffff;
+            border-radius: 4px;
+        }
+
+        ul, ol {
+            margin: 10px 0 10px 30px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        strong {
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background-color: #000000;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ffffff;
+        }
+
+        th {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #0a0a0a;
+        }
+
+        .toc {
+            background-color: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ffffff;
+            margin: 20px 0;
+        }
+
+        .toc ul {
+            list-style-type: none;
+            margin-left: 0;
+        }
+
+        .toc a {
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            margin: 50px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .action-button {
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            padding: 15px 25px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 1em;
+            cursor: pointer;
+            min-width: 220px;
+            text-align: center;
+        }
+
+        .action-button:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .action-button:active {
+            transform: translateY(1px);
+        }
+
+        @media print {
+            .action-buttons {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="./" class="nav-back">&#8592; Back to Topics</a>
+    <h1>CMPUT 328 Assignment 1: Logistic Regression</h1>
+    <p><strong>Complete Study Guide for Linear & Logistic Regression on MNIST</strong></p>
+
+    <div class="toc">
+        <h3>Table of Contents</h3>
+        <ul>
+            <li><a href="#fundamentals">1. Fundamentals of Linear Regression</a></li>
+            <li><a href="#logistic">2. Logistic Regression</a></li>
+            <li><a href="#mnist">3. MNIST Dataset</a></li>
+            <li><a href="#implementation">4. Implementation Details</a></li>
+            <li><a href="#regularization">5. Regularization (L1 & L2)</a></li>
+            <li><a href="#optimizers">6. Optimizers (SGD vs Adam)</a></li>
+            <li><a href="#evaluation">7. Model Evaluation</a></li>
+            <li><a href="#challenges">8. Common Challenges</a></li>
+        </ul>
+    </div>
+
+    <div class="section" id="fundamentals">
+        <h2>1. Fundamentals of Linear Regression</h2>
+
+        <div class="key-concept">
+            <h3>What is Linear Regression?</h3>
+            <p><strong>Linear regression</strong> is a supervised learning algorithm that models the relationship between input features and a continuous output variable using a linear function.</p>
+        </div>
+
+        <h3>Mathematical Formulation</h3>
+        <div class="formula">
+<strong>Prediction:</strong>
+ŷ = w₁x₁ + w₂x₂ + ... + wₙxₙ + b
+
+<strong>Matrix Form:</strong>
+ŷ = Xw + b
+
+Where:
+- X: input features [batch_size × n_features]
+- w: weights [n_features × 1]
+- b: bias (scalar)
+- ŷ: predictions
+        </div>
+
+        <h3>Loss Function: Mean Squared Error (MSE)</h3>
+        <div class="formula">
+MSE = (1/N) Σ(yᵢ - ŷᵢ)²
+
+Where:
+- N: number of samples
+- yᵢ: true value
+- ŷᵢ: predicted value
+        </div>
+
+        <div class="key-concept">
+            <h4>Key Properties</h4>
+            <ul>
+                <li><strong>Linear decision boundary:</strong> Separates classes with a straight line/hyperplane</li>
+                <li><strong>Differentiable:</strong> Can use gradient descent for optimization</li>
+                <li><strong>Fast training:</strong> Efficient for large datasets</li>
+                <li><strong>Interpretable:</strong> Weights show feature importance</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section" id="logistic">
+        <h2>2. Logistic Regression</h2>
+
+        <div class="key-concept">
+            <h3>What is Logistic Regression?</h3>
+            <p><strong>Logistic regression</strong> extends linear regression for classification by applying a sigmoid (or softmax) function to convert linear outputs into probabilities.</p>
+        </div>
+
+        <h3>Binary Classification: Sigmoid Function</h3>
+        <div class="formula">
+<strong>Sigmoid:</strong>
+σ(z) = 1 / (1 + e⁻ᶻ)
+
+<strong>Properties:</strong>
+- Output range: (0, 1)
+- σ(0) = 0.5
+- σ(∞) = 1
+- σ(-∞) = 0
+        </div>
+
+        <h3>Multi-class Classification: Softmax Function</h3>
+        <div class="formula">
+<strong>Softmax:</strong>
+softmax(zᵢ) = e^zᵢ / Σⱼ e^zⱼ
+
+<strong>For MNIST (10 classes):</strong>
+P(y = k | x) = e^(wₖᵀx + bₖ) / Σⱼ₌₀⁹ e^(wⱼᵀx + bⱼ)
+
+<strong>Properties:</strong>
+- Output sums to 1
+- Each output is a probability
+- Used for multi-class classification
+        </div>
+
+        <h3>Cross-Entropy Loss</h3>
+        <div class="formula">
+<strong>Binary Cross-Entropy:</strong>
+L = -[y log(ŷ) + (1-y) log(1-ŷ)]
+
+<strong>Multi-class Cross-Entropy (Categorical):</strong>
+L = -Σₖ yₖ log(ŷₖ)
+
+<strong>For PyTorch:</strong>
+CrossEntropyLoss combines LogSoftmax + NLLLoss
+- Input: raw logits (before softmax)
+- Target: class indices (not one-hot)
+        </div>
+
+        <div class="warning">
+            <h4>Important: PyTorch CrossEntropyLoss</h4>
+            <p>PyTorch's <code>nn.CrossEntropyLoss()</code> expects <strong>raw logits</strong> (unnormalized scores), NOT probabilities. It internally applies softmax before computing the loss.</p>
+            <p><strong>Correct:</strong> output = nn.Linear(784, 10) → CrossEntropyLoss</p>
+            <p><strong>Wrong:</strong> output = Softmax(nn.Linear(784, 10)) → CrossEntropyLoss</p>
+        </div>
+
+        <h3>Logistic Regression Architecture for MNIST</h3>
+        <div class="code-block">class LogisticRegression(nn.Module):
+    def __init__(self, in_dim=28*28, out_dim=10):
+        super().__init__()
+        # Single linear layer: 784 inputs → 10 outputs
+        self.fc = nn.Linear(in_dim, out_dim)
+
+    def forward(self, x):
+        # Flatten 28×28 images to 784-dim vectors
+        x = x.view(x.size(0), -1)  # [batch, 28, 28] → [batch, 784]
+        logits = self.fc(x)        # [batch, 784] → [batch, 10]
+        return logits              # Raw scores (no softmax!)
+
+# Usage
+model = LogisticRegression().to(device)
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(model.parameters(), lr=0.1)</div>
+    </div>
+
+    <div class="section" id="mnist">
+        <h2>3. MNIST Dataset</h2>
+
+        <div class="key-concept">
+            <h3>Overview</h3>
+            <p><strong>MNIST (Modified National Institute of Standards and Technology)</strong> is a benchmark dataset of handwritten digits (0-9) commonly used for image classification tasks.</p>
+        </div>
+
+        <h3>Dataset Characteristics</h3>
+        <table>
+            <tr>
+                <th>Property</th>
+                <th>Value</th>
+            </tr>
+            <tr>
+                <td>Training samples</td>
+                <td>60,000 images</td>
+            </tr>
+            <tr>
+                <td>Test samples</td>
+                <td>10,000 images</td>
+            </tr>
+            <tr>
+                <td>Image size</td>
+                <td>28×28 pixels (grayscale)</td>
+            </tr>
+            <tr>
+                <td>Classes</td>
+                <td>10 (digits 0-9)</td>
+            </tr>
+            <tr>
+                <td>Input features</td>
+                <td>784 (28×28 flattened)</td>
+            </tr>
+            <tr>
+                <td>Pixel range</td>
+                <td>0-255 (grayscale intensity)</td>
+            </tr>
+        </table>
+
+        <h3>Data Preprocessing</h3>
+        <div class="code-block"># Normalization transform
+transform = transforms.Compose([
+    transforms.ToTensor(),  # Converts to [0,1] range
+    transforms.Normalize((0.1307,), (0.3081,))  # Mean & std of MNIST
+])
+
+# Load data
+train_ds = datasets.MNIST(root="./data", train=True,
+                          download=True, transform=transform)
+test_ds = datasets.MNIST(root="./data", train=False,
+                         download=True, transform=transform)
+
+# Split train into train (50k) + validation (10k)
+train_ds, val_ds = random_split(train_ds, [50_000, 10_000])</div>
+
+        <div class="key-concept">
+            <h4>Why Normalize?</h4>
+            <ul>
+                <li><strong>Faster convergence:</strong> Keeps gradients in a reasonable range</li>
+                <li><strong>Numerical stability:</strong> Prevents overflow/underflow</li>
+                <li><strong>Better optimization:</strong> Helps gradient descent find minima faster</li>
+            </ul>
+            <p><strong>MNIST normalization:</strong> Mean=0.1307, Std=0.3081 (computed from training set)</p>
+        </div>
+    </div>
+
+    <div class="section" id="implementation">
+        <h2>4. Implementation Details</h2>
+
+        <h3>Complete Training Loop</h3>
+        <div class="code-block">def train_epoch(model, loader, criterion, optimizer, device):
+    model.train()  # Set to training mode
+    total_loss = 0.0
+    correct = 0
+    total = 0
+
+    for x, y in loader:
+        # Move to device
+        x, y = x.to(device), y.to(device)
+
+        # Forward pass
+        optimizer.zero_grad()  # Clear previous gradients
+        logits = model(x)      # Get predictions
+        loss = criterion(logits, y)  # Compute loss
+
+        # Backward pass
+        loss.backward()        # Compute gradients
+        optimizer.step()       # Update weights
+
+        # Track metrics
+        total_loss += loss.item() * x.size(0)
+        preds = logits.argmax(dim=1)  # Get class predictions
+        correct += (preds == y).sum().item()
+        total += y.size(0)
+
+    avg_loss = total_loss / total
+    accuracy = correct / total
+    return avg_loss, accuracy
+
+def validate(model, loader, criterion, device):
+    model.eval()  # Set to evaluation mode
+    total_loss = 0.0
+    correct = 0
+    total = 0
+
+    with torch.no_grad():  # Disable gradient computation
+        for x, y in loader:
+            x, y = x.to(device), y.to(device)
+            logits = model(x)
+            loss = criterion(logits, y)
+
+            total_loss += loss.item() * x.size(0)
+            preds = logits.argmax(dim=1)
+            correct += (preds == y).sum().item()
+            total += y.size(0)
+
+    avg_loss = total_loss / total
+    accuracy = correct / total
+    return avg_loss, accuracy</div>
+
+        <h3>Training Script</h3>
+        <div class="code-block">num_epochs = 10
+
+for epoch in range(1, num_epochs + 1):
+    # Train
+    train_loss, train_acc = train_epoch(
+        model, train_loader, criterion, optimizer, device
+    )
+
+    # Validate
+    val_loss, val_acc = validate(
+        model, val_loader, criterion, device
+    )
+
+    print(f"Epoch {epoch:02d}: "
+          f"train_loss={train_loss:.4f} train_acc={train_acc:.4f} "
+          f"val_acc={val_acc:.4f}")</div>
+
+        <div class="tip">
+            <h4>Best Practices</h4>
+            <ul>
+                <li><strong>Always use validation set:</strong> Don't touch test set until final evaluation</li>
+                <li><strong>Model modes:</strong> Use <code>model.train()</code> and <code>model.eval()</code></li>
+                <li><strong>No gradients in validation:</strong> Use <code>with torch.no_grad():</code></li>
+                <li><strong>Track metrics:</strong> Log loss and accuracy for both train and validation</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section" id="regularization">
+        <h2>5. Regularization (L1 & L2)</h2>
+
+        <div class="key-concept">
+            <h3>Why Regularization?</h3>
+            <p><strong>Regularization</strong> prevents overfitting by penalizing large weights, encouraging the model to learn simpler patterns that generalize better.</p>
+        </div>
+
+        <h3>L2 Regularization (Ridge / Weight Decay)</h3>
+        <div class="formula">
+<strong>Loss with L2:</strong>
+L = CrossEntropy + λ × Σ wᵢ²
+
+<strong>Effect:</strong>
+- Penalizes large weights
+- Encourages weights to be small but non-zero
+- Smoother decision boundaries
+        </div>
+
+        <div class="code-block"># L2 in PyTorch: use weight_decay parameter
+optimizer = torch.optim.SGD(
+    model.parameters(),
+    lr=0.1,
+    weight_decay=1e-4  # L2 regularization strength
+)</div>
+
+        <h3>L1 Regularization (Lasso)</h3>
+        <div class="formula">
+<strong>Loss with L1:</strong>
+L = CrossEntropy + λ × Σ |wᵢ|
+
+<strong>Effect:</strong>
+- Penalizes absolute value of weights
+- Encourages sparse weights (many weights → 0)
+- Feature selection (removes irrelevant features)
+        </div>
+
+        <div class="code-block"># L1 in PyTorch: manual implementation
+def train_with_l1(model, loader, criterion, optimizer, l1_lambda=1e-5):
+    model.train()
+    for x, y in loader:
+        x, y = x.to(device), y.to(device)
+
+        optimizer.zero_grad()
+        logits = model(x)
+        loss = criterion(logits, y)
+
+        # Add L1 penalty
+        l1_penalty = 0.0
+        for param in model.parameters():
+            l1_penalty += param.abs().sum()
+
+        total_loss = loss + l1_lambda * l1_penalty
+        total_loss.backward()
+        optimizer.step()</div>
+
+        <h3>Comparison: L1 vs L2</h3>
+        <table>
+            <tr>
+                <th>Aspect</th>
+                <th>L2 (Ridge)</th>
+                <th>L1 (Lasso)</th>
+            </tr>
+            <tr>
+                <td>Penalty</td>
+                <td>Σ wᵢ²</td>
+                <td>Σ |wᵢ|</td>
+            </tr>
+            <tr>
+                <td>Weight behavior</td>
+                <td>Small, non-zero</td>
+                <td>Sparse (many zeros)</td>
+            </tr>
+            <tr>
+                <td>Feature selection</td>
+                <td>No</td>
+                <td>Yes</td>
+            </tr>
+            <tr>
+                <td>Differentiability</td>
+                <td>Smooth everywhere</td>
+                <td>Not differentiable at 0</td>
+            </tr>
+            <tr>
+                <td>Use case</td>
+                <td>General regularization</td>
+                <td>High-dimensional, sparse data</td>
+            </tr>
+            <tr>
+                <td>PyTorch implementation</td>
+                <td>weight_decay parameter</td>
+                <td>Manual penalty in loss</td>
+            </tr>
+        </table>
+
+        <div class="warning">
+            <h4>Typical Regularization Strengths</h4>
+            <ul>
+                <li><strong>L2 (weight_decay):</strong> 1e-5 to 1e-3</li>
+                <li><strong>L1 (lambda):</strong> 1e-6 to 1e-4</li>
+                <li>Start small and increase if overfitting persists</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section" id="optimizers">
+        <h2>6. Optimizers (SGD vs Adam)</h2>
+
+        <h3>Stochastic Gradient Descent (SGD)</h3>
+        <div class="formula">
+<strong>Update Rule:</strong>
+w ← w - η × ∇L(w)
+
+Where:
+- w: weights
+- η: learning rate
+- ∇L(w): gradient of loss w.r.t. weights
+        </div>
+
+        <div class="code-block"># Basic SGD
+optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+# SGD with momentum
+optimizer = torch.optim.SGD(
+    model.parameters(),
+    lr=0.1,
+    momentum=0.9  # Accelerates convergence
+)</div>
+
+        <div class="key-concept">
+            <h4>SGD Characteristics</h4>
+            <ul>
+                <li><strong>Simple:</strong> Easy to understand and implement</li>
+                <li><strong>Sensitive to LR:</strong> Requires careful tuning</li>
+                <li><strong>Slow convergence:</strong> May take many epochs</li>
+                <li><strong>Good generalization:</strong> Often generalizes better than adaptive methods</li>
+            </ul>
+        </div>
+
+        <h3>Adam (Adaptive Moment Estimation)</h3>
+        <div class="formula">
+<strong>Update Rule (simplified):</strong>
+m ← β₁m + (1-β₁)∇L     (momentum)
+v ← β₂v + (1-β₂)(∇L)²  (adaptive learning rate)
+w ← w - η × m / √(v + ε)
+
+Default hyperparameters:
+- β₁ = 0.9
+- β₂ = 0.999
+- ε = 1e-8
+        </div>
+
+        <div class="code-block"># Adam optimizer
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=1e-3  # Typical starting point for Adam
+)</div>
+
+        <div class="key-concept">
+            <h4>Adam Characteristics</h4>
+            <ul>
+                <li><strong>Adaptive:</strong> Adjusts learning rate per parameter</li>
+                <li><strong>Fast convergence:</strong> Usually converges faster than SGD</li>
+                <li><strong>Less sensitive to LR:</strong> Works well with default settings</li>
+                <li><strong>Memory overhead:</strong> Stores running averages (m, v)</li>
+            </ul>
+        </div>
+
+        <h3>Optimizer Comparison</h3>
+        <table>
+            <tr>
+                <th>Aspect</th>
+                <th>SGD</th>
+                <th>Adam</th>
+            </tr>
+            <tr>
+                <td>Learning rate</td>
+                <td>Fixed (or scheduled)</td>
+                <td>Adaptive per parameter</td>
+            </tr>
+            <tr>
+                <td>Typical LR</td>
+                <td>0.01 - 0.1</td>
+                <td>1e-4 - 1e-3</td>
+            </tr>
+            <tr>
+                <td>Convergence speed</td>
+                <td>Slower</td>
+                <td>Faster</td>
+            </tr>
+            <tr>
+                <td>Tuning difficulty</td>
+                <td>Requires careful LR tuning</td>
+                <td>Works well with defaults</td>
+            </tr>
+            <tr>
+                <td>Generalization</td>
+                <td>Often better</td>
+                <td>May overfit easier</td>
+            </tr>
+            <tr>
+                <td>Memory</td>
+                <td>Low</td>
+                <td>Higher (2× gradients)</td>
+            </tr>
+            <tr>
+                <td>Best for</td>
+                <td>Well-tuned, final models</td>
+                <td>Rapid prototyping</td>
+            </tr>
+        </table>
+
+        <div class="tip">
+            <h4>Which to Use?</h4>
+            <ul>
+                <li><strong>Start with Adam:</strong> Fast prototyping, easy to use</li>
+                <li><strong>Fine-tune with SGD:</strong> Better final performance with proper tuning</li>
+                <li><strong>For MNIST logistic regression:</strong> Both work well; Adam typically 92-93%, SGD with good LR also 91-92%</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section" id="evaluation">
+        <h2>7. Model Evaluation</h2>
+
+        <h3>Confusion Matrix</h3>
+        <div class="key-concept">
+            <p>A <strong>confusion matrix</strong> shows the counts of true vs predicted classes, revealing which classes the model confuses.</p>
+        </div>
+
+        <div class="code-block"># Compute confusion matrix
+num_classes = 10
+confusion_matrix = torch.zeros(num_classes, num_classes, dtype=torch.int64)
+
+model.eval()
+with torch.no_grad():
+    for x, y in test_loader:
+        x, y = x.to(device), y.to(device)
+        logits = model(x)
+        preds = logits.argmax(dim=1)
+
+        # Update confusion matrix
+        for true_label, pred_label in zip(y, preds):
+            confusion_matrix[true_label, pred_label] += 1
+
+# Visualize
+plt.imshow(confusion_matrix, cmap='Blues')
+plt.colorbar()
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.title('Confusion Matrix')</div>
+
+        <div class="key-concept">
+            <h4>Interpreting the Confusion Matrix</h4>
+            <ul>
+                <li><strong>Diagonal:</strong> Correct predictions</li>
+                <li><strong>Off-diagonal:</strong> Errors (confusions)</li>
+                <li><strong>Common confusions in MNIST:</strong>
+                    <ul>
+                        <li>4 ↔ 9 (similar shape)</li>
+                        <li>3 ↔ 5 or 8 (curved digits)</li>
+                        <li>7 ↔ 1 (both vertical)</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <h3>Visualizing Learned Weights</h3>
+        <div class="code-block"># Extract and visualize weights for each class
+W = model.fc.weight.detach().cpu()  # [10, 784]
+
+fig, axes = plt.subplots(2, 5, figsize=(10, 4))
+for cls in range(10):
+    ax = axes[cls // 5, cls % 5]
+    img = W[cls].view(28, 28)  # Reshape to image
+
+    # Normalize for visualization
+    vmax = img.abs().max().item()
+    ax.imshow(img, cmap='seismic', vmin=-vmax, vmax=vmax)
+    ax.set_title(f'Class {cls}')
+    ax.axis('off')</div>
+
+        <div class="key-concept">
+            <h4>What the Weights Show</h4>
+            <p>Each class's weights form a <strong>template</strong> that the model learned:</p>
+            <ul>
+                <li><strong>Red pixels:</strong> Positive contribution (presence increases score)</li>
+                <li><strong>Blue pixels:</strong> Negative contribution (presence decreases score)</li>
+                <li><strong>White pixels:</strong> Neutral (don't affect classification)</li>
+            </ul>
+        </div>
+
+        <h3>Effect of Training Data Size</h3>
+        <div class="key-concept">
+            <p>Training with <strong>less data</strong> typically reduces accuracy:</p>
+            <ul>
+                <li><strong>10% data:</strong> ~80-85% accuracy</li>
+                <li><strong>25% data:</strong> ~87-89% accuracy</li>
+                <li><strong>50% data:</strong> ~90-91% accuracy</li>
+                <li><strong>100% data:</strong> ~92-93% accuracy</li>
+            </ul>
+            <p><strong>Key insight:</strong> More data helps, but diminishing returns after ~50%</p>
+        </div>
+
+        <h3>Effect of Noisy Labels</h3>
+        <div class="code-block"># Simulate 10% label noise
+class NoisyLabels(Dataset):
+    def __init__(self, base_dataset, noise_frac=0.1, num_classes=10):
+        self.base = base_dataset
+        self.noise_frac = noise_frac
+        self.num_classes = num_classes
+
+        # Randomly select indices to corrupt
+        n = len(base_dataset)
+        k = int(noise_frac * n)
+        self.noisy_idx = set(random.sample(range(n), k))
+
+    def __getitem__(self, idx):
+        x, y = self.base[idx]
+        if idx in self.noisy_idx:
+            # Replace with random incorrect label
+            y = random.randint(0, self.num_classes - 1)
+            while y == self.base[idx][1]:
+                y = random.randint(0, self.num_classes - 1)
+        return x, y</div>
+
+        <div class="key-concept">
+            <h4>Impact of Label Noise</h4>
+            <ul>
+                <li><strong>0% noise:</strong> ~92% accuracy (baseline)</li>
+                <li><strong>10% noise:</strong> ~88-89% accuracy (3-4% drop)</li>
+                <li><strong>Observation:</strong> Label noise is more harmful than missing data</li>
+                <li><strong>Why?</strong> Model learns incorrect patterns from wrong labels</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section" id="challenges">
+        <h2>8. Common Challenges & Solutions</h2>
+
+        <h3>Challenge 1: Poor Convergence</h3>
+        <div class="warning">
+            <h4>Symptoms:</h4>
+            <ul>
+                <li>Loss not decreasing</li>
+                <li>Accuracy stuck at ~10% (random guessing)</li>
+                <li>NaN or Inf in loss</li>
+            </ul>
+        </div>
+
+        <div class="tip">
+            <h4>Solutions:</h4>
+            <ul>
+                <li><strong>Lower learning rate:</strong> Try 0.01 or 0.001 instead of 0.1</li>
+                <li><strong>Check normalization:</strong> Ensure inputs are normalized</li>
+                <li><strong>Use Adam:</strong> More robust to LR choice</li>
+                <li><strong>Gradient clipping:</strong> Prevent exploding gradients</li>
+            </ul>
+        </div>
+
+        <h3>Challenge 2: Overfitting</h3>
+        <div class="warning">
+            <h4>Symptoms:</h4>
+            <ul>
+                <li>High train accuracy, low validation accuracy</li>
+                <li>Gap increases over epochs</li>
+            </ul>
+        </div>
+
+        <div class="tip">
+            <h4>Solutions:</h4>
+            <ul>
+                <li><strong>Add regularization:</strong> L2 (weight_decay=1e-4)</li>
+                <li><strong>More training data:</strong> Data augmentation</li>
+                <li><strong>Early stopping:</strong> Stop when val accuracy plateaus</li>
+                <li><strong>Simpler model:</strong> Logistic regression is already simple!</li>
+            </ul>
+        </div>
+
+        <h3>Challenge 3: Slow Training</h3>
+        <div class="tip">
+            <h4>Solutions:</h4>
+            <ul>
+                <li><strong>Increase batch size:</strong> 128 or 256 for faster processing</li>
+                <li><strong>Use GPU:</strong> Move model and data to CUDA</li>
+                <li><strong>Reduce epochs:</strong> MNIST converges in 5-10 epochs</li>
+                <li><strong>Use DataLoader workers:</strong> num_workers=4</li>
+            </ul>
+        </div>
+
+        <h3>Challenge 4: Incorrect Loss/Accuracy</h3>
+        <div class="warning">
+            <h4>Common Mistakes:</h4>
+            <ul>
+                <li>Applying softmax before CrossEntropyLoss (double softmax)</li>
+                <li>Not flattening images before linear layer</li>
+                <li>Computing accuracy on logits instead of predictions</li>
+                <li>Forgetting to call model.eval() during validation</li>
+            </ul>
+        </div>
+
+        <div class="tip">
+            <h4>Checklist:</h4>
+            <ul>
+                <li>✓ Use raw logits for CrossEntropyLoss (no softmax)</li>
+                <li>✓ Flatten: x.view(x.size(0), -1)</li>
+                <li>✓ Predictions: logits.argmax(dim=1)</li>
+                <li>✓ Use model.train() and model.eval() appropriately</li>
+                <li>✓ Use torch.no_grad() during validation</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Summary: Key Takeaways</h2>
+
+        <div class="key-concept">
+            <h3>Logistic Regression for MNIST</h3>
+            <ul>
+                <li><strong>Architecture:</strong> Single linear layer (784→10) + softmax</li>
+                <li><strong>Loss:</strong> CrossEntropyLoss (combines softmax + negative log-likelihood)</li>
+                <li><strong>Expected accuracy:</strong> 91-93% on MNIST</li>
+                <li><strong>Training time:</strong> ~5-10 epochs to converge</li>
+            </ul>
+        </div>
+
+        <div class="key-concept">
+            <h3>Best Practices</h3>
+            <ul>
+                <li><strong>Data:</strong> Normalize inputs, use train/val/test split</li>
+                <li><strong>Regularization:</strong> L2 (weight_decay) prevents overfitting</li>
+                <li><strong>Optimizer:</strong> Adam for fast prototyping, SGD for final tuning</li>
+                <li><strong>Evaluation:</strong> Use confusion matrix to identify problem classes</li>
+                <li><strong>Debugging:</strong> Visualize weights, track train/val metrics</li>
+            </ul>
+        </div>
+
+        <div class="key-concept">
+            <h3>Experimental Findings (Assignment)</h3>
+            <ul>
+                <li><strong>L2 vs L1:</strong> L2 more stable, L1 for sparse weights</li>
+                <li><strong>SGD vs Adam:</strong> Adam converges faster and reaches higher accuracy</li>
+                <li><strong>Confusion:</strong> Digit 5 most confused (with 3, 8)</li>
+                <li><strong>Data size:</strong> 50% data gives 90%+ accuracy</li>
+                <li><strong>Label noise:</strong> 10% noise → 3-4% accuracy drop</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer style="margin-top: 50px; padding: 20px; background-color: #1a1a1a; border: 1px solid #ffffff; border-radius: 8px; text-align: center;">
+        <p><strong>CMPUT 328 Assignment 1 Study Guide</strong></p>
+        <p>Linear & Logistic Regression on MNIST</p>
+        <p>Generated for comprehensive review and exam preparation</p>
+    </footer>
+
+    <div class="action-buttons">
+        <button class="action-button" onclick="exportToPDF()">EXPORT AS PDF</button>
+        <a href="data/intro/logistic_regression.apkg" download class="action-button">DOWNLOAD ANKI DECK</a>
+    </div>
+
+    <script>
+        function exportToPDF() {
+            window.print();
+        }
+    </script>
+<script src="../../js/persistent-player.js" defer></script>
+</body>
+</html>

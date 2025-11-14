@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notebook &mdash; Internet Discotheque</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@600&display=swap" rel="stylesheet">
+    <style>
+*{scrollbar-width:none!important;-ms-overflow-style:none!important}
+*::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+*::-webkit-scrollbar-track{display:none!important}
+*::-webkit-scrollbar-thumb{display:none!important}
+html::-webkit-scrollbar{display:none!important;width:0!important}
+html{scrollbar-width:none!important;-ms-overflow-style:none!important}
+
+        :root {
+            --bg: #05030a;
+            --grid: rgba(255, 255, 255, 0.08);
+            --cyan: #1ffbff;
+            --pink: #ff4df5;
+            --amber: #ffc54d;
+            --lime: #9dff63;
+            --ink: #0b0814;
+            --text: #f2f6ff;
+            --banner-height: 56px;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; font-family: "JetBrains Mono", monospace; color: var(--text); background-color: #000; background-image: radial-gradient(circle, #ffffff 1px, transparent 1px), radial-gradient(circle, #ffffff 1px, transparent 1px); background-size: 50px 50px, 80px 80px; background-position: 0 0, 40px 40px; background-attachment: fixed; padding: 0 16px 72px; position: relative; overflow-x: hidden; }
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            z-index: 1000;
+            pointer-events: none;
+            background: linear-gradient(90deg, #ff00ff 0%, #ff6600 25%, #00ffff 50%, #00ff00 75%, #ff00ff 100%);
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+            animation: bar-glow 3s ease-in-out infinite;
+        }
+        .site-landing-banner {
+            width: calc(100% + 32px);
+            margin: 0 -16px;
+            background: rgba(7, 8, 20, 0.9);
+            backdrop-filter: blur(8px);
+            padding: 12px 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 1200;
+            border-bottom: 1px solid rgba(232, 180, 184, 0.35);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+        }
+        .site-landing-banner a {
+            color: #f9f6f2;
+            font-family: "Manrope", sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            text-decoration: none;
+        }
+        .site-landing-banner a:hover,
+        .site-landing-banner a:focus-visible {
+            color: #ffbed8;
+        }
+        @keyframes bar-glow {
+            0%, 100% {
+                opacity: 1;
+                box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+            }
+            50% {
+                opacity: 0.85;
+                box-shadow: 0 0 30px rgba(255, 0, 255, 1);
+            }
+        }
+        .wrapper {
+            max-width: 1100px;
+            margin: 32px auto 0;
+            border: 3px double var(--cyan);
+            padding: clamp(20px, 4vw, 36px);
+            background: var(--ink);
+            filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.12));
+        }
+        .retro-banner {
+            border: 2px solid var(--pink);
+            padding: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .retro-columns {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            border: 2px solid var(--cyan);
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.65);
+        }
+        .retro-columns h1 {
+            margin: 0 0 8px;
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            letter-spacing: 0.35em;
+        }
+        .retro-columns p {
+            margin: 0 0 12px;
+            line-height: 1.65;
+            color: rgba(255,255,255,0.82);
+        }
+        .hero-note {
+            margin: 0;
+            letter-spacing: 0.18em;
+            font-size: 0.78rem;
+            color: var(--lime);
+        }
+        .hero-ascii {
+            border: 2px solid var(--amber);
+            padding: 12px;
+            background: rgba(0,0,0,0.6);
+            text-align: center;
+            color: var(--amber);
+        }
+        .hero-ascii pre { margin: 0; white-space: pre; }
+        .ascii-panel {
+            margin-top: 26px;
+            border: 2px dashed var(--lime);
+            padding: 16px;
+            background: rgba(5, 3, 10, 0.8);
+        }
+        .ascii-panel h2 {
+            margin: 0 0 12px;
+            letter-spacing: 0.3em;
+            font-size: 0.9rem;
+            color: var(--lime);
+        }
+        .ascii-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        .ascii-grid pre {
+            margin: 0;
+            padding: 14px;
+            border: 1px solid var(--grid);
+            background: rgba(0,0,0,0.55);
+            min-height: 150px;
+            color: var(--lime);
+            white-space: pre;
+        }
+        .link-strip {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+        .link-card {
+            border: 2px solid var(--pink);
+            padding: 18px;
+            text-decoration: none;
+            color: var(--text);
+            background: rgba(0,0,0,0.65);
+            transition: all 0.2s ease;
+        }
+        .link-card h3 {
+            margin: 8px 0 10px;
+            letter-spacing: 0.3em;
+            font-size: 1.15rem;
+            text-transform: uppercase;
+            color: var(--cyan);
+        }
+        .link-card p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.75);
+            line-height: 1.5;
+        }
+        .link-card:hover {
+            border-color: var(--cyan);
+            background: rgba(31, 251, 255, 0.1);
+        }
+        .footer-note {
+            margin-top: 32px;
+            font-size: 0.7rem;
+            letter-spacing: 0.35em;
+            text-align: center;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="site-landing-banner"><a href="/">&#8592; Return to Internet Discotheque</a></div>
+    <div class="wrapper">
+        <div class="retro-banner">*** NOTEBOOK ARCHIVE &mdash; STUDY NOTES DATABASE ***</div>
+        <section class="retro-columns">
+            <div>
+                <h1>NOTEBOOK</h1>
+                <p>A collection of organized study notes, lessons, and flashcard decks.</p>
+            </div>
+            <div class="hero-ascii" aria-label="notebook icon">
+<pre>
+    ___________
+   |  _______  |
+   | |       | |
+   | | NOTES | |
+   | |_______| |
+   |  _______  |
+   | |       | |
+   | |_______| |
+   |___________|
+      [ ][ ]
+   digital brain
+</pre>
+            </div>
+        </section>
+        <section class="ascii-panel">
+            <h2>STUDY SECTIONS</h2>
+            <div class="ascii-grid" aria-label="study mascots">
+<pre aria-label="study wizard">
+    /\
+   /  \
+  | () |  << wizard
+  |____|     guide
+   |  |
+   |  |
+</pre>
+<pre aria-label="nerd ghost">
+   .--.
+  ( oo )  << study
+   \__/      ghost
+   |  |
+   '  '
+</pre>
+<pre aria-label="book stack">
+  ______
+ |______|
+ |______|  << notes
+ |______|     pile
+  ||  ||
+</pre>
+<pre aria-label="thinking cap">
+   ____
+  /____\  << brain
+ |  ^^  |    power
+  \____/
+</pre>
+            </div>
+        </section>
+        <section class="link-strip">
+            <a class="link-card" href="/notebook/visual-recognition/">
+                <h3>VISUAL RECOGNITION</h3>
+                <p>CMPUT 328 complete course notes &mdash; from logistic regression to autoencoders. 8 assignments, lessons + Anki decks.</p>
+            </a>
+        </section>
+        <p class="footer-note">More sections coming soon...</p>
+    </div>
+<script src="./js/persistent-player.js" defer></script>
+</body>
+</html>

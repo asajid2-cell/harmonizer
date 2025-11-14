@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Learning & Backpropagation - CMPUT 328</title>
+
+    <!-- MathJax for LaTeX rendering -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
+
+    <style>
+*{scrollbar-width:none!important;-ms-overflow-style:none!important}
+*::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+*::-webkit-scrollbar-track{display:none!important}
+*::-webkit-scrollbar-thumb{display:none!important}
+html::-webkit-scrollbar{display:none!important;width:0!important}
+html{scrollbar-width:none!important;-ms-overflow-style:none!important}
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', Consolas, Monaco, monospace;
+            background-color: #000000;
+            background-image: radial-gradient(circle, #ffffff 1px, transparent 1px), radial-gradient(circle, #ffffff 1px, transparent 1px);
+            background-size: 50px 50px, 80px 80px;
+            background-position: 0 0, 40px 40px;
+            background-attachment: fixed;
+            color: #ffffff;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            text-align: left;
+            margin: 30px 0 15px 0;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            border-bottom: 3px solid #ffffff;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            font-size: 2em;
+            border-bottom: 2px solid #ffffff;
+            padding-bottom: 8px;
+            margin-top: 50px;
+        }
+
+        h3 {
+            font-size: 1.5em;
+            border-left: 5px solid #ffffff;
+            padding-left: 15px;
+        }
+
+        h4 {
+            font-size: 1.2em;
+            text-decoration: underline;
+        }
+
+        p {
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 40px;
+            text-align: left;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        code {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', Consolas, Monaco, monospace;
+            border: 1px solid #333333;
+        }
+
+        pre {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid #333333;
+            text-align: left;
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: #0a0a0a;
+        }
+
+        th, td {
+            border: 1px solid #ffffff;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #1a1a1a;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #0f0f0f;
+        }
+
+        .toc {
+            background-color: #1a1a1a;
+            border: 2px solid #ffffff;
+            padding: 20px;
+            margin: 30px 0;
+        }
+
+        .toc h2 {
+            margin-top: 0;
+            border: none;
+        }
+
+        .toc ul {
+            list-style-type: none;
+            padding-left: 20px;
+        }
+
+        .toc a {
+            color: #ffffff;
+            text-decoration: none;
+            border-bottom: 1px dotted #ffffff;
+        }
+
+        .toc a:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .section {
+            margin: 40px 0;
+            padding: 20px 0;
+        }
+
+        .highlight {
+            background-color: #1a1a1a;
+            border-left: 5px solid #ffffff;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .formula {
+            text-align: center;
+            font-size: 1.2em;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #1a1a1a;
+            border: 1px solid #ffffff;
+        }
+
+        .important {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .note {
+            background-color: #1a1a1a;
+            border: 2px solid #ffffff;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .note::before {
+            content: "NOTE: ";
+            font-weight: bold;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #ffffff;
+            margin: 40px 0;
+        }
+
+        a {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+
+        a:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 30px;
+            border: 3px solid #ffffff;
+            background-color: #0a0a0a;
+        }
+
+        .header h1 {
+            border: none;
+            margin: 0;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .diagram {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            border: 1px solid #ffffff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .ascii-art {
+            display: inline-block;
+            text-align: left;
+        }
+
+        blockquote {
+            background-color: #1a1a1a;
+            border-left: 5px solid #ffffff;
+            padding: 15px 20px;
+            margin: 20px 0;
+            font-style: italic;
+        }
+
+        /* Action buttons */
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            margin: 50px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .action-button {
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            padding: 15px 25px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 1em;
+            cursor: pointer;
+            min-width: 220px;
+            text-align: center;
+        }
+
+        .action-button:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .action-button:active {
+            transform: translateY(1px);
+        }
+
+        @media print {
+            .action-buttons {
+                display: none;
+            }
+            body {
+                background-color: #ffffff;
+                color: #000000;
+            }
+            .header {
+                background-color: #ffffff;
+                border: 3px solid #000000;
+            }
+            .toc {
+                background-color: #ffffff;
+                border: 2px solid #000000;
+            }
+            .highlight, .note, .diagram, blockquote {
+                background-color: #f5f5f5;
+                border: 1px solid #000000;
+            }
+            code, pre {
+                background-color: #f5f5f5;
+                color: #000000;
+                border: 1px solid #000000;
+            }
+            table {
+                background-color: #ffffff;
+            }
+            th {
+                background-color: #e0e0e0;
+            }
+            tr:nth-child(even) {
+                background-color: #f5f5f5;
+            }
+            a {
+                color: #000000;
+            }
+        }
+    
+        .nav-back {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            padding: 10px 16px;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-size: 0.85rem;
+            z-index: 1000;
+            transition: all 0.2s ease;
+        }
+
+        .nav-back:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+    </style>
+</head>
+<body>
+    <a href="./" class="nav-back">&#8592; Back to Topics</a>
+    <div class="header">
+        <h1>MACHINE LEARNING & BACKPROPAGATION</h1>
+        <p>COMPLETE TUTORIAL</p>
+        <p>CMPUT 328 - VISUAL RECOGNITION</p>
+    </div>
+
+    <div class="toc">
+        <h2>TABLE OF CONTENTS</h2>
+        <ul>
+            <li><a href="#intro">1. Introduction to Machine Learning</a></li>
+            <li><a href="#problems">2. What Problems Can ML Solve?</a></li>
+            <li><a href="#models">3. Models: Simplification of Reality</a></li>
+            <li><a href="#loss">4. Loss Functions: Measuring Goodness</a></li>
+            <li><a href="#gd">5. Gradient Descent: Finding the Minimum</a></li>
+            <li><a href="#sgd">6. Stochastic Gradient Descent</a></li>
+            <li><a href="#choosing">7. Choosing Models</a></li>
+            <li><a href="#nn">8. Neural Networks</a></li>
+            <li><a href="#backprop">9. Backpropagation: The Chain Rule</a></li>
+            <li><a href="#loss-deriv">10. Loss Function Derivatives</a></li>
+            <li><a href="#conv-bp">11. Backpropagation for Convolutional Layers</a></li>
+            <li><a href="#pool-bp">12. Backpropagation for Max Pooling</a></li>
+            <li><a href="#relu-bp">13. Backpropagation for ReLU</a></li>
+            <li><a href="#together">14. Putting It All Together</a></li>
+            <li><a href="#advanced">15. Advanced Topics</a></li>
+            <li><a href="#summary">16. Summary & Key Takeaways</a></li>
+        </ul>
+    </div>
+
+    <div class="section" id="intro">
+        <h2>1. INTRODUCTION TO MACHINE LEARNING</h2>
+
+        <h3>What is Machine Learning?</h3>
+        <p>Machine Learning is a method of teaching computers to:</p>
+        <ul>
+            <li><span class="important">Learn from data</span> - Extract patterns from examples</li>
+            <li><span class="important">Generalize to unseen data</span> - Apply learned patterns to new situations</li>
+            <li><span class="important">Without explicit instructions</span> - No need to manually program every rule</li>
+        </ul>
+
+        <h3>Core Philosophy</h3>
+        <p>According to <strong>Rich Sutton</strong> (ACM A.M. Turing Award 2024 recipient):</p>
+
+        <blockquote>
+            "General methods that leverage computation and learning ultimately prove more effective than approaches relying on human knowledge and domain-specific expertise."
+        </blockquote>
+
+        <p>This is known as <strong>The Bitter Lesson</strong> - we should not assume models (e.g., linear or not), we should just have a general learning method leveraging computation (e.g., Neural Networks + Gradient Descent).</p>
+    </div>
+
+    <div class="section" id="problems">
+        <h2>2. WHAT PROBLEMS CAN ML SOLVE?</h2>
+
+        <p>Machine Learning excels when three conditions are met:</p>
+        <ol>
+            <li><span class="important">Many labeled examples</span> - Abundant training data</li>
+            <li><span class="important">Patterns in the data</span> - Reusable regularities across samples</li>
+            <li><span class="important">Complex relationships</span> - Rules too intricate for manual programming</li>
+        </ol>
+
+        <h3>Examples</h3>
+        <ul>
+            <li>Image classification (cats vs dogs, CIFAR-10)</li>
+            <li>Object detection and segmentation</li>
+            <li>Natural language processing</li>
+            <li>Recommendation systems</li>
+            <li>Game playing (AlphaGo, Chess)</li>
+        </ul>
+    </div>
+
+    <div class="section" id="models">
+        <h2>3. MODELS: SIMPLIFICATION OF REALITY</h2>
+
+        <h3>What is a Model?</h3>
+        <div class="highlight">
+            <p><strong>Definition:</strong> A model is a simplification of a real process or system.</p>
+            <p>Usually we want to know what is the process that generates the data.</p>
+        </div>
+
+        <h3>The Gravity Example</h3>
+        <p>Given measurements of mass and force:</p>
+
+        <table>
+            <tr>
+                <th>x (mass)</th>
+                <th>y (force)</th>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>19.6</td>
+            </tr>
+            <tr>
+                <td>4.5</td>
+                <td>44.1</td>
+            </tr>
+            <tr>
+                <td>10</td>
+                <td>98</td>
+            </tr>
+        </table>
+
+        <p><strong>Goal:</strong> Find the relationship $y = ax$</p>
+
+        <p><strong>Guesses:</strong></p>
+        <ul>
+            <li>$a = 5$ → Poor fit</li>
+            <li>$a = 12$ → Poor fit</li>
+            <li>$a = 10$ → Better fit</li>
+            <li>$a = 9.8$ → <strong>Best fit!</strong></li>
+        </ul>
+
+        <div class="highlight">
+            <p>We discovered: $F = 9.8m$ (gravitational constant $g \approx 9.8 \text{ m/s}^2$)</p>
+        </div>
+
+        <h3>Model Notation</h3>
+        <ul>
+            <li>$y$ = true output (observed data)</li>
+            <li>$\hat{y}$ = predicted output (model prediction)</li>
+            <li><strong>Goal:</strong> Make $\hat{y} \approx y$</li>
+        </ul>
+
+        <h3>Key Insight</h3>
+        <p>It suffices to <strong>approximate</strong> reality. We don't need Einstein's relativity formula:</p>
+        <div class="formula">
+            $$y = \left(1 + \frac{1}{1 - v^2/c^2} \cdot \frac{v \cdot v^T}{c^2}\right)\left(1 - v^2/c^2\right)^{-1/2} \cdot ax$$
+        </div>
+        <p style="text-align: center;">where $c \approx 2.99 \times 10^8$ m/s</p>
+
+        <div class="note">
+            For most purposes, $\hat{y} = 9.8x$ is good enough!
+        </div>
+    </div>
+
+    <div class="section" id="loss">
+        <h2>4. LOSS FUNCTIONS: MEASURING GOODNESS</h2>
+
+        <h3>What is a Good Approximation?</h3>
+        <p><strong>Question:</strong> Is it possible to evaluate "goodness"?</p>
+        <p><strong>Answer:</strong> Yes! Using a <strong>loss function</strong>.</p>
+
+        <h3>L2 (Euclidean) Loss</h3>
+        <div class="formula">
+            $$L = \sum_{i} \left(y_i - \hat{y}(x_i)\right)^2$$
+        </div>
+
+        <p><strong>Interpretation:</strong> Distance from the data to the model.</p>
+
+        <div class="note">
+            If $L = 0$, then $y_i = \hat{y}(x_i)$ for all $i$ (perfect fit).
+        </div>
+
+        <h3>L2 Loss Example</h3>
+        <p>Using our gravity data:</p>
+
+        <table>
+            <tr>
+                <th>Guess</th>
+                <th>Formula</th>
+                <th>Loss</th>
+            </tr>
+            <tr>
+                <td>a = 8</td>
+                <td>$\hat{y} = 8x$</td>
+                <td>L = 402.57</td>
+            </tr>
+            <tr>
+                <td>a = 9</td>
+                <td>$\hat{y} = 9x$</td>
+                <td>L = 79.52</td>
+            </tr>
+            <tr>
+                <td>a = 9.8</td>
+                <td>$\hat{y} = 9.8x$</td>
+                <td>L = 4.97</td>
+            </tr>
+        </table>
+
+        <div class="highlight">
+            <p><strong>Lower loss = better approximation!</strong></p>
+        </div>
+
+        <h3>Vector Form</h3>
+        <p>For vector outputs:</p>
+        <div class="formula">
+            $$L = \frac{1}{2} ||\hat{y} - y||^2$$
+        </div>
+
+        <p>Gradient with respect to predictions:</p>
+        <div class="formula">
+            $$\frac{\partial L}{\partial \hat{y}} = \hat{y} - y$$
+        </div>
+    </div>
+
+    <div class="section" id="gd">
+        <h2>5. GRADIENT DESCENT: FINDING THE MINIMUM</h2>
+
+        <h3>The Problem</h3>
+        <p><strong>Question:</strong> How do we find the value for parameter $a$ that minimizes loss?</p>
+        <p><strong>Answer:</strong> Gradient descent!</p>
+
+        <h3>How Derivatives Show Influence</h3>
+        <p>The derivative $\frac{\partial L}{\partial a}$ tells us:</p>
+        <ul>
+            <li><strong>If positive:</strong> Increasing $a$ increases loss → decrease $a$</li>
+            <li><strong>If negative:</strong> Increasing $a$ decreases loss → increase $a$</li>
+            <li><strong>If zero:</strong> We're at a minimum (or maximum/saddle point)</li>
+        </ul>
+
+        <h3>The Gradient Descent Update Rule</h3>
+        <div class="formula">
+            $$a \leftarrow a - \eta \cdot \frac{\partial L}{\partial a}$$
+        </div>
+
+        <p>where:</p>
+        <ul>
+            <li>$\eta$ = <strong>learning rate</strong> (chosen by us)</li>
+            <li>$\frac{\partial L}{\partial a}$ = derivative of loss with respect to parameter</li>
+        </ul>
+
+        <h3>Example Iterations</h3>
+        <p>Starting with $a = 8$:</p>
+
+        <table>
+            <tr>
+                <th>Iteration</th>
+                <th>a</th>
+                <th>∂L/∂a</th>
+                <th>Update</th>
+            </tr>
+            <tr>
+                <td>0</td>
+                <td>8.00</td>
+                <td>-447</td>
+                <td>$a \leftarrow 8 - \eta(-447)$</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>9.34</td>
+                <td>-114</td>
+                <td>$a \leftarrow 9.34 - \eta(-114)$</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>9.68</td>
+                <td>-29</td>
+                <td>$a \leftarrow 9.68 - \eta(-29)$</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>9.77</td>
+                <td>-7.4</td>
+                <td>$a \leftarrow 9.77 - \eta(-7.4)$</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>9.79</td>
+                <td>-1.9</td>
+                <td>$a \leftarrow 9.79 - \eta(-1.9)$</td>
+            </tr>
+        </table>
+
+        <div class="highlight">
+            <p><strong>Converges to</strong> $a \approx 9.8$!</p>
+        </div>
+
+        <h3>Learning Rate Importance</h3>
+        <ul>
+            <li><strong>Too large:</strong> Steps overshoot minimum, oscillate</li>
+            <li><strong>Too small:</strong> Training is slow, may get stuck</li>
+            <li><strong>Just right:</strong> Smooth convergence</li>
+        </ul>
+
+        <h3>Multiple Parameters</h3>
+        <p>For multiple parameters (e.g., $y = ax + b$):</p>
+        <div class="formula">
+            $$a \leftarrow a - \eta \cdot \frac{\partial L}{\partial a}$$
+            $$b \leftarrow b - \eta \cdot \frac{\partial L}{\partial b}$$
+        </div>
+    </div>
+
+    <div class="section" id="sgd">
+        <h2>6. STOCHASTIC GRADIENT DESCENT</h2>
+
+        <h3>The Data Loading Problem</h3>
+        <p><strong>Challenge:</strong> size of dataset $\gg$ computer memory</p>
+        <p><strong>Solution:</strong> Batching!</p>
+
+        <h3>Three Flavors of Gradient Descent</h3>
+        <table>
+            <tr>
+                <th>Type</th>
+                <th>Update</th>
+                <th>When to Use</th>
+            </tr>
+            <tr>
+                <td><strong>Full Batch</strong></td>
+                <td>$\theta \leftarrow \theta - \eta \nabla_\theta L(\theta; \text{all data})$</td>
+                <td>Convex problems, tiny datasets</td>
+            </tr>
+            <tr>
+                <td><strong>Stochastic (SGD)</strong></td>
+                <td>$\theta \leftarrow \theta - \eta \nabla_\theta L(\theta; x_i)$</td>
+                <td>Huge datasets, escape sharp minima</td>
+            </tr>
+            <tr>
+                <td><strong>Mini-Batch</strong></td>
+                <td>$\theta \leftarrow \theta - \eta \nabla_\theta \left(\frac{1}{B} \sum L(x_b)\right)$</td>
+                <td><strong>Practical default</strong> - balances GPU utilization and noise</td>
+            </tr>
+        </table>
+
+        <h3>Mini-Batch SGD Checklist</h3>
+        <ol>
+            <li><strong>Shuffle samples</strong> each epoch for unbiased batches</li>
+            <li><strong>Normalize inputs</strong> so magnitudes are comparable</li>
+            <li><strong>Track both training and validation metrics</strong> to detect overfitting</li>
+        </ol>
+    </div>
+
+    <div class="section" id="choosing">
+        <h2>7. CHOOSING MODELS</h2>
+
+        <h3>The Spectrum of Models</h3>
+        <p>For fitting data, we could choose:</p>
+        <ul>
+            <li><strong>Linear model:</strong> $y = ax + b$</li>
+            <li><strong>Quadratic model:</strong> $y = ax^2 + bx + c$</li>
+            <li><strong>Cosine model:</strong> $y = a \cdot \cos(bx + c) + d$</li>
+            <li><strong>Polynomial model:</strong> $y = \sum a_i x^i$</li>
+        </ul>
+
+        <h3>The Overfitting Problem</h3>
+        <div class="highlight">
+            <p><strong>High-degree polynomial:</strong></p>
+            <ul>
+                <li>Passes through all training points ($L = 0$)</li>
+                <li>But fails on new data (poor generalization)</li>
+                <li>This is <strong>overfitting</strong></li>
+            </ul>
+        </div>
+
+        <h3>For Complex Data (Images, Text, etc.)</h3>
+        <p><strong>Question:</strong> What model for CIFAR-10 images (cats, dogs, etc.)?</p>
+        <p><strong>Answer:</strong> Neural Networks!</p>
+
+        <p><strong>Why?</strong></p>
+        <ul>
+            <li>Don't assume linear/quadratic/etc.</li>
+            <li>Let the network learn the right representation</li>
+            <li>Just need:
+                <ul>
+                    <li>General learning method (backpropagation)</li>
+                    <li>Computation (GPUs)</li>
+                    <li>Data</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <div class="section" id="nn">
+        <h2>8. NEURAL NETWORKS</h2>
+
+        <h3>Basic Architecture</h3>
+        <div class="diagram">
+            <pre class="ascii-art">
+Input (n features)
+    ↓
+Dense Layer: Z₁ = X·W₁ + b₁
+    ↓
+Activation: Z₂ = σ(Z₁)    [Non-linearity!]
+    ↓
+Dense Layer: Z₃ = Z₂·W₂ + b₂
+    ↓
+Output (m classes)
+            </pre>
+        </div>
+
+        <h3>Why Non-linearities?</h3>
+        <div class="highlight">
+            <p><strong>Without activation functions:</strong></p>
+            <p style="text-align: center;">Linear → Linear → Linear ≡ Single Linear Layer</p>
+        </div>
+
+        <div class="highlight">
+            <p><strong>With activation functions (ReLU, sigmoid, etc.):</strong></p>
+            <ul>
+                <li>Can approximate any function (Universal Approximation Theorem)</li>
+                <li>Learn complex patterns</li>
+                <li>Hierarchical representations</li>
+            </ul>
+        </div>
+
+        <h3>Key Components</h3>
+        <ol>
+            <li><strong>Weights (W):</strong> Learned parameters</li>
+            <li><strong>Biases (b):</strong> Learned offsets</li>
+            <li><strong>Activations (σ):</strong> Non-linear functions (ReLU, sigmoid, tanh)</li>
+            <li><strong>Loss function (L):</strong> Measures error</li>
+            <li><strong>Optimizer:</strong> Updates parameters (SGD, Adam, etc.)</li>
+        </ol>
+    </div>
+
+    <div class="section" id="backprop">
+        <h2>9. BACKPROPAGATION: THE CHAIN RULE</h2>
+
+        <h3>Computational Graph</h3>
+        <p>For a simple scalar neural network:</p>
+
+        <div class="diagram">
+            <pre class="ascii-art">
+X → [·W₁] → Z₁ → [+b₁] → Z₂ → [σ] → Z₃ → [·W₂] → Z₄ → [+b₂] → Yₚ → [Loss] → L
+                                                                    ↑
+                                                                    Y (true)
+            </pre>
+        </div>
+
+        <h3>Forward Pass</h3>
+        <p>Compute outputs from inputs:</p>
+        <ol>
+            <li>$Z_1 = X \cdot W_1$</li>
+            <li>$Z_2 = Z_1 + b_1$</li>
+            <li>$Z_3 = \sigma(Z_2)$</li>
+            <li>$Z_4 = Z_3 \cdot W_2$</li>
+            <li>$Y_p = Z_4 + b_2$</li>
+            <li>$L = \frac{1}{2}(Y_p - Y)^2$</li>
+        </ol>
+
+        <h3>Backward Pass (Backpropagation)</h3>
+        <p>Apply chain rule <strong>right-to-left</strong>:</p>
+
+        <div class="formula">
+            $$\frac{\partial L}{\partial Y_p} = Y_p - Y$$
+            $$\frac{\partial L}{\partial Z_4} = \frac{\partial L}{\partial Y_p} \cdot \frac{\partial Y_p}{\partial Z_4} = (Y_p - Y) \cdot 1$$
+            $$\frac{\partial L}{\partial W_2} = \frac{\partial L}{\partial Z_4} \cdot \frac{\partial Z_4}{\partial W_2} = (Y_p - Y) \cdot Z_3$$
+            $$\frac{\partial L}{\partial Z_3} = \frac{\partial L}{\partial Z_4} \cdot \frac{\partial Z_4}{\partial Z_3} = (Y_p - Y) \cdot W_2$$
+            $$\frac{\partial L}{\partial Z_2} = \frac{\partial L}{\partial Z_3} \cdot \frac{\partial Z_3}{\partial Z_2} = \frac{\partial L}{\partial Z_3} \cdot \sigma'(Z_2)$$
+            $$\frac{\partial L}{\partial b_1} = \frac{\partial L}{\partial Z_2} \cdot \frac{\partial Z_2}{\partial b_1} = \frac{\partial L}{\partial Z_2} \cdot 1$$
+            $$\frac{\partial L}{\partial Z_1} = \frac{\partial L}{\partial Z_2} \cdot \frac{\partial Z_2}{\partial Z_1} = \frac{\partial L}{\partial Z_2} \cdot 1$$
+            $$\frac{\partial L}{\partial W_1} = \frac{\partial L}{\partial Z_1} \cdot \frac{\partial Z_1}{\partial W_1} = \frac{\partial L}{\partial Z_1} \cdot X$$
+        </div>
+
+        <h3>Matrix/Vector Extension</h3>
+        <p>For matrices and vectors, use:</p>
+        <ul>
+            <li><strong>Jacobians</strong> instead of derivatives</li>
+            <li><strong>Matrix transposes</strong> for proper dimensionality</li>
+        </ul>
+
+        <div class="highlight">
+            <p><strong>Key formulas:</strong></p>
+            <div class="formula">
+                $$\frac{\partial L}{\partial W_1} = X^T \cdot \delta Z_1$$
+                $$\frac{\partial L}{\partial W_2} = Z_3^T \cdot \delta Z_4$$
+                $$\frac{\partial L}{\partial b} = \sum_k (\delta Z)_k \quad \text{[sum over batch]}$$
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="loss-deriv">
+        <h2>10. LOSS FUNCTION DERIVATIVES</h2>
+
+        <h3>Euclidean (MSE) Loss</h3>
+        <p><strong>Forward:</strong></p>
+        <div class="formula">
+            $$L = \frac{1}{2} ||Y_p - Y||^2 = \frac{1}{2} \sum_i (Y_{pi} - Y_i)^2$$
+        </div>
+
+        <p><strong>Backward:</strong></p>
+        <div class="formula">
+            $$\frac{\partial L}{\partial Y_{pi}} = Y_{pi} - Y_i$$
+        </div>
+
+        <p><strong>Vector notation:</strong></p>
+        <div class="formula">
+            $$\delta Y_p = Y_p - Y$$
+        </div>
+
+        <h3>Softmax + Cross-Entropy Loss</h3>
+        <p><strong>Forward:</strong></p>
+        <div class="diagram">
+            <pre class="ascii-art">
+Logits → Softmax → Probabilities → Cross-Entropy → Loss
+            </pre>
+        </div>
+
+        <div class="formula">
+            $$y_{pi} = \frac{\exp(\text{logits}_i)}{\sum_j \exp(\text{logits}_j)}$$
+            $$\text{Loss} = -\sum_k y_k \cdot \log(y_{pk})$$
+        </div>
+
+        <p><strong>Backward (the beautiful simplification!):</strong></p>
+        <div class="formula">
+            $$\frac{\partial \text{Loss}}{\partial \text{logits}_i} = y_{pi} - y_i$$
+        </div>
+
+        <div class="note">
+            Softmax + Cross-Entropy has elegant gradient: just the difference between predicted and true probabilities!
+        </div>
+
+        <h3>Comparison: L2 vs Cross-Entropy for Classification</h3>
+        <table>
+            <tr>
+                <th>Property</th>
+                <th>L2 Loss</th>
+                <th>Cross-Entropy</th>
+            </tr>
+            <tr>
+                <td><strong>Symmetry</strong></td>
+                <td>Symmetric</td>
+                <td>Asymmetric</td>
+            </tr>
+            <tr>
+                <td><strong>Gradient behavior</strong></td>
+                <td>Shrinks when saturated</td>
+                <td>Well-conditioned</td>
+            </tr>
+            <tr>
+                <td><strong>Use case</strong></td>
+                <td>Regression</td>
+                <td><strong>Classification</strong></td>
+            </tr>
+            <tr>
+                <td><strong>Confidence penalty</strong></td>
+                <td>Weak</td>
+                <td>Strong for wrong predictions</td>
+            </tr>
+        </table>
+
+        <div class="highlight">
+            <p><strong>Sanity check:</strong> If you used L2 loss after softmax, gradients would shrink dramatically when probabilities saturate, slowing learning.</p>
+        </div>
+    </div>
+
+    <div class="section" id="conv-bp">
+        <h2>11. BACKPROPAGATION FOR CONVOLUTIONAL LAYERS</h2>
+
+        <h3>Setup</h3>
+        <ul>
+            <li><strong>Input:</strong> $I$ ($H \times W$ matrix)</li>
+            <li><strong>Kernel:</strong> $K$ ($h \times w$ matrix)</li>
+            <li><strong>Output:</strong> $J = I * K$ (convolution, size $(H-h+1) \times (W-w+1)$)</li>
+        </ul>
+
+        <p><strong>Assume:</strong> $H \geq h$ and $W \geq w$</p>
+
+        <h3>Two Questions</h3>
+        <p>Given $\frac{\partial L}{\partial J}$ (upstream gradient), find:</p>
+        <ol>
+            <li>$\frac{\partial L}{\partial K}$ - To update kernel by gradient descent</li>
+            <li>$\frac{\partial L}{\partial I}$ - To backprop to previous layer</li>
+        </ol>
+
+        <h3>Derivation of ∂L/∂K</h3>
+        <p><strong>Forward:</strong></p>
+        <div class="formula">
+            $$J(i,j) = \sum_{l} \sum_{m} I(i+l-1, j+m-1) \cdot K(l,m)$$
+        </div>
+
+        <p><strong>Backward:</strong></p>
+        <div class="formula">
+            $$\frac{\partial J(i,j)}{\partial K(p,q)} = I(i+p-1, j+q-1)$$
+            $$\delta K(p,q) = \sum_i \sum_j I(i+p-1, j+q-1) \cdot \delta J(i,j)$$
+        </div>
+
+        <div class="highlight">
+            <p><strong>Result (correlation):</strong></p>
+            <div class="formula">
+                $$\delta K = I \circledast \delta J$$
+            </div>
+            <p>where $\circledast$ is <strong>correlation</strong> (slide input patches under upstream gradient and accumulate).</p>
+        </div>
+
+        <h3>Derivation of ∂L/∂I</h3>
+        <p><strong>Backward:</strong></p>
+        <div class="formula">
+            $$\frac{\partial J(i,j)}{\partial I(p,q)} = \begin{cases}
+            K(p-i+1, q-j+1), & \text{if } 0 \leq p-i \leq h-1 \text{ and } 0 \leq q-j \leq w-1 \\
+            0, & \text{otherwise}
+            \end{cases}$$
+            $$\delta I(p,q) = \sum_i \sum_j K(p-i+1, q-j+1) \cdot \delta J(i,j)$$
+        </div>
+
+        <div class="highlight">
+            <p><strong>Result (full convolution with flipped kernel):</strong></p>
+            <div class="formula">
+                $$\delta I = \text{pad}(\delta J) * \text{flip}(K)$$
+            </div>
+            <p>where:</p>
+            <ul>
+                <li><strong>pad:</strong> adds $(h-1)$ zero rows top/bottom and $(w-1)$ zero columns left/right</li>
+                <li><strong>flip:</strong> rotates kernel 180°</li>
+            </ul>
+        </div>
+
+        <p><strong>Example of flip:</strong></p>
+        <div class="diagram">
+            <pre class="ascii-art">
+K = [1 3 5]    flip(K) = [6 4 2]
+    [2 4 6]               [5 3 1]
+            </pre>
+        </div>
+
+        <h3>Implementation Tips</h3>
+        <ol>
+            <li><strong>Cache input patches</strong> or use <code>im2col</code> to vectorize</li>
+            <li><strong>Reuse same stride/padding</strong> from forward pass</li>
+            <li><strong>Mismatched shapes are the #1 error source!</strong></li>
+        </ol>
+    </div>
+
+    <div class="section" id="pool-bp">
+        <h2>12. BACKPROPAGATION FOR MAX POOLING</h2>
+
+        <h3>Setup</h3>
+        <div class="formula">
+            $$\text{Max Pool: } [x_1, x_2, \ldots, x_n] \rightarrow y = \max(x_i)$$
+        </div>
+
+        <h3>Key Idea</h3>
+        <p><strong>In case of a tie, choose a single index deterministically:</strong></p>
+        <div class="formula">
+            $$i^* = \arg\max(x_k)$$
+        </div>
+
+        <h3>Backward Pass</h3>
+        <div class="formula">
+            $$\frac{\partial y}{\partial x_i} = \begin{cases}
+            1, & \text{if } i = \arg\max(x_k) \\
+            0, & \text{otherwise}
+            \end{cases}$$
+            $$\delta x_i = \begin{cases}
+            \delta y, & \text{if } i = \arg\max(x_k) \\
+            0, & \text{otherwise}
+            \end{cases}$$
+        </div>
+
+        <div class="highlight">
+            <p><strong>Route the gradient only to the index that held the maximum!</strong></p>
+        </div>
+
+        <h3>Example: 2×2 MaxPool, stride 2</h3>
+        <p><strong>Forward:</strong></p>
+        <div class="diagram">
+            <pre class="ascii-art">
+x = [2  -3]    MaxPool    y = [5  6]
+    [4   5]      →            [0  8]
+    [6   5]
+
+    [6  -7]
+    [0  -1]
+
+    [-2 -6]
+    [3  -4]
+
+    [6   8]
+            </pre>
+        </div>
+
+        <p><strong>Backward:</strong></p>
+        <pre><code>δy = [δy₁  δy₂]
+     [δy₃  δy₄]
+
+δx = [0    0  ]
+     [0   δy₁]
+     [δy₃  0  ]
+
+     [δy₂  0  ]
+     [0    0  ]
+
+     [0    0  ]
+     [0    0  ]
+
+     [0   δy₄]</code></pre>
+
+        <h3>Implementation</h3>
+        <p><strong>Pseudo-code:</strong></p>
+        <pre><code># Forward pass: store argmax indices
+for (i, j), pooling_region in enumerate(regions):
+    argmax_cache[i, j] = argmax(pooling_region)
+    output[i, j] = max(pooling_region)
+
+# Backward pass: route gradient
+for (i, j), grad in enumerate(dL_dOutput):
+    (ii, jj) = argmax_cache[i, j]
+    dL_dInput[ii, jj] += grad</code></pre>
+
+        <div class="note">
+            Never recompute argmax from mutated tensors - always cache!
+        </div>
+    </div>
+
+    <div class="section" id="relu-bp">
+        <h2>13. BACKPROPAGATION FOR ReLU</h2>
+
+        <h3>Setup</h3>
+        <div class="formula">
+            $$\text{ReLU: } y = \max(0, x)$$
+        </div>
+
+        <h3>Backward Pass</h3>
+        <div class="formula">
+            $$\frac{\partial y}{\partial x} = \begin{cases}
+            1, & \text{if } x > 0 \\
+            0, & \text{otherwise}
+            \end{cases}$$
+            $$\delta x = \delta y \odot \mathbb{1}[x > 0]$$
+        </div>
+
+        <p>where $\odot$ is element-wise multiplication and $\mathbb{1}[\cdot]$ is indicator function.</p>
+
+        <h3>Example</h3>
+        <p><strong>Forward:</strong></p>
+        <div class="diagram">
+            <pre class="ascii-art">
+x = [-5  4]    ReLU    y = [0  4]
+    [ 0  2]      →        [0  2]
+            </pre>
+        </div>
+
+        <p><strong>Backward:</strong></p>
+        <pre><code>δy = [δy₁  δy₂]    →    δx = [0     δy₂]
+     [δy₃  δy₄]              [0     δy₄]</code></pre>
+
+        <h3>Implementation</h3>
+        <p><strong>Keep the boolean mask from forward pass:</strong></p>
+        <pre><code># Forward
+mask = (x > 0)
+y = x * mask
+
+# Backward
+dx = dy * mask</code></pre>
+
+        <div class="note">
+            Do NOT recompute mask with mutated x!
+        </div>
+    </div>
+
+    <div class="section" id="together">
+        <h2>14. PUTTING IT ALL TOGETHER</h2>
+
+        <h3>Example Network</h3>
+        <div class="diagram">
+            <pre class="ascii-art">
+Conv → ReLU → MaxPool → Loss
+ ↓      ↓       ↓        ↓
+ y      z       p        L
+ ↑      ↑       ↑
+ x      y       z
+            </pre>
+        </div>
+
+        <h3>Training Algorithm</h3>
+        <p><strong>Initialize:</strong> Parameter $K$ (convolution kernel)</p>
+
+        <p><strong>Iterate:</strong></p>
+
+        <h4>Step 1: Forward Pass</h4>
+        <ul>
+            <li>1a. Randomly choose training example $x$ and ideal output $q$</li>
+            <li>1b. Pass $x$ through Conv to get $y$</li>
+            <li>1c. Pass $y$ through ReLU to get $z$</li>
+            <li>1d. Pass $z$ through MaxPool to get $p$</li>
+        </ul>
+
+        <h4>Step 2: Compute Loss</h4>
+        <div class="formula">
+            $$L = \frac{1}{2} ||p - q||^2$$
+        </div>
+
+        <h4>Step 3: Backward Pass (Backpropagation)</h4>
+        <ul>
+            <li>3a. Compute $\delta p = \frac{\partial L}{\partial p} = p - q$</li>
+            <li>3b. Compute $\delta z$ given $\delta p$ (MaxPool backprop)</li>
+            <li>3c. Compute $\delta y$ given $\delta z$ (ReLU backprop)</li>
+            <li>3d. Compute $\delta K$ given $\delta y$ (Conv backprop)</li>
+        </ul>
+
+        <h4>Step 4: Update Parameters</h4>
+        <div class="formula">
+            $$K \leftarrow K - \eta \cdot \delta K$$
+        </div>
+
+        <div class="note">
+            We don't compute $\delta x$ because there's no layer before Conv in this example.
+        </div>
+    </div>
+
+    <div class="section" id="advanced">
+        <h2>15. ADVANCED TOPICS</h2>
+
+        <h3>Example 1: Conv → ReLU → MaxPool with Numbers</h3>
+        <p><strong>Given:</strong></p>
+        <pre><code>I = [1  3  2  4  6  4]
+    [4  8  3  1  0  2]
+    [2  1  4  3  9  1]
+    [4  7  2  3  9  2]
+
+W = [-1  0  1]    (edge detection kernel)
+    [-1  0  1]
+    [-1  0  1]</code></pre>
+
+        <p><strong>Task:</strong> Compute $J$, $K$, $O$ and backpropagation gradients.</p>
+
+        <div class="note">
+            See Practice_Problem.ipynb and verify with PyTorch autograd!
+        </div>
+
+        <h3>Example 2: Shared Parameters</h3>
+        <p><strong>Network:</strong></p>
+        <div class="formula">
+            $$Y = \text{ReLU}(X \cdot W) \cdot W$$
+        </div>
+
+        <p><strong>Loss:</strong> L2 between Y and X</p>
+
+        <div class="highlight">
+            <p><strong>Note:</strong> Same parameter matrix $W$ appears twice - <strong>shared weights</strong>!</p>
+        </div>
+
+        <p><strong>Gradient:</strong></p>
+        <div class="formula">
+            $$\delta W = Z_2^T \cdot \delta Y + X^T \cdot \delta Z_1$$
+        </div>
+
+        <div class="note">
+            Add gradients from both computational nodes where W appears.
+        </div>
+
+        <h3>Residual Connections</h3>
+        <p><strong>Network:</strong></p>
+        <div class="formula">
+            $$Y = X + F(X)$$
+        </div>
+
+        <p><strong>Backward:</strong></p>
+        <div class="formula">
+            $$\delta X = \delta Y + \delta F$$
+        </div>
+
+        <div class="highlight">
+            <p><strong>Key insight:</strong> Gradient flows through both identity and function paths.</p>
+        </div>
+
+        <h3>Transformer Backpropagation</h3>
+        <p>Complex architecture with:</p>
+        <ul>
+            <li>Multi-head attention</li>
+            <li>Layer normalization</li>
+            <li>Residual connections</li>
+            <li>Feed-forward networks</li>
+        </ul>
+
+        <div class="note">
+            Same chain rule, but more complex computational graph!
+        </div>
+    </div>
+
+    <div class="section" id="summary">
+        <h2>16. SUMMARY & KEY TAKEAWAYS</h2>
+
+        <h3>The Big Picture</h3>
+        <div class="diagram">
+            <pre class="ascii-art">
+Data → Model → Loss → Optimization
+         ↑                 |
+         |---- Backprop ----
+            </pre>
+        </div>
+
+        <h3>Core Concepts</h3>
+        <ol>
+            <li><strong>Models approximate reality</strong>
+                <ul>
+                    <li>Simplification of unknown data-generating process</li>
+                    <li>Goal: generalize to unseen data</li>
+                </ul>
+            </li>
+            <li><strong>Loss functions quantify error</strong>
+                <ul>
+                    <li>L2 loss for regression</li>
+                    <li>Cross-entropy for classification</li>
+                </ul>
+            </li>
+            <li><strong>Gradient descent minimizes loss</strong>
+                <ul>
+                    <li>Update rule: $\theta \leftarrow \theta - \eta \cdot \nabla L$</li>
+                    <li>Mini-batch SGD is practical default</li>
+                </ul>
+            </li>
+            <li><strong>Neural networks are universal approximators</strong>
+                <ul>
+                    <li>Don't assume model form</li>
+                    <li>Let network learn representation</li>
+                    <li>Need: data, computation, backpropagation</li>
+                </ul>
+            </li>
+            <li><strong>Backpropagation is chain rule</strong>
+                <ul>
+                    <li>Forward: compute outputs</li>
+                    <li>Backward: compute gradients right-to-left</li>
+                    <li>Update: gradient descent</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h3>Layer-Specific Backprop Recipes</h3>
+        <table>
+            <tr>
+                <th>Layer</th>
+                <th>Forward</th>
+                <th>Backward</th>
+            </tr>
+            <tr>
+                <td><strong>Linear</strong></td>
+                <td>$Z = X \cdot W + b$</td>
+                <td>$\delta W = X^T \cdot \delta Z$, $\delta X = \delta Z \cdot W^T$</td>
+            </tr>
+            <tr>
+                <td><strong>ReLU</strong></td>
+                <td>$Y = \max(0, X)$</td>
+                <td>$\delta X = \delta Y \odot \mathbb{1}[X > 0]$</td>
+            </tr>
+            <tr>
+                <td><strong>Conv</strong></td>
+                <td>$J = I * K$</td>
+                <td>$\delta K = I \circledast \delta J$, $\delta I = \text{pad}(\delta J) * \text{flip}(K)$</td>
+            </tr>
+            <tr>
+                <td><strong>MaxPool</strong></td>
+                <td>$Y = \max(X)$</td>
+                <td>Route $\delta Y$ to argmax location</td>
+            </tr>
+            <tr>
+                <td><strong>Softmax+CE</strong></td>
+                <td>$y_p = \text{softmax}(z)$, $L = -\sum y \cdot \log(y_p)$</td>
+                <td>$\delta z = y_p - y$</td>
+            </tr>
+        </table>
+
+        <h3>Practical Workflow</h3>
+        <ol>
+            <li><strong>Data sanity:</strong> Visualize random samples after augmentation</li>
+            <li><strong>Forward caches:</strong> Store intermediates for backward pass</li>
+            <li><strong>Gradient checks:</strong> Compare manual gradients vs autograd</li>
+            <li><strong>Learning rate sweeps:</strong> Try {1e-1, 1e-2, 1e-3}</li>
+            <li><strong>Monitor metrics:</strong> Track train/val loss and accuracy</li>
+        </ol>
+
+        <h3>Common Pitfalls</h3>
+        <table>
+            <tr>
+                <th>Symptom</th>
+                <th>Cause</th>
+                <th>Fix</th>
+            </tr>
+            <tr>
+                <td>Shape mismatch</td>
+                <td>Forgot flip/pad</td>
+                <td>Follow formulas exactly</td>
+            </tr>
+            <tr>
+                <td>Pooling gradients everywhere</td>
+                <td>Lost argmax</td>
+                <td>Cache switches in forward</td>
+            </tr>
+            <tr>
+                <td>Accuracy at random chance</td>
+                <td>Wrong loss</td>
+                <td>Use cross-entropy for classification</td>
+            </tr>
+            <tr>
+                <td>Train/val diverge</td>
+                <td>Data leakage</td>
+                <td>Separate augmentation for train/val</td>
+            </tr>
+            <tr>
+                <td>Exploding gradients</td>
+                <td>Too large LR</td>
+                <td>Gradient clipping, lower LR</td>
+            </tr>
+            <tr>
+                <td>Vanishing gradients</td>
+                <td>Too many sigmoid layers</td>
+                <td>Use ReLU, residual connections</td>
+            </tr>
+        </table>
+
+        <h3>Debugging Patterns</h3>
+        <p><strong>Lightweight instrumentation:</strong></p>
+        <ul>
+            <li>Log <code>loss</code>, <code>||∇θ||₂</code>, <code>max|∂L/∂θ|</code> per batch</li>
+            <li>Plot running averages for train and validation</li>
+            <li>Catch silent NaNs early</li>
+        </ul>
+
+        <p><strong>Autograd verification:</strong></p>
+        <pre><code># Manual calculation
+δW_manual = compute_gradient_manually()
+
+# PyTorch autograd
+loss.backward()
+δW_auto = W.grad
+
+# Compare
+assert torch.allclose(δW_manual, δW_auto, atol=1e-5)</code></pre>
+
+        <h3>Next Steps</h3>
+        <ol>
+            <li>Review Anki cards (tagged by topic)</li>
+            <li>Re-implement Conv → ReLU → Pool example</li>
+            <li>Verify gradients numerically before scaling to datasets</li>
+            <li>Apply to Assignment 7 architecture</li>
+        </ol>
+    </div>
+
+    <hr>
+
+    <div class="section">
+        <h2>REFERENCES</h2>
+        <ul>
+            <li><strong>Slides-1-ML.pdf</strong> by Paulius Sasnauskas</li>
+            <li><strong>BackPropPractices.pdf</strong> by Nilanjan Ray</li>
+            <li><strong>Example_Solutions-Backprop.pdf</strong> (worked autograd checks)</li>
+            <li>Andrej Karpathy's <strong>micrograd</strong> and backpropagation lecture</li>
+            <li>Rich Sutton's <strong>The Bitter Lesson</strong> (2019)</li>
+            <li>Google Machine Learning Crash Course</li>
+        </ul>
+    </div>
+
+    <hr>
+
+    <div style="text-align: center; margin: 50px 0; padding: 30px; border: 2px solid #ffffff;">
+        <p style="font-size: 1.5em; text-align: center;"><strong>END OF LESSON</strong></p>
+        <p style="text-align: center;">CMPUT 328 - VISUAL RECOGNITION</p>
+        <p style="text-align: center;">MACHINE LEARNING & BACKPROPAGATION</p>
+        <p style="text-align: center;">Happy learning and backpropagating!</p>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button class="action-button" onclick="exportToPDF()">EXPORT AS PDF</button>
+        <a href="data/backprop/ML_Backpropagation_Fundamentals.apkg" download class="action-button">DOWNLOAD ANKI DECK</a>
+    </div>
+
+    <script>
+        function exportToPDF() {
+            // Simple print-to-PDF functionality
+            window.print();
+        }
+    </script>
+
+<script src="../../js/persistent-player.js" defer></script>
+</body>
+</html>

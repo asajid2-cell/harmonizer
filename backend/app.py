@@ -194,6 +194,7 @@ except ImportError:  # pragma: no cover
     from eldrichify import EldrichifyPipeline  # type: ignore
 
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
+STUDY_DIR = BASE_DIR.parent / "Study"
 
 UPLOAD_FOLDER = BASE_DIR / "uploads"
 DATA_FOLDER = BASE_DIR / "data"
@@ -202,6 +203,7 @@ ALLOWED_EXTENSIONS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 DATA_FOLDER.mkdir(parents=True, exist_ok=True)
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
+STUDY_DIR.mkdir(parents=True, exist_ok=True)
 DISCO_MEMORY_PATH = DATA_FOLDER / "discoteque_memory.jsonl"
 ELDRICHIFY_OUTPUT_DIR = UPLOAD_FOLDER / "eldrichify"
 CHEATSHEET_UPLOAD_DIR = UPLOAD_FOLDER / "cheatsheets"
@@ -1802,6 +1804,19 @@ def api_rl_telemetry():
         "model": model_meta,
     }
     return jsonify(telemetry)
+
+
+@app.route("/Study/<path:study_path>")
+@app.route("/study/<path:study_path>")
+def serve_study_asset(study_path: str):
+    target = (STUDY_DIR / study_path).resolve()
+    try:
+        target.relative_to(STUDY_DIR)
+    except ValueError:
+        abort(404)
+    if target.is_file():
+        return send_file(target)
+    abort(404)
 
 
 @app.route("/<path:asset_path>")
