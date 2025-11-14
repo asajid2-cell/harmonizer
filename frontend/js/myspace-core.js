@@ -40,7 +40,9 @@
             name: "Your Name Here",
             tagline: "✨ living my best life ✨",
             profilePic: "",
+            profilePicOffset: { x: 50, y: 50 },
             bannerImage: "",
+            bannerOffset: { x: 50, y: 50 },
             mood: { icon: "😎", text: "chillin" },
             onlineStatus: true
         },
@@ -193,10 +195,23 @@
         profile: JSON.parse(JSON.stringify(DEFAULT_PROFILE)), // Initialize with default to prevent null errors
         viewMode: false,
         _themeFrame: null,
+        isAuthenticated: false,
+        _authPromise: null,
+        _lastAuthCheck: 0,
+        profileSource: 'default',
+        profileLoadIssue: false,
+        loadFailureAlertShown: false,
+        viewingUsername: null,
+        _commentMigrationDone: false,
 
         // Initialize the MySpace page
         init: async function() {
             console.log("[MySpace] Initializing...");
+
+            const urlUser = new URLSearchParams(window.location.search).get('user');
+            if (urlUser) {
+                this.viewingUsername = urlUser;
+            }
 
             // Load profile from server or localStorage
             await this.loadProfile();
@@ -204,10 +219,14 @@
             // Load view mode preference
             this.loadViewMode();
 
-            // Increment visit counter
-            this.profile.meta.visits++;
-            this.profile.meta.lastModified = Date.now();
-            await this.saveProfile();
+            const shouldAutoSave = !this.isAuthenticated || this.profileSource !== 'default';
+            if (shouldAutoSave) {
+                this.profile.meta.visits++;
+                this.profile.meta.lastModified = Date.now();
+                await this.saveProfile();
+            } else {
+                console.warn("[MySpace] Profile not loaded from database. Auto-save skipped to protect data.");
+            }
 
             // Apply theme and customizations
             this.applyTheme(true);
@@ -227,83 +246,237 @@
             console.log("[MySpace] Initialization complete");
         },
 
-        // Load profile from server
-        loadProfile: async function() {
-            try {
-                const response = await fetch('/api/myspace/profile');
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data) {
-                        this.profile = data;
-                        console.log("[MySpace] Loaded profile from server");
-                        return;
-                    }
-                }
-            } catch (e) {
-                console.error("[MySpace] Error loading from server:", e);
+        setAuthState: function(state) {
+            this.isAuthenticated = !!state;
+            this._lastAuthCheck = Date.now();
+            if (typeof this.updateProfileLoadWarning === 'function') {
+                this.updateProfileLoadWarning();
+            }
+        },
+
+        refreshAuthState: async function(force = false) {
+            const now = Date.now();
+
+            if (!force && !this._authPromise && now - this._lastAuthCheck < 15000) {
+                return this.isAuthenticated;
             }
 
-            // Fallback to localStorage
-            const saved = localStorage.getItem('myspace-profile');
-            if (saved) {
-                try {
-                    this.profile = JSON.parse(saved);
-                    console.log("[MySpace] Loaded saved profile from localStorage");
-                } catch (e) {
-                    console.error("[MySpace] Error loading profile:", e);
-                    this.profile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
-                }
+            if (this._authPromise && !force) {
+                return this._authPromise;
+            }
+
+            const promise = fetch('/api/myspace/me', {
+                method: 'GET',
+                cache: 'no-store'
+            })
+                .then(response => response.ok ? response.json() : { authenticated: false })
+                .then(data => {
+                    const moduleState = (window.MySpaceAuth && typeof window.MySpaceAuth.isAuthenticated === 'boolean')
+                        ? window.MySpaceAuth.isAuthenticated
+                        : null;
+                    const resolved = moduleState !== null ? moduleState : !!data.authenticated;
+                    this.setAuthState(resolved);
+                    return this.isAuthenticated;
+                })
+                .catch(() => {
+                    const fallback = !!(window.MySpaceAuth && window.MySpaceAuth.isAuthenticated);
+                    this.setAuthState(fallback);
+                    return this.isAuthenticated;
+                })
+                .finally(() => {
+                    this._authPromise = null;
+                });
+
+            this._authPromise = promise;
+            return promise;
+        },
+
+        backupProfileLocally: function() {
+            try {
+                localStorage.setItem('myspace-profile', JSON.stringify(this.profile));
+                return true;
+            } catch (error) {
+                console.warn("[MySpace] Unable to store local backup:", error);
+                return false;
+            }
+        },
+
+        showProfileLoadWarning: function(message) {
+            this.profileLoadIssue = true;
+            if (typeof document === 'undefined' || !document.body) return;
+
+            let banner = document.getElementById('profile-load-warning');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'profile-load-warning';
+                banner.style.cssText = `
+                    position: fixed;
+                    top: 12px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #b00020;
+                    color: #ffffff;
+                    padding: 10px 18px;
+                    border-radius: 999px;
+                    z-index: 10030;
+                    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+                    font-family: 'Comic Sans MS', cursive;
+                    font-size: 14px;
+                    text-align: center;
+                `;
+                document.body.appendChild(banner);
+            }
+            banner.textContent = message;
+        },
+
+        clearProfileLoadWarning: function() {
+            if (typeof document === 'undefined') {
+                this.profileLoadIssue = false;
+                this.loadFailureAlertShown = false;
+                return;
+            }
+            this.profileLoadIssue = false;
+            this.loadFailureAlertShown = false;
+            const banner = document.getElementById('profile-load-warning');
+            if (banner) {
+                banner.remove();
+            }
+        },
+
+        updateProfileLoadWarning: function() {
+            if (this.isAuthenticated && this.profileSource === 'default') {
+                this.showProfileLoadWarning("We couldn't load your saved profile. Please refresh or re-login before editing.");
             } else {
+                this.clearProfileLoadWarning();
+            }
+        },
+
+        _loadProfileFromUrl: async function(endpoint, sourceLabel) {
+            try {
+                const response = await fetch(endpoint, { cache: 'no-store' });
+                if (!response.ok) {
+                    return false;
+                }
+                const data = await response.json();
+                if (!data) {
+                    return false;
+                }
+                this.profile = data;
+                this.profileSource = sourceLabel;
+                this.backupProfileLocally();
+                return true;
+            } catch (error) {
+                console.error(`[MySpace] Error loading profile from ${endpoint}:`, error);
+                return false;
+            }
+        },
+
+        _loadProfileFromLocalStorage: function() {
+            try {
+                const saved = localStorage.getItem('myspace-profile');
+                if (!saved) {
+                    return false;
+                }
+                this.profile = JSON.parse(saved);
+                this.profileSource = 'local';
+                return true;
+            } catch (error) {
+                console.error("[MySpace] Error loading profile from localStorage:", error);
+                return false;
+            }
+        },
+
+        // Load profile from persistent storage
+        loadProfile: async function() {
+            const isAuthenticated = await this.refreshAuthState();
+            let loaded = false;
+
+            if (isAuthenticated) {
+                loaded = await this._loadProfileFromUrl('/api/myspace/profile/load', 'database');
+                if (loaded) {
+                    console.log("[MySpace] Loaded profile from database");
+                } else {
+                    console.warn("[MySpace] Failed to load profile from database, will fall back");
+                }
+            }
+
+            if (!loaded) {
+                loaded = await this._loadProfileFromUrl('/api/myspace/profile', 'session');
+                if (loaded) {
+                    console.log("[MySpace] Loaded profile from temporary session storage");
+                }
+            }
+
+            if (!loaded) {
+                loaded = this._loadProfileFromLocalStorage();
+                if (loaded) {
+                    console.log("[MySpace] Loaded profile from local backup");
+                }
+            }
+
+            if (!loaded) {
                 this.profile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
+                this.profileSource = 'default';
+                this.backupProfileLocally();
                 console.log("[MySpace] Created new profile");
             }
+
+            this.updateProfileLoadWarning();
         },
 
         // Save profile to server
         saveProfile: async function() {
             try {
+                if (this.isAuthenticated && this.profileSource === 'default') {
+                    this.updateProfileLoadWarning();
+                    const warningMessage = "Profile data wasn't loaded from the server yet. Refresh or re-login before saving.";
+                    console.warn("[MySpace] Save blocked:", warningMessage);
+                    if (!this.loadFailureAlertShown) {
+                        alert(warningMessage);
+                        this.loadFailureAlertShown = true;
+                    }
+                    return false;
+                }
+
                 this.profile.meta.lastModified = Date.now();
 
-                // Check if user is authenticated
-                const isAuthenticated = window.MySpaceAuth && window.MySpaceAuth.isAuthenticated;
-                console.log(`[MySpace] saveProfile called - isAuthenticated: ${isAuthenticated}`);
+                const moduleState = window.MySpaceAuth && typeof window.MySpaceAuth.isAuthenticated === 'boolean'
+                    ? window.MySpaceAuth.isAuthenticated
+                    : null;
 
-                let response;
-                if (isAuthenticated) {
-                    // Save to database for authenticated users
-                    console.log('[MySpace] Saving to database via /api/myspace/profile/save');
-                    response = await fetch('/api/myspace/profile/save', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(this.profile)
-                    });
+                if (moduleState !== null) {
+                    this.setAuthState(moduleState);
                 } else {
-                    // Save to temp storage for non-authenticated users
-                    console.log('[MySpace] Saving to temp storage via /api/myspace/profile');
-                    response = await fetch('/api/myspace/profile', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(this.profile)
-                    });
+                    await this.refreshAuthState();
                 }
 
-                if (response.ok) {
-                    console.log(`[MySpace] Profile saved successfully to ${isAuthenticated ? 'database' : 'temp storage'}`);
-                } else {
-                    throw new Error('Server save failed');
+                const useDatabase = this.isAuthenticated;
+                const endpoint = useDatabase ? '/api/myspace/profile/save' : '/api/myspace/profile';
+                const targetLabel = useDatabase ? 'database' : 'temporary storage';
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(this.profile)
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 && useDatabase) {
+                        this.setAuthState(false);
+                    }
+                    throw new Error(`Server save failed (${response.status})`);
                 }
 
+                this.backupProfileLocally();
+                console.log(`[MySpace] Profile saved successfully to ${targetLabel}`);
                 return true;
             } catch (e) {
                 console.error("[MySpace] Error saving profile:", e);
-                // Fallback to localStorage
-                try {
-                    localStorage.setItem('myspace-profile', JSON.stringify(this.profile));
-                    console.log("[MySpace] Profile saved to localStorage (fallback)");
-                } catch (localErr) {
+                if (!this.backupProfileLocally()) {
                     alert("Error saving profile. Storage might be full.");
                     return false;
                 }
+                console.log("[MySpace] Profile saved to local backup (fallback)");
                 return true;
             }
         },
@@ -607,9 +780,16 @@
             if (moodText) moodText.textContent = this.profile.profile.mood.text;
             if (moodIcon) moodIcon.textContent = this.profile.profile.mood.icon;
 
-            if (profilePic && this.profile.profile.profilePic) {
-                profilePic.src = this.profile.profile.profilePic;
-                profilePic.style.display = 'block';
+            if (!this.profile.profile.profilePicOffset) {
+                this.profile.profile.profilePicOffset = { x: 50, y: 50 };
+            }
+            if (profilePic) {
+                if (this.profile.profile.profilePic) {
+                    profilePic.src = this.profile.profile.profilePic;
+                    profilePic.style.display = 'block';
+                }
+                const picOffset = this.profile.profile.profilePicOffset;
+                profilePic.style.objectPosition = `${picOffset.x}% ${picOffset.y}%`;
             }
 
             // Banner image
@@ -618,6 +798,13 @@
                 banner.style.backgroundImage = `url(${this.profile.profile.bannerImage})`;
                 const overlay = banner.querySelector('.upload-overlay');
                 if (overlay) overlay.style.display = 'none';
+            }
+            if (!this.profile.profile.bannerOffset) {
+                this.profile.profile.bannerOffset = { x: 50, y: 50 };
+            }
+            if (banner) {
+                const bannerOffset = this.profile.profile.bannerOffset;
+                banner.style.backgroundPosition = `${bannerOffset.x}% ${bannerOffset.y}%`;
             }
 
             // About Me
@@ -637,6 +824,16 @@
             if (moviesEl) moviesEl.textContent = interests.movies;
             if (tvEl) tvEl.textContent = interests.tv;
             if (booksEl) booksEl.textContent = interests.books;
+
+            // Custom HTML widget
+            const customHtmlOutput = document.getElementById('custom-html-output');
+            if (customHtmlOutput) {
+                customHtmlOutput.innerHTML = this.profile.widgets.customHtml.html || '';
+            }
+            const customHtmlInput = document.getElementById('custom-html-input');
+            if (customHtmlInput) {
+                customHtmlInput.value = this.profile.widgets.customHtml.html || '';
+            }
 
             console.log("[MySpace] Content loaded");
         },
@@ -708,9 +905,117 @@
                 stripes: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0,40 L40,0 M-10,10 L10,-10 M30,50 L50,30\' stroke=\'rgba(255,255,255,0.2)\' stroke-width=\'8\' /%3E%3C/svg%3E")',
 
                 // Glitter - random sparkles
-                glitter: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M8,8 L9,12 L8,13 L7,12 Z M8,8 L12,9 L13,8 L12,7 Z\' fill=\'rgba(255,255,255,0.6)\' /%3E%3Cpath d=\'M28,15 L29,18 L28,19 L27,18 Z M28,15 L31,16 L32,15 L31,14 Z\' fill=\'rgba(255,255,100,0.5)\' /%3E%3Cpath d=\'M15,28 L16,30 L15,31 L14,30 Z M15,28 L17,29 L18,28 L17,27 Z\' fill=\'rgba(255,200,255,0.5)\' /%3E%3Ccircle cx=\'32\' cy=\'8\' r=\'1.5\' fill=\'rgba(255,255,255,0.7)\' /%3E%3Ccircle cx=\'10\' cy=\'35\' r=\'1\' fill=\'rgba(255,255,255,0.8)\' /%3E%3C/svg%3E")'
+                glitter: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M8,8 L9,12 L8,13 L7,12 Z M8,8 L12,9 L13,8 L12,7 Z\' fill=\'rgba(255,255,255,0.6)\' /%3E%3Cpath d=\'M28,15 L29,18 L28,19 L27,18 Z M28,15 L31,16 L32,15 L31,14 Z\' fill=\'rgba(255,255,100,0.5)\' /%3E%3Cpath d=\'M15,28 L16,30 L15,31 L14,30 Z M15,28 L17,29 L18,28 L17,27 Z\' fill=\'rgba(255,200,255,0.5)\' /%3E%3Ccircle cx=\'32\' cy=\'8\' r=\'1.5\' fill=\'rgba(255,255,255,0.7)\' /%3E%3Ccircle cx=\'10\' cy=\'35\' r=\'1\' fill=\'rgba(255,255,255,0.8)\' /%3E%3C/svg%3E")',
+
+                // Tiger print remix
+                tigerprint: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(0,0,0,0)\'/%3E%3Cpath d=\'M10 20 C30 5 50 5 70 20\' stroke=\'rgba(0,0,0,0.35)\' stroke-width=\'10\' stroke-linecap=\'round\'/%3E%3Cpath d=\'M5 50 C25 35 55 35 75 50\' stroke=\'rgba(0,0,0,0.35)\' stroke-width=\'10\' stroke-linecap=\'round\'/%3E%3Ccircle cx=\'20\' cy=\'15\' r=\'8\' fill=\'rgba(0,150,255,0.4)\'/%3E%3Ccircle cx=\'55\' cy=\'40\' r=\'10\' fill=\'rgba(0,150,255,0.4)\'/%3E%3Ccircle cx=\'25\' cy=\'60\' r=\'7\' fill=\'rgba(0,150,255,0.4)\'/%3E%3C/svg%3E")',
+
+                // Mall goth glitch
+                mallgoth: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(255,0,0,0.12)\'/%3E%3Crect x=\'0\' y=\'0\' width=\'40\' height=\'10\' fill=\'rgba(255,0,0,0.35)\'/%3E%3Crect x=\'45\' y=\'25\' width=\'35\' height=\'12\' fill=\'rgba(255,0,0,0.45)\'/%3E%3Crect x=\'10\' y=\'45\' width=\'25\' height=\'15\' fill=\'rgba(255,60,60,0.4)\'/%3E%3Crect x=\'40\' y=\'65\' width=\'30\' height=\'10\' fill=\'rgba(255,0,0,0.35)\'/%3E%3C/svg%3E")',
+
+                // Pop punk doodles
+                poppunk: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(0,0,0,0)\'/%3E%3Ccircle cx=\'20\' cy=\'15\' r=\'4\' fill=\'#ff5bff\'/%3E%3Ccircle cx=\'60\' cy=\'25\' r=\'4\' fill=\'#36fffb\'/%3E%3Cpath d=\'M5 60 L25 40\' stroke=\'#ffef5a\' stroke-width=\'4\'/%3E%3Cpath d=\'M35 70 L55 50\' stroke=\'#ff5bff\' stroke-width=\'4\'/%3E%3Crect x=\'50\' y=\'5\' width=\'12\' height=\'12\' fill=\'rgba(255,255,255,0.25)\'/%3E%3Crect x=\'10\' y=\'35\' width=\'12\' height=\'12\' fill=\'rgba(255,255,255,0.25)\'/%3E%3C/svg%3E")',
+
+                // Evanescent swirls
+                evanescent: 'url("data:image/svg+xml,%3Csvg width=\'80\' height=\'80\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'80\' height=\'80\' fill=\'rgba(0,0,0,0)\'/%3E%3Cpath d=\'M10 40 Q30 20 50 40 T90 40\' fill=\'none\' stroke=\'rgba(126, 230, 255, 0.35)\' stroke-width=\'6\'/%3E%3Cpath d=\'M-10 60 Q10 80 30 60 T70 60\' fill=\'none\' stroke=\'rgba(240, 89, 255, 0.3)\' stroke-width=\'5\'/%3E%3Ccircle cx=\'25\' cy=\'50\' r=\'5\' fill=\'rgba(126,230,255,0.4)\'/%3E%3Ccircle cx=\'55\' cy=\'30\' r=\'4\' fill=\'rgba(240,89,255,0.4)\'/%3E%3C/svg%3E")'
             };
             return patterns[patternName] || patterns.stars;
+        },
+
+        // Enable drag-to-frame behavior on an element
+        createFrameDrag: function(element, options = {}) {
+            if (!element) return;
+
+            const clamp = value => Math.max(0, Math.min(100, value));
+            let pointerId = null;
+            let startX = 0;
+            let startY = 0;
+            let initialX = 50;
+            let initialY = 50;
+
+            const getOffsets = () => {
+                if (typeof options.get === 'function') {
+                    const result = options.get();
+                    return {
+                        x: result && typeof result.x === 'number' ? result.x : 50,
+                        y: result && typeof result.y === 'number' ? result.y : 50
+                    };
+                }
+                return { x: 50, y: 50 };
+            };
+
+            const applyOffsets = (x, y) => {
+                if (typeof options.apply === 'function') {
+                    options.apply(x, y);
+                }
+            };
+
+            const setOffsets = (x, y) => {
+                if (typeof options.set === 'function') {
+                    options.set({ x, y });
+                }
+            };
+
+            const isViewMode = () => document.body.classList.contains('view-mode');
+
+            const canActivate = (event) => {
+                if (event.button !== 0) return false;
+                if (!options.allowInViewMode && isViewMode()) return false;
+                if (options.isActive && !options.isActive()) return false;
+                if (options.ignoreSelector && event.target.closest(options.ignoreSelector)) return false;
+                return true;
+            };
+
+            const pointerDown = (event) => {
+                if (!canActivate(event)) return;
+
+                event.preventDefault();
+                const offsets = getOffsets();
+                initialX = offsets.x;
+                initialY = offsets.y;
+                startX = event.clientX;
+                startY = event.clientY;
+                pointerId = event.pointerId;
+                try {
+                    element.setPointerCapture(pointerId);
+                } catch (err) {
+                    // Ignore pointer capture errors (e.g., non-pointer devices)
+                }
+                element.classList.add('framing-active');
+            };
+
+            const pointerMove = (event) => {
+                if (pointerId === null || event.pointerId !== pointerId) return;
+                const deltaX = (event.clientX - startX) / element.clientWidth * 100;
+                const deltaY = (event.clientY - startY) / element.clientHeight * 100;
+                const nextX = clamp(initialX - deltaX);
+                const nextY = clamp(initialY - deltaY);
+                applyOffsets(nextX, nextY);
+                setOffsets(nextX, nextY);
+            };
+
+            const pointerUp = (event) => {
+                if (pointerId === null || event.pointerId !== pointerId) return;
+                try {
+                    element.releasePointerCapture(pointerId);
+                } catch (err) {
+                    // Ignore release errors
+                }
+                pointerId = null;
+                element.classList.remove('framing-active');
+                if (typeof options.onSave === 'function') {
+                    options.onSave();
+                }
+            };
+
+            element.addEventListener('pointerdown', pointerDown);
+            element.addEventListener('pointermove', pointerMove);
+            element.addEventListener('pointerup', pointerUp);
+            element.addEventListener('pointercancel', pointerUp);
+
+            // Apply initial offsets if possible
+            const initial = getOffsets();
+            applyOffsets(initial.x, initial.y);
         },
 
         // Load view mode preference

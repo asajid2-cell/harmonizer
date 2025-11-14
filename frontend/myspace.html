@@ -35,15 +35,15 @@
 <body>
     <!-- Navigation -->
     <nav class="eld-nav">
-        <a href="/index.html">Home</a>
-        <a href="/showcase.html">Showcase</a>
+        <a href="/">Home</a>
+        <a href="/projects">Showcase</a>
         <a href="/harmonizer.html">Harmonizer</a>
-        <a href="/image-playground.html">Image Playground</a>
+        <a href="/eldrichify.html">Image Playground</a>
         <a href="/talk-to-disco-teque.html">Talk to Disco-teque</a>
-        <a href="/radio.html">Radio</a>
-        <a href="/myspace.html" class="active">MySpace</a>
+        <a href="https://plaza.one/" target="_blank" rel="noopener">Radio</a>
+        <a href="/myspace.html" class="active" aria-current="page">MySpace</a>
         <a href="/notebook.html">Notebook</a>
-        <a href="/quick-reference.html">Quick Reference</a>
+        <a href="/cheatsheets/">Quick Reference</a>
     </nav>
 
     <!-- Falling Effects Container -->
@@ -57,7 +57,7 @@
 
     <!-- Mode Toggle Button -->
     <button id="mode-toggle-btn" class="mode-toggle-btn" title="Toggle Customize/View Mode">
-        <span class="mode-icon">🎨</span>
+        <span class="mode-icon"></span>
         <span class="mode-text">Customize</span>
     </button>
 
@@ -66,23 +66,28 @@
         <!-- Customization Sidebar -->
         <aside id="customization-panel" class="customize-panel">
             <div class="panel-header">
-                <h2>✨ CUSTOMIZE ✨</h2>
-                <button id="toggle-panel" class="toggle-btn">◀</button>
+                <h2> CUSTOMIZE </h2>
+                <button id="toggle-panel" class="toggle-btn" aria-label="Collapse sidebar">&laquo;</button>
             </div>
 
             <div class="panel-content">
                 <!-- Theme Presets -->
-                <section class="panel-section">
-                    <h3>Theme Presets</h3>
-                    <div class="theme-grid">
-                        <button class="theme-btn" data-theme="classic">Classic</button>
-                        <button class="theme-btn" data-theme="glitter">Glitter Girl</button>
-                        <button class="theme-btn" data-theme="emo">Emo Scene</button>
-                        <button class="theme-btn" data-theme="rainbow">Rainbow Bright</button>
-                        <button class="theme-btn" data-theme="goth">Goth Dark</button>
-                        <button class="theme-btn" data-theme="y2k">Y2K Cyber</button>
-                    </div>
-                </section>
+                        <section class="panel-section">
+                            <h3>Theme Presets</h3>
+                            <div class="theme-grid">
+                                <button class="theme-btn" data-theme="classic">Classic</button>
+                                <button class="theme-btn" data-theme="glitter">Glitter Girl</button>
+                                <button class="theme-btn" data-theme="emo">Emo Scene</button>
+                                <button class="theme-btn" data-theme="rainbow">Rainbow Bright</button>
+                                <button class="theme-btn" data-theme="goth">Goth Dark</button>
+                                <button class="theme-btn" data-theme="y2k">Y2K Cyber</button>
+                                <button class="theme-btn" data-theme="tigerprint">Tigerprint</button>
+                                <button class="theme-btn" data-theme="mallgoth">Mall Goth</button>
+                                <button class="theme-btn" data-theme="checkers">Checkers</button>
+                                <button class="theme-btn" data-theme="poppunk">Pop Punk</button>
+                                <button class="theme-btn" data-theme="evanescent">Evanescent</button>
+                            </div>
+                        </section>
 
                 <!-- Colors -->
                 <section class="panel-section">
@@ -128,14 +133,14 @@
                     </select>
 
                     <div id="pattern-grid" class="pattern-grid">
-                        <div class="pattern-item" data-pattern="stars">⭐ Stars</div>
-                        <div class="pattern-item" data-pattern="hearts">💖 Hearts</div>
-                        <div class="pattern-item" data-pattern="flames">🔥 Flames</div>
-                        <div class="pattern-item" data-pattern="sparkles">✨ Sparkles</div>
-                        <div class="pattern-item" data-pattern="checkers">⬛ Checkers</div>
-                        <div class="pattern-item" data-pattern="dots">⚫ Dots</div>
-                        <div class="pattern-item" data-pattern="stripes">📊 Stripes</div>
-                        <div class="pattern-item" data-pattern="glitter">💎 Glitter</div>
+                        <div class="pattern-item" data-pattern="stars"> Stars</div>
+                        <div class="pattern-item" data-pattern="hearts"> Hearts</div>
+                        <div class="pattern-item" data-pattern="flames"> Flames</div>
+                        <div class="pattern-item" data-pattern="sparkles"> Sparkles</div>
+                        <div class="pattern-item" data-pattern="checkers"> Checkers</div>
+                        <div class="pattern-item" data-pattern="dots"> Dots</div>
+                        <div class="pattern-item" data-pattern="stripes"> Stripes</div>
+                        <div class="pattern-item" data-pattern="glitter"> Glitter</div>
                     </div>
 
                     <input type="file" id="bg-image-upload" accept="image/*" style="display: none;">
@@ -144,7 +149,7 @@
 
                     <!-- Background Transformations (shown only for image type) -->
                     <div id="bg-transform-panel" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
-                        <h4 style="margin-bottom: 10px; font-size: 14px;">🎨 Image Transformations</h4>
+                        <h4 style="margin-bottom: 10px; font-size: 14px;"> Image Transformations</h4>
 
                         <!-- Repeat & Size -->
                         <label style="font-size: 12px;">
@@ -208,17 +213,17 @@
                         </label>
 
                         <label style="font-size: 12px; margin-top: 8px; display: block;">
-                            Rotate: <span id="bg-rotate-display">0°</span>
+                            Rotate: <span id="bg-rotate-display">0 deg</span>
                             <input type="range" id="bg-rotate" min="0" max="360" step="1" value="0" style="width: 100%;">
                         </label>
 
                         <label style="font-size: 12px; margin-top: 8px; display: block;">
-                            Skew X: <span id="bg-skewx-display">0°</span>
+                            Skew X: <span id="bg-skewx-display">0 deg</span>
                             <input type="range" id="bg-skewx" min="-45" max="45" step="1" value="0" style="width: 100%;">
                         </label>
 
                         <label style="font-size: 12px; margin-top: 8px; display: block;">
-                            Skew Y: <span id="bg-skewy-display">0°</span>
+                            Skew Y: <span id="bg-skewy-display">0 deg</span>
                             <input type="range" id="bg-skewy" min="-45" max="45" step="1" value="0" style="width: 100%;">
                         </label>
 
@@ -251,7 +256,7 @@
                         </label>
 
                         <label style="font-size: 12px; margin-top: 8px; display: block;">
-                            Hue Rotate: <span id="bg-hue-display">0°</span>
+                            Hue Rotate: <span id="bg-hue-display">0 deg</span>
                             <input type="range" id="bg-hue" min="0" max="360" step="5" value="0" style="width: 100%;">
                         </label>
 
@@ -569,16 +574,16 @@
                         <!-- Auth buttons will be injected here -->
                     </div>
                     <button id="save-publish-btn" class="action-btn" style="display: none; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); margin-top: 10px;">
-                        💾 Save & Publish Profile
+                         Save & Publish Profile
                     </button>
                 </section>
 
                 <!-- Save/Load -->
                 <section class="panel-section">
-                    <button id="save-profile" class="action-btn">💾 Save Profile</button>
-                    <button id="load-profile" class="action-btn">📁 Load Profile</button>
-                    <button id="export-profile" class="action-btn">📤 Export</button>
-                    <button id="reset-profile" class="action-btn danger">🔄 Reset All</button>
+                    <button id="save-profile" class="action-btn"> Save Profile</button>
+                    <button id="load-profile" class="action-btn"> Load Profile</button>
+                    <button id="export-profile" class="action-btn"> Export</button>
+                    <button id="reset-profile" class="action-btn danger"> Reset All</button>
                 </section>
             </div>
         </aside>
@@ -593,7 +598,7 @@
                         + Upload Banner
                     </button>
                     <button class="remove-banner-btn" id="remove-banner-btn" style="display: none;">
-                        ✕ Remove
+                        x Remove
                     </button>
                 </div>
                 <div class="profile-header-content">
@@ -601,19 +606,19 @@
                         <input type="file" id="profile-pic-upload" accept="image/*" style="display: none;">
                         <img id="profile-pic" src="" alt="Profile" class="profile-pic">
                         <button class="pic-upload-btn" onclick="document.getElementById('profile-pic-upload').click()">
-                            📷
+                            
                         </button>
                         <button class="pic-remove-btn" id="remove-profile-pic-btn" style="display: none;">
-                            ✕
+                            x
                         </button>
                     </div>
                     <div class="profile-info">
                         <h1 contenteditable="true" id="profile-name" class="profile-name">Your Name Here</h1>
-                        <p contenteditable="true" id="profile-tagline" class="profile-tagline">✨ living my best life ✨</p>
+                        <p contenteditable="true" id="profile-tagline" class="profile-tagline"> living my best life </p>
                         <div class="profile-status">
                             <span class="mood">
                                 Mood: <span contenteditable="true" id="mood-text">chillin</span>
-                                <span id="mood-icon">😎</span>
+                                <span id="mood-icon">:)</span>
                             </span>
                         </div>
                     </div>
@@ -628,12 +633,12 @@
                     <div class="widget" id="about-me-widget">
                         <div class="widget-header">
                             <h2>About Me</h2>
-                            <button class="widget-toggle">−</button>
+                            <button class="widget-toggle">-</button>
                         </div>
                         <div class="widget-content" contenteditable="true" id="about-me-content">
-                            <p>Hey! Thanks for visiting my page! 🎉</p>
+                            <p>Hey! Thanks for visiting my page! </p>
                             <p>This is my corner of the internet where I share my pics, music, and vibes.</p>
-                            <p>Feel free to leave a comment! 💕</p>
+                            <p>Feel free to leave a comment! </p>
                         </div>
                     </div>
 
@@ -641,7 +646,7 @@
                     <div class="widget" id="interests-widget">
                         <div class="widget-header">
                             <h2>Interests</h2>
-                            <button class="widget-toggle">−</button>
+                            <button class="widget-toggle">-</button>
                         </div>
                         <div class="widget-content">
                             <div class="interest-section">
@@ -667,11 +672,13 @@
                     <div class="widget" id="custom-html-widget">
                         <div class="widget-header">
                             <h2>Custom HTML</h2>
-                            <button class="widget-toggle">−</button>
+                            <button class="widget-toggle">-</button>
                         </div>
                         <div class="widget-content">
-                            <textarea id="custom-html-input" placeholder="Paste your custom HTML here..."></textarea>
-                            <button id="apply-custom-html">Apply</button>
+                            <div class="custom-html-editor">
+                                <textarea id="custom-html-input" placeholder="Paste your custom HTML here..."></textarea>
+                                <button id="apply-custom-html">Apply</button>
+                            </div>
                             <div id="custom-html-output"></div>
                         </div>
                     </div>
@@ -682,8 +689,8 @@
                     <!-- Music Player Widget -->
                     <div class="widget" id="music-widget">
                         <div class="widget-header">
-                            <h2>♫ My Music ♫</h2>
-                            <button class="widget-toggle">−</button>
+                            <h2> My Music </h2>
+                            <button class="widget-toggle">-</button>
                         </div>
                         <div class="widget-content">
                             <div class="music-player">
@@ -692,9 +699,9 @@
                                 </div>
                                 <audio id="audio-player" preload="auto"></audio>
                                 <div class="player-controls">
-                                    <button id="play-btn" class="player-btn">▶</button>
-                                    <button id="pause-btn" class="player-btn">⏸</button>
-                                    <button id="stop-btn" class="player-btn">⏹</button>
+                                    <button id="play-btn" class="player-btn" aria-label="Play">&#9654;</button>
+                                    <button id="pause-btn" class="player-btn" aria-label="Pause">&#10074;&#10074;</button>
+                                    <button id="stop-btn" class="player-btn" aria-label="Stop">&#9632;</button>
                                     <input type="range" id="volume-slider" min="0" max="100" value="70">
                                     <span id="volume-display">70%</span>
                                 </div>
@@ -711,10 +718,10 @@
                                 <div class="music-upload">
                                     <input type="file" id="audio-upload" accept="audio/*" style="display: none;">
                                     <button onclick="document.getElementById('audio-upload').click()" class="upload-btn">
-                                        🎵 Upload Song
+                                         Upload Song
                                     </button>
                                     <button id="remove-audio-btn" class="upload-btn" style="display: none; background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);">
-                                        🗑️ Remove Song
+                                         Remove Song
                                     </button>
                                     <label>
                                         <input type="checkbox" id="autoplay-checkbox"> Autoplay on page load
@@ -727,14 +734,14 @@
                     <!-- Picture Wall Widget -->
                     <div class="widget" id="picture-wall-widget">
                         <div class="widget-header">
-                            <h2>📷 My Pictures 📷</h2>
-                            <button class="widget-toggle">−</button>
+                            <h2> My Pictures </h2>
+                            <button class="widget-toggle">-</button>
                         </div>
                         <div class="widget-content">
                             <div class="picture-wall-controls">
                                 <input type="file" id="picture-upload" accept="image/*" multiple style="display: none;">
                                 <button onclick="document.getElementById('picture-upload').click()" class="upload-btn">
-                                    ➕ Add Photos
+                                    + Add Photos
                                 </button>
                                 <label>
                                     Columns:
@@ -756,8 +763,8 @@
                     <!-- Comments Widget -->
                     <div class="widget" id="comments-widget">
                         <div class="widget-header">
-                            <h2>💬 Comments 💬</h2>
-                            <button class="widget-toggle">−</button>
+                            <h2> Comments </h2>
+                            <button class="widget-toggle">-</button>
                         </div>
                         <div class="widget-content">
                             <div class="add-comment">
@@ -778,7 +785,7 @@
                     <div class="widget" id="top-friends-widget">
                         <div class="widget-header">
                             <h2>Top Friends</h2>
-                            <button class="widget-toggle">−</button>
+                            <button class="widget-toggle">-</button>
                         </div>
                         <div class="widget-content">
                             <div class="friends-controls">
@@ -802,7 +809,7 @@
                     <div class="widget" id="stats-widget">
                         <div class="widget-header">
                             <h2>Profile Stats</h2>
-                            <button class="widget-toggle">−</button>
+                            <button class="widget-toggle">-</button>
                         </div>
                         <div class="widget-content">
                             <div class="stats">
@@ -835,14 +842,35 @@
                     <div class="widget" id="contact-widget">
                         <div class="widget-header">
                             <h2>Contact Me</h2>
-                            <button class="widget-toggle">−</button>
+                            <button class="widget-toggle">-</button>
                         </div>
                         <div class="widget-content">
-                            <div class="contact-links">
-                                <button class="contact-btn">✉️ Send Message</button>
-                                <button class="contact-btn">👥 Add to Friends</button>
-                                <button class="contact-btn">📧 Forward to Friend</button>
-                                <button class="contact-btn">🚫 Block User</button>
+                            <div class="contact-tabs">
+                                <button class="contact-tab active" data-tab="actions">Actions</button>
+                                <button class="contact-tab" data-tab="inbox">Inbox</button>
+                            </div>
+                            <div class="contact-tab-content active" data-tab="actions">
+                                <div class="contact-links">
+                                    <button class="contact-btn">Send Message</button>
+                                    <button class="contact-btn">Add to Friends</button>
+                                    <button class="contact-btn">Forward to Friend</button>
+                                    <button class="contact-btn">Block User</button>
+                                </div>
+                            </div>
+                            <div class="contact-tab-content" data-tab="inbox">
+                                <div id="inbox-login-message" class="inbox-empty">
+                                    Log in to view your messages and friend requests.
+                                </div>
+                                <div class="inbox-lists" id="inbox-lists">
+                                    <div class="inbox-section">
+                                        <h4>Messages</h4>
+                                        <div id="inbox-messages"></div>
+                                    </div>
+                                    <div class="inbox-section">
+                                        <h4>Friend Requests</h4>
+                                        <div id="inbox-requests"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -861,7 +889,7 @@
     <!-- Auth Modal -->
     <div id="auth-modal" class="auth-modal" style="display: none;">
         <div class="auth-modal-content">
-            <span class="auth-modal-close" id="close-auth-modal">×</span>
+            <span class="auth-modal-close" id="close-auth-modal">x</span>
             <h2 id="auth-modal-title">Login to MySpace</h2>
             <form id="auth-form">
                 <div class="auth-form-group">

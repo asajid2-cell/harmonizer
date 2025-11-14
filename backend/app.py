@@ -1907,11 +1907,14 @@ def _load_myspace_db():
             authenticate_user,
             block_user,
             create_user,
+            add_profile_comment,
             delete_message,
+            delete_profile_comment,
             get_blocked_users,
             get_friends,
             get_inbox,
             get_pending_friend_requests,
+            get_profile_comments,
             get_sent_messages,
             get_unread_count,
             get_user_profile,
@@ -1934,11 +1937,14 @@ def _load_myspace_db():
             "authenticate_user": authenticate_user,
             "block_user": block_user,
             "create_user": create_user,
+            "add_profile_comment": add_profile_comment,
             "delete_message": delete_message,
+            "delete_profile_comment": delete_profile_comment,
             "get_blocked_users": get_blocked_users,
             "get_friends": get_friends,
             "get_inbox": get_inbox,
             "get_pending_friend_requests": get_pending_friend_requests,
+            "get_profile_comments": get_profile_comments,
             "get_sent_messages": get_sent_messages,
             "get_unread_count": get_unread_count,
             "get_user_profile": get_user_profile,
@@ -1963,11 +1969,14 @@ def _load_myspace_db():
                 authenticate_user,
                 block_user,
                 create_user,
+                add_profile_comment,
                 delete_message,
+                delete_profile_comment,
                 get_blocked_users,
                 get_friends,
                 get_inbox,
                 get_pending_friend_requests,
+                get_profile_comments,
                 get_sent_messages,
                 get_unread_count,
                 get_user_profile,
@@ -1990,11 +1999,14 @@ def _load_myspace_db():
                 "authenticate_user": authenticate_user,
                 "block_user": block_user,
                 "create_user": create_user,
+                "add_profile_comment": add_profile_comment,
                 "delete_message": delete_message,
+                "delete_profile_comment": delete_profile_comment,
                 "get_blocked_users": get_blocked_users,
                 "get_friends": get_friends,
                 "get_inbox": get_inbox,
                 "get_pending_friend_requests": get_pending_friend_requests,
+                "get_profile_comments": get_profile_comments,
                 "get_sent_messages": get_sent_messages,
                 "get_unread_count": get_unread_count,
                 "get_user_profile": get_user_profile,
@@ -2041,6 +2053,9 @@ block_user = _myspace_db_helpers.get("block_user")
 unblock_user = _myspace_db_helpers.get("unblock_user")
 get_blocked_users = _myspace_db_helpers.get("get_blocked_users")
 is_blocked = _myspace_db_helpers.get("is_blocked")
+add_profile_comment = _myspace_db_helpers.get("add_profile_comment")
+get_profile_comments = _myspace_db_helpers.get("get_profile_comments")
+delete_profile_comment = _myspace_db_helpers.get("delete_profile_comment")
 
 
 @app.route("/api/myspace/register", methods=["POST", "OPTIONS"])
@@ -2575,6 +2590,66 @@ def myspace_delete_message():
 
     if not success:
         return jsonify({"error": "Failed to delete message"}), 400
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/comments/<username>", methods=["GET", "POST", "OPTIONS"])
+def myspace_profile_comments(username: str):
+    """Fetch or post profile comments for a given username."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    username = (username or "").strip()
+    if not username:
+        return jsonify({"error": "Username required"}), 400
+
+    if request.method == "GET":
+        if get_profile_comments is None:
+            return jsonify({"error": "Database not available"}), 500
+
+        comments = get_profile_comments(username)
+        return jsonify({"comments": comments})
+
+    if add_profile_comment is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    data = request.get_json() or {}
+    author = (data.get("author") or "").strip()
+    text = (data.get("text") or "").strip()
+
+    if not author or not text:
+        return jsonify({"error": "Author and comment text are required"}), 400
+
+    if len(author) > 60:
+        return jsonify({"error": "Author name too long"}), 400
+
+    if len(text) > 1000:
+        return jsonify({"error": "Comment too long"}), 400
+
+    success = add_profile_comment(username, author, text)
+    if not success:
+        return jsonify({"error": "Unable to post comment"}), 400
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/myspace/comments/<int:comment_id>/delete", methods=["POST", "OPTIONS"])
+def myspace_delete_profile_comment(comment_id: int):
+    """Delete a profile comment (profile owner only)."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    user_id = session.get("myspace_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if delete_profile_comment is None:
+        return jsonify({"error": "Database not available"}), 500
+
+    success = delete_profile_comment(user_id, comment_id)
+    if not success:
+        return jsonify({"error": "Failed to delete comment"}), 400
 
     return jsonify({"success": True})
 

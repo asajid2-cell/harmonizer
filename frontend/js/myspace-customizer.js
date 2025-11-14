@@ -185,6 +185,106 @@
                     type: 'solid',
                     pattern: 'dots'
                 }
+            },
+            tigerprint: {
+                name: 'tigerprint',
+                colors: {
+                    background: '#ff0da6',
+                    text: '#ffffff',
+                    links: '#2de3ff',
+                    linksHover: '#ffe600',
+                    borders: '#0e0b2b',
+                    widgetBg: '#050014',
+                    widgetBgOpacity: 85
+                },
+                fonts: {
+                    family: 'Comic Sans MS',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'tigerprint'
+                }
+            },
+            mallgoth: {
+                name: 'mallgoth',
+                colors: {
+                    background: '#120000',
+                    text: '#ff3c49',
+                    links: '#ffea5a',
+                    linksHover: '#ff8d2d',
+                    borders: '#470000',
+                    widgetBg: '#050505',
+                    widgetBgOpacity: 95
+                },
+                fonts: {
+                    family: 'Times New Roman',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'mallgoth'
+                }
+            },
+            checkers: {
+                name: 'checkers',
+                colors: {
+                    background: '#080808',
+                    text: '#ffffff',
+                    links: '#00ccff',
+                    linksHover: '#ff66ff',
+                    borders: '#ffffff',
+                    widgetBg: '#0b0b0b',
+                    widgetBgOpacity: 90
+                },
+                fonts: {
+                    family: 'Verdana',
+                    size: 14
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'checkers'
+                }
+            },
+            poppunk: {
+                name: 'poppunk',
+                colors: {
+                    background: '#000000',
+                    text: '#ffffff',
+                    links: '#ff6dfc',
+                    linksHover: '#3df1ff',
+                    borders: '#ffffff',
+                    widgetBg: '#0e0e0e',
+                    widgetBgOpacity: 80
+                },
+                fonts: {
+                    family: 'Comic Sans MS',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'poppunk'
+                }
+            },
+            evanescent: {
+                name: 'evanescent',
+                colors: {
+                    background: '#0c0f24',
+                    text: '#d9f0ff',
+                    links: '#7ce6ff',
+                    linksHover: '#f059ff',
+                    borders: '#8fe1ff',
+                    widgetBg: '#05050c',
+                    widgetBgOpacity: 88
+                },
+                fonts: {
+                    family: 'Georgia',
+                    size: 15
+                },
+                background: {
+                    type: 'pattern',
+                    pattern: 'evanescent'
+                }
             }
         };
 

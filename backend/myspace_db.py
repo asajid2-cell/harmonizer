@@ -135,6 +135,18 @@ def init_db():
         )
     """)
 
+    # Profile comments table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS profile_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            profile_user_id INTEGER NOT NULL,
+            author TEXT NOT NULL,
+            comment TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (profile_user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+
     # Create indexes for performance
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_username ON users(username)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_profile ON profiles(user_id)")
@@ -344,8 +356,14 @@ def save_user_profile(user_id: int, profile_data: Dict[str, Any]) -> bool:
         cursor = conn.cursor()
 
         cursor.execute(
-            "UPDATE profiles SET profile_data = ?, last_modified = CURRENT_TIMESTAMP WHERE user_id = ?",
-            (json.dumps(profile_data), user_id)
+            """
+            INSERT INTO profiles (user_id, profile_data, last_modified, visits)
+            VALUES (?, ?, CURRENT_TIMESTAMP, 0)
+            ON CONFLICT(user_id) DO UPDATE SET
+                profile_data = excluded.profile_data,
+                last_modified = CURRENT_TIMESTAMP
+            """,
+            (user_id, json.dumps(profile_data))
         )
 
         conn.commit()
@@ -848,6 +866,84 @@ def delete_message(message_id: int, user_id: int) -> bool:
 
     except Exception as e:
         print(f"Error deleting message: {e}")
+        return False
+
+
+# Comments Functions
+
+def add_profile_comment(profile_username: str, author: str, text: str) -> bool:
+    """Add a public comment to a user's profile"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT id FROM users WHERE username = ?", (profile_username,))
+        profile_user = cursor.fetchone()
+        if not profile_user:
+            conn.close()
+            return False
+
+        cursor.execute("""
+            INSERT INTO profile_comments (profile_user_id, author, comment)
+            VALUES (?, ?, ?)
+        """, (profile_user['id'], author, text))
+
+        conn.commit()
+        conn.close()
+        return True
+
+    except Exception as e:
+        print(f"Error adding profile comment: {e}")
+        return False
+
+
+def get_profile_comments(profile_username: str, limit: int = 100) -> list[dict]:
+    """Get latest comments for a user's profile"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT pc.id, pc.author, pc.comment, pc.created_at
+            FROM profile_comments pc
+            JOIN users u ON pc.profile_user_id = u.id
+            WHERE u.username = ?
+            ORDER BY pc.created_at DESC
+            LIMIT ?
+        """, (profile_username, limit))
+
+        comments = [{
+            "id": row['id'],
+            "author": row['author'],
+            "text": row['comment'],
+            "created_at": row['created_at']
+        } for row in cursor.fetchall()]
+
+        conn.close()
+        return comments
+
+    except Exception as e:
+        print(f"Error getting profile comments: {e}")
+        return []
+
+
+def delete_profile_comment(owner_user_id: int, comment_id: int) -> bool:
+    """Delete a profile comment (only profile owner can delete)"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            DELETE FROM profile_comments
+            WHERE id = ? AND profile_user_id = ?
+        """, (comment_id, owner_user_id))
+
+        conn.commit()
+        conn.close()
+        return cursor.rowcount > 0
+
+    except Exception as e:
+        print(f"Error deleting profile comment: {e}")
         return False
 
 

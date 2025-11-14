@@ -28,6 +28,9 @@
         // Banner and profile pic uploads
         setupProfileUploads();
 
+        // Image framing controls
+        setupImageFraming();
+
         console.log("[Widgets] Initialization complete");
     }
 
@@ -136,14 +139,11 @@
         const addCommentBtn = document.getElementById('add-comment-btn');
         const commentAuthor = document.getElementById('comment-author');
         const commentText = document.getElementById('comment-text');
-        const commentsList = document.getElementById('comments-list');
 
-        // Load existing comments
         loadComments();
 
-        // Add comment button
         if (addCommentBtn) {
-            addCommentBtn.addEventListener('click', function() {
+            addCommentBtn.addEventListener('click', async function() {
                 const author = commentAuthor.value.trim();
                 const text = commentText.value.trim();
 
@@ -152,26 +152,18 @@
                     return;
                 }
 
-                const comment = {
-                    id: Date.now(),
-                    author: author,
-                    text: text,
-                    date: new Date().toISOString()
-                };
+                addCommentBtn.disabled = true;
+                const success = await submitComment(author, text);
+                addCommentBtn.disabled = false;
 
-                window.MySpace.profile.widgets.comments.entries.unshift(comment);
-                window.MySpace.saveProfile();
-
-                // Clear inputs
-                commentAuthor.value = '';
-                commentText.value = '';
-
-                // Reload comments display
-                loadComments();
+                if (success) {
+                    commentAuthor.value = '';
+                    commentText.value = '';
+                    loadComments();
+                }
             });
         }
 
-        // Allow Enter to submit comment
         if (commentText) {
             commentText.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' && e.ctrlKey) {
@@ -180,27 +172,133 @@
                 }
             });
         }
+
+        window.MySpaceComments = {
+            refresh: loadComments
+        };
     }
 
-    function loadComments() {
+    function getProfileOwnerUsername() {
+        if (window.MySpace && window.MySpace.viewingUsername) {
+            return window.MySpace.viewingUsername;
+        }
+        const params = new URLSearchParams(window.location.search);
+        const viewingUser = params.get('user');
+        if (viewingUser) return viewingUser;
+        if (window.MySpaceAuth && window.MySpaceAuth.currentUser) {
+            return window.MySpaceAuth.currentUser.username;
+        }
+        return null;
+    }
+
+    async function submitComment(author, text) {
+        const targetUser = getProfileOwnerUsername();
+        if (targetUser) {
+            try {
+                const response = await fetch(`/api/myspace/comments/${encodeURIComponent(targetUser)}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ author, text })
+                });
+                if (response.ok) {
+                    return true;
+                }
+                const data = await response.json();
+                alert(data.error || 'Unable to post comment. Please try again.');
+                return false;
+            } catch (error) {
+                console.error('[Comments] Error posting comment:', error);
+                alert('Unable to post comment right now. Please try again later.');
+                return false;
+            }
+        }
+
+        // Fallback to local profile storage
+        const comment = {
+            id: Date.now(),
+            author,
+            text,
+            date: new Date().toISOString()
+        };
+        window.MySpace.profile.widgets.comments.entries.unshift(comment);
+        window.MySpace.saveProfile();
+        return true;
+    }
+
+    async function fetchComments(username) {
+        try {
+            const response = await fetch(`/api/myspace/comments/${encodeURIComponent(username)}`, {
+                cache: 'no-store'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                return data.comments || [];
+            }
+        } catch (error) {
+            console.error('[Comments] Error fetching comments:', error);
+        }
+        return null;
+    }
+
+    async function migrateLegacyComments(username, remoteComments) {
+        if (!window.MySpace || window.MySpace._commentMigrationDone) return false;
+        if (!window.MySpaceAuth || !window.MySpaceAuth.isAuthenticated) return false;
+        if (window.MySpaceAuth.currentUser.username !== username) return false;
+
+        const localComments = window.MySpace.profile.widgets.comments.entries || [];
+        if (!localComments.length || (remoteComments && remoteComments.length)) {
+            return false;
+        }
+
+        window.MySpace._commentMigrationDone = true;
+        for (const comment of localComments) {
+            await submitComment(comment.author, comment.text);
+        }
+        return true;
+    }
+
+    async function loadComments() {
         const commentsList = document.getElementById('comments-list');
         if (!commentsList) return;
 
-        const comments = window.MySpace.profile.widgets.comments.entries;
+        const targetUser = getProfileOwnerUsername();
+        let comments = [];
 
-        if (comments.length === 0) {
+        if (targetUser) {
+            const remoteComments = await fetchComments(targetUser);
+            if (remoteComments) {
+                if (await migrateLegacyComments(targetUser, remoteComments)) {
+                    return loadComments();
+                }
+                comments = remoteComments;
+                window.MySpace.profile.widgets.comments.entries = remoteComments;
+            } else {
+                comments = window.MySpace.profile.widgets.comments.entries || [];
+            }
+        } else {
+            comments = window.MySpace.profile.widgets.comments.entries || [];
+        }
+
+        if (!comments.length) {
             commentsList.innerHTML = '<p style="opacity: 0.6; text-align: center; padding: 20px;">No comments yet. Be the first!</p>';
             return;
         }
 
         commentsList.innerHTML = '';
+        const canDeleteRemote = !!(targetUser && window.MySpaceAuth && window.MySpaceAuth.isAuthenticated &&
+            window.MySpaceAuth.currentUser && window.MySpaceAuth.currentUser.username === targetUser);
 
         comments.forEach(comment => {
             const commentDiv = document.createElement('div');
             commentDiv.className = 'comment-item';
 
-            const date = new Date(comment.date);
+            const rawDate = comment.created_at || comment.date;
+            const date = rawDate ? new Date(rawDate) : new Date();
             const dateStr = formatCommentDate(date);
+
+            const deleteButton = canDeleteRemote || !targetUser
+                ? `<button class="comment-delete" data-id="${comment.id}" data-remote="${targetUser ? '1' : '0'}">Delete</button>`
+                : '';
 
             commentDiv.innerHTML = `
                 <div class="comment-header">
@@ -208,25 +306,45 @@
                     <span class="comment-date">${dateStr}</span>
                 </div>
                 <div class="comment-text">${escapeHtml(comment.text)}</div>
-                <button class="comment-delete" data-id="${comment.id}">Delete</button>
+                ${deleteButton}
             `;
 
             commentsList.appendChild(commentDiv);
         });
 
-        // Add delete handlers
         const deleteBtns = commentsList.querySelectorAll('.comment-delete');
         deleteBtns.forEach(btn => {
             btn.addEventListener('click', function() {
-                const id = parseInt(this.dataset.id);
-                deleteComment(id);
+                const id = this.dataset.id;
+                const viaRemote = this.dataset.remote === '1';
+                deleteComment(id, viaRemote);
             });
         });
     }
 
-    function deleteComment(id) {
+    async function deleteComment(id, isRemote) {
+        if (isRemote) {
+            try {
+                const response = await fetch(`/api/myspace/comments/${id}/delete`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                if (!response.ok) {
+                    const data = await response.json();
+                    alert(data.error || 'Unable to delete comment.');
+                    return;
+                }
+                loadComments();
+                return;
+            } catch (error) {
+                console.error('[Comments] Error deleting comment:', error);
+                alert('Unable to delete comment right now.');
+                return;
+            }
+        }
+
         window.MySpace.profile.widgets.comments.entries =
-            window.MySpace.profile.widgets.comments.entries.filter(c => c.id !== id);
+            window.MySpace.profile.widgets.comments.entries.filter(c => String(c.id) !== String(id));
         window.MySpace.saveProfile();
         loadComments();
     }
@@ -416,11 +534,13 @@
                         if (response.ok) {
                             const data = await response.json();
                             window.MySpace.profile.profile.bannerImage = data.url;
+                            window.MySpace.profile.profile.bannerOffset = { x: 50, y: 50 };
                             await window.MySpace.saveProfile();
 
                             const banner = document.getElementById('banner-image');
                             if (banner) {
                                 banner.style.backgroundImage = `url(${data.url})`;
+                                banner.style.backgroundPosition = '50% 50%';
                                 const overlay = banner.querySelector('.upload-overlay');
                                 if (overlay) overlay.style.display = 'none';
 
@@ -446,6 +566,7 @@
                 e.stopPropagation();
                 if (confirm('Remove banner image?')) {
                     window.MySpace.profile.profile.bannerImage = '';
+                    window.MySpace.profile.profile.bannerOffset = { x: 50, y: 50 };
                     window.MySpace.saveProfile();
 
                     const banner = document.getElementById('banner-image');
@@ -479,12 +600,14 @@
                         if (response.ok) {
                             const data = await response.json();
                             window.MySpace.profile.profile.profilePic = data.url;
+                            window.MySpace.profile.profile.profilePicOffset = { x: 50, y: 50 };
                             await window.MySpace.saveProfile();
 
                             const profilePic = document.getElementById('profile-pic');
                             if (profilePic) {
                                 profilePic.src = data.url;
                                 profilePic.style.display = 'block';
+                                profilePic.style.objectPosition = '50% 50%';
                             }
 
                             const removeBtn = document.getElementById('remove-profile-pic-btn');
@@ -508,6 +631,7 @@
                 e.stopPropagation();
                 if (confirm('Remove profile picture?')) {
                     window.MySpace.profile.profile.profilePic = '';
+                    window.MySpace.profile.profile.profilePicOffset = { x: 50, y: 50 };
                     window.MySpace.saveProfile();
 
                     const profilePic = document.getElementById('profile-pic');
@@ -529,6 +653,60 @@
             const removeBtn = document.getElementById('remove-profile-pic-btn');
             if (removeBtn) removeBtn.style.display = 'flex';
         }
+    }
+
+    function setupImageFraming() {
+        if (!window.MySpace || typeof window.MySpace.createFrameDrag !== 'function') {
+            return;
+        }
+
+        const banner = document.getElementById('banner-image');
+        if (banner) {
+            banner.classList.add('frame-draggable');
+            window.MySpace.createFrameDrag(banner, {
+                isActive: () => !!(window.MySpace.profile.profile.bannerImage),
+                ignoreSelector: 'button, .upload-overlay',
+                get: () => ensureProfileOffset('bannerOffset'),
+                set: pos => {
+                    const offsets = ensureProfileOffset('bannerOffset');
+                    offsets.x = pos.x;
+                    offsets.y = pos.y;
+                },
+                apply: (x, y) => {
+                    banner.style.backgroundPosition = `${x}% ${y}%`;
+                },
+                onSave: () => window.MySpace.saveProfile()
+            });
+        }
+
+        const profilePic = document.getElementById('profile-pic');
+        if (profilePic) {
+            profilePic.classList.add('frame-draggable');
+            window.MySpace.createFrameDrag(profilePic, {
+                isActive: () => !!(window.MySpace.profile.profile.profilePic),
+                ignoreSelector: '.pic-upload-btn, .pic-remove-btn',
+                get: () => ensureProfileOffset('profilePicOffset'),
+                set: pos => {
+                    const offsets = ensureProfileOffset('profilePicOffset');
+                    offsets.x = pos.x;
+                    offsets.y = pos.y;
+                },
+                apply: (x, y) => {
+                    profilePic.style.objectPosition = `${x}% ${y}%`;
+                },
+                onSave: () => window.MySpace.saveProfile()
+            });
+        }
+    }
+
+    function ensureProfileOffset(key) {
+        if (!window.MySpace || !window.MySpace.profile || !window.MySpace.profile.profile) {
+            return { x: 50, y: 50 };
+        }
+        if (!window.MySpace.profile.profile[key]) {
+            window.MySpace.profile.profile[key] = { x: 50, y: 50 };
+        }
+        return window.MySpace.profile.profile[key];
     }
 
     // Helper: Escape HTML

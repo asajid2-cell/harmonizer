@@ -123,7 +123,7 @@ body.view-mode #myspace-main {
     margin-left: 0;
 }
 
-body.view-mode #custom-html-widget {
+body.view-mode #custom-html-widget .custom-html-editor {
     display: none;
 }
 
@@ -839,8 +839,46 @@ select {
     line-height: 1;
 }
 
+.picture-item .frame-btn {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #fff;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
 .picture-item:hover .delete-btn {
     display: flex;
+}
+
+.picture-item:hover .frame-btn,
+.picture-item.picture-framing .frame-btn,
+.picture-item.picture-framing .delete-btn {
+    display: flex;
+}
+
+.picture-item.picture-framing img {
+    cursor: grab;
+}
+
+.picture-item.picture-framing img.framing-active {
+    cursor: grabbing;
+}
+
+.picture-item.picture-framing {
+    box-shadow: 0 0 25px rgba(0, 255, 255, 0.9);
 }
 
 .picture-item .caption {
@@ -1082,6 +1120,138 @@ select {
     box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
 }
 
+.contact-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.contact-tab {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 8px;
+    font-size: 12px;
+    font-family: 'Comic Sans MS', cursive;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.contact-tab.active {
+    background: linear-gradient(135deg, #00eaff, #ff00ff);
+    border-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+}
+
+.contact-tab-content {
+    display: none;
+}
+
+.contact-tab-content.active {
+    display: block;
+}
+
+.inbox-empty {
+    text-align: center;
+    padding: 15px;
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+.inbox-lists {
+    display: none;
+    gap: 15px;
+    flex-direction: column;
+}
+
+.inbox-section {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 10px;
+}
+
+.inbox-section h4 {
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: var(--custom-label-color, #00ffff);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.inbox-item {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.inbox-item:last-child {
+    margin-bottom: 0;
+}
+
+.inbox-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    opacity: 0.8;
+    margin-bottom: 6px;
+}
+
+.inbox-body {
+    font-size: 12px;
+    margin-bottom: 8px;
+    white-space: pre-wrap;
+}
+
+.inbox-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.inbox-actions button {
+    flex: 1;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: transparent;
+    color: #fff;
+    font-size: 11px;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.inbox-actions button:hover {
+    border-color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.inbox-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.inbox-pill.unread {
+    background: rgba(255, 0, 128, 0.2);
+    border: 1px solid rgba(255, 0, 128, 0.5);
+}
+
+.inbox-pill.read {
+    background: rgba(0, 255, 170, 0.15);
+    border: 1px solid rgba(0, 255, 170, 0.4);
+}
+
 /* Interests */
 .interest-section {
     margin-bottom: 12px;
@@ -1113,6 +1283,10 @@ select {
 }
 
 /* Custom HTML */
+.custom-html-editor {
+    margin-bottom: 15px;
+}
+
 #custom-html-input {
     width: 100%;
     min-height: 100px;
@@ -1730,4 +1904,11 @@ body.view-mode .layout-editable:hover {
 .auth-switch a:hover {
     color: #ff00ff;
     text-decoration: underline;
+}
+#myspace-main .frame-draggable {
+    cursor: grab;
+}
+
+#myspace-main .frame-draggable.framing-active {
+    cursor: grabbing;
 }

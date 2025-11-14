@@ -56,7 +56,8 @@
                                     id: Date.now() + Math.random(),
                                     url: data.url,
                                     caption: caption || '',
-                                    order: window.MySpace.profile.widgets.pictureWall.images.length
+                                    order: window.MySpace.profile.widgets.pictureWall.images.length,
+                                    position: { x: 50, y: 50 }
                                 };
 
                                 window.MySpace.profile.widgets.pictureWall.images.push(image);
@@ -114,6 +115,7 @@
         }
 
         images.forEach((image, index) => {
+            const position = ensurePicturePosition(image);
             const pictureItem = document.createElement('div');
             pictureItem.className = 'picture-item';
             pictureItem.dataset.id = image.id;
@@ -121,8 +123,9 @@
             pictureItem.draggable = true;
 
             pictureItem.innerHTML = `
-                <img src="${image.url}" alt="${escapeHtml(image.caption)}" loading="lazy">
-                <button class="delete-btn">×</button>
+                <img src="${image.url}" alt="${escapeHtml(image.caption)}" loading="lazy" style="object-position: ${position.x}% ${position.y}%">
+                <button class="frame-btn" title="Adjust framing">Frame</button>
+                <button class="delete-btn" title="Delete">x</button>
                 ${image.caption ? `<div class="caption">${escapeHtml(image.caption)}</div>` : ''}
             `;
 
@@ -143,6 +146,40 @@
                     if (confirm('Delete this picture?')) {
                         deletePicture(image.id);
                     }
+                });
+            }
+
+            const frameBtn = pictureItem.querySelector('.frame-btn');
+            if (frameBtn) {
+                frameBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (document.body.classList.contains('view-mode')) {
+                        alert('Switch to Customize mode to adjust framing.');
+                        return;
+                    }
+                    const isActive = pictureItem.classList.toggle('picture-framing');
+                    pictureItem.draggable = !isActive;
+                    frameBtn.textContent = isActive ? 'Done' : 'Frame';
+                    if (!isActive) {
+                        window.MySpace.saveProfile();
+                    }
+                });
+            }
+
+            if (img && window.MySpace && typeof window.MySpace.createFrameDrag === 'function') {
+                window.MySpace.createFrameDrag(img, {
+                    isActive: () => pictureItem.classList.contains('picture-framing'),
+                    get: () => ensurePicturePosition(image),
+                    set: pos => {
+                        const state = ensurePicturePosition(image);
+                        state.x = pos.x;
+                        state.y = pos.y;
+                    },
+                    apply: (x, y) => {
+                        img.style.objectPosition = `${x}% ${y}%`;
+                    },
+                    ignoreSelector: '.delete-btn, .frame-btn',
+                    onSave: () => window.MySpace.saveProfile()
                 });
             }
 
@@ -303,6 +340,16 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    function ensurePicturePosition(image) {
+        if (!image.position) {
+            image.position = { x: 50, y: 50 };
+        } else {
+            if (typeof image.position.x !== 'number') image.position.x = 50;
+            if (typeof image.position.y !== 'number') image.position.y = 50;
+        }
+        return image.position;
     }
 
 })();

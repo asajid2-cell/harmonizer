@@ -8,6 +8,12 @@
         currentUser: null,
         isAuthenticated: false,
 
+        syncCoreAuthState: function() {
+            if (window.MySpace && typeof window.MySpace.setAuthState === 'function') {
+                window.MySpace.setAuthState(this.isAuthenticated);
+            }
+        },
+
         // Check if user is logged in
         checkAuth: async function() {
             try {
@@ -20,16 +26,31 @@
                         username: data.username
                     };
                     this.isAuthenticated = true;
+                    this.syncCoreAuthState();
+                    if (window.MySpace) {
+                        window.MySpace.viewingUsername = data.username;
+                    }
                     this.updateUI();
 
                     // Load user's profile from database
                     await this.loadUserProfile();
 
+                    if (window.MySpaceComments && window.MySpaceComments.refresh) {
+                        window.MySpaceComments.refresh();
+                    }
+
                     return true;
                 } else {
                     this.currentUser = null;
                     this.isAuthenticated = false;
+                    this.syncCoreAuthState();
+                    if (window.MySpace) {
+                        window.MySpace.viewingUsername = null;
+                    }
                     this.updateUI();
+                    if (window.MySpaceFriends && window.MySpaceFriends.refreshInboxUI) {
+                        window.MySpaceFriends.refreshInboxUI();
+                    }
                     return false;
                 }
             } catch (e) {
@@ -55,7 +76,17 @@
                         username: data.username
                     };
                     this.isAuthenticated = true;
+                    this.syncCoreAuthState();
+                    if (window.MySpace) {
+                        window.MySpace.viewingUsername = data.username;
+                    }
                     this.updateUI();
+                    if (window.MySpaceFriends && window.MySpaceFriends.refreshInboxUI) {
+                        window.MySpaceFriends.refreshInboxUI();
+                    }
+                    if (window.MySpaceComments && window.MySpaceComments.refresh) {
+                        window.MySpaceComments.refresh();
+                    }
                     return { success: true };
                 } else {
                     return { success: false, error: data.error || 'Registration failed' };
@@ -83,10 +114,21 @@
                         username: data.username
                     };
                     this.isAuthenticated = true;
+                    this.syncCoreAuthState();
+                    if (window.MySpace) {
+                        window.MySpace.viewingUsername = data.username;
+                    }
                     this.updateUI();
 
                     // Load user's profile from database
                     await this.loadUserProfile();
+
+                    if (window.MySpaceFriends && window.MySpaceFriends.refreshInboxUI) {
+                        window.MySpaceFriends.refreshInboxUI();
+                    }
+                    if (window.MySpaceComments && window.MySpaceComments.refresh) {
+                        window.MySpaceComments.refresh();
+                    }
 
                     return { success: true };
                 } else {
@@ -107,7 +149,17 @@
 
                 this.currentUser = null;
                 this.isAuthenticated = false;
+                this.syncCoreAuthState();
+                if (window.MySpace) {
+                    window.MySpace.viewingUsername = null;
+                }
                 this.updateUI();
+                if (window.MySpaceFriends && window.MySpaceFriends.refreshInboxUI) {
+                    window.MySpaceFriends.refreshInboxUI();
+                }
+                if (window.MySpaceComments && window.MySpaceComments.refresh) {
+                    window.MySpaceComments.refresh();
+                }
 
                 // Reload page to reset state
                 window.location.reload();
@@ -125,6 +177,20 @@
                     const profileData = await response.json();
                     if (profileData && window.MySpace) {
                         window.MySpace.profile = profileData;
+                        window.MySpace.profileSource = 'database';
+                        window.MySpace.profileLoadIssue = false;
+                        if (typeof window.MySpace.clearProfileLoadWarning === 'function') {
+                            window.MySpace.clearProfileLoadWarning();
+                        }
+                        if (typeof window.MySpace.updateProfileLoadWarning === 'function') {
+                            window.MySpace.updateProfileLoadWarning();
+                        }
+                        if (typeof window.MySpace.setAuthState === 'function') {
+                            window.MySpace.setAuthState(true);
+                        }
+                        if (typeof window.MySpace.backupProfileLocally === 'function') {
+                            window.MySpace.backupProfileLocally();
+                        }
                         // Reapply theme and reload content
                         if (window.MySpace.applyTheme) {
                             window.MySpace.applyTheme();
@@ -152,6 +218,14 @@
             if (!this.isAuthenticated) {
                 alert('Please log in to publish your profile!');
                 this.showAuthModal('login');
+                return false;
+            }
+
+            if (window.MySpace && window.MySpace.isAuthenticated && window.MySpace.profileSource === 'default') {
+                if (typeof window.MySpace.showProfileLoadWarning === 'function') {
+                    window.MySpace.showProfileLoadWarning("We couldn't load your saved profile. Refresh before publishing.");
+                }
+                alert('Profile data has not loaded from the server yet. Please refresh or re-login before publishing to avoid overwriting your profile.');
                 return false;
             }
 
@@ -250,6 +324,10 @@
                 if (savePublishBtn) {
                     savePublishBtn.style.display = 'none';
                 }
+            }
+
+            if (window.MySpaceFriends && window.MySpaceFriends.refreshInboxUI) {
+                window.MySpaceFriends.refreshInboxUI();
             }
         },
 
@@ -534,10 +612,22 @@
             if (data.data && window.MySpace) {
                 // Load the profile into view-only mode
                 window.MySpace.profile = data.data;
+                window.MySpace.viewingUsername = data.username;
+                window.MySpace.profileSource = 'published';
+                window.MySpace.profileLoadIssue = false;
+                if (typeof window.MySpace.clearProfileLoadWarning === 'function') {
+                    window.MySpace.clearProfileLoadWarning();
+                }
+                if (typeof window.MySpace.updateProfileLoadWarning === 'function') {
+                    window.MySpace.updateProfileLoadWarning();
+                }
                 window.MySpace.viewMode = true;
                 window.MySpace.applyTheme();
                 window.MySpace.loadContent();
                 window.MySpace.applyViewMode();
+                if (window.MySpaceComments && window.MySpaceComments.refresh) {
+                    window.MySpaceComments.refresh();
+                }
 
                 // Update stats with visit count
                 if (data.visits !== undefined) {
