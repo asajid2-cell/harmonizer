@@ -555,6 +555,12 @@
                         widget.style.position = 'absolute';
                         widget.style.left = widgetData.position.left;
                         widget.style.top = widgetData.position.top;
+
+                        // Clear margins for absolute positioned widgets
+                        widget.style.marginBottom = '0';
+                        widget.style.marginTop = '0';
+                        widget.style.marginLeft = '0';
+                        widget.style.marginRight = '0';
                     }
 
                     if (widgetData.size.width) {
@@ -587,6 +593,10 @@
                 widget.style.width = '';
                 widget.style.height = '';
                 widget.style.zIndex = '';
+                widget.style.marginBottom = '';
+                widget.style.marginTop = '';
+                widget.style.marginLeft = '';
+                widget.style.marginRight = '';
                 delete widget.dataset.widgetId;
                 delete widget.dataset.mobileBreakpoint;
                 delete widget.dataset.mobileBehavior;
