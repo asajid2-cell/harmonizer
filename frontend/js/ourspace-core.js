@@ -140,6 +140,7 @@
                 visible: true,
                 images: [],
                 columns: 4,
+                rows: 4,
                 gap: "10px",
                 frameStyle: "classic"
             },
@@ -266,14 +267,8 @@
             // Load view mode preference
             this.loadViewMode();
 
-            const shouldAutoSave = !this.isAuthenticated || this.profileSource !== 'default';
-            if (shouldAutoSave) {
-                this.profile.meta.visits++;
-                this.profile.meta.lastModified = Date.now();
-                await this.saveProfile();
-            } else {
-                console.warn("[OurSpace] Profile not loaded from database. Auto-save skipped to protect data.");
-            }
+            // Note: We do NOT update visits or lastModified here to avoid falsely marking profile as changed
+            console.log("[OurSpace] Profile loaded. Changes will only be saved when you click Save Profile button.");
 
             // Apply theme and customizations
             this.applyTheme(true);
@@ -290,7 +285,28 @@
                 }, 500);
             }
 
+            // Setup beforeunload warning for unsaved changes
+            this.setupUnsavedChangesWarning();
+
             console.log("[OurSpace] Initialization complete");
+        },
+
+        setupUnsavedChangesWarning: function() {
+            // Track when profile was last saved
+            this._lastSavedTimestamp = this.profile.meta.lastModified || 0;
+
+            // Warn before leaving page if there are unsaved changes
+            window.addEventListener('beforeunload', (e) => {
+                const currentTimestamp = this.profile.meta.lastModified || 0;
+                const hasUnsavedChanges = currentTimestamp > this._lastSavedTimestamp;
+
+                if (hasUnsavedChanges) {
+                    const message = 'You have unsaved changes! Are you sure you want to leave?';
+                    e.preventDefault();
+                    e.returnValue = message;
+                    return message;
+                }
+            });
         },
 
         setAuthState: function(state) {
@@ -415,19 +431,24 @@
             const localProfile = this._loadProfileCandidateFromLocalStorage();
             if (localProfile) profiles.push(localProfile);
 
-            // Choose the profile with the most recent lastModified timestamp
+            // Priority order: localStorage > database > session > default
+            // This ensures that local changes are NEVER overwritten by remote data
             if (profiles.length > 0) {
+                const priorityOrder = {
+                    'local': 1,
+                    'database': 2,
+                    'session': 3
+                };
+
                 profiles.sort((a, b) => {
-                    const aTime = a.data?.meta?.lastModified || 0;
-                    const bTime = b.data?.meta?.lastModified || 0;
-                    return bTime - aTime; // Descending order (newest first)
+                    return (priorityOrder[a.source] || 999) - (priorityOrder[b.source] || 999);
                 });
 
-                const newest = profiles[0];
-                this.profile = newest.data;
-                this.profileSource = newest.source;
+                const selected = profiles[0];
+                this.profile = selected.data;
+                this.profileSource = selected.source;
                 this.backupProfileLocally();
-                console.log(`[OurSpace] Loaded newest profile from ${newest.source} (${new Date(newest.data.meta.lastModified).toLocaleString()})`);
+                console.log(`[OurSpace] Loaded profile from ${selected.source} (priority-based, NOT timestamp-based)`);
             } else {
                 this.profile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
                 this.profileSource = 'default';
@@ -532,6 +553,10 @@
                 // Update source to reflect where we successfully saved
                 this.profileSource = useDatabase ? 'database' : 'session';
                 this.backupProfileLocally();
+
+                // Update last saved timestamp to track unsaved changes
+                this._lastSavedTimestamp = this.profile.meta.lastModified;
+
                 console.log(`[OurSpace] Profile saved successfully to ${primaryLabel} at ${new Date(this.profile.meta.lastModified).toLocaleTimeString()}`);
                 return true;
             } catch (e) {
@@ -622,6 +647,80 @@
                 }
             };
             reader.readAsText(file);
+        },
+
+        // Load profile from database (force reload from server)
+        loadFromDatabase: async function() {
+            // Check if user is authenticated
+            await this.refreshAuthState();
+
+            if (!this.isAuthenticated) {
+                alert('You must be logged in to load your profile from the database.\n\nPlease log in first.');
+                return false;
+            }
+
+            // Warn user about overwriting local changes
+            const confirmLoad = confirm(
+                '⚠️ Load from Database\n\n' +
+                'This will replace your current profile with the latest version saved in the database.\n\n' +
+                'Any unsaved local changes will be LOST.\n\n' +
+                'Click OK to load from database\n' +
+                'Click Cancel to keep current profile'
+            );
+
+            if (!confirmLoad) {
+                console.log('[OurSpace] User cancelled database load');
+                return false;
+            }
+
+            try {
+                console.log('[OurSpace] Loading profile from database...');
+                const response = await fetch('/api/ourspace/profile/load', {
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        alert('Authentication failed. Please log in again.');
+                        return false;
+                    }
+                    throw new Error(`Failed to load profile (${response.status})`);
+                }
+
+                const profileData = await response.json();
+
+                if (!profileData) {
+                    alert('No profile found in database. Your profile may not have been saved yet.');
+                    return false;
+                }
+
+                // Replace current profile with database version
+                this.profile = profileData;
+                this.profileSource = 'database';
+                this.profileLoadIssue = false;
+
+                // Update last saved timestamp
+                this._lastSavedTimestamp = this.profile.meta.lastModified;
+
+                // Backup to localStorage
+                this.backupProfileLocally();
+
+                // Clear any warnings
+                if (typeof this.clearProfileLoadWarning === 'function') {
+                    this.clearProfileLoadWarning();
+                }
+
+                // Reload the entire page to apply all changes (pictures, theme, layout, etc.)
+                console.log('[OurSpace] Profile loaded from database successfully. Reloading page...');
+                alert('✅ Profile loaded from database successfully!\n\nThe page will reload to apply all changes.');
+                location.reload();
+
+                return true;
+            } catch (e) {
+                console.error('[OurSpace] Error loading profile from database:', e);
+                alert('Error loading profile from database:\n' + e.message);
+                return false;
+            }
         },
 
         // Apply current theme
@@ -1427,7 +1526,7 @@
             this.profile.stickers.push(sticker);
             this.renderStickers();
             this.selectSticker(sticker.id);
-            this.saveProfile();
+            // Removed auto-save - only save when user clicks Save Profile button
         },
 
         addStickerAsset: function(options = {}) {
@@ -1454,7 +1553,7 @@
             this.normalizeFrameTextData(entry);
             this.renderStickerDeck();
 
-            this.saveProfile();
+            // Removed auto-save - only save when user clicks Save Profile button
 
             return entry;
         },
@@ -1504,7 +1603,7 @@
             }
             this.profile.stickerDeck = next;
             this.renderStickerDeck();
-            this.saveProfile();
+            // Removed auto-save - only save when user clicks Save Profile button
         },
 
         updateSticker: function(id, updates, options = {}) {
@@ -1517,7 +1616,7 @@
             this.normalizeFrameTextData(sticker);
             this.applyStickerStyles(sticker);
             if (!options.silent) {
-                this.saveProfile();
+                // Removed auto-save - only save when user clicks Save Profile button
                 this.notifyStickerUpdate();
             }
         },
@@ -1528,7 +1627,7 @@
             this.profile.stickers = next;
             this.renderStickers();
             this.selectSticker(null);
-            this.saveProfile();
+            // Removed auto-save - only save when user clicks Save Profile button
         },
 
         notifyStickerUpdate: function() {
@@ -1569,7 +1668,7 @@
                 window.removeEventListener('pointerup', endHandler);
                 window.removeEventListener('pointercancel', endHandler);
                 this.stickerState.dragging = null;
-                this.saveProfile();
+                // Removed auto-save - only save when user clicks Save Profile button
                 this.notifyStickerUpdate();
             };
 
@@ -1647,7 +1746,7 @@
                     }).join(', ');
                     sticker.clipPath = `polygon(${coords})`;
                     this.applyStickerStyles(sticker);
-                    this.saveProfile();
+                    // Removed auto-save - only save when user clicks Save Profile button
                     this.notifyStickerUpdate();
                     this.duplicateStickerToDeck(sticker);
                 }
@@ -1670,7 +1769,7 @@
             if (!sticker) return;
             sticker.clipPath = '';
             this.applyStickerStyles(sticker);
-            this.saveProfile();
+            // Removed auto-save - only save when user clicks Save Profile button
             this.notifyStickerUpdate();
         },
 

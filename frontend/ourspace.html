@@ -628,12 +628,16 @@
                     <button id="save-publish-btn" class="action-btn" style="display: none; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); margin-top: 10px;">
                          Save & Publish Profile
                     </button>
+                    <button id="change-username-btn" class="action-btn" style="display: none; background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); margin-top: 10px;">
+                         Change Username
+                    </button>
                 </section>
 
                 <!-- Save/Load -->
                 <section class="panel-section">
                     <button id="save-profile" class="action-btn"> Save Profile</button>
-                    <button id="load-profile" class="action-btn"> Load Profile</button>
+                    <button id="load-from-database" class="action-btn" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);"> Load from Database</button>
+                    <button id="load-profile" class="action-btn"> Load from File</button>
                     <button id="export-profile" class="action-btn"> Export</button>
                     <button id="reset-profile" class="action-btn danger"> Reset All</button>
                 </section>
@@ -811,6 +815,16 @@
                                     </select>
                                 </label>
                                 <label>
+                                    Rows:
+                                    <select id="grid-rows">
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4" selected>4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                    </select>
+                                </label>
+                                <label>
                                     Frame Style:
                                     <select id="picture-frame-style">
                                         <option value="classic">Classic</option>
@@ -820,6 +834,7 @@
                                         <option value="photocard">Photocard</option>
                                     </select>
                                 </label>
+                                <button id="pictures-reorder-btn" style="margin-left: 10px;">Reorder</button>
                             </div>
                             <div id="picture-grid" class="picture-grid" data-columns="4">
                                 <!-- Pictures will be added here dynamically -->
@@ -865,6 +880,7 @@
                                         <option value="16">16</option>
                                     </select>
                                 </label>
+                                <button id="friends-reorder-btn" style="margin-left: 10px;">Reorder</button>
                             </div>
                             <div id="friends-grid" class="friends-grid" data-slots="8">
                                 <!-- Friend slots will be added here -->

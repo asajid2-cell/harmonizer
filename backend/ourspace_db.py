@@ -291,6 +291,59 @@ def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def get_user(username: str = None, user_id: int = None) -> Optional[Dict[str, Any]]:
+    """Get user by username or user_id"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if user_id is not None:
+        cursor.execute(
+            "SELECT id, username, profile_published FROM users WHERE id = ?",
+            (user_id,)
+        )
+    elif username is not None:
+        cursor.execute(
+            "SELECT id, username, profile_published FROM users WHERE username = ?",
+            (username,)
+        )
+    else:
+        conn.close()
+        return None
+
+    user = cursor.fetchone()
+    conn.close()
+
+    if user:
+        return {
+            "id": user['id'],
+            "username": user['username'],
+            "profile_published": bool(user['profile_published'])
+        }
+
+    return None
+
+
+def update_username(user_id: int, new_username: str) -> bool:
+    """Update user's username"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "UPDATE users SET username = ? WHERE id = ?",
+            (new_username, user_id)
+        )
+
+        conn.commit()
+        success = cursor.rowcount > 0
+        conn.close()
+
+        return success
+    except sqlite3.IntegrityError:
+        # Username already exists
+        return False
+
+
 def get_user_profile(user_id: int) -> Optional[Dict[str, Any]]:
     """Get user's profile data"""
     conn = get_db()

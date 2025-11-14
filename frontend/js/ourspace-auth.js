@@ -176,6 +176,24 @@
                 if (response.ok) {
                     const profileData = await response.json();
                     if (profileData && window.OurSpace) {
+                        // Check if there are unsaved local changes
+                        const hasUnsavedChanges = window.OurSpace.profileSource !== 'database' &&
+                                                  window.OurSpace.profile.meta.lastModified > (profileData.meta.lastModified || 0);
+
+                        if (hasUnsavedChanges) {
+                            const confirmOverwrite = confirm(
+                                '⚠️ WARNING: You have unsaved local changes!\n\n' +
+                                'Loading your database profile will OVERWRITE your current work.\n\n' +
+                                'Click OK to load database profile (lose current changes)\n' +
+                                'Click Cancel to keep current changes (you can save them manually)'
+                            );
+
+                            if (!confirmOverwrite) {
+                                console.log('[Auth] User chose to keep local changes instead of loading database profile');
+                                return;
+                            }
+                        }
+
                         window.OurSpace.profile = profileData;
                         window.OurSpace.profileSource = 'database';
                         window.OurSpace.profileLoadIssue = false;
@@ -210,6 +228,93 @@
                 }
             } catch (e) {
                 console.error('[Auth] Error loading user profile:', e);
+            }
+        },
+
+        // Change username
+        changeUsername: async function() {
+            if (!this.isAuthenticated) {
+                alert('Please log in to change your username!');
+                this.showAuthModal('login');
+                return false;
+            }
+
+            const currentUsername = this.currentUser.username;
+            const newUsername = prompt(`Change Username\n\nCurrent username: ${currentUsername}\n\nEnter your new username:`);
+
+            if (!newUsername) {
+                return false; // User cancelled
+            }
+
+            // Validate username
+            const trimmedUsername = newUsername.trim().toLowerCase();
+
+            if (trimmedUsername === currentUsername.toLowerCase()) {
+                alert('New username is the same as your current username.');
+                return false;
+            }
+
+            if (trimmedUsername.length < 3) {
+                alert('Username must be at least 3 characters long.');
+                return false;
+            }
+
+            if (trimmedUsername.length > 20) {
+                alert('Username must be no more than 20 characters long.');
+                return false;
+            }
+
+            if (!/^[a-z0-9_]+$/.test(trimmedUsername)) {
+                alert('Username can only contain lowercase letters, numbers, and underscores.');
+                return false;
+            }
+
+            // Confirm the change
+            const confirmChange = confirm(
+                `⚠️ Change Username\n\n` +
+                `Current: ${currentUsername}\n` +
+                `New: ${trimmedUsername}\n\n` +
+                `This will change your username and your profile URL.\n\n` +
+                `Click OK to confirm the change.`
+            );
+
+            if (!confirmChange) {
+                return false;
+            }
+
+            try {
+                const response = await fetch('/api/ourspace/change-username', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ new_username: trimmedUsername })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Update local state
+                    this.currentUser.username = trimmedUsername;
+                    if (window.OurSpace) {
+                        window.OurSpace.viewingUsername = trimmedUsername;
+                    }
+
+                    alert(
+                        `✅ Username changed successfully!\n\n` +
+                        `Your new username is: ${trimmedUsername}\n\n` +
+                        `The page will reload to apply changes.`
+                    );
+
+                    // Reload page to update everything
+                    location.reload();
+                    return true;
+                } else {
+                    alert(data.error || 'Failed to change username. It may already be taken.');
+                    return false;
+                }
+            } catch (e) {
+                console.error('[Auth] Error changing username:', e);
+                alert('Error changing username. Please try again.');
+                return false;
             }
         },
 
@@ -265,6 +370,7 @@
             const authInfo = document.getElementById('auth-info');
             const authActions = document.getElementById('auth-actions');
             const savePublishBtn = document.getElementById('save-publish-btn');
+            const changeUsernameBtn = document.getElementById('change-username-btn');
 
             if (this.isAuthenticated && this.currentUser) {
                 // Logged in
@@ -291,6 +397,10 @@
 
                 if (savePublishBtn) {
                     savePublishBtn.style.display = 'block';
+                }
+
+                if (changeUsernameBtn) {
+                    changeUsernameBtn.style.display = 'block';
                 }
             } else {
                 // Not logged in
@@ -324,6 +434,10 @@
 
                 if (savePublishBtn) {
                     savePublishBtn.style.display = 'none';
+                }
+
+                if (changeUsernameBtn) {
+                    changeUsernameBtn.style.display = 'none';
                 }
             }
 
@@ -680,6 +794,14 @@
         if (savePublishBtn) {
             savePublishBtn.addEventListener('click', () => {
                 window.OurSpaceAuth.saveAndPublish();
+            });
+        }
+
+        // Set up change username button
+        const changeUsernameBtn = document.getElementById('change-username-btn');
+        if (changeUsernameBtn) {
+            changeUsernameBtn.addEventListener('click', () => {
+                window.OurSpaceAuth.changeUsername();
             });
         }
 

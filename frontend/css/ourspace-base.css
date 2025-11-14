@@ -1442,6 +1442,16 @@ body.view-mode #mood-icon {
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.7);
 }
 
+.picture-item.reorder-mode {
+    cursor: move;
+    opacity: 1;
+}
+
+.picture-item.reorder-mode:hover {
+    border-color: #00ffff;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 1);
+}
+
 .picture-item img {
     width: 100%;
     height: 100%;
@@ -1732,6 +1742,30 @@ body.view-mode #mood-icon {
 .friend-slot .add-friend-btn {
     font-size: 30px;
     opacity: 0.5;
+}
+
+.friend-frame-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(0, 255, 255, 0.8);
+    border: none;
+    padding: 4px 8px;
+    font-size: 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    z-index: 10;
+    color: #000;
+    font-weight: bold;
+}
+
+.friend-frame-btn:hover {
+    background: rgba(0, 255, 255, 1);
+}
+
+.friend-framing {
+    border: 2px solid #00ffff !important;
+    cursor: move !important;
 }
 
 /* Stats */
@@ -2938,6 +2972,87 @@ body.view-mode .layout-editable:hover {
     padding: 40px;
     opacity: 0.6;
     font-size: 16px;
+}
+
+/* Mobile Layout Editor */
+@media (max-width: 768px) {
+    body.layout-editor-mobile .layout-editable {
+        border: 2px solid rgba(0, 255, 255, 0.5) !important;
+    }
+
+    body.layout-editor-mobile .resize-handle {
+        width: 30px !important;
+        height: 30px !important;
+        border: 3px solid #00ffff !important;
+        background: rgba(0, 0, 0, 0.8) !important;
+    }
+
+    body.layout-editor-mobile .z-controls {
+        position: fixed !important;
+        bottom: 80px !important;
+        right: 10px !important;
+        left: auto !important;
+        top: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 5px !important;
+        z-index: 9999 !important;
+        background: rgba(0, 0, 0, 0.9) !important;
+        padding: 10px !important;
+        border-radius: 8px !important;
+        border: 2px solid rgba(0, 255, 255, 0.5) !important;
+    }
+
+    body.layout-editor-mobile .z-controls button {
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 16px !important;
+        padding: 8px !important;
+    }
+
+    body.layout-editor-mobile #grid-editor-toggle {
+        position: fixed !important;
+        bottom: 20px !important;
+        right: 10px !important;
+        z-index: 10000 !important;
+        font-size: 14px !important;
+        padding: 12px 20px !important;
+    }
+
+    body.layout-editor-mobile #grid-editor-controls {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        max-height: 50vh !important;
+        overflow-y: auto !important;
+        background: rgba(0, 0, 0, 0.95) !important;
+        padding: 15px !important;
+        border-top: 2px solid rgba(0, 255, 255, 0.5) !important;
+        border-radius: 15px 15px 0 0 !important;
+    }
+
+    body.layout-editor-mobile #grid-editor-controls label {
+        display: block !important;
+        margin: 10px 0 !important;
+    }
+
+    body.layout-editor-mobile #grid-editor-controls button {
+        margin: 5px !important;
+        padding: 10px 15px !important;
+        font-size: 14px !important;
+    }
+
+    /* Make widgets easier to tap on mobile */
+    body.layout-editor-mobile .layout-editable {
+        min-height: 60px !important;
+    }
+
+    /* Hide snaplines on mobile for cleaner UI */
+    body.layout-editor-mobile .snapline {
+        display: none !important;
+    }
 }
 
 

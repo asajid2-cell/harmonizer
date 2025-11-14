@@ -89,7 +89,7 @@
 
             volumeSlider.addEventListener('change', function() {
                 window.OurSpace.profile.widgets.music.volume = parseInt(this.value);
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -130,7 +130,7 @@
                             window.OurSpace.profile.widgets.music.audioData = data.url;
                             window.OurSpace.profile.widgets.music.title = title || file.name;
                             console.log('[Audio] Saving profile with audio data');
-                            await window.OurSpace.saveProfile();
+                            await // Auto-save removed - only save when user clicks Save Profile button
                             console.log('[Audio] Profile saved');
 
                             loadAudioIntoPlayer(data.url, title || file.name);
@@ -158,7 +158,7 @@
                 if (confirm('Remove uploaded song?')) {
                     window.OurSpace.profile.widgets.music.audioData = '';
                     window.OurSpace.profile.widgets.music.title = 'No track loaded';
-                    window.OurSpace.saveProfile();
+                    // Auto-save removed - only save when user clicks Save Profile button
 
                     // Clear player
                     if (audioPlayer) {
@@ -188,7 +188,7 @@
 
             autoplayCheckbox.addEventListener('change', function() {
                 window.OurSpace.profile.widgets.music.autoplay = this.checked;
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
     }

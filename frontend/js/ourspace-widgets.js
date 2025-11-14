@@ -76,7 +76,7 @@
         if (profileName) {
             profileName.addEventListener('blur', function() {
                 window.OurSpace.profile.profile.name = this.textContent.trim();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
 
             profileName.addEventListener('keydown', function(e) {
@@ -92,7 +92,7 @@
         if (profileTagline) {
             profileTagline.addEventListener('blur', function() {
                 window.OurSpace.profile.profile.tagline = this.textContent.trim();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
 
             profileTagline.addEventListener('keydown', function(e) {
@@ -108,7 +108,7 @@
         if (moodText) {
             moodText.addEventListener('blur', function() {
                 window.OurSpace.profile.profile.mood.text = this.textContent.trim();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
 
             moodText.addEventListener('keydown', function(e) {
@@ -127,7 +127,7 @@
         if (aboutMe) {
             aboutMe.addEventListener('blur', function() {
                 window.OurSpace.profile.widgets.aboutMe.content = this.innerHTML;
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -144,7 +144,7 @@
             if (element) {
                 element.addEventListener('blur', function() {
                     window.OurSpace.profile.widgets.interests[key] = this.textContent.trim();
-                    window.OurSpace.saveProfile();
+                    // Auto-save removed - only save when user clicks Save Profile button
                 });
             }
         });
@@ -181,7 +181,7 @@
             moodIcon.textContent = emoji;
             if (window.OurSpace && window.OurSpace.profile && window.OurSpace.profile.profile) {
                 window.OurSpace.profile.profile.mood.icon = emoji;
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             }
             closePicker();
         };
@@ -317,7 +317,7 @@
             date: new Date().toISOString()
         };
         window.OurSpace.profile.widgets.comments.entries.unshift(comment);
-        window.OurSpace.saveProfile();
+        // Auto-save removed - only save when user clicks Save Profile button
         return true;
     }
 
@@ -441,7 +441,7 @@
 
         window.OurSpace.profile.widgets.comments.entries =
             window.OurSpace.profile.widgets.comments.entries.filter(c => String(c.id) !== String(id));
-        window.OurSpace.saveProfile();
+        // Auto-save removed - only save when user clicks Save Profile button
         loadComments();
     }
 
@@ -467,9 +467,12 @@
     }
 
     // Top Friends Widget
+    let friendsReorderMode = false;
+
     function setupTopFriendsWidget() {
         const friendsSlots = document.getElementById('friends-slots');
         const friendsGrid = document.getElementById('friends-grid');
+        const reorderBtn = document.getElementById('friends-reorder-btn');
 
         // Load friends
         loadFriendsGrid();
@@ -483,7 +486,17 @@
                 if (friendsGrid) {
                     friendsGrid.dataset.slots = this.value;
                 }
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
+                loadFriendsGrid();
+            });
+        }
+
+        // Reorder button
+        if (reorderBtn) {
+            reorderBtn.addEventListener('click', function() {
+                friendsReorderMode = !friendsReorderMode;
+                this.textContent = friendsReorderMode ? 'Done' : 'Reorder';
+                this.style.background = friendsReorderMode ? 'rgba(0, 255, 255, 0.2)' : '';
                 loadFriendsGrid();
             });
         }
@@ -495,6 +508,7 @@
 
         const slots = window.OurSpace.profile.widgets.topFriends.slots;
         const friends = window.OurSpace.profile.widgets.topFriends.friends;
+        const isCustomizeMode = !document.body.classList.contains('view-mode');
 
         friendsGrid.innerHTML = '';
         friendsGrid.dataset.slots = slots;
@@ -505,36 +519,153 @@
             slotDiv.className = 'friend-slot';
             slotDiv.dataset.index = i;
 
+            if (friendsReorderMode) {
+                slotDiv.draggable = true;
+            }
+
             if (friend && friend.image) {
-                slotDiv.innerHTML = `
-                    <img src="${friend.image}" alt="${friend.name}" loading="lazy" decoding="async">
-                    <div class="friend-name">${escapeHtml(friend.name)}</div>
-                `;
+                // Ensure position data exists
+                if (!friend.position) {
+                    friend.position = { x: 50, y: 50 };
+                }
+
+                const img = document.createElement('img');
+                img.src = friend.image;
+                img.alt = friend.name;
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                img.style.objectPosition = `${friend.position.x}% ${friend.position.y}%`;
+
+                slotDiv.appendChild(img);
+
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'friend-name';
+                nameDiv.textContent = friend.name;
+                slotDiv.appendChild(nameDiv);
+
+                // Frame button in customize mode
+                if (isCustomizeMode && !friendsReorderMode) {
+                    const frameBtn = document.createElement('button');
+                    frameBtn.className = 'friend-frame-btn';
+                    frameBtn.textContent = 'Frame';
+                    frameBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const isActive = slotDiv.classList.toggle('friend-framing');
+                        slotDiv.draggable = false;
+                        frameBtn.textContent = isActive ? 'Done' : 'Frame';
+                        if (!isActive) {
+                            // Auto-save removed - only save when user clicks Save Profile button
+                        }
+                    });
+                    slotDiv.appendChild(frameBtn);
+
+                    // Setup frame drag for image
+                    if (window.OurSpace && typeof window.OurSpace.createFrameDrag === 'function') {
+                        window.OurSpace.createFrameDrag(img, {
+                            isActive: () => slotDiv.classList.contains('friend-framing'),
+                            get: () => friend.position,
+                            set: pos => {
+                                friend.position.x = pos.x;
+                                friend.position.y = pos.y;
+                            },
+                            apply: (x, y) => {
+                                img.style.objectPosition = `${x}% ${y}%`;
+                            },
+                            ignoreSelector: '.friend-frame-btn',
+                            onSave: () => { /* Auto-save removed */ }
+                        });
+                    }
+                }
             } else {
                 slotDiv.innerHTML = '<div class="add-friend-btn">+</div>';
             }
 
-            slotDiv.addEventListener('click', function() {
-                const index = parseInt(this.dataset.index);
-                if (friend && friend.image) {
-                    // Remove friend
-                    if (confirm(`Remove ${friend.name}?`)) {
-                        window.OurSpace.profile.widgets.topFriends.friends.splice(index, 1);
-                        window.OurSpace.saveProfile();
+            // Click handler (not in reorder mode)
+            if (!friendsReorderMode) {
+                slotDiv.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('friend-frame-btn')) return;
+                    const index = parseInt(this.dataset.index);
+                    if (friend && friend.image) {
+                        // Remove friend
+                        if (confirm(`Remove ${friend.name}?`)) {
+                            window.OurSpace.profile.widgets.topFriends.friends.splice(index, 1);
+                            // Auto-save removed - only save when user clicks Save Profile button
+                            loadFriendsGrid();
+                        }
+                    } else {
+                        // Add friend
+                        addFriend(index);
+                    }
+                });
+            }
+
+            // Drag handlers for reorder mode
+            if (friendsReorderMode && friend && friend.image) {
+                slotDiv.addEventListener('dragstart', function(e) {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', this.dataset.index);
+                    this.style.opacity = '0.5';
+                });
+
+                slotDiv.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    this.style.border = '3px dashed #00ffff';
+                });
+
+                slotDiv.addEventListener('dragleave', function() {
+                    this.style.border = '';
+                });
+
+                slotDiv.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.style.border = '';
+
+                    const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                    const toIndex = parseInt(this.dataset.index);
+
+                    if (fromIndex !== toIndex && friends[toIndex]) {
+                        // Swap friends
+                        const temp = friends[fromIndex];
+                        friends[fromIndex] = friends[toIndex];
+                        friends[toIndex] = temp;
+
+                        // Auto-save removed - only save when user clicks Save Profile button
                         loadFriendsGrid();
                     }
-                } else {
-                    // Add friend
-                    addFriend(index);
-                }
-            });
+                });
+
+                slotDiv.addEventListener('dragend', function() {
+                    this.style.opacity = '1';
+                    this.style.border = '';
+                });
+            }
 
             friendsGrid.appendChild(slotDiv);
         }
     }
 
-    function showAllFriends() {
-        const friends = window.OurSpace.profile.widgets.topFriends.friends;
+    async function showAllFriends() {
+        // Check if authenticated
+        if (!window.OurSpaceAuth || !window.OurSpaceAuth.isAuthenticated) {
+            alert('You must be logged in to view your friends list');
+            return;
+        }
+
+        // Fetch friends from database
+        let dbFriends = [];
+        try {
+            const response = await fetch('/api/ourspace/friends');
+            if (!response.ok) {
+                throw new Error('Failed to fetch friends');
+            }
+            const data = await response.json();
+            dbFriends = data.friends || [];
+        } catch (e) {
+            console.error('[Friends] Error fetching friends:', e);
+            alert('Error loading friends list');
+            return;
+        }
 
         // Create or get modal
         let modal = document.querySelector('.friends-list-modal');
@@ -547,30 +678,33 @@
         let html = `
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>All Friends (${friends.length})</h2>
+                    <h2>My Friends (${dbFriends.length})</h2>
                     <button class="close-btn">&times;</button>
                 </div>
                 <div class="modal-body">
         `;
 
-        if (friends.length === 0) {
-            html += '<div class="friends-list-empty">No friends yet. Add some friends to your Top Friends widget!</div>';
+        if (dbFriends.length === 0) {
+            html += '<div class="friends-list-empty">No friends yet. Use "Add to Friends" to add mutual friends!</div>';
         } else {
             html += '<div class="friends-list-container">';
-            friends.forEach((friend, index) => {
-                if (friend && friend.image && friend.name) {
-                    html += `
-                        <div class="friend-list-item" data-index="${index}">
-                            <img src="${friend.image}" alt="${escapeHtml(friend.name)}" loading="lazy" decoding="async">
-                            <div class="friend-list-item-info">
-                                <div class="friend-list-item-name">${escapeHtml(friend.name)}</div>
-                            </div>
-                            <div class="friend-list-item-actions">
-                                <button class="remove-btn" data-index="${index}">Remove</button>
-                            </div>
+            dbFriends.forEach((friend) => {
+                const friendUsername = friend.friend_username;
+                const profilePic = friend.profile_pic || '/static/default-avatar.png';
+                const createdDate = new Date(friend.created_at).toLocaleDateString();
+
+                html += `
+                    <div class="friend-list-item" data-username="${escapeHtml(friendUsername)}">
+                        <img src="${profilePic}" alt="${escapeHtml(friendUsername)}" loading="lazy" decoding="async">
+                        <div class="friend-list-item-info">
+                            <div class="friend-list-item-name">${escapeHtml(friendUsername)}</div>
+                            <div class="friend-list-item-date" style="font-size: 10px; opacity: 0.7;">Friends since ${createdDate}</div>
                         </div>
-                    `;
-                }
+                        <div class="friend-list-item-actions">
+                            <button class="remove-friend-btn" data-username="${escapeHtml(friendUsername)}">Remove</button>
+                        </div>
+                    </div>
+                `;
             });
             html += '</div>';
         }
@@ -599,22 +733,31 @@
         });
 
         // Remove buttons
-        const removeBtns = modal.querySelectorAll('.remove-btn');
+        const removeBtns = modal.querySelectorAll('.remove-friend-btn');
         removeBtns.forEach(btn => {
             btn.addEventListener('click', async function() {
-                const index = parseInt(this.dataset.index);
-                const friend = friends[index];
+                const username = this.dataset.username;
 
-                if (confirm(`Remove ${friend.name} from your friends list?`)) {
-                    // Remove from array
-                    window.OurSpace.profile.widgets.topFriends.friends.splice(index, 1);
+                if (confirm(`Remove ${username} from your friends list?`)) {
+                    try {
+                        const response = await fetch('/api/ourspace/friends/remove', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({username: username})
+                        });
 
-                    // Save profile
-                    await window.OurSpace.saveProfile();
+                        const data = await response.json();
 
-                    // Reload both the modal and the grid
-                    loadFriendsGrid();
-                    showAllFriends();
+                        if (response.ok) {
+                            // Reload the friends list
+                            showAllFriends();
+                        } else {
+                            alert(data.error || 'Failed to remove friend');
+                        }
+                    } catch (e) {
+                        console.error('[Friends] Error removing friend:', e);
+                        alert('Error removing friend');
+                    }
                 }
             });
         });
@@ -662,7 +805,7 @@
                         };
 
                         window.OurSpace.profile.widgets.topFriends.friends[index] = friend;
-                        await window.OurSpace.saveProfile();
+                        // Auto-save removed - only save when user clicks Save Profile button
                         loadFriendsGrid();
                     } else {
                         console.error('[Widgets] Failed to upload friend image');
@@ -715,7 +858,7 @@
             const globalHtml = sanitizeCustomCode(globalHtmlInput ? globalHtmlInput.value : '');
             window.OurSpace.profile.widgets.customHtml.html = widgetHtml;
             window.OurSpace.profile.widgets.customHtml.global = globalHtml;
-            window.OurSpace.saveProfile();
+            // Auto-save removed - only save when user clicks Save Profile button
 
             if (customHtmlOutput) {
                 customHtmlOutput.innerHTML = widgetHtml;
@@ -756,7 +899,7 @@
                             const data = await response.json();
                             window.OurSpace.profile.profile.bannerImage = data.url;
                             window.OurSpace.profile.profile.bannerOffset = { x: 50, y: 50 };
-                            await window.OurSpace.saveProfile();
+                            // Auto-save removed - only save when user clicks Save Profile button
 
                             const banner = document.getElementById('banner-image');
                             if (banner) {
@@ -788,7 +931,7 @@
                 if (confirm('Remove banner image?')) {
                     window.OurSpace.profile.profile.bannerImage = '';
                     window.OurSpace.profile.profile.bannerOffset = { x: 50, y: 50 };
-                    window.OurSpace.saveProfile();
+                    // Auto-save removed - only save when user clicks Save Profile button
 
                     const banner = document.getElementById('banner-image');
                     if (banner) {
@@ -822,7 +965,7 @@
                             const data = await response.json();
                             window.OurSpace.profile.profile.profilePic = data.url;
                             window.OurSpace.profile.profile.profilePicOffset = { x: 50, y: 50 };
-                            await window.OurSpace.saveProfile();
+                            // Auto-save removed - only save when user clicks Save Profile button
 
                             const profilePic = document.getElementById('profile-pic');
                             if (profilePic) {
@@ -853,7 +996,7 @@
                 if (confirm('Remove profile picture?')) {
                     window.OurSpace.profile.profile.profilePic = '';
                     window.OurSpace.profile.profile.profilePicOffset = { x: 50, y: 50 };
-                    window.OurSpace.saveProfile();
+                    // Auto-save removed - only save when user clicks Save Profile button
 
                     const profilePic = document.getElementById('profile-pic');
                     if (profilePic) {
@@ -896,7 +1039,7 @@
                 apply: (x, y) => {
                     banner.style.backgroundPosition = `${x}% ${y}%`;
                 },
-                onSave: () => window.OurSpace.saveProfile()
+                onSave: () => { /* Auto-save removed */ }
             });
         }
 
@@ -915,7 +1058,7 @@
                 apply: (x, y) => {
                     profilePic.style.objectPosition = `${x}% ${y}%`;
                 },
-                onSave: () => window.OurSpace.saveProfile()
+                onSave: () => { /* Auto-save removed */ }
             });
         }
     }

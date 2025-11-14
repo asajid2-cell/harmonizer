@@ -14,12 +14,35 @@
             vertical: [],
             horizontal: []
         },
+        isMobile: false,
 
         init: function() {
             console.log('[Layout Editor] Initializing...');
+            this.detectMobile();
             this.createSnaplineElements();
             this.attachDragHandlers();
             this.updateFromProfile();
+
+            // Re-detect on resize
+            window.addEventListener('resize', () => {
+                this.detectMobile();
+                if (this.enabled) {
+                    this.adaptUIForDevice();
+                }
+            });
+        },
+
+        detectMobile: function() {
+            this.isMobile = window.innerWidth <= 768 || ('ontouchstart' in window);
+            console.log('[Layout Editor] Mobile detected:', this.isMobile);
+        },
+
+        adaptUIForDevice: function() {
+            if (this.isMobile) {
+                document.body.classList.add('layout-editor-mobile');
+            } else {
+                document.body.classList.remove('layout-editor-mobile');
+            }
         },
 
         toggle: function(enable) {
@@ -95,6 +118,7 @@
                     });
                 }
                 document.body.classList.add('layout-editor-active');
+                this.adaptUIForDevice();
                 console.log('[Layout Editor] All handles added');
             } else {
                 console.log('[Layout Editor] Disabled');
@@ -533,7 +557,7 @@
             window.OurSpace.profile.layout.grid = layout;
 
             console.log('[Layout Editor] Saved layout:', layout);
-            window.OurSpace.saveProfile();
+            // Auto-save removed - only save when user clicks Save Profile button
         },
 
         updateFromProfile: function() {

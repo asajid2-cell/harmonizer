@@ -310,7 +310,7 @@
 
             // Apply and save
             window.OurSpace.applyTheme();
-            window.OurSpace.saveProfile();
+            // Auto-save removed - only save when user clicks Save Profile button
         }
     }
 
@@ -349,7 +349,7 @@
             });
             colorBg.addEventListener('change', function() {
                 console.log('[Customizer] Saving profile with new background color');
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         } else {
             console.error('[Customizer] Background color picker NOT FOUND! Element #color-bg is missing.');
@@ -362,7 +362,7 @@
                 window.OurSpace.applyTheme();
             });
             colorText.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -373,7 +373,7 @@
                 window.OurSpace.applyTheme();
             });
             colorLinks.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -384,7 +384,7 @@
                 window.OurSpace.applyTheme();
             });
             colorBorders.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -395,7 +395,7 @@
                 window.OurSpace.applyTheme();
             });
             colorLabels.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -406,7 +406,7 @@
                 window.OurSpace.applyTheme();
             });
             colorWidgetBg.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -419,7 +419,7 @@
             });
 
             widgetBgOpacity.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
     }
@@ -479,7 +479,7 @@
                 }
 
                 window.OurSpace.applyTheme();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -501,7 +501,7 @@
                     if (bgType) bgType.value = 'pattern';
 
                     window.OurSpace.applyTheme();
-                    window.OurSpace.saveProfile();
+                    // Auto-save removed - only save when user clicks Save Profile button
                 });
             });
         }
@@ -540,7 +540,7 @@
                             if (removeBgBtn) removeBgBtn.style.display = 'block';
 
                             window.OurSpace.applyTheme();
-                            await window.OurSpace.saveProfile();
+                            await // Auto-save removed - only save when user clicks Save Profile button
                         } else {
                             console.error('[Customizer] Failed to upload background image');
                             alert('Failed to upload background image');
@@ -569,7 +569,7 @@
                     this.style.display = 'none';
 
                     window.OurSpace.applyTheme();
-                    window.OurSpace.saveProfile();
+                    // Auto-save removed - only save when user clicks Save Profile button
                 }
             });
         }
@@ -601,7 +601,7 @@
             bgRepeat.addEventListener('change', function() {
                 window.OurSpace.profile.theme.background.repeat = this.value;
                 window.OurSpace.applyTheme();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -626,7 +626,7 @@
                 window.OurSpace.profile.theme.background.size = this.value;
                 updateCustomSizeVisibility();
                 window.OurSpace.applyTheme();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -642,7 +642,7 @@
             });
 
             bgSizeCustom.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -653,7 +653,7 @@
             bgPosition.addEventListener('change', function() {
                 window.OurSpace.profile.theme.background.position = this.value;
                 window.OurSpace.applyTheme();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -672,7 +672,7 @@
                 window.OurSpace.applyTheme();
             });
             bgScale.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -681,14 +681,14 @@
         const bgRotateDisplay = document.getElementById('bg-rotate-display');
         if (bgRotate && bgRotateDisplay) {
             bgRotate.value = transform.rotate || 0;
-            bgRotateDisplay.textContent = (transform.rotate || 0) + '°';
+            bgRotateDisplay.textContent = (transform.rotate || 0) + ' deg';
             bgRotate.addEventListener('input', function() {
-                bgRotateDisplay.textContent = this.value + '°';
+                bgRotateDisplay.textContent = this.value + ' deg';
                 window.OurSpace.profile.theme.background.transform.rotate = parseInt(this.value);
                 window.OurSpace.applyTheme();
             });
             bgRotate.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -697,14 +697,14 @@
         const bgSkewXDisplay = document.getElementById('bg-skewx-display');
         if (bgSkewX && bgSkewXDisplay) {
             bgSkewX.value = transform.skewX || 0;
-            bgSkewXDisplay.textContent = (transform.skewX || 0) + '°';
+            bgSkewXDisplay.textContent = (transform.skewX || 0) + ' deg';
             bgSkewX.addEventListener('input', function() {
-                bgSkewXDisplay.textContent = this.value + '°';
+                bgSkewXDisplay.textContent = this.value + ' deg';
                 window.OurSpace.profile.theme.background.transform.skewX = parseInt(this.value);
                 window.OurSpace.applyTheme();
             });
             bgSkewX.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -713,14 +713,14 @@
         const bgSkewYDisplay = document.getElementById('bg-skewy-display');
         if (bgSkewY && bgSkewYDisplay) {
             bgSkewY.value = transform.skewY || 0;
-            bgSkewYDisplay.textContent = (transform.skewY || 0) + '°';
+            bgSkewYDisplay.textContent = (transform.skewY || 0) + ' deg';
             bgSkewY.addEventListener('input', function() {
-                bgSkewYDisplay.textContent = this.value + '°';
+                bgSkewYDisplay.textContent = this.value + ' deg';
                 window.OurSpace.profile.theme.background.transform.skewY = parseInt(this.value);
                 window.OurSpace.applyTheme();
             });
             bgSkewY.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -731,7 +731,7 @@
             bgFlipX.addEventListener('change', function() {
                 window.OurSpace.profile.theme.background.transform.flipX = this.checked;
                 window.OurSpace.applyTheme();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -742,7 +742,7 @@
             bgFlipY.addEventListener('change', function() {
                 window.OurSpace.profile.theme.background.transform.flipY = this.checked;
                 window.OurSpace.applyTheme();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -761,7 +761,7 @@
                 window.OurSpace.applyTheme();
             });
             bgBlur.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -777,7 +777,7 @@
                 window.OurSpace.applyTheme();
             });
             bgBrightness.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -793,7 +793,7 @@
                 window.OurSpace.applyTheme();
             });
             bgContrast.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -809,7 +809,7 @@
                 window.OurSpace.applyTheme();
             });
             bgSaturate.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -818,14 +818,14 @@
         const bgHueDisplay = document.getElementById('bg-hue-display');
         if (bgHue && bgHueDisplay) {
             bgHue.value = filter.hueRotate || 0;
-            bgHueDisplay.textContent = (filter.hueRotate || 0) + '°';
+            bgHueDisplay.textContent = (filter.hueRotate || 0) + ' deg';
             bgHue.addEventListener('input', function() {
-                bgHueDisplay.textContent = this.value + '°';
+                bgHueDisplay.textContent = this.value + ' deg';
                 window.OurSpace.profile.theme.background.filter.hueRotate = parseInt(this.value);
                 window.OurSpace.applyTheme();
             });
             bgHue.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -841,7 +841,7 @@
                 window.OurSpace.applyTheme();
             });
             bgInvert.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -857,7 +857,7 @@
                 window.OurSpace.applyTheme();
             });
             bgSepia.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -873,7 +873,7 @@
                 window.OurSpace.applyTheme();
             });
             bgGrayscale.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -885,7 +885,7 @@
             bgBlendMode.addEventListener('change', function() {
                 window.OurSpace.profile.theme.background.blend.mode = this.value;
                 window.OurSpace.applyTheme();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -902,7 +902,7 @@
                 window.OurSpace.applyTheme();
             });
             bgOpacity.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -940,7 +940,7 @@
                 // Update all controls
                 setupBackgroundTransformControls();
                 window.OurSpace.applyTheme();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
     }
@@ -982,7 +982,7 @@
             fontFamily.addEventListener('change', function() {
                 window.OurSpace.profile.theme.fonts.family = this.value;
                 window.OurSpace.applyTheme();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -995,7 +995,7 @@
             });
 
             fontSize.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -1004,7 +1004,7 @@
             textShadow.addEventListener('change', function() {
                 window.OurSpace.profile.theme.fonts.effects.shadow = this.checked;
                 window.OurSpace.applyTheme();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -1016,7 +1016,7 @@
                     textGlowColorWrapper.style.display = this.checked ? 'block' : 'none';
                 }
                 window.OurSpace.applyTheme();
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
 
@@ -1026,7 +1026,7 @@
                 window.OurSpace.applyTheme();
             });
             textGlowColor.addEventListener('change', function() {
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
     }
@@ -1104,7 +1104,7 @@
             toggle.checked = !!config.enabled;
             toggle.addEventListener('change', function() {
                 ensureEffectConfig(key, defaults).enabled = this.checked;
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
                 refreshEffects(options.refresh || {});
             });
         }
@@ -1136,7 +1136,7 @@
             input.addEventListener('change', function() {
                 const val = parse(this.value);
                 ensureEffectConfig(key, defaults)[prop] = val;
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
                 refreshEffects(options.refresh || {});
             });
         }
@@ -1155,7 +1155,7 @@
             }
             select.addEventListener('change', function() {
                 ensureEffectConfig(key, defaults)[prop] = this.value;
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
                 if (options.onChange) {
                     options.onChange(this.value);
                 }
@@ -1180,7 +1180,7 @@
             });
             input.addEventListener('change', function() {
                 ensureEffectConfig(key, defaults)[prop] = this.value;
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
                 refreshEffects(options.refresh || {});
             });
         }
@@ -1192,7 +1192,7 @@
             fallingType.value = fallingConfig.type;
             fallingType.addEventListener('change', function() {
                 ensureEffectConfig('falling', fallingDefaults).type = this.value;
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
                 refreshEffects({ falling: true });
             });
         }
@@ -1328,7 +1328,7 @@
                     grid.className = `content-grid layout-${layout}`;
                 }
 
-                window.OurSpace.saveProfile();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         });
 
@@ -1426,6 +1426,7 @@
     // Profile Actions
     function setupProfileActions() {
         const saveBtn = document.getElementById('save-profile');
+        const loadFromDbBtn = document.getElementById('load-from-database');
         const loadBtn = document.getElementById('load-profile');
         const exportBtn = document.getElementById('export-profile');
         const resetBtn = document.getElementById('reset-profile');
@@ -1434,6 +1435,16 @@
             saveBtn.addEventListener('click', function() {
                 if (window.OurSpace.saveProfile()) {
                     alert('Profile saved successfully! ✨');
+                }
+            });
+        }
+
+        if (loadFromDbBtn) {
+            loadFromDbBtn.addEventListener('click', async function() {
+                if (window.OurSpace && typeof window.OurSpace.loadFromDatabase === 'function') {
+                    await window.OurSpace.loadFromDatabase();
+                } else {
+                    alert('Load from database function not available. Please make sure you are logged in.');
                 }
             });
         }

@@ -5,6 +5,7 @@ import hmac
 import io
 import os
 import mimetypes
+import re
 import uuid
 from pathlib import Path
 from typing import Optional, List, Dict
@@ -2145,6 +2146,7 @@ def _load_ourspace_db():
                 get_profile_comments,
                 get_sent_messages,
                 get_unread_count,
+                get_user,
                 get_user_profile,
                 get_user_profile_by_username,
                 is_blocked,
@@ -2158,6 +2160,7 @@ def _load_ourspace_db():
                 send_friend_request,
                 send_message,
                 unblock_user,
+                update_username,
             )
             return {
                 "accept_friend_request": accept_friend_request,
@@ -2175,6 +2178,7 @@ def _load_ourspace_db():
                 "get_profile_comments": get_profile_comments,
                 "get_sent_messages": get_sent_messages,
                 "get_unread_count": get_unread_count,
+                "get_user": get_user,
                 "get_user_profile": get_user_profile,
                 "get_user_profile_by_username": get_user_profile_by_username,
                 "is_blocked": is_blocked,
@@ -2188,6 +2192,7 @@ def _load_ourspace_db():
                 "send_friend_request": send_friend_request,
                 "send_message": send_message,
                 "unblock_user": unblock_user,
+                "update_username": update_username,
             }
         except ImportError:
             return {}
@@ -2432,6 +2437,80 @@ def ourspace_logout():
     session.pop("ourspace_username", None)
 
     return jsonify({"success": True})
+
+
+@app.route("/api/ourspace/change-username", methods=["POST", "OPTIONS"])
+def ourspace_change_username():
+    """Change username for authenticated user."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    # Check authentication
+    user_id = session.get("ourspace_user_id")
+    if not user_id:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+
+    data = request.get_json()
+    new_username = data.get("new_username", "").strip().lower()
+
+    # Validate new username
+    if not new_username:
+        return jsonify({"success": False, "error": "Username is required"}), 400
+
+    if len(new_username) < 3:
+        return jsonify({"success": False, "error": "Username must be at least 3 characters"}), 400
+
+    if len(new_username) > 20:
+        return jsonify({"success": False, "error": "Username must be no more than 20 characters"}), 400
+
+    if not re.match(r"^[a-z0-9_]+$", new_username):
+        return jsonify({"success": False, "error": "Username can only contain lowercase letters, numbers, and underscores"}), 400
+
+    # Check if database is available
+    if not _ourspace_db_helpers:
+        return jsonify({"success": False, "error": "Database not available"}), 500
+
+    get_user = _ourspace_db_helpers.get("get_user")
+    update_username = _ourspace_db_helpers.get("update_username")
+
+    if not get_user or not update_username:
+        return jsonify({"success": False, "error": "Database functions not available"}), 500
+
+    # Check if new username is already taken
+    existing_user = get_user(new_username)
+    if existing_user and existing_user["id"] != user_id:
+        return jsonify({"success": False, "error": "Username is already taken"}), 409
+
+    # Get current user
+    current_user = get_user(user_id=user_id)
+    if not current_user:
+        return jsonify({"success": False, "error": "User not found"}), 404
+
+    old_username = current_user["username"]
+
+    # Check if username is actually changing
+    if new_username == old_username.lower():
+        return jsonify({"success": False, "error": "New username is the same as current username"}), 400
+
+    try:
+        # Update username in database
+        success = update_username(user_id, new_username)
+
+        if not success:
+            return jsonify({"success": False, "error": "Failed to update username"}), 500
+
+        # Update session
+        session["ourspace_username"] = new_username
+
+        return jsonify({
+            "success": True,
+            "old_username": old_username,
+            "new_username": new_username
+        })
+
+    except Exception as e:
+        print(f"[OurSpace] Error changing username: {e}")
+        return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
 @app.route("/api/ourspace/health", methods=["GET", "OPTIONS"])

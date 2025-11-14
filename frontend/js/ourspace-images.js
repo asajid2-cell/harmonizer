@@ -13,6 +13,8 @@
         loadPictureGrid();
     });
 
+    let picturesReorderMode = false;
+
     function initImages() {
         console.log("[Images] Initializing picture wall...");
 
@@ -22,16 +24,37 @@
         // Grid columns control
         setupGridColumns();
 
+        // Grid rows control
+        setupGridRows();
+
         // Frame style control
         setupPictureFrameStyleControl();
 
+        // Reorder button
+        setupPictureReorder();
+
         // Load existing pictures
         loadPictureGrid();
+
+        // Resize grid to match rows/columns
+        resizePictureGrid();
 
         // Lightbox
         setupLightbox();
 
         console.log("[Images] Initialization complete");
+    }
+
+    function setupPictureReorder() {
+        const reorderBtn = document.getElementById('pictures-reorder-btn');
+        if (reorderBtn) {
+            reorderBtn.addEventListener('click', function() {
+                picturesReorderMode = !picturesReorderMode;
+                this.textContent = picturesReorderMode ? 'Done' : 'Reorder';
+                this.style.background = picturesReorderMode ? 'rgba(0, 255, 255, 0.2)' : '';
+                loadPictureGrid();
+            });
+        }
     }
 
     // Picture Upload
@@ -71,7 +94,7 @@
                                 };
 
                                 window.OurSpace.profile.widgets.pictureWall.images.push(image);
-                                await window.OurSpace.saveProfile();
+                                await // Auto-save removed - only save when user clicks Save Profile button
                                 loadPictureGrid();
                             } else {
                                 console.error('[Images] Failed to upload image:', file.name);
@@ -102,9 +125,113 @@
                 const columns = parseInt(this.value);
                 window.OurSpace.profile.widgets.pictureWall.columns = columns;
                 pictureGrid.dataset.columns = columns;
-                window.OurSpace.saveProfile();
+                resizePictureGrid();
+                // Auto-save removed - only save when user clicks Save Profile button
             });
         }
+    }
+
+    // Grid Rows Control
+    function setupGridRows() {
+        const gridRows = document.getElementById('grid-rows');
+        const pictureGrid = document.getElementById('picture-grid');
+
+        if (gridRows && pictureGrid) {
+            // Initialize rows if not set
+            if (!window.OurSpace.profile.widgets.pictureWall.rows) {
+                window.OurSpace.profile.widgets.pictureWall.rows = 4;
+            }
+            gridRows.value = window.OurSpace.profile.widgets.pictureWall.rows;
+
+            gridRows.addEventListener('change', function() {
+                const rows = parseInt(this.value);
+                window.OurSpace.profile.widgets.pictureWall.rows = rows;
+                pictureGrid.dataset.rows = rows;
+                resizePictureGrid();
+                // Auto-save removed - only save when user clicks Save Profile button
+            });
+        }
+    }
+
+    // Resize picture grid based on rows and columns
+    function resizePictureGrid() {
+        const pictureGrid = document.getElementById('picture-grid');
+        if (!pictureGrid) return;
+
+        const columns = window.OurSpace.profile.widgets.pictureWall.columns || 4;
+        const rows = window.OurSpace.profile.widgets.pictureWall.rows || 4;
+
+        // Calculate aspect ratio - base size per cell is approximately 150px
+        const cellSize = 150;
+        const gap = 10;
+
+        // Calculate dimensions including gaps
+        const width = (columns * cellSize) + ((columns - 1) * gap);
+        const height = (rows * cellSize) + ((rows - 1) * gap);
+
+        console.log(`[Images] Resizing grid to ${columns}x${rows} (${width}px x ${height}px)`);
+
+        // Apply to the parent widget if it has layout positioning
+        const widget = pictureGrid.closest('.widget');
+        if (widget && widget.style.position === 'absolute') {
+            // Store old dimensions to calculate offset
+            const oldWidth = parseInt(widget.style.width) || width;
+            const oldHeight = parseInt(widget.style.height) || height;
+
+            // Set new dimensions
+            widget.style.width = width + 'px';
+            widget.style.height = height + 'px';
+
+            // Check for overlaps with other widgets if layout editor is available
+            if (window.OurSpaceLayoutEditor && window.OurSpaceLayoutEditor.enabled) {
+                preventWidgetOverlap(widget, oldWidth, oldHeight, width, height);
+            }
+        }
+    }
+
+    // Prevent widget overlap by moving conflicting widgets
+    function preventWidgetOverlap(resizedWidget, oldWidth, oldHeight, newWidth, newHeight) {
+        const resizedRect = resizedWidget.getBoundingClientRect();
+        const allWidgets = document.querySelectorAll('.widget');
+
+        const widthDelta = newWidth - oldWidth;
+        const heightDelta = newHeight - oldHeight;
+
+        // Only proceed if grid is growing
+        if (widthDelta <= 0 && heightDelta <= 0) return;
+
+        allWidgets.forEach(widget => {
+            if (widget === resizedWidget) return;
+            if (widget.style.position !== 'absolute') return;
+
+            const widgetRect = widget.getBoundingClientRect();
+
+            // Check if this widget would overlap with the new size
+            const wouldOverlap = !(
+                widgetRect.right < resizedRect.left ||
+                widgetRect.left > resizedRect.right + widthDelta ||
+                widgetRect.bottom < resizedRect.top ||
+                widgetRect.top > resizedRect.bottom + heightDelta
+            );
+
+            if (wouldOverlap) {
+                // Move widget down and/or right to avoid overlap
+                const currentLeft = parseInt(widget.style.left) || 0;
+                const currentTop = parseInt(widget.style.top) || 0;
+
+                // If widget is to the right, push it further right
+                if (widgetRect.left >= resizedRect.left && widthDelta > 0) {
+                    widget.style.left = (currentLeft + widthDelta) + 'px';
+                    console.log(`[Images] Moved widget right by ${widthDelta}px to prevent overlap`);
+                }
+
+                // If widget is below, push it further down
+                if (widgetRect.top >= resizedRect.top && heightDelta > 0) {
+                    widget.style.top = (currentTop + heightDelta) + 'px';
+                    console.log(`[Images] Moved widget down by ${heightDelta}px to prevent overlap`);
+                }
+            }
+        });
     }
 
     function setupPictureFrameStyleControl() {
@@ -123,7 +250,7 @@
             window.OurSpace.profile.widgets.pictureWall.images.forEach(img => {
                 img.frameStyle = style;
             });
-            window.OurSpace.saveProfile();
+            // Auto-save removed - only save when user clicks Save Profile button
             loadPictureGrid();
         });
     }
@@ -155,21 +282,32 @@
             image.frameStyle = frameStyle;
             const pictureItem = document.createElement('div');
             pictureItem.className = 'picture-item frame-' + frameStyle;
+            if (picturesReorderMode) {
+                pictureItem.classList.add('reorder-mode');
+            }
             pictureItem.dataset.frameStyle = frameStyle;
             pictureItem.dataset.id = image.id;
             pictureItem.dataset.index = index;
-            pictureItem.draggable = true;
+            pictureItem.draggable = picturesReorderMode; // Only draggable in reorder mode
+
+            // Build HTML based on mode
+            let buttonsHTML = '';
+            if (!picturesReorderMode) {
+                buttonsHTML = `
+                    <button class="frame-btn" title="Adjust framing">Frame</button>
+                    <button class="delete-btn" title="Delete">x</button>
+                `;
+            }
 
             pictureItem.innerHTML = `
                 <img src="${image.url}" alt="${escapeHtml(image.caption)}" loading="lazy" decoding="async" style="object-position: ${position.x}% ${position.y}%">
-                <button class="frame-btn" title="Adjust framing">Frame</button>
-                <button class="delete-btn" title="Delete">x</button>
+                ${buttonsHTML}
                 ${image.caption ? `<div class="caption">${escapeHtml(image.caption)}</div>` : ''}
             `;
 
-            // Click to view in lightbox
+            // Click to view in lightbox (not in reorder mode)
             const img = pictureItem.querySelector('img');
-            if (img) {
+            if (img && !picturesReorderMode) {
                 img.addEventListener('click', function(e) {
                     e.stopPropagation();
                     openLightbox(image.url, image.caption);
@@ -177,64 +315,68 @@
             }
 
             // Delete button
-            const deleteBtn = pictureItem.querySelector('.delete-btn');
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    if (confirm('Delete this picture?')) {
-                        deletePicture(image.id);
-                    }
-                });
+            if (!picturesReorderMode) {
+                const deleteBtn = pictureItem.querySelector('.delete-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (confirm('Delete this picture?')) {
+                            deletePicture(image.id);
+                        }
+                    });
+                }
+
+                const frameBtn = pictureItem.querySelector('.frame-btn');
+                if (frameBtn) {
+                    frameBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (document.body.classList.contains('view-mode')) {
+                            alert('Switch to Customize mode to adjust framing.');
+                            return;
+                        }
+                        const isActive = pictureItem.classList.toggle('picture-framing');
+                        pictureItem.draggable = !isActive;
+                        frameBtn.textContent = isActive ? 'Done' : 'Frame';
+                        if (!isActive) {
+                            // Auto-save removed - only save when user clicks Save Profile button
+                        }
+                    });
+                }
+
+                if (img && window.OurSpace && typeof window.OurSpace.createFrameDrag === 'function') {
+                    window.OurSpace.createFrameDrag(img, {
+                        isActive: () => pictureItem.classList.contains('picture-framing'),
+                        get: () => ensurePicturePosition(image),
+                        set: pos => {
+                            const state = ensurePicturePosition(image);
+                            state.x = pos.x;
+                            state.y = pos.y;
+                        },
+                        apply: (x, y) => {
+                            img.style.objectPosition = `${x}% ${y}%`;
+                        },
+                        ignoreSelector: '.delete-btn, .frame-btn',
+                        onSave: () => { /* Auto-save removed */ }
+                    });
+                }
+
+                // Double-click caption to edit
+                const caption = pictureItem.querySelector('.caption');
+                if (caption) {
+                    caption.addEventListener('dblclick', function(e) {
+                        e.stopPropagation();
+                        editCaption(image.id);
+                    });
+                }
             }
 
-            const frameBtn = pictureItem.querySelector('.frame-btn');
-            if (frameBtn) {
-                frameBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    if (document.body.classList.contains('view-mode')) {
-                        alert('Switch to Customize mode to adjust framing.');
-                        return;
-                    }
-                    const isActive = pictureItem.classList.toggle('picture-framing');
-                    pictureItem.draggable = !isActive;
-                    frameBtn.textContent = isActive ? 'Done' : 'Frame';
-                    if (!isActive) {
-                        window.OurSpace.saveProfile();
-                    }
-                });
+            // Drag and drop for reordering (only in reorder mode)
+            if (picturesReorderMode) {
+                pictureItem.addEventListener('dragstart', handleDragStart);
+                pictureItem.addEventListener('dragover', handleDragOver);
+                pictureItem.addEventListener('drop', handleDrop);
+                pictureItem.addEventListener('dragend', handleDragEnd);
             }
-
-            if (img && window.OurSpace && typeof window.OurSpace.createFrameDrag === 'function') {
-                window.OurSpace.createFrameDrag(img, {
-                    isActive: () => pictureItem.classList.contains('picture-framing'),
-                    get: () => ensurePicturePosition(image),
-                    set: pos => {
-                        const state = ensurePicturePosition(image);
-                        state.x = pos.x;
-                        state.y = pos.y;
-                    },
-                    apply: (x, y) => {
-                        img.style.objectPosition = `${x}% ${y}%`;
-                    },
-                    ignoreSelector: '.delete-btn, .frame-btn',
-                    onSave: () => window.OurSpace.saveProfile()
-                });
-            }
-
-            // Double-click caption to edit
-            const caption = pictureItem.querySelector('.caption');
-            if (caption) {
-                caption.addEventListener('dblclick', function(e) {
-                    e.stopPropagation();
-                    editCaption(image.id);
-                });
-            }
-
-            // Drag and drop for reordering
-            pictureItem.addEventListener('dragstart', handleDragStart);
-            pictureItem.addEventListener('dragover', handleDragOver);
-            pictureItem.addEventListener('drop', handleDrop);
-            pictureItem.addEventListener('dragend', handleDragEnd);
 
             pictureGrid.appendChild(pictureItem);
         });
@@ -250,7 +392,7 @@
             img.order = index;
         });
 
-        window.OurSpace.saveProfile();
+        // Auto-save removed - only save when user clicks Save Profile button
         loadPictureGrid();
     }
 
@@ -262,7 +404,7 @@
         const newCaption = prompt('Edit caption:', image.caption);
         if (newCaption !== null) {
             image.caption = newCaption;
-            window.OurSpace.saveProfile();
+            // Auto-save removed - only save when user clicks Save Profile button
             loadPictureGrid();
         }
     }
@@ -309,7 +451,7 @@
                 img.order = index;
             });
 
-            window.OurSpace.saveProfile();
+            // Auto-save removed - only save when user clicks Save Profile button
             loadPictureGrid();
         }
 
