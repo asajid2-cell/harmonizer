@@ -6694,8 +6694,8 @@ function createAutoharmonizerDriver(player) {
     var processTimer = null;
     var mtime = $("#mtime");
     var beatsSinceCross = 0;
-    var MIN_BEATS_BEFORE_CROSS = 4;
-    var FORCE_CROSS_AFTER = 12;
+    var MIN_BEATS_BEFORE_CROSS = 3;  // Reduced from 4 to allow earlier crosses
+    var FORCE_CROSS_AFTER = 8;        // Reduced from 12 to force crosses more frequently
 
     var autoharmonizerData = curTrack && curTrack.analysis && curTrack.analysis.autoharmonizer;
     if (!autoharmonizerData) {
@@ -6727,11 +6727,20 @@ function createAutoharmonizerDriver(player) {
     if (!track1Source || !track2Source) {
         console.error("[Autoharmonizer] Unable to resolve audio sources", {
             track1Source: track1Source,
-            track2Source: track2Source
+            track2Source: track2Source,
+            track1Data: track1Data,
+            track2Data: track2Data
         });
         error("trouble loading audio");
         return createCanonDriver(player);
     }
+
+    console.log("[Autoharmonizer] Initializing dual-track playback", {
+        track1Source: track1Source,
+        track2Source: track2Source,
+        track1Beats: track1Data.beats.length,
+        track2Beats: track2Data.beats.length
+    });
 
     var track1Controller = createHtmlAudioController(track1Source, { volume: 0.0 });
     var track2Controller = createHtmlAudioController(track2Source, { volume: 0.0 });
@@ -6746,6 +6755,8 @@ function createAutoharmonizerDriver(player) {
     if (track2Controller.ensureLoaded) {
         track2Controller.ensureLoaded();
     }
+
+    console.log("[Autoharmonizer] Controllers initialized successfully");
 
     // Build jump graph for track1 (combining intra-track and cross-track options)
     var jumpCandidates = {};
@@ -6809,16 +6820,35 @@ function createAutoharmonizerDriver(player) {
     function crossfadeToTrack(targetTrack, beatIndex, crossfadeMs) {
         var targetBeats = getBeatsForTrack(targetTrack);
         var targetController = getControllerForTrack(targetTrack);
-        var sourceController = getControllerForTrack(targetTrack === 1 ? 2 : 1);
+        var sourceTrack = targetTrack === 1 ? 2 : 1;
+        var sourceController = getControllerForTrack(sourceTrack);
         var beat = targetBeats[beatIndex];
+
         if (!beat || !targetController) {
+            console.warn("[Autoharmonizer] crossfadeToTrack failed - missing beat or controller", {
+                targetTrack: targetTrack,
+                beatIndex: beatIndex,
+                hasBeat: !!beat,
+                hasController: !!targetController
+            });
             return;
         }
+
+        console.log("[Autoharmonizer] Crossfading from Track", sourceTrack, "to Track", targetTrack, {
+            beatIndex: beatIndex,
+            beatTime: beat.start,
+            duration: crossfadeMs || 450
+        });
+
+        // Seek and play target track
         syncControllerToBeat(targetController, beat, { forceSeek: true });
         targetController.fadeTo(0.72, crossfadeMs || 450);
+
+        // Fade out source track
         if (sourceController) {
             sourceController.fadeTo(0, crossfadeMs || 450);
         }
+
         currentTrack = targetTrack;
         curQ = beatIndex;
         beatsSinceCross = 0;
@@ -6850,15 +6880,25 @@ function createAutoharmonizerDriver(player) {
             );
         }
 
-        var threshold = 0.5;
+        var threshold = 0.4;  // Lowered from 0.5 to allow more cross-track jumps
+        var beforeFilter = candidates.length;
         candidates = candidates.filter(function(c) { return typeof c.similarity === "number" && c.similarity >= threshold; });
+
+        console.log("[Autoharmonizer] selectNextBeat for Track", trackNum, "beat", currentBeatIdx, {
+            totalCandidates: beforeFilter,
+            afterThreshold: candidates.length,
+            preferCross: options.preferCross || false
+        });
 
         if (options.preferCross) {
             var crossOnly = candidates.filter(function(cand) {
                 return cand.source_track !== cand.target_track;
             });
             if (crossOnly.length) {
+                console.log("[Autoharmonizer] Forcing cross-track jump -", crossOnly.length, "candidates");
                 candidates = crossOnly;
+            } else {
+                console.warn("[Autoharmonizer] preferCross requested but no cross-track candidates found!");
             }
         }
 
@@ -6972,8 +7012,21 @@ function updateHudForBeat(beat) {
 
         var beatDuration = Math.max(currentBeat.duration || 0.25, 0.15);
         var crossPressure = beatsSinceCross >= FORCE_CROSS_AFTER;
-        var jumpChance = Math.min(0.75, 0.2 + Math.max(0, beatsSinceCross - MIN_BEATS_BEFORE_CROSS) * 0.05);
-        var shouldJump = crossPressure || Math.random() < jumpChance;
+        // Improved jump probability: starts at 30%, increases by 8% per beat after minimum
+        var jumpChance = Math.min(0.85, 0.3 + Math.max(0, beatsSinceCross - MIN_BEATS_BEFORE_CROSS) * 0.08);
+        var roll = Math.random();
+        var shouldJump = crossPressure || roll < jumpChance;
+
+        if (beatsSinceCross % 4 === 0) {
+            console.log("[Autoharmonizer] Jump decision at beat", curQ, "on Track", currentTrack, {
+                beatsSinceCross: beatsSinceCross,
+                crossPressure: crossPressure,
+                jumpChance: jumpChance.toFixed(2),
+                roll: roll.toFixed(2),
+                shouldJump: shouldJump
+            });
+        }
+
         if (shouldJump) {
             var choice = selectNextBeat(curQ, currentTrack, { preferCross: crossPressure });
             var beatsForTrack = getBeatsForTrack(choice.track);
@@ -6982,7 +7035,7 @@ function updateHudForBeat(beat) {
                 var isSequential = choice.track === currentTrack && choice.index === sequentialIndex;
                 if (!isSequential) {
                     if (choice.track !== currentTrack) {
-                        console.log("[Autoharmonizer] Cross-track jump", choice);
+                        console.log("[Autoharmonizer] ★ CROSS-TRACK JUMP ★", choice);
                         crossfadeToTrack(choice.track, choice.index, 520);
                         return;
                     } else {
@@ -7007,14 +7060,22 @@ function updateHudForBeat(beat) {
             if (running) {
                 return;
             }
+            console.log("[Autoharmonizer] Starting playback");
             running = true;
             curQ = 0;
             currentTrack = 1;
             beatsSinceCross = 0;
+
+            // Start track1 audibly
             track1Controller.setVolume(0.72);
             track1Controller.playFrom(track1Data.beats[0] ? track1Data.beats[0].start : 0);
+
+            // CRITICAL FIX: Start track2 playing (muted) so it's ready for instant switching
             track2Controller.setVolume(0);
-            track2Controller.seek(track2Data.beats[0] ? track2Data.beats[0].start : 0);
+            track2Controller.playFrom(track2Data.beats[0] ? track2Data.beats[0].start : 0);
+
+            console.log("[Autoharmonizer] Both tracks started - Track 1 audible, Track 2 muted and ready");
+
             $("#play").text("Pause");
             setPlayingClass(mode);
             pulseNotes(baseNoteStrength);
