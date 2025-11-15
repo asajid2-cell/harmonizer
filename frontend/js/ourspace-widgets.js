@@ -37,6 +37,7 @@
 
         // Custom HTML widget
         setupCustomHtmlWidget();
+        renderCustomWidgets();
 
         // Banner and profile pic uploads
         setupProfileUploads();
@@ -471,6 +472,7 @@
 
     function setupTopFriendsWidget() {
         const friendsSlots = document.getElementById('friends-slots');
+        const friendsColumns = document.getElementById('friends-columns');
         const friendsGrid = document.getElementById('friends-grid');
         const reorderBtn = document.getElementById('friends-reorder-btn');
 
@@ -491,6 +493,22 @@
             });
         }
 
+        if (friendsColumns) {
+            const savedColumns = window.OurSpace.profile.widgets.topFriends.columns || 4;
+            friendsColumns.value = savedColumns;
+            if (friendsGrid) {
+                friendsGrid.dataset.columns = savedColumns;
+            }
+            friendsColumns.addEventListener('change', function() {
+                const cols = parseInt(this.value);
+                window.OurSpace.profile.widgets.topFriends.columns = cols;
+                if (friendsGrid) {
+                    friendsGrid.dataset.columns = cols;
+                }
+                loadFriendsGrid();
+            });
+        }
+
         // Reorder button
         if (reorderBtn) {
             reorderBtn.addEventListener('click', function() {
@@ -507,11 +525,13 @@
         if (!friendsGrid) return;
 
         const slots = window.OurSpace.profile.widgets.topFriends.slots;
+        const columns = window.OurSpace.profile.widgets.topFriends.columns || 4;
         const friends = window.OurSpace.profile.widgets.topFriends.friends;
         const isCustomizeMode = !document.body.classList.contains('view-mode');
 
         friendsGrid.innerHTML = '';
         friendsGrid.dataset.slots = slots;
+        friendsGrid.dataset.columns = columns;
 
         for (let i = 0; i < slots; i++) {
             const friend = friends[i];
@@ -874,6 +894,127 @@
         if (applyBtn) {
             applyBtn.addEventListener('click', applyCustomHtml);
         }
+    }
+
+    function renderCustomWidgets() {
+        const container = document.getElementById('custom-widgets-container');
+        if (!container) return;
+        if (!window.OurSpace.profile.widgets.customWidgets) {
+            window.OurSpace.profile.widgets.customWidgets = [];
+        }
+
+        const widgets = window.OurSpace.profile.widgets.customWidgets;
+        container.innerHTML = '';
+
+        if (!widgets.length) {
+            const emptyCard = document.createElement('div');
+            emptyCard.className = 'widget custom-widget-card';
+            const content = document.createElement('div');
+            content.className = 'widget-content';
+            const msg = document.createElement('p');
+            msg.className = 'custom-widget-empty';
+            msg.textContent = 'Use the Custom Widgets panel to add new sections to your page.';
+            content.appendChild(msg);
+            emptyCard.appendChild(content);
+            container.appendChild(emptyCard);
+            return;
+        }
+
+        widgets.forEach(widget => {
+            const card = document.createElement('div');
+            card.className = 'widget custom-widget-card';
+
+            const header = document.createElement('div');
+            header.className = 'widget-header';
+            const title = document.createElement('h2');
+            title.textContent = widget.title || 'Untitled Widget';
+            header.appendChild(title);
+
+            const badge = document.createElement('span');
+            badge.className = 'custom-widget-type-badge';
+            badge.textContent = (widget.type || 'text').toUpperCase();
+            header.appendChild(badge);
+            card.appendChild(header);
+
+            const content = document.createElement('div');
+            content.className = 'widget-content';
+
+            if (widget.text) {
+                const paragraph = document.createElement('p');
+                paragraph.textContent = widget.text;
+                content.appendChild(paragraph);
+            }
+
+            if (widget.mediaUrl) {
+                const url = widget.mediaUrl;
+                if (widget.type === 'image' || widget.type === 'gif') {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = widget.title || 'Custom widget image';
+                    img.loading = 'lazy';
+                    img.decoding = 'async';
+                    img.className = 'custom-widget-media';
+                    content.appendChild(img);
+                } else if (widget.type === 'video') {
+                    const video = document.createElement('video');
+                    video.src = url;
+                    video.controls = true;
+                    video.className = 'custom-widget-media';
+                    video.preload = 'metadata';
+                    content.appendChild(video);
+                } else if (widget.type === 'audio') {
+                    const audio = document.createElement('audio');
+                    audio.src = url;
+                    audio.controls = true;
+                    audio.className = 'custom-widget-media';
+                    content.appendChild(audio);
+                }
+            }
+
+            const canEdit = !document.body.classList.contains('view-mode');
+            if (canEdit) {
+                const actions = document.createElement('div');
+                actions.className = 'custom-widget-actions';
+
+                const uploadBtn = document.createElement('button');
+                uploadBtn.type = 'button';
+                uploadBtn.className = 'custom-widget-upload-btn';
+                uploadBtn.textContent = widget.mediaUrl ? 'Replace Media' : 'Upload Media';
+                const uploadInput = document.createElement('input');
+                uploadInput.type = 'file';
+                uploadInput.accept = 'image/*,video/*,audio/*';
+                uploadInput.style.display = 'none';
+
+                uploadBtn.addEventListener('click', () => uploadInput.click());
+                uploadInput.addEventListener('change', async function() {
+                    const file = this.files && this.files[0];
+                    if (!file) return;
+                    uploadBtn.textContent = 'Uploading...';
+                    try {
+                        const uploader = window.OurSpaceWidgets && window.OurSpaceWidgets.uploadCustomWidgetMedia;
+                        if (!uploader) {
+                            throw new Error('Upload helper unavailable');
+                        }
+                        const url = await uploader(file);
+                        widget.mediaUrl = url;
+                        renderCustomWidgets();
+                    } catch (error) {
+                        console.error('[Widgets] Failed to upload widget media', error);
+                        alert('Unable to upload media right now.');
+                        uploadBtn.textContent = widget.mediaUrl ? 'Replace Media' : 'Upload Media';
+                    } finally {
+                        this.value = '';
+                    }
+                });
+
+                actions.appendChild(uploadBtn);
+                actions.appendChild(uploadInput);
+                content.appendChild(actions);
+            }
+
+            card.appendChild(content);
+            container.appendChild(card);
+        });
     }
 
     // Profile Uploads
@@ -1411,6 +1552,9 @@
         div.textContent = text;
         return div.innerHTML;
     }
+
+    window.OurSpaceWidgets = window.OurSpaceWidgets || {};
+    window.OurSpaceWidgets.renderCustomWidgets = renderCustomWidgets;
 
 })();
 

@@ -502,6 +502,7 @@
             topFriends: {
                 visible: true,
                 slots: 8,
+                columns: 4,
                 friends: []
             },
             music: {
@@ -527,7 +528,8 @@
                 visible: true,
                 html: "",
                 global: ""
-            }
+            },
+            customWidgets: []
         },
         layout: {
             preset: "classic"

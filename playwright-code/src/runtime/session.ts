@@ -16,7 +16,10 @@ export class PlaywrightSession {
   async #ensureStarted() {
     if (!this.#browser) {
       await mkdir(this.#artifactsDir, { recursive: true });
-      this.#browser = await chromium.launch({ headless: true });
+      this.#browser = await chromium.launch({
+        headless: true,
+        args: ['--allow-file-access-from-files'],
+      });
     }
     if (!this.#context) {
       this.#context = await this.#browser.newContext({

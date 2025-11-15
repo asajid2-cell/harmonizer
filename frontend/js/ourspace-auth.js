@@ -655,6 +655,15 @@
 
     // Database health check function
     async function checkDatabaseHealth() {
+        if (window.location.protocol === 'file:') {
+            console.warn('[Auth] Skipping database health check in file:// context');
+            const warningModal = document.getElementById('db-warning-modal');
+            if (warningModal) {
+                warningModal.remove();
+            }
+            return true;
+        }
+
         try {
             const response = await fetch('/api/ourspace/health');
             const data = await response.json();

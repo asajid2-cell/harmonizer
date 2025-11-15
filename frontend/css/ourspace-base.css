@@ -1,4 +1,4 @@
-﻿/* OurSpace Base Styles */
+/* OurSpace Base Styles */
 
 :root {
     --widget-radius: 10px;
@@ -835,6 +835,29 @@ body.view-mode #friends-reorder-btn {
     gap: 8px;
 }
 
+.theme-filter {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    font-family: 'Comic Sans MS', cursive;
+}
+
+.theme-filter::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.customize-mode-only {
+    display: block;
+}
+
+.view-mode .customize-mode-only {
+    display: none !important;
+}
+
 .theme-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border: 2px solid #00ffff;
@@ -850,6 +873,157 @@ body.view-mode #friends-reorder-btn {
 .theme-btn:hover {
     transform: scale(1.05);
     box-shadow: 0 0 15px #00ffff;
+}
+
+.theme-btn.active {
+    border-color: #ff00ff;
+    box-shadow: 0 0 18px rgba(255, 0, 255, 0.8);
+    position: relative;
+}
+
+.theme-btn.active::after {
+    content: '★';
+    position: absolute;
+    top: -8px;
+    right: -6px;
+    color: #ffff00;
+    font-size: 14px;
+}
+
+.custom-widget-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.custom-widget-form label {
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+    color: #fff;
+    gap: 4px;
+}
+
+.custom-widget-form input,
+.custom-widget-form textarea,
+.custom-widget-form select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    font-family: 'Comic Sans MS', cursive;
+}
+
+.custom-widget-form textarea {
+    resize: vertical;
+}
+
+.custom-widget-upload-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.custom-widget-upload-row .subtle {
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.custom-widget-upload-row span {
+    font-size: 11px;
+    color: rgba(255,255,255,0.7);
+}
+
+.custom-widget-hint {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.75);
+    margin: 0;
+}
+
+.custom-widget-list {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.custom-widget-item {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #fff;
+}
+
+.custom-widget-item-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.custom-widget-item-type {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.75;
+}
+
+.custom-widget-remove {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #fff;
+    border-radius: 5px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.custom-widget-empty {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+}
+
+.custom-widgets-board .widget {
+    margin-bottom: 20px;
+}
+
+.custom-widget-type-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    margin-left: 8px;
+}
+
+.custom-widget-media {
+    width: 100%;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.custom-widget-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.custom-widget-upload-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.4);
+    background: rgba(0,0,0,0.3);
+    color: #fff;
+    cursor: pointer;
 }
 
 /* Color Controls */
@@ -1712,6 +1886,10 @@ body.view-mode #mood-icon {
 .friends-grid[data-slots="8"] { grid-template-columns: repeat(4, 1fr); }
 .friends-grid[data-slots="12"] { grid-template-columns: repeat(4, 1fr); }
 .friends-grid[data-slots="16"] { grid-template-columns: repeat(4, 1fr); }
+.friends-grid[data-columns="2"] { grid-template-columns: repeat(2, 1fr); }
+.friends-grid[data-columns="3"] { grid-template-columns: repeat(3, 1fr); }
+.friends-grid[data-columns="4"] { grid-template-columns: repeat(4, 1fr); }
+.friends-grid[data-columns="5"] { grid-template-columns: repeat(5, 1fr); }
 
 .friend-slot {
     aspect-ratio: 1;
@@ -3007,6 +3185,7 @@ body.view-mode .layout-editable:hover {
         display: none !important;
     }
 }
+
 
 
 

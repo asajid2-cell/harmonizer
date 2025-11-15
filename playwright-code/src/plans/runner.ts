@@ -10,7 +10,11 @@ import type { PlanDefinition, PlanResult } from '../runtime/types.js';
 
 export async function runPlan(plan: PlanDefinition) {
   const results: PlanResult[] = [];
+  const page = await session.getPage();
+  page.on('console', (msg) => console.log('[browser]', msg.type(), msg.text()));
+  page.on('pageerror', (err) => console.log('[pageerror]', err.message));
   for (const step of plan.steps) {
+    console.log(`Executing step: ${step.id}`);
     try {
       switch (step.kind) {
         case 'navigate':
@@ -25,9 +29,14 @@ export async function runPlan(plan: PlanDefinition) {
         case 'type':
           await typeText(step.selector, step.value, step.options);
           break;
-        case 'evaluate':
-          await evaluate(step.script);
+        case 'evaluate': {
+          const evaluateResult =
+            typeof step.script === 'string'
+              ? await evaluate((code: string) => eval(code), step.script)
+              : await evaluate(step.script);
+          console.log(`[evaluate:${step.id}]`, evaluateResult);
           break;
+        }
         case 'snapshot': {
           const snap = await snapshot(step.options);
           results.push({

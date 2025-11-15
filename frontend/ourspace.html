@@ -71,6 +71,7 @@
                 <!-- Theme Presets -->
                         <section class="panel-section">
                             <h3>Theme Presets</h3>
+                            <input type="text" id="theme-filter" class="theme-filter" placeholder="Search themes..." aria-label="Search themes">
                             <div class="theme-grid">
                                 <button class="theme-btn" data-theme="classic">Classic</button>
                                 <button class="theme-btn" data-theme="glitter">Glitter Girl</button>
@@ -770,6 +771,43 @@
                     </div>
                 </section>
 
+                <!-- Custom Widgets -->
+                <section class="panel-section">
+                    <h3>Custom Widgets</h3>
+                    <div class="custom-widget-form">
+                        <label>
+                            Title
+                            <input type="text" id="custom-widget-title" placeholder="e.g. My Favorite Quotes">
+                        </label>
+                        <label>
+                            Type
+                            <select id="custom-widget-type">
+                                <option value="text" selected>Text</option>
+                                <option value="image">Image</option>
+                                <option value="gif">GIF</option>
+                                <option value="video">Video</option>
+                                <option value="audio">Audio</option>
+                            </select>
+                        </label>
+                        <div class="custom-widget-upload-row">
+                            <button type="button" id="custom-widget-upload-btn" class="action-btn subtle">Upload Media</button>
+                            <span id="custom-widget-upload-label">No media uploaded</span>
+                            <input type="file" id="custom-widget-file" accept="image/*,video/*,audio/*" style="display: none;">
+                        </div>
+                        <label>
+                            Text / Description
+                            <textarea id="custom-widget-text" rows="3" placeholder="Write something fun or meaningful..."></textarea>
+                        </label>
+                        <label>
+                            Media URL (optional)
+                            <input type="url" id="custom-widget-media" placeholder="https://example.com/media.png">
+                        </label>
+                        <button id="add-custom-widget" class="action-btn">Add Widget</button>
+                        <p class="custom-widget-hint">Widgets you create here appear instantly on your page. Mix text with images, GIFs, videos, or audio embeds.</p>
+                    </div>
+                    <div id="custom-widget-list" class="custom-widget-list"></div>
+                </section>
+
                 <!-- Authentication & Account -->
                 <section class="panel-section">
                     <h3>Account</h3>
@@ -897,6 +935,9 @@
                         <div id="custom-html-output"></div>
                     </div>
                     </div>
+
+                    <!-- Custom Widgets Rendered -->
+                    <div id="custom-widgets-container" class="custom-widgets-board"></div>
                 </div>
 
                 <!-- Center Column -->
@@ -958,7 +999,7 @@
                                 <button onclick="document.getElementById('picture-upload').click()" class="upload-btn">
                                     + Add Photos
                                 </button>
-                                <label>
+                                <label class="customize-mode-only">
                                     Columns:
                                     <select id="grid-columns">
                                         <option value="2">2</option>
@@ -1024,18 +1065,27 @@
                             <button class="widget-toggle">-</button>
                         </div>
                         <div class="widget-content">
-                            <div class="friends-controls">
-                                <label>
-                                    Slots:
-                                    <select id="friends-slots">
-                                        <option value="4">4</option>
-                                        <option value="8" selected>8</option>
-                                        <option value="12">12</option>
-                                        <option value="16">16</option>
-                                    </select>
-                                </label>
-                                <button id="friends-reorder-btn" style="margin-left: 10px;">Reorder</button>
-                            </div>
+                             <div class="friends-controls">
+                                 <label>
+                                     Slots:
+                                     <select id="friends-slots">
+                                         <option value="4">4</option>
+                                         <option value="8" selected>8</option>
+                                         <option value="12">12</option>
+                                         <option value="16">16</option>
+                                     </select>
+                                 </label>
+                                 <label class="customize-mode-only">
+                                     Columns:
+                                     <select id="friends-columns">
+                                         <option value="2">2</option>
+                                         <option value="3">3</option>
+                                         <option value="4" selected>4</option>
+                                         <option value="5">5</option>
+                                     </select>
+                                 </label>
+                                 <button id="friends-reorder-btn" style="margin-left: 10px;">Reorder</button>
+                             </div>
                             <div id="friends-grid" class="friends-grid" data-slots="8">
                                 <!-- Friend slots will be added here -->
                             </div>

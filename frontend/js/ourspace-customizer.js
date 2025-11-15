@@ -11,6 +11,30 @@
         glowStrength: 20
     };
 
+    const themeButtonMap = new Map();
+
+    function highlightThemeButton(themeName) {
+        if (!themeName) return;
+        themeButtonMap.forEach((btn, key) => {
+            if (!btn) return;
+            btn.classList.toggle('active', key === themeName);
+        });
+    }
+
+    function applyThemeFilter(term) {
+        const search = term.trim().toLowerCase();
+        themeButtonMap.forEach((btn, key) => {
+            if (!btn) return;
+            if (!search) {
+                btn.style.display = '';
+                return;
+            }
+            const label = (btn.textContent || '').toLowerCase();
+            const matches = key.toLowerCase().includes(search) || label.includes(search);
+            btn.style.display = matches ? '' : 'none';
+        });
+    }
+
     window.addEventListener('DOMContentLoaded', function() {
         initCustomizer();
     });
@@ -35,6 +59,9 @@
 
         // Widget styling controls
         setupWidgetStyleControls();
+
+        // Custom widget creator
+        setupCustomWidgetCreator();
 
         // Effects controls
         setupEffectsControls();
@@ -72,13 +99,28 @@
     // Theme Presets
     function setupThemePresets() {
         const themeBtns = document.querySelectorAll('.theme-btn');
+        themeButtonMap.clear();
 
         themeBtns.forEach(btn => {
+            if (!btn.dataset.theme) return;
+            themeButtonMap.set(btn.dataset.theme, btn);
             btn.addEventListener('click', function() {
                 const themeName = this.dataset.theme;
                 applyThemePreset(themeName);
             });
         });
+
+        const themeFilter = document.getElementById('theme-filter');
+        if (themeFilter) {
+            themeFilter.addEventListener('input', function() {
+                applyThemeFilter(this.value);
+            });
+        }
+
+        const initialTheme = window.OurSpace?.profile?.theme?.name || 'classic';
+        if (themeButtonMap.has(initialTheme)) {
+            highlightThemeButton(initialTheme);
+        }
     }
 
     function applyThemePreset(themeName) {
@@ -1544,6 +1586,7 @@
             updateFontControls();
             updateBackgroundControls();
             updateWidgetStyleControls();
+            highlightThemeButton(theme.name);
 
             // Apply and save
             window.OurSpace.applyTheme();
@@ -2387,6 +2430,157 @@
         if (glowColorInput && tweaks.glowColor) {
             glowColorInput.value = tweaks.glowColor;
         }
+    }
+
+    async function uploadCustomWidgetMedia(file) {
+        if (!file) {
+            throw new Error('No file selected');
+        }
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await fetch('/api/ourspace/upload', {
+            method: 'POST',
+            body: formData
+        });
+        if (!response.ok) {
+            throw new Error('Upload failed');
+        }
+        const data = await response.json();
+        if (!data || !data.url) {
+            throw new Error('Upload response missing URL');
+        }
+        return data.url;
+    }
+    window.OurSpaceWidgets = window.OurSpaceWidgets || {};
+    window.OurSpaceWidgets.uploadCustomWidgetMedia = uploadCustomWidgetMedia;
+
+    function setupCustomWidgetCreator() {
+        const titleInput = document.getElementById('custom-widget-title');
+        const typeSelect = document.getElementById('custom-widget-type');
+        const textInput = document.getElementById('custom-widget-text');
+        const mediaInput = document.getElementById('custom-widget-media');
+        const uploadBtn = document.getElementById('custom-widget-upload-btn');
+        const uploadLabel = document.getElementById('custom-widget-upload-label');
+        const uploadInput = document.getElementById('custom-widget-file');
+        const addBtn = document.getElementById('add-custom-widget');
+        const list = document.getElementById('custom-widget-list');
+
+        if (!titleInput || !typeSelect || !textInput || !mediaInput || !addBtn || !list || !uploadBtn || !uploadLabel || !uploadInput) {
+            return;
+        }
+
+        function getStore() {
+            if (!window.OurSpace.profile.widgets.customWidgets) {
+                window.OurSpace.profile.widgets.customWidgets = [];
+            }
+            return window.OurSpace.profile.widgets.customWidgets;
+        }
+
+        function notifyRender() {
+            if (window.OurSpaceWidgets && typeof window.OurSpaceWidgets.renderCustomWidgets === 'function') {
+                window.OurSpaceWidgets.renderCustomWidgets();
+            }
+        }
+
+        uploadBtn.addEventListener('click', function() {
+            uploadInput.click();
+        });
+
+        uploadInput.addEventListener('change', async function() {
+            const file = this.files && this.files[0];
+            if (!file) return;
+            uploadLabel.textContent = 'Uploading media...';
+            try {
+                const url = await uploadCustomWidgetMedia(file);
+                mediaInput.value = url;
+                uploadLabel.textContent = 'Media uploaded ✔';
+            } catch (error) {
+                console.error('[Customizer] Failed to upload custom widget media', error);
+                uploadLabel.textContent = 'Upload failed';
+                alert('Unable to upload media right now.');
+            } finally {
+                this.value = '';
+            }
+        });
+
+        function renderList() {
+            const widgets = getStore();
+            list.innerHTML = '';
+            if (!widgets.length) {
+                const empty = document.createElement('p');
+                empty.className = 'custom-widget-empty';
+                empty.textContent = 'No custom widgets yet. Add one above!';
+                list.appendChild(empty);
+                return;
+            }
+
+            widgets.forEach(widget => {
+                const item = document.createElement('div');
+                item.className = 'custom-widget-item';
+
+                const details = document.createElement('div');
+                details.className = 'custom-widget-item-details';
+                const title = document.createElement('strong');
+                title.textContent = widget.title || 'Untitled Widget';
+                details.appendChild(title);
+
+                const type = document.createElement('span');
+                type.className = 'custom-widget-item-type';
+                type.textContent = (widget.type || 'text').toUpperCase();
+                details.appendChild(type);
+
+                const status = document.createElement('span');
+                status.textContent = widget.mediaUrl ? 'Media linked' : 'No media yet';
+                status.style.opacity = '0.7';
+                details.appendChild(status);
+
+                item.appendChild(details);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'custom-widget-remove';
+                removeBtn.dataset.widgetId = widget.id;
+                removeBtn.textContent = 'Remove';
+                removeBtn.addEventListener('click', function() {
+                    const widgets = getStore();
+                    const index = widgets.findIndex(w => String(w.id) === String(widget.id));
+                    if (index >= 0) {
+                        widgets.splice(index, 1);
+                        renderList();
+                        notifyRender();
+                    }
+                });
+                item.appendChild(removeBtn);
+
+                list.appendChild(item);
+            });
+        }
+
+        addBtn.addEventListener('click', function() {
+            const widgets = getStore();
+            const title = (titleInput.value || '').trim() || 'Untitled Widget';
+            const type = typeSelect.value || 'text';
+            const text = (textInput.value || '').trim();
+            const mediaUrl = (mediaInput.value || '').trim();
+
+            const widget = {
+                id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+                title,
+                type,
+                text,
+                mediaUrl
+            };
+
+            widgets.push(widget);
+            titleInput.value = '';
+            textInput.value = '';
+            mediaInput.value = '';
+            typeSelect.value = 'text';
+            uploadLabel.textContent = 'No media uploaded';
+            renderList();
+            notifyRender();
+        });
+
+        renderList();
     }
 
     // Effects Controls
