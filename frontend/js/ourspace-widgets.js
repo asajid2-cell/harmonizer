@@ -10,6 +10,24 @@
         "💅", "🎮", "😇", "🤡", "😴"
     ];
 
+    function hasEditAccess() {
+        if (window.OurSpace && typeof window.OurSpace.canEditProfile === 'function') {
+            return window.OurSpace.canEditProfile();
+        }
+        return true;
+    }
+
+    function blockIfReadOnly(input) {
+        if (hasEditAccess()) {
+            return false;
+        }
+        alert("This profile is view-only while you're visiting someone else's page.");
+        if (input) {
+            input.value = '';
+        }
+        return true;
+    }
+
     window.addEventListener('DOMContentLoaded', function() {
         initWidgets();
     });
@@ -853,11 +871,18 @@
     window.showAllFriends = showAllFriends;
 
     function addFriend(index) {
+        if (!hasEditAccess()) {
+            alert("This profile is view-only while you're visiting someone else's page.");
+            return;
+        }
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
 
         input.addEventListener('change', async function() {
+            if (blockIfReadOnly(this)) {
+                return;
+            }
             const file = this.files[0];
             if (file && file.type.startsWith('image/')) {
                 const name = prompt('Friend\'s name:');
@@ -1032,7 +1057,7 @@
                 }
             }
 
-            const canEdit = !document.body.classList.contains('view-mode');
+            const canEdit = !document.body.classList.contains('view-mode') && hasEditAccess();
             if (canEdit) {
                 const actions = document.createElement('div');
                 actions.className = 'custom-widget-actions';
@@ -1084,6 +1109,9 @@
         const bannerUpload = document.getElementById('banner-upload');
         if (bannerUpload) {
             bannerUpload.addEventListener('change', async function() {
+                if (blockIfReadOnly(this)) {
+                    return;
+                }
                 const file = this.files[0];
                 if (file && file.type.startsWith('image/')) {
                     try {
@@ -1130,6 +1158,9 @@
         if (removeBannerBtn) {
             removeBannerBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
+                if (!hasEditAccess()) {
+                    return;
+                }
                 if (confirm('Remove banner image?')) {
                     window.OurSpace.profile.profile.bannerImage = '';
                     window.OurSpace.profile.profile.bannerOffset = { x: 50, y: 50 };
@@ -1150,6 +1181,9 @@
         const profilePicUpload = document.getElementById('profile-pic-upload');
         if (profilePicUpload) {
             profilePicUpload.addEventListener('change', async function() {
+                if (blockIfReadOnly(this)) {
+                    return;
+                }
                 const file = this.files[0];
                 if (file && file.type.startsWith('image/')) {
                     try {
@@ -1195,6 +1229,9 @@
         if (removeProfilePicBtn) {
             removeProfilePicBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
+                if (!hasEditAccess()) {
+                    return;
+                }
                 if (confirm('Remove profile picture?')) {
                     window.OurSpace.profile.profile.profilePic = '';
                     window.OurSpace.profile.profile.profilePicOffset = { x: 50, y: 50 };
@@ -1343,6 +1380,19 @@
             }
         };
 
+        const getActiveLayout = () => {
+            if (!activeSticker) return null;
+            const core = getCore();
+            if (core && typeof core.getStickerLayout === 'function') {
+                try {
+                    return core.getStickerLayout(activeSticker);
+                } catch (err) {
+                    return null;
+                }
+            }
+            return null;
+        };
+
         const setActive = (sticker) => {
             activeSticker = sticker || null;
             if (!activeSticker) {
@@ -1352,8 +1402,9 @@
                 return;
             }
             toggleControls(true);
-            if (scaleInput) scaleInput.value = activeSticker.scale || 1;
-            if (zInput) zInput.value = activeSticker.zIndex || 30;
+            const layout = getActiveLayout();
+            if (scaleInput) scaleInput.value = layout ? (layout.scale || 1) : (activeSticker.scale || 1);
+            if (zInput) zInput.value = layout ? (layout.zIndex || 30) : (activeSticker.zIndex || 30);
             setFramePresetState(activeSticker.frameStyle || 'none');
             updateFrameTextControls();
         };
@@ -1372,10 +1423,18 @@
         });
 
         addBtn.addEventListener('click', () => {
+            if (!hasEditAccess()) {
+                alert("This profile is view-only while you're visiting someone else's page.");
+                return;
+            }
             uploadInput.click();
         });
 
         uploadInput.addEventListener('change', async function() {
+            if (blockIfReadOnly(this)) {
+                this.value = '';
+                return;
+            }
             const file = this.files && this.files[0];
             this.value = '';
             if (!file || !file.type.startsWith('image/')) {
