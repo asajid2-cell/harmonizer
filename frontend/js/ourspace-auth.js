@@ -233,7 +233,7 @@
                             const isMobile = typeof window.OurSpace.isPhoneViewportActive === 'function'
                                 ? window.OurSpace.isPhoneViewportActive()
                                 : window.OurSpace.isPhoneViewport();
-                            window.OurSpaceCustomizer.syncMobileCustomizer(!!isMobile);
+                            window.OurSpaceCustomizer.syncMobileCustomizer(!!isMobile, { forceOpen: !!isMobile });
                         }
                         console.log('[Auth] Loaded user profile from database');
                     }
