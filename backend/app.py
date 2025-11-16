@@ -10,6 +10,10 @@ import uuid
 from pathlib import Path
 from typing import Optional, List, Dict
 
+# Ensure PyTorch doesn't attempt to initialize NNPACK on hardware that doesn't support it.
+os.environ.setdefault("PYTORCH_JIT_USE_NNPACK", "0")
+os.environ.setdefault("TORCH_BACKENDS_DISABLE_NNPACK", "1")
+
 from flask import (
     Flask,
     abort,
@@ -29,6 +33,9 @@ import json
 import random
 import time
 import requests
+import threading
+from queue import Queue
+from datetime import datetime, timedelta
 
 try:  # optional dependency for large Drive downloads
     import gdown  # type: ignore
@@ -262,6 +269,54 @@ ELDRICHIFY_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 IMGEN_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
+
+# Async image generation job system
+_imgen_jobs = {}  # job_id -> {"status": "pending|completed|failed", "result": {...}, "error": str, "created": datetime}
+_imgen_lock = threading.Lock()
+
+def _cleanup_old_jobs():
+    """Remove jobs older than 10 minutes"""
+    cutoff = datetime.now() - timedelta(minutes=10)
+    with _imgen_lock:
+        to_delete = [jid for jid, job in _imgen_jobs.items() if job["created"] < cutoff]
+        for jid in to_delete:
+            del _imgen_jobs[jid]
+
+def _process_imgen_job(job_id, prompt, guidance, steps, seed):
+    """Background thread worker for image generation"""
+    try:
+        pipeline = get_prompt_pipeline()
+        result = pipeline.generate(
+            prompt,
+            guidance_scale=guidance,
+            num_inference_steps=steps,
+            seed=seed,
+        )
+        filename = f"prompt_{uuid.uuid4().hex}.png"
+        relative_path = Path("imgen") / filename
+        absolute_path = IMGEN_OUTPUT_DIR / filename
+        absolute_path.parent.mkdir(parents=True, exist_ok=True)
+        result.image.save(absolute_path, format="PNG")
+
+        preview_url = _image_to_data_url(result.image)
+        previews = {"hd": preview_url}
+
+        with _imgen_lock:
+            _imgen_jobs[job_id]["status"] = "completed"
+            _imgen_jobs[job_id]["result"] = {
+                "mode": "prompt",
+                "image_url": f"/media/{relative_path.as_posix()}",
+                "filename": filename,
+                "prompt": result.prompt,
+                "seed": result.seed,
+                "preview": preview_url,
+                "previews": previews,
+            }
+    except Exception as exc:
+        print(f"[imgen] Job {job_id} failed: {exc}", flush=True)
+        with _imgen_lock:
+            _imgen_jobs[job_id]["status"] = "failed"
+            _imgen_jobs[job_id]["error"] = str(exc)
 
 app = Flask(__name__, static_folder=None)
 
@@ -684,6 +739,7 @@ def download_model_weights():
 
 @app.route("/api/imgen", methods=["POST"])
 def api_imgen():
+    """Start async image generation job and return job ID immediately"""
     payload = request.get_json(silent=True) or {}
     prompt = str(payload.get("prompt") or "").strip()
     guidance = _coerce_float(payload.get("guidance")) or 5.5
@@ -703,38 +759,42 @@ def api_imgen():
     except (TypeError, ValueError):
         seed_value = None
 
-    pipeline = get_prompt_pipeline()
-    try:
-        result = pipeline.generate(
-            prompt,
-            guidance_scale=guidance,
-            num_inference_steps=steps_value,
-            seed=seed_value,
-        )
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:  # pragma: no cover - runtime safety
-        print(f"[imgen] failed to synthesize prompt: {exc}", flush=True)
-        return jsonify({"error": "Prompt pipeline failed to generate an image."}), 500
-
-    filename = f"prompt_{uuid.uuid4().hex}.png"
-    relative_path = Path("imgen") / filename
-    absolute_path = IMGEN_OUTPUT_DIR / filename
-    absolute_path.parent.mkdir(parents=True, exist_ok=True)
-    result.image.save(absolute_path, format="PNG")
-
-    preview_url = _image_to_data_url(result.image)
-
-    return jsonify(
-        {
-            "mode": "prompt",
-            "image_url": f"/media/{relative_path.as_posix()}",
-            "filename": filename,
-            "prompt": result.prompt,
-            "seed": result.seed,
-            "previews": {"hd": preview_url},
+    # Create job
+    job_id = str(uuid.uuid4())
+    with _imgen_lock:
+        _cleanup_old_jobs()
+        _imgen_jobs[job_id] = {
+            "status": "pending",
+            "result": None,
+            "error": None,
+            "created": datetime.now(),
         }
+
+    # Start background thread
+    thread = threading.Thread(
+        target=_process_imgen_job,
+        args=(job_id, prompt, guidance, steps_value, seed_value),
+        daemon=True
     )
+    thread.start()
+
+    return jsonify({"job_id": job_id, "status": "pending"})
+
+
+@app.route("/api/imgen/status/<job_id>", methods=["GET"])
+def api_imgen_status(job_id):
+    """Poll for job completion"""
+    with _imgen_lock:
+        job = _imgen_jobs.get(job_id)
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+
+        if job["status"] == "completed":
+            return jsonify({"status": "completed", "result": job["result"]})
+        elif job["status"] == "failed":
+            return jsonify({"status": "failed", "error": job["error"]}), 500
+        else:
+            return jsonify({"status": "pending"})
 
 
 @app.route("/api/talk-to-disco-teque", methods=["POST"])
