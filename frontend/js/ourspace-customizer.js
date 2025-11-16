@@ -149,7 +149,7 @@
     window.OurSpaceCustomizer = window.OurSpaceCustomizer || {};
     window.OurSpaceCustomizer.updateSummary = updateCustomizerSummary;
 
-    function syncMobileCustomizer(isMobile) {
+    function syncMobileCustomizer(isMobile, options = {}) {
         const panel = document.getElementById('customization-panel');
         if (!panel) {
             return;
@@ -157,11 +157,14 @@
         if (!isMobile) {
             delete panel.dataset.mobileSheetInit;
             if (typeof panel._updateToggleState === 'function') {
-                panel._updateToggleState();
+                if (typeof panel._updateToggleState === 'function') {
+                    panel._updateToggleState();
+                }
             }
             return;
         }
-        if (!panel.dataset.mobileSheetInit) {
+        const shouldOpen = options.forceOpen || !panel.dataset.mobileSheetInit;
+        if (shouldOpen) {
             panel.classList.remove('collapsed');
             panel.dataset.mobileSheetInit = 'true';
         }
