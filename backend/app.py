@@ -2816,11 +2816,17 @@ def ourspace_remove_friend():
 
     data = request.get_json()
     friend_id = data.get("friend_id")
+    friend_username = data.get("username", "")
+
+    if not friend_id and friend_username and get_user is not None:
+        friend = get_user(username=friend_username)
+        if friend:
+            friend_id = friend["id"]
 
     if not friend_id:
         return jsonify({"error": "Friend ID required"}), 400
 
-    success = remove_friend(user_id, friend_id)
+    success = remove_friend(user_id, int(friend_id))
 
     if not success:
         return jsonify({"error": "Failed to remove friend"}), 500

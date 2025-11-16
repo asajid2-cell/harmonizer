@@ -9,6 +9,8 @@ backend/ourspace_data/
 backend/myspace_data/
 ourspace_data/
 myspace_data/
+!backend/ourspace_data/.gitkeep
+!backend/myspace_data/.gitkeep
 *.db
 *.db-journal
 *.db-shm

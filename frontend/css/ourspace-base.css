@@ -1297,7 +1297,7 @@ body.ourspace-mobile .customize-panel ~ #ourspace-main {
 }
 
 .theme-btn.active::after {
-    content: '★';
+    content: '\2605'; /* STAR */
     position: absolute;
     top: -8px;
     right: -6px;
