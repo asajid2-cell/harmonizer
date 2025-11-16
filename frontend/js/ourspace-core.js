@@ -1244,11 +1244,13 @@
             console.log("[OurSpace] Background color:", theme.colors.background);
 
             // Apply theme class (preserve view-mode class)
-            const viewMode = document.body.classList.contains('view-mode');
-            document.body.className = `theme-${theme.name}`;
-            if (viewMode) {
-                document.body.classList.add('view-mode');
-            }
+            const themeClassPrefix = 'theme-';
+            document.body.classList.forEach(cls => {
+                if (cls.startsWith(themeClassPrefix)) {
+                    document.body.classList.remove(cls);
+                }
+            });
+            document.body.classList.add(`theme-${theme.name}`);
 
             // Apply custom colors
             const bg = document.getElementById('ourspace-background');
@@ -1427,7 +1429,12 @@
 
         isPhoneViewport: function() {
             if (typeof window.matchMedia === 'function') {
-                return window.matchMedia('(max-width: 768px)').matches;
+                const mq = window.matchMedia('(max-width: 768px)');
+                if (mq && typeof mq.matches === 'boolean') {
+                    if (mq.matches) {
+                        return true;
+                    }
+                }
             }
             return window.innerWidth <= 768;
         },
