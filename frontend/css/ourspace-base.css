@@ -2152,10 +2152,13 @@ body.view-mode #mood-icon {
 
 .picture-item.picture-framing img {
     cursor: grab;
+    touch-action: none;
+    user-select: none;
 }
 
 .picture-item.picture-framing img.framing-active {
     cursor: grabbing;
+    touch-action: none;
 }
 
 .picture-item.picture-framing {
