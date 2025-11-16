@@ -553,7 +553,8 @@
         widgetsVisibility: Object.assign({}, WIDGET_VISIBILITY_DEFAULTS),
         sceneDeck: [],
         layout: {
-            preset: "classic"
+            preset: "classic",
+            mobilePreset: "phone-stack"
         },
         meta: {
             created: Date.now(),
@@ -604,6 +605,8 @@
     window.OurSpace = {
         profile: JSON.parse(JSON.stringify(DEFAULT_PROFILE)), // Initialize with default to prevent null errors
         viewMode: false,
+        _isPhoneView: false,
+        _responsiveHandlersSetup: false,
         _themeFrame: null,
         isAuthenticated: false,
         _authPromise: null,
@@ -652,6 +655,7 @@
             // Apply theme and customizations
             this.applyTheme(true);
             this.loadContent();
+            this.setupResponsiveLayoutHandlers();
             this.updateStats();
 
             // Setup mode toggle
@@ -1320,15 +1324,82 @@
             document.documentElement.style.setProperty('--widget-glow-strength', `${tweaks.glowStrength || 0}px`);
 
             // Apply layout
-            const grid = document.getElementById('content-grid');
-            if (grid) {
-                grid.className = `content-grid layout-${this.profile.layout.preset}`;
-            }
+            this.applyLayoutPreset();
 
             console.log("[OurSpace] Theme applied:", theme.name);
 
             // Reset execution flag
             this._applyingTheme = false;
+        },
+
+        applyLayoutPreset: function() {
+            const grid = document.getElementById('content-grid');
+            if (!grid) {
+                return;
+            }
+            const layout = this.profile.layout || (this.profile.layout = {});
+            if (!layout.mobilePreset) {
+                layout.mobilePreset = 'phone-stack';
+            }
+            const preset = this.isPhoneViewportActive()
+                ? (layout.mobilePreset || 'phone-stack')
+                : (layout.preset || 'classic');
+            grid.className = `content-grid layout-${preset}`;
+            grid.dataset.layoutContext = this.isPhoneViewportActive() ? 'mobile' : 'desktop';
+        },
+
+        isPhoneViewport: function() {
+            if (typeof window.matchMedia === 'function') {
+                return window.matchMedia('(max-width: 768px)').matches;
+            }
+            return window.innerWidth <= 768;
+        },
+
+        isPhoneViewportActive: function() {
+            return !!this._isPhoneView;
+        },
+
+        applyResponsiveState: function(force = false) {
+            if (typeof document === 'undefined' || !document.body) {
+                return;
+            }
+            const next = this.isPhoneViewport();
+            if (!force && next === this._isPhoneView) {
+                if (next) {
+                    this.applyLayoutPreset();
+                }
+                return;
+            }
+            this._isPhoneView = next;
+            document.body.classList.toggle('ourspace-mobile', this._isPhoneView);
+            this.applyLayoutPreset();
+
+            if (!this._isPhoneView) {
+                const panel = document.getElementById('customization-panel');
+                if (panel && typeof panel._updateToggleState === 'function') {
+                    panel._updateToggleState();
+                }
+            }
+
+            if (window.OurSpaceCustomizer) {
+                if (typeof window.OurSpaceCustomizer.syncMobileCustomizer === 'function') {
+                    window.OurSpaceCustomizer.syncMobileCustomizer(this._isPhoneView);
+                }
+                if (typeof window.OurSpaceCustomizer.updateSummary === 'function') {
+                    window.OurSpaceCustomizer.updateSummary();
+                }
+            }
+        },
+
+        setupResponsiveLayoutHandlers: function() {
+            if (this._responsiveHandlersSetup) {
+                return;
+            }
+            this._responsiveHandlersSetup = true;
+            this.applyResponsiveState(true);
+            window.addEventListener('resize', () => {
+                this.applyResponsiveState();
+            });
         },
 
         // Load content into page

@@ -2457,6 +2457,7 @@ def _normalize_profile_data(profile_data):
     profile_data["widgetsVisibility"] = visibility
     layout = profile_data.setdefault("layout", {})
     layout.setdefault("preset", layout.get("preset", "classic"))
+    layout.setdefault("mobilePreset", layout.get("mobilePreset", "phone-stack"))
     layout.setdefault("grid", layout.get("grid", []))
     return profile_data
 

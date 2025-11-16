@@ -128,7 +128,14 @@
         const themeBtn = themeButtonMap.get(currentThemeName);
         const themeLabel = themeBtn ? (themeBtn.textContent || '').trim() : currentThemeName;
         const themeName = formatSummaryLabel(themeLabel);
-        const layoutName = formatSummaryLabel(profile.layout?.preset || 'classic');
+        const isPhone = typeof window.OurSpace?.isPhoneViewportActive === 'function'
+            ? window.OurSpace.isPhoneViewportActive()
+            : false;
+        const layoutSource = isPhone ? (profile.layout?.mobilePreset || profile.layout?.preset) : (profile.layout?.preset || 'classic');
+        let layoutName = formatSummaryLabel(layoutSource);
+        if (isPhone) {
+            layoutName = `${layoutName} · phone`;
+        }
         const lastSaved = window.OurSpace?._lastSavedTimestamp || 0;
         const lastModified = profile.meta?.lastModified || 0;
         const hasUnsaved = lastModified > lastSaved;
@@ -142,6 +149,28 @@
     window.OurSpaceCustomizer = window.OurSpaceCustomizer || {};
     window.OurSpaceCustomizer.updateSummary = updateCustomizerSummary;
 
+    function syncMobileCustomizer(isMobile) {
+        const panel = document.getElementById('customization-panel');
+        if (!panel) {
+            return;
+        }
+        if (!isMobile) {
+            delete panel.dataset.mobileSheetInit;
+            if (typeof panel._updateToggleState === 'function') {
+                panel._updateToggleState();
+            }
+            return;
+        }
+        if (!panel.dataset.mobileSheetInit) {
+            panel.classList.remove('collapsed');
+            panel.dataset.mobileSheetInit = 'true';
+        }
+        if (typeof panel._updateToggleState === 'function') {
+            panel._updateToggleState();
+        }
+    }
+
+    window.OurSpaceCustomizer.syncMobileCustomizer = syncMobileCustomizer;
     function setupPanelTabs() {
         const tabButtons = document.querySelectorAll('.panel-tab');
         const panelContainer = document.querySelector('#customization-panel .panel-content.tabbed-panel');
@@ -172,6 +201,8 @@
 
         // Panel toggle
         setupPanelToggle();
+        setupMobilePanelHandle();
+        setupMobileOverlayDismiss();
 
         // Theme presets
         setupThemePresets();
@@ -215,20 +246,61 @@
         const panel = document.getElementById('customization-panel');
         const toggleBtn = document.getElementById('toggle-panel');
 
-        if (toggleBtn && panel) {
-            const updateState = () => {
-                const collapsed = panel.classList.contains('collapsed');
-                toggleBtn.textContent = collapsed ? '▶' : '◀';
-                toggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-            };
-
-            toggleBtn.addEventListener('click', function() {
-                panel.classList.toggle('collapsed');
-                updateState();
-            });
-
-            updateState();
+        if (!toggleBtn || !panel) {
+            return;
         }
+
+        const updateState = () => {
+            const collapsed = panel.classList.contains('collapsed');
+            toggleBtn.textContent = collapsed ? '›' : '‹';
+            toggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        };
+
+        toggleBtn.addEventListener('click', function() {
+            panel.classList.toggle('collapsed');
+            updateState();
+        });
+
+        panel._updateToggleState = updateState;
+        updateState();
+    }
+
+    function setupMobilePanelHandle() {
+        const handle = document.querySelector('.mobile-panel-handle');
+        const panel = document.getElementById('customization-panel');
+        if (!handle || !panel) {
+            return;
+        }
+        handle.addEventListener('click', () => {
+            if (!document.body.classList.contains('ourspace-mobile')) {
+                return;
+            }
+            if (panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+                if (typeof panel._updateToggleState === 'function') {
+                    panel._updateToggleState();
+                }
+            }
+        });
+    }
+
+    function setupMobileOverlayDismiss() {
+        const overlay = document.getElementById('mobile-panel-overlay');
+        const panel = document.getElementById('customization-panel');
+        if (!overlay || !panel) {
+            return;
+        }
+        overlay.addEventListener('click', () => {
+            if (!document.body.classList.contains('ourspace-mobile')) {
+                return;
+            }
+            if (!panel.classList.contains('collapsed')) {
+                panel.classList.add('collapsed');
+                if (typeof panel._updateToggleState === 'function') {
+                    panel._updateToggleState();
+                }
+            }
+        });
     }
 
     // Theme Presets

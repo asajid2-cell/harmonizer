@@ -310,7 +310,7 @@ def create_user(username: str, password: str) -> Optional[int]:
                 "contact": True
             },
             "sceneDeck": [],
-            "layout": {"preset": "classic"},
+            "layout": {"preset": "classic", "mobilePreset": "phone-stack"},
             "meta": {
                 "created": datetime.now().isoformat(),
                 "lastModified": datetime.now().isoformat(),
