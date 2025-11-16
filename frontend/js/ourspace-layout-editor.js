@@ -360,6 +360,12 @@
             const widgets = document.querySelectorAll('.layout-editable');
 
             widgets.forEach(widget => {
+                const isAbsolute = widget.style.position === 'absolute';
+                const hasOverrides = widget.style.left || widget.style.top || widget.style.width || widget.style.height;
+                if (!isAbsolute && !hasOverrides) {
+                    return;
+                }
+
                 layout.push({
                     id: widget.id,
                     left: widget.style.left,
@@ -378,6 +384,33 @@
             }
 
             console.log('[Layout Editor] Saved layout:', layout);
+            this.updateWorkspaceBounds();
+        },
+
+        snapshotCurrentLayout: function() {
+            if (!window.OurSpace || !window.OurSpace.profile) {
+                return [];
+            }
+            const widgets = document.querySelectorAll('.widget');
+            const snapshot = [];
+            widgets.forEach(widget => {
+                if (widget.style.position !== 'absolute') {
+                    return;
+                }
+                snapshot.push({
+                    id: widget.id,
+                    left: widget.style.left,
+                    top: widget.style.top,
+                    width: widget.style.width,
+                    height: widget.style.height,
+                    zIndex: widget.style.zIndex || '0'
+                });
+            });
+            if (!window.OurSpace.profile.layout) {
+                window.OurSpace.profile.layout = {};
+            }
+            window.OurSpace.profile.layout.grid = snapshot;
+            return snapshot;
         },
 
         resetLayout: function() {
@@ -402,6 +435,19 @@
             console.log('[Layout Editor] Layout reset');
         },
 
+        clearInlineStyles: function() {
+            const widgets = document.querySelectorAll('.widget, #profile-header, .profile-header, .profile-picture, .profile-pic-container, .profile-banner, .contact-section, .stat-container, .profile-info');
+            widgets.forEach(widget => {
+                widget.style.position = '';
+                widget.style.left = '';
+                widget.style.top = '';
+                widget.style.width = '';
+                widget.style.height = '';
+                widget.style.zIndex = '';
+                widget.style.margin = '';
+            });
+        },
+
         updateFromProfile: function() {
             if (!window.OurSpace || !window.OurSpace.profile || !window.OurSpace.profile.layout) {
                 return;
@@ -409,8 +455,11 @@
 
             const layout = window.OurSpace.profile.layout.grid;
             if (!layout || !Array.isArray(layout)) {
+                this.clearInlineStyles();
                 return;
             }
+
+            this.clearInlineStyles();
 
             layout.forEach(item => {
                 const widget = document.getElementById(item.id);
@@ -423,6 +472,29 @@
                     widget.style.zIndex = item.zIndex || '0';
                 }
             });
+            this.updateWorkspaceBounds();
+        },
+
+        updateWorkspaceBounds: function() {
+            const container = document.getElementById('ourspace-main');
+            if (!container) return;
+            const widgets = document.querySelectorAll('.widget');
+            if (!widgets.length) return;
+
+            const containerRect = container.getBoundingClientRect();
+            let maxBottom = 0;
+            widgets.forEach(widget => {
+                const rect = widget.getBoundingClientRect();
+                const relativeTop = rect.top - containerRect.top;
+                const bottom = relativeTop + rect.height;
+                if (bottom > maxBottom) {
+                    maxBottom = bottom;
+                }
+            });
+
+            const padding = 80;
+            const calculated = Math.max(maxBottom + padding, 600);
+            container.style.minHeight = calculated + 'px';
         }
     };
 

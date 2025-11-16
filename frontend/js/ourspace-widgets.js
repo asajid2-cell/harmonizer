@@ -473,21 +473,60 @@
     function setupTopFriendsWidget() {
         const friendsSlots = document.getElementById('friends-slots');
         const friendsColumns = document.getElementById('friends-columns');
+        const friendsRows = document.getElementById('friends-rows');
         const friendsGrid = document.getElementById('friends-grid');
         const reorderBtn = document.getElementById('friends-reorder-btn');
 
+        const ensureSelectOption = (select, value) => {
+            if (!select) return;
+            if (!select.querySelector(`option[value="${value}"]`)) {
+                const opt = document.createElement('option');
+                opt.value = String(value);
+                opt.textContent = String(value);
+                opt.dataset.dynamicOption = 'true';
+                select.appendChild(opt);
+            }
+        };
+
+        const setSlotsValue = (value) => {
+            const normalized = Math.max(1, parseInt(value, 10) || 1);
+            window.OurSpace.profile.widgets.topFriends.slots = normalized;
+            if (friendsSlots) {
+                ensureSelectOption(friendsSlots, normalized);
+                friendsSlots.value = String(normalized);
+            }
+        };
+
+        const setRowsValue = (value) => {
+            const normalized = Math.max(1, parseInt(value, 10) || 1);
+            window.OurSpace.profile.widgets.topFriends.rows = normalized;
+            if (friendsRows) {
+                ensureSelectOption(friendsRows, normalized);
+                friendsRows.value = String(normalized);
+            }
+        };
+
+        const syncRowsFromState = () => {
+            const cols = Math.max(
+                1,
+                parseInt((friendsColumns && friendsColumns.value) || window.OurSpace.profile.widgets.topFriends.columns || 4, 10)
+            );
+            const slots = window.OurSpace.profile.widgets.topFriends.slots || 4;
+            const rows = Math.max(1, Math.ceil(slots / cols));
+            setRowsValue(rows);
+        };
+
         // Load friends
         loadFriendsGrid();
+        syncRowsFromState();
 
         // Slots selector
         if (friendsSlots) {
             friendsSlots.value = window.OurSpace.profile.widgets.topFriends.slots;
 
             friendsSlots.addEventListener('change', function() {
-                window.OurSpace.profile.widgets.topFriends.slots = parseInt(this.value);
-                if (friendsGrid) {
-                    friendsGrid.dataset.slots = this.value;
-                }
+                setSlotsValue(this.value);
+                syncRowsFromState();
                 // Auto-save removed - only save when user clicks Save Profile button
                 loadFriendsGrid();
             });
@@ -505,6 +544,20 @@
                 if (friendsGrid) {
                     friendsGrid.dataset.columns = cols;
                 }
+                syncRowsFromState();
+                loadFriendsGrid();
+            });
+        }
+
+        if (friendsRows) {
+            friendsRows.addEventListener('change', function() {
+                const rows = Math.max(1, parseInt(this.value, 10) || 1);
+                const cols = Math.max(
+                    1,
+                    parseInt((friendsColumns && friendsColumns.value) || window.OurSpace.profile.widgets.topFriends.columns || 4, 10)
+                );
+                setRowsValue(rows);
+                setSlotsValue(rows * cols);
                 loadFriendsGrid();
             });
         }
@@ -532,6 +585,10 @@
         friendsGrid.innerHTML = '';
         friendsGrid.dataset.slots = slots;
         friendsGrid.dataset.columns = columns;
+        const rows = window.OurSpace.profile.widgets.topFriends.rows ||
+            Math.max(1, Math.ceil(slots / Math.max(1, columns)));
+        window.OurSpace.profile.widgets.topFriends.rows = rows;
+        friendsGrid.dataset.rows = rows;
 
         for (let i = 0; i < slots; i++) {
             const friend = friends[i];
@@ -904,11 +961,15 @@
         }
 
         const widgets = window.OurSpace.profile.widgets.customWidgets;
+        const isCustomizeMode = !document.body.classList.contains('view-mode');
         container.innerHTML = '';
 
         if (!widgets.length) {
+            if (!isCustomizeMode) {
+                return;
+            }
             const emptyCard = document.createElement('div');
-            emptyCard.className = 'widget custom-widget-card';
+            emptyCard.className = 'widget custom-widget-card customize-mode-only';
             const content = document.createElement('div');
             content.className = 'widget-content';
             const msg = document.createElement('p');

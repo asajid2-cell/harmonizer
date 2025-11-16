@@ -191,13 +191,16 @@ def create_user(username: str, password: str) -> Optional[int]:
                     "background": "#0066cc",
                     "text": "#ffffff",
                     "links": "#00ccff",
+                    "linksHover": "#ffff00",
                     "borders": "#ffffff",
-                    "widgetBg": "#003399"
+                    "widgetBg": "#003399",
+                    "widgetBgOpacity": 80,
+                    "labelText": "#00aaff"
                 },
                 "fonts": {
                     "family": "Arial, sans-serif",
                     "size": 14,
-                    "effects": {"shadow": False, "glow": False}
+                    "effects": {"shadow": False, "glow": False, "glowColor": "#ffffff"}
                 },
                 "background": {
                     "type": "pattern",
@@ -205,47 +208,116 @@ def create_user(username: str, password: str) -> Optional[int]:
                     "image": "",
                     "repeat": "repeat",
                     "attachment": "fixed",
-                    "gradient": ""
+                    "gradient": "",
+                    "size": "auto",
+                    "customSize": 100,
+                    "position": "center",
+                    "transform": {
+                        "scale": 1,
+                        "rotate": 0,
+                        "skewX": 0,
+                        "skewY": 0,
+                        "flipX": False,
+                        "flipY": False
+                    },
+                    "filter": {
+                        "blur": 0,
+                        "brightness": 100,
+                        "contrast": 100,
+                        "saturate": 100,
+                        "hueRotate": 0,
+                        "invert": 0,
+                        "sepia": 0,
+                        "grayscale": 0
+                    },
+                    "blend": {
+                        "mode": "normal",
+                        "opacity": 100
+                    }
                 },
                 "effects": {
                     "falling": {"enabled": False, "type": "hearts", "speed": 2},
-                    "cursorTrail": {"enabled": False, "type": "sparkle"},
-                    "blink": False,
-                    "glitter": False
+                    "cursorTrail": {"enabled": False, "style": "sparkle"},
+                    "blink": {"enabled": False, "speed": 1},
+                    "glitter": {"enabled": False, "intensity": 0.7}
+                },
+                "tweaks": {
+                    "radius": 10,
+                    "border": 3,
+                    "blur": 0,
+                    "glowColor": "#00ffff",
+                    "glowStrength": 20
                 }
             },
             "profile": {
                 "name": username,
-                "tagline": "✨ living my best life ✨",
-                "mood": {"text": "chillin", "icon": "ðŸ˜Ž"},
+                "tagline": "living my best life",
+                "mood": {"text": "chillin", "icon": ":-)"},
                 "bannerImage": "",
-                "profilePic": ""
+                "bannerOffset": {"x": 50, "y": 50},
+                "profilePic": "",
+                "profilePicOffset": {"x": 50, "y": 50}
             },
             "widgets": {
-                "aboutMe": {"content": f"<p>Hey! I'm {username}. Welcome to my page!</p>"},
+                "aboutMe": {
+                    "visible": True,
+                    "content": f"<p>Hey! I'm {username}. Welcome to my page!</p>"
+                },
                 "interests": {
+                    "visible": True,
                     "music": "Everything!",
                     "movies": "Action, Comedy",
                     "tv": "The best shows",
                     "books": "Fantasy, Sci-Fi"
                 },
-                "topFriends": {"slots": 8, "friends": []},
-                "comments": {"entries": []},
-                "pictureWall": {"columns": 3, "images": []},
+                "topFriends": {
+                    "visible": True,
+                    "slots": 8,
+                    "columns": 4,
+                    "rows": 2,
+                    "friends": []
+                },
+                "comments": {"visible": True, "entries": []},
+                "pictureWall": {
+                    "visible": True,
+                    "columns": 4,
+                    "rows": 4,
+                    "gap": "10px",
+                    "frameStyle": "classic",
+                    "images": []
+                },
                 "music": {
+                    "visible": True,
+                    "audioUrl": "",
                     "audioData": "",
                     "title": "No track loaded",
                     "autoplay": False,
                     "volume": 50
                 },
-                "customHtml": {"html": "", "global": ""}
+                "customHtml": {"visible": True, "html": "", "global": ""},
+                "customWidgets": []
             },
+            "widgetsVisibility": {
+                "aboutMe": True,
+                "interests": True,
+                "customHtml": True,
+                "customWidgets": True,
+                "music": True,
+                "pictureWall": True,
+                "comments": True,
+                "topFriends": True,
+                "stats": True,
+                "contact": True
+            },
+            "sceneDeck": [],
+            "layout": {"preset": "classic", "mobilePreset": "phone-stack"},
             "meta": {
                 "created": datetime.now().isoformat(),
                 "lastModified": datetime.now().isoformat(),
                 "visits": 0
             }
         }
+
 
         cursor.execute(
             "INSERT INTO profiles (user_id, profile_data, visits) VALUES (?, ?, ?)",

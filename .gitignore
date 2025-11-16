@@ -4,6 +4,16 @@ __pycache__/
 # Flask session files
 backend/flask_session/
 
+# Database files (handle backups manually)
+backend/ourspace_data/
+backend/myspace_data/
+ourspace_data/
+myspace_data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
 # Generated audio/media
 backend/uploads/
 uploads/

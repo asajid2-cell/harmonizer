@@ -1975,6 +1975,7 @@ def ourspace_profile():
         # Save profile to temp file
         try:
             profile_data = request.get_json()
+            profile_data = _normalize_profile_data(profile_data)
             with open(profile_file, "w") as f:
                 json.dump(profile_data, f)
             return jsonify({"success": True})
@@ -1986,7 +1987,7 @@ def ourspace_profile():
         if profile_file.exists():
             with open(profile_file, "r") as f:
                 profile_data = json.load(f)
-            return jsonify(profile_data)
+            return jsonify(_normalize_profile_data(profile_data))
         else:
             return jsonify(None)
 
@@ -2285,6 +2286,7 @@ def ourspace_register():
 
                 # Update URLs in profile
                 updated_profile = _update_profile_urls(temp_profile, url_mapping)
+                updated_profile = _normalize_profile_data(updated_profile)
 
                 # Save to authenticated user's database profile
                 if save_user_profile:
@@ -2365,6 +2367,101 @@ def _update_profile_urls(profile_data, url_mapping):
     return json.loads(profile_json)
 
 
+def _normalize_profile_data(profile_data):
+    """Ensure newly added profile features exist before persisting or returning data."""
+    if not isinstance(profile_data, dict):
+        return profile_data
+
+    def _safe_int(value, fallback):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return fallback
+
+    theme = profile_data.setdefault("theme", {})
+    tweaks_defaults = {
+        "radius": 10,
+        "border": 3,
+        "blur": 0,
+        "glowColor": "#00ffff",
+        "glowStrength": 20,
+    }
+    tweaks = theme.get("tweaks") or {}
+    theme["tweaks"] = {**tweaks_defaults, **tweaks}
+
+    fonts = theme.setdefault("fonts", {})
+    fonts.setdefault("effects", {}).setdefault("glowColor", "#ffffff")
+    fonts["effects"].setdefault("shadow", False)
+    fonts["effects"].setdefault("glow", False)
+
+    background = theme.setdefault("background", {})
+    background.setdefault("type", "pattern")
+    background.setdefault("pattern", "hearts")
+    background.setdefault("image", "")
+    background.setdefault("repeat", "repeat")
+    background.setdefault("attachment", "fixed")
+    background.setdefault("gradient", "")
+    background.setdefault("size", "auto")
+    background.setdefault("customSize", 100)
+    background.setdefault("position", "center")
+    background.setdefault(
+        "transform",
+        {"scale": 1, "rotate": 0, "skewX": 0, "skewY": 0, "flipX": False, "flipY": False},
+    )
+    background.setdefault(
+        "filter",
+        {
+            "blur": 0,
+            "brightness": 100,
+            "contrast": 100,
+            "saturate": 100,
+            "hueRotate": 0,
+            "invert": 0,
+            "sepia": 0,
+            "grayscale": 0,
+        },
+    )
+    background.setdefault("blend", {"mode": "normal", "opacity": 100})
+
+    theme.setdefault("effects", theme.get("effects", {}))
+
+    widgets = profile_data.setdefault("widgets", {})
+    top_friends = widgets.setdefault("topFriends", {})
+    slots = max(1, _safe_int(top_friends.get("slots", 8), 8))
+    columns = max(1, _safe_int(top_friends.get("columns", 4), 4))
+    top_friends["slots"] = slots
+    top_friends["columns"] = columns
+    top_friends.setdefault("rows", max(1, (slots + columns - 1) // columns))
+    top_friends.setdefault("friends", top_friends.get("friends", []))
+    widgets.setdefault("customWidgets", widgets.get("customWidgets", []))
+
+    profile_data.setdefault("sceneDeck", profile_data.get("sceneDeck", []))
+    visibility_defaults = {
+        "aboutMe": True,
+        "interests": True,
+        "customHtml": True,
+        "customWidgets": True,
+        "music": True,
+        "pictureWall": True,
+        "comments": True,
+        "topFriends": True,
+        "stats": True,
+        "contact": True,
+    }
+    visibility = profile_data.get("widgetsVisibility")
+    if not isinstance(visibility, dict):
+        visibility = {}
+    for key, default in visibility_defaults.items():
+        value = visibility.get(key)
+        visibility[key] = bool(default) if value is None else bool(value)
+    profile_data["widgetsVisibility"] = visibility
+    layout = profile_data.setdefault("layout", {})
+    layout.setdefault("preset", layout.get("preset", "classic"))
+    layout.setdefault("mobilePreset", layout.get("mobilePreset", "phone-stack"))
+    layout.setdefault("grid", layout.get("grid", []))
+    return profile_data
+
+
 @app.route("/api/ourspace/login", methods=["POST", "OPTIONS"])
 def ourspace_login():
     """Login to OurSpace."""
@@ -2409,6 +2506,7 @@ def ourspace_login():
 
                 # Update URLs in profile
                 updated_profile = _update_profile_urls(temp_profile, url_mapping)
+                updated_profile = _normalize_profile_data(updated_profile)
 
                 # Save to authenticated user's database profile
                 if save_user_profile:
@@ -2581,7 +2679,7 @@ def ourspace_load_profile():
     if profile is None:
         return jsonify({"error": "Profile not found"}), 404
 
-    return jsonify(profile["data"])
+    return jsonify(_normalize_profile_data(profile["data"]))
 
 
 @app.route("/api/ourspace/profile/save", methods=["POST", "OPTIONS"])
@@ -2599,6 +2697,7 @@ def ourspace_save_profile():
         return jsonify({"error": "Database not available"}), 500
 
     profile_data = request.get_json()
+    profile_data = _normalize_profile_data(profile_data)
 
     success = save_user_profile(user_id, profile_data)
 
@@ -2649,7 +2748,7 @@ def ourspace_view_profile(username: str):
 
     return jsonify({
         "username": profile["username"],
-        "data": profile["data"],
+        "data": _normalize_profile_data(profile["data"]),
         "visits": profile["visits"]
     })
 

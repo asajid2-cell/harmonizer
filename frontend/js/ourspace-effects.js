@@ -11,6 +11,8 @@
     let particles = [];
     let sparkleRainInterval = null;
     let polaroidInterval = null;
+    let matrixRainInterval = null;
+    let discoBallTimer = null;
     let floatingEmojiInterval = null;
     let lightningTimeout = null;
     let pixelBurstHandler = null;
@@ -21,6 +23,7 @@
     let emojiWaveInterval = null;
     let emojiLanternInterval = null;
     let emojiPopHandler = null;
+    let stardustTrailHandler = null;
 
     function getEffectsStore() {
         return (window.OurSpace && window.OurSpace.profile && window.OurSpace.profile.theme && window.OurSpace.profile.theme.effects) || {};
@@ -102,6 +105,12 @@
         toggleScreenGrid(getEffectConfig('screenGrid', {}));
         toggleScreenHolo(getEffectConfig('screenHolo', {}));
         toggleScreenPrism(getEffectConfig('screenPrism', {}));
+        toggleMatrixRain(getEffectConfig('matrixRain', { density: 1 }));
+        toggleDiscoBall(getEffectConfig('discoBall', { color: '#ff00ff', accent: '#00ffff', sparkle: 1 }));
+        toggleTvStatic(getEffectConfig('tvStatic', { opacity: 0.25 }));
+        toggleKaleidoscope(getEffectConfig('kaleidoscope', { speed: 18 }));
+        toggleVhsGlitch(getEffectConfig('vhsGlitch', { intensity: 0.3 }));
+        toggleStardustTrail(getEffectConfig('stardustTrail', { density: 1.2, color: '#ffffff' }));
     }
 
     // Falling Effects
@@ -608,6 +617,100 @@
         }, Math.max(300, 1000 / density));
     }
 
+    // Matrix Rain
+    function toggleMatrixRain(config) {
+        const container = ensureOverlay('matrix-rain-overlay', 'matrix-rain-overlay');
+        if (matrixRainInterval) {
+            clearInterval(matrixRainInterval);
+            matrixRainInterval = null;
+        }
+        container.innerHTML = '';
+        if (!config.enabled) {
+            container.classList.remove('active');
+            return;
+        }
+        container.classList.add('active');
+        const density = Math.max(0.2, config.density || 1);
+        matrixRainInterval = setInterval(() => {
+            const column = document.createElement('span');
+            column.className = 'matrix-column';
+            column.style.left = Math.random() * 100 + '%';
+            const length = 6 + Math.floor(Math.random() * 12);
+            column.style.animationDuration = (4 / density + Math.random() * 2) + 's';
+            const chars = [];
+            for (let i = 0; i < length; i++) {
+                const code = 0x30A0 + Math.floor(Math.random() * 96);
+                chars.push(String.fromCharCode(code));
+            }
+            column.textContent = chars.join('');
+            container.appendChild(column);
+            setTimeout(() => column.remove(), 6000);
+        }, Math.max(120, 240 / density));
+    }
+
+    // Disco Ball Overlay
+    function toggleDiscoBall(config) {
+        const overlay = ensureOverlay('disco-ball-overlay', 'disco-ball-overlay');
+        if (discoBallTimer) {
+            clearInterval(discoBallTimer);
+            discoBallTimer = null;
+        }
+        overlay.innerHTML = '';
+        if (!config.enabled) {
+            overlay.classList.remove('active');
+            return;
+        }
+        overlay.classList.add('active');
+        const ball = document.createElement('div');
+        ball.className = 'disco-ball';
+        overlay.appendChild(ball);
+        const color = config.color || '#ff00ff';
+        const accent = config.accent || '#00ffff';
+        root.style.setProperty('--disco-ball-primary', color);
+        root.style.setProperty('--disco-ball-accent', accent);
+        const sparkle = Math.max(0.4, config.sparkle || 1);
+        root.style.setProperty('--disco-ball-sparkle', sparkle);
+        discoBallTimer = setInterval(() => {
+            ball.classList.toggle('pulse');
+        }, 2000);
+    }
+
+    // TV Static Overlay
+    function toggleTvStatic(config) {
+        const overlay = ensureOverlay('tv-static-overlay', 'tv-static-overlay');
+        if (!config.enabled) {
+            overlay.classList.remove('active');
+            return;
+        }
+        const opacity = config.opacity !== undefined ? config.opacity : 0.25;
+        overlay.style.opacity = opacity;
+        overlay.classList.add('active');
+    }
+
+    // Kaleidoscope Spin
+    function toggleKaleidoscope(config) {
+        const overlay = ensureOverlay('kaleidoscope-overlay', 'kaleidoscope-overlay');
+        if (!config.enabled) {
+            overlay.classList.remove('active');
+            return;
+        }
+        const speed = Math.max(6, config.speed || 18);
+        overlay.style.setProperty('--kaleidoscope-speed', speed + 's');
+        overlay.classList.add('active');
+    }
+
+    // VHS Glitch
+    function toggleVhsGlitch(config) {
+        const overlay = ensureOverlay('vhs-glitch-overlay', 'vhs-glitch-overlay');
+        if (!config.enabled) {
+            overlay.classList.remove('active');
+            return;
+        }
+        const intensity = config.intensity !== undefined ? config.intensity : 0.3;
+        overlay.style.setProperty('--vhs-glitch-strength', intensity);
+        overlay.classList.add('active');
+    }
+
     // Lightning Flickers
     function toggleLightningFlickers(config) {
         const enabled = !!(config && config.enabled);
@@ -641,6 +744,40 @@
             lightningTimeout = setTimeout(schedule, frequency * 1000 + Math.random() * 800);
         };
         schedule();
+    }
+
+    // Stardust Trail
+    function toggleStardustTrail(config) {
+        if (stardustTrailHandler) {
+            document.removeEventListener('mousemove', stardustTrailHandler);
+            stardustTrailHandler = null;
+        }
+
+        if (!config.enabled) {
+            return;
+        }
+
+        const density = Math.max(0.3, config.density || 1);
+        const color = config.color || '#ffffff';
+        stardustTrailHandler = function(e) {
+            for (let i = 0; i < density; i++) {
+                createStardustParticle(e.clientX, e.clientY, color);
+            }
+        };
+        document.addEventListener('mousemove', stardustTrailHandler);
+    }
+
+    function createStardustParticle(x, y, color) {
+        const particle = document.createElement('span');
+        particle.className = 'stardust-particle';
+        const offsetX = (Math.random() * 20 - 10);
+        const offsetY = (Math.random() * 20 - 10);
+        particle.style.left = (x + offsetX) + 'px';
+        particle.style.top = (y + offsetY) + 'px';
+        particle.style.backgroundColor = color;
+        particle.style.setProperty('--stardust-size', (4 + Math.random() * 6) + 'px');
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 700);
     }
 
     function ensureOverlay(id, className) {
