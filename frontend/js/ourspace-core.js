@@ -1866,9 +1866,9 @@
         initStickerLayer: function() {
             this.stickerLayer = document.getElementById('sticker-layer');
             if (this.stickerLayer) {
-                const main = document.getElementById('ourspace-main');
-                if (main && this.stickerLayer.parentElement !== main) {
-                    main.insertBefore(this.stickerLayer, main.firstChild);
+                const stage = document.getElementById('sticker-stage') || document.getElementById('ourspace-main');
+                if (stage && this.stickerLayer.parentElement !== stage) {
+                    stage.insertBefore(this.stickerLayer, stage.firstChild);
                 }
                 this.stickerLayer.innerHTML = '';
             }

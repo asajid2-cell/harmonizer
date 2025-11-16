@@ -1638,6 +1638,12 @@ select {
     position: relative;
 }
 
+.sticker-stage {
+    position: relative;
+    width: 100%;
+    min-height: 100%;
+}
+
 .customize-panel.collapsed ~ #ourspace-main {
     margin-left: 40px;
 }
