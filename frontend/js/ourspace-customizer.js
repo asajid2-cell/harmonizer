@@ -3079,6 +3079,14 @@
         const effectScreenPrism = document.getElementById('effect-screen-prism');
 
         const cursorCustomWrapper = document.getElementById('cursor-trail-custom-wrapper');
+        const resetEffectsBtn = document.getElementById('reset-effects-btn');
+        const hydrators = [];
+
+        const registerHydrator = (fn) => {
+            if (typeof fn === 'function') {
+                hydrators.push(fn);
+            }
+        };
 
         function ensureEffectConfig(key, defaults = {}) {
             const effects = window.OurSpace.profile.theme.effects;
@@ -3105,8 +3113,12 @@
 
         function bindEffectToggle(toggle, key, defaults = {}, options = {}) {
             if (!toggle) return;
-            const config = ensureEffectConfig(key, defaults);
-            toggle.checked = !!config.enabled;
+            const applyState = () => {
+                const config = ensureEffectConfig(key, defaults);
+                toggle.checked = !!config.enabled;
+            };
+            applyState();
+            registerHydrator(applyState);
             toggle.addEventListener('change', function() {
                 ensureEffectConfig(key, defaults).enabled = this.checked;
                 // Auto-save removed - only save when user clicks Save Profile button
@@ -3118,18 +3130,23 @@
             const input = document.getElementById(inputId);
             if (!input) return;
             const display = displayId ? document.getElementById(displayId) : null;
-            const config = ensureEffectConfig(key, defaults);
             const format = options.format || (val => val);
             const parse = options.parse || (val => parseFloat(val));
             const updateDisplay = (val) => {
                 if (display) display.textContent = format(val);
             };
-            if (config[prop] !== undefined) {
-                input.value = config[prop];
-            } else {
-                ensureEffectConfig(key, defaults)[prop] = parse(input.value);
-            }
-            updateDisplay(ensureEffectConfig(key, defaults)[prop]);
+            const applyState = () => {
+                const config = ensureEffectConfig(key, defaults);
+                let value = config[prop];
+                if (value === undefined) {
+                    value = parse(input.value);
+                    ensureEffectConfig(key, defaults)[prop] = value;
+                }
+                input.value = value;
+                updateDisplay(value);
+            };
+            applyState();
+            registerHydrator(applyState);
             input.addEventListener('input', function() {
                 const val = parse(this.value);
                 ensureEffectConfig(key, defaults)[prop] = val;
@@ -3149,15 +3166,20 @@
         function bindSelectControl(selectId, key, prop, defaults = {}, options = {}) {
             const select = document.getElementById(selectId);
             if (!select) return;
-            const config = ensureEffectConfig(key, defaults);
-            if (config[prop] !== undefined) {
-                select.value = config[prop];
-            } else {
-                ensureEffectConfig(key, defaults)[prop] = select.value;
-            }
-            if (options.onInit) {
-                options.onInit(select.value);
-            }
+            const applyState = () => {
+                const config = ensureEffectConfig(key, defaults);
+                let value = config[prop];
+                if (value === undefined) {
+                    value = defaults[prop] !== undefined ? defaults[prop] : select.value;
+                    ensureEffectConfig(key, defaults)[prop] = value;
+                }
+                select.value = value;
+                if (options.onInit) {
+                    options.onInit(value);
+                }
+            };
+            applyState();
+            registerHydrator(applyState);
             select.addEventListener('change', function() {
                 ensureEffectConfig(key, defaults)[prop] = this.value;
                 // Auto-save removed - only save when user clicks Save Profile button
@@ -3171,12 +3193,17 @@
         function bindColorControl(inputId, key, prop, defaults = {}, options = {}) {
             const input = document.getElementById(inputId);
             if (!input) return;
-            const config = ensureEffectConfig(key, defaults);
-            if (config[prop]) {
-                input.value = config[prop];
-            } else {
-                ensureEffectConfig(key, defaults)[prop] = input.value;
-            }
+            const applyState = () => {
+                const config = ensureEffectConfig(key, defaults);
+                let value = config[prop];
+                if (!value) {
+                    value = defaults[prop] || input.value;
+                    ensureEffectConfig(key, defaults)[prop] = value;
+                }
+                input.value = value;
+            };
+            applyState();
+            registerHydrator(applyState);
             input.addEventListener('input', function() {
                 ensureEffectConfig(key, defaults)[prop] = this.value;
                 if (options.live !== false) {
@@ -3320,6 +3347,28 @@
         bindEffectToggle(effectScreenGrid, 'screenGrid', {});
         bindEffectToggle(effectScreenHolo, 'screenHolo', {});
         bindEffectToggle(effectScreenPrism, 'screenPrism', {});
+
+        const hydrateEffectsUI = () => {
+            hydrators.forEach(fn => {
+                try {
+                    fn();
+                } catch (err) {
+                    console.warn('[Customizer] Failed to hydrate effect control', err);
+                }
+            });
+            refreshEffects({ falling: true, cursor: true });
+        };
+
+        if (resetEffectsBtn) {
+            resetEffectsBtn.addEventListener('click', () => {
+                if (!window.OurSpace || !window.OurSpace.profile) return;
+                window.OurSpace.profile.theme.effects = {};
+                hydrateEffectsUI();
+                if (typeof markDirty === 'function') {
+                    markDirty();
+                }
+            });
+        }
     }
 
     // Layout Controls

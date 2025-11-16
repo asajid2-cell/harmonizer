@@ -219,9 +219,15 @@
                         if (window.OurSpace.updateStats) {
                             window.OurSpace.updateStats();
                         }
+                        if (window.OurSpace.setReadOnlyProfile) {
+                            window.OurSpace.setReadOnlyProfile(false);
+                        }
                         // Reload audio widget with saved audio
                         if (window.OurSpaceAudio && window.OurSpaceAudio.reloadAudio) {
                             window.OurSpaceAudio.reloadAudio();
+                        }
+                        if (window.OurSpace && typeof window.OurSpace.applyResponsiveState === 'function') {
+                            window.OurSpace.applyResponsiveState(true);
                         }
                         console.log('[Auth] Loaded user profile from database');
                     }
@@ -861,6 +867,9 @@
                 window.OurSpace.applyTheme();
                 window.OurSpace.loadContent();
                 window.OurSpace.applyViewMode();
+                if (typeof window.OurSpace.setReadOnlyProfile === 'function') {
+                    window.OurSpace.setReadOnlyProfile(true);
+                }
                 if (window.OurSpaceComments && window.OurSpaceComments.refresh) {
                     window.OurSpaceComments.refresh();
                 }

@@ -436,6 +436,20 @@ body.view-mode #sticker-layer .sticker-item {
     letter-spacing: 0.3px;
 }
 
+.mode-toggle-btn.disabled,
+.mode-toggle-btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+body.read-only-profile .customize-panel {
+    display: none !important;
+}
+
+body.read-only-profile #mode-toggle-btn {
+    opacity: 0.7;
+}
+
 /* View Mode Styles */
 body.view-mode .customize-panel {
     display: none;

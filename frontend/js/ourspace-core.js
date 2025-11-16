@@ -1,7 +1,10 @@
 ﻿// OurSpace Core - Initialization and Storage Management
-
 (function() {
     'use strict';
+
+    window.onerror = function(message, source, lineno, colno, error) {
+        console.log('[GlobalError]', message, source, lineno, colno, error && error.stack);
+    };
 
     const EFFECT_DEFAULTS = {
         falling: { enabled: false, type: "hearts", speed: 2, density: 1 },
@@ -45,6 +48,8 @@
         'neon',
         'burnt'
     ];
+
+    const STICKER_VIEWPORTS = ['desktop', 'mobile'];
 
     const FRAME_TEXT_DEFAULTS = {
         magazine: {
@@ -605,6 +610,8 @@
     window.OurSpace = {
         profile: JSON.parse(JSON.stringify(DEFAULT_PROFILE)), // Initialize with default to prevent null errors
         viewMode: false,
+        _readOnlyProfile: false,
+        _viewModeBeforeReadOnly: false,
         _isPhoneView: false,
         _responsiveHandlersSetup: false,
         _themeFrame: null,
@@ -622,6 +629,72 @@
         stickerState: {
             activeId: null,
             dragging: null
+        },
+        stickerLayoutModes: ['desktop', 'mobile'],
+        getActiveStickerLayoutKey: function() {
+            return this.isPhoneViewportActive && this.isPhoneViewportActive() ? 'mobile' : 'desktop';
+        },
+        getActiveStickerViewport: function() {
+            return this.isPhoneViewportActive && this.isPhoneViewportActive() ? 'mobile' : 'desktop';
+        },
+        getStickersForViewport: function(viewport) {
+            this.ensureStickerData();
+            const target = STICKER_VIEWPORTS.includes(viewport) ? viewport : this.getActiveStickerViewport();
+            return this.profile.stickers.filter(sticker => (sticker?.viewportScope || 'desktop') === target);
+        },
+        findStickerById: function(id, options = {}) {
+            if (!id) {
+                return null;
+            }
+            this.ensureStickerData();
+            const preferredViewport = STICKER_VIEWPORTS.includes(options.viewport)
+                ? options.viewport
+                : this.getActiveStickerViewport();
+            let sticker = this.profile.stickers.find(
+                entry => entry && entry.id === id && (entry.viewportScope || 'desktop') === preferredViewport
+            );
+            if (!sticker && !options.strict) {
+                sticker = this.profile.stickers.find(entry => entry && entry.id === id);
+            }
+            return sticker || null;
+        },
+        ensureStickerLayouts: function(sticker) {
+            if (!sticker || typeof sticker !== 'object') {
+                return { desktop: { x: 50, y: 50, scale: 1, zIndex: 30, clipPath: '' }, mobile: { x: 50, y: 50, scale: 1, zIndex: 30, clipPath: '' } };
+            }
+            if (!sticker.layouts || typeof sticker.layouts !== 'object') {
+                sticker.layouts = {};
+            }
+            const fallback = {
+                x: typeof sticker.x === 'number' ? sticker.x : 50,
+                y: typeof sticker.y === 'number' ? sticker.y : 50,
+                scale: typeof sticker.scale === 'number' ? sticker.scale : 1,
+                zIndex: typeof sticker.zIndex === 'number' ? sticker.zIndex : 30,
+                clipPath: typeof sticker.clipPath === 'string' ? sticker.clipPath : ''
+            };
+            this.stickerLayoutModes.forEach((mode) => {
+                const layout = sticker.layouts[mode] || {};
+                if (typeof layout.x !== 'number') layout.x = fallback.x;
+                if (typeof layout.y !== 'number') layout.y = fallback.y;
+                if (typeof layout.scale !== 'number') layout.scale = fallback.scale;
+                if (typeof layout.zIndex !== 'number') layout.zIndex = fallback.zIndex;
+                if (typeof layout.clipPath !== 'string') layout.clipPath = fallback.clipPath;
+                sticker.layouts[mode] = layout;
+            });
+            return sticker.layouts;
+        },
+        getStickerLayout: function(sticker, key) {
+            const layouts = this.ensureStickerLayouts(sticker);
+            const resolved = key || this.getActiveStickerLayoutKey();
+            return layouts[resolved] || layouts.desktop;
+        },
+        syncStickerLegacyFields: function(sticker) {
+            const desktopLayout = this.getStickerLayout(sticker, 'desktop');
+            sticker.x = desktopLayout.x;
+            sticker.y = desktopLayout.y;
+            sticker.scale = desktopLayout.scale;
+            sticker.zIndex = desktopLayout.zIndex;
+            sticker.clipPath = desktopLayout.clipPath;
         },
 
         // Initialize the OurSpace page
@@ -642,6 +715,7 @@
 
             // Load profile from server or localStorage
             await this.loadProfile();
+            this.setReadOnlyProfile(false);
             this.ensureStickerData();
             this.ensureSceneDeck();
             this.initStickerLayer();
@@ -697,6 +771,9 @@
             this._lastAuthCheck = Date.now();
             if (typeof this.updateProfileLoadWarning === 'function') {
                 this.updateProfileLoadWarning();
+            }
+            if (typeof this.applyResponsiveState === 'function') {
+                this.applyResponsiveState(true);
             }
         },
 
@@ -1373,6 +1450,7 @@
             this._isPhoneView = next;
             document.body.classList.toggle('ourspace-mobile', this._isPhoneView);
             this.applyLayoutPreset();
+            this.renderStickers();
 
             if (!this._isPhoneView) {
                 const panel = document.getElementById('customization-panel');
@@ -1612,15 +1690,57 @@
             }
         },
 
+        migrateStickerViewportData: function() {
+            if (!Array.isArray(this.profile.stickers)) {
+                this.profile.stickers = [];
+                return;
+            }
+            this.profile.stickers = this.profile.stickers.filter(sticker => sticker && typeof sticker === 'object');
+            const usedIds = new Set();
+            this.profile.stickers.forEach(sticker => {
+                if (!sticker.id || typeof sticker.id !== 'string') {
+                    sticker.id = `sticker-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                }
+                if (usedIds.has(sticker.id)) {
+                    sticker.id = `${sticker.id}-${Math.random().toString(16).slice(2, 6)}`;
+                }
+                usedIds.add(sticker.id);
+            });
+            const legacy = this.profile.stickers.filter(sticker => typeof sticker.viewportScope !== 'string');
+            if (!legacy.length) {
+                return;
+            }
+            const clones = legacy.map((sticker) => {
+                const clone = JSON.parse(JSON.stringify(sticker));
+                clone.viewportScope = 'mobile';
+                clone.id = `${sticker.id}-mobile`;
+                if (usedIds.has(clone.id)) {
+                    clone.id = `${clone.id}-${Math.random().toString(16).slice(2, 6)}`;
+                }
+                usedIds.add(clone.id);
+                return clone;
+            });
+            legacy.forEach(sticker => {
+                sticker.viewportScope = 'desktop';
+            });
+            this.profile.stickers.push(...clones);
+        },
+
         ensureStickerData: function() {
             if (!Array.isArray(this.profile.stickers)) {
                 this.profile.stickers = [];
             }
+            this.migrateStickerViewportData();
             this.profile.stickers.forEach(sticker => {
                 if (!STICKER_FRAME_STYLES.includes(sticker.frameStyle)) {
                     sticker.frameStyle = 'none';
                 }
+                if (!STICKER_VIEWPORTS.includes(sticker.viewportScope)) {
+                    sticker.viewportScope = 'desktop';
+                }
                 this.normalizeFrameTextData(sticker);
+                this.ensureStickerLayouts(sticker);
+                this.syncStickerLegacyFields(sticker);
             });
             if (!Array.isArray(this.profile.stickerDeck)) {
                 this.profile.stickerDeck = [];
@@ -1792,18 +1912,20 @@
             if (!layer) return;
             layer.innerHTML = '';
 
-            this.profile.stickers.forEach(sticker => {
+            const activeViewport = this.getActiveStickerViewport();
+            const visibleStickers = this.getStickersForViewport(activeViewport);
+            let activeStickerStillVisible = false;
+
+            visibleStickers.forEach(sticker => {
+                this.ensureStickerLayouts(sticker);
                 if (!sticker.id) {
                     sticker.id = `sticker-${Date.now()}-${Math.random().toString(16).slice(2)}`;
                 }
-                if (typeof sticker.scale !== 'number') sticker.scale = 1;
-                if (typeof sticker.x !== 'number') sticker.x = 50;
-                if (typeof sticker.y !== 'number') sticker.y = 50;
-                if (typeof sticker.zIndex !== 'number') sticker.zIndex = 30;
 
                 const item = document.createElement('div');
                 item.className = 'sticker-item';
                 item.dataset.stickerId = sticker.id;
+                item.dataset.viewport = sticker.viewportScope || 'desktop';
 
                 const img = document.createElement('img');
                 img.src = sticker.url;
@@ -1826,9 +1948,17 @@
                         this.startStickerDrag(event, sticker);
                     });
                 }
+
+                if (this.stickerState.activeId === sticker.id) {
+                    activeStickerStillVisible = true;
+                }
             });
 
-            this.notifyStickerUpdate();
+            if (!activeStickerStillVisible && this.stickerState.activeId) {
+                this.selectSticker(null);
+            }
+
+            this.notifyStickerUpdate(activeViewport);
         },
 
         renderStickerDeck: function() {
@@ -1943,13 +2073,15 @@
                 element = this.stickerLayer.querySelector(`[data-sticker-id="${sticker.id}"]`);
             }
             if (!element) return;
-            const x = typeof sticker.x === 'number' ? sticker.x : 50;
-            const y = typeof sticker.y === 'number' ? sticker.y : 50;
-            const scale = typeof sticker.scale === 'number' ? sticker.scale : 1;
+            const layout = this.getStickerLayout(sticker);
+            const x = typeof layout.x === 'number' ? layout.x : 50;
+            const y = typeof layout.y === 'number' ? layout.y : 50;
+            const scale = typeof layout.scale === 'number' ? layout.scale : 1;
+            const zIndex = typeof layout.zIndex === 'number' ? layout.zIndex : (sticker.zIndex || 30);
             element.style.left = `${x}%`;
             element.style.top = `${y}%`;
             element.style.transform = `translate(-50%, -50%) scale(${scale})`;
-            element.style.zIndex = sticker.zIndex || 30;
+            element.style.zIndex = zIndex;
             const frameStyle = STICKER_FRAME_STYLES.includes(sticker.frameStyle) ? sticker.frameStyle : 'none';
             element.dataset.frameStyle = frameStyle;
             STICKER_FRAME_STYLES.forEach(style => {
@@ -1979,18 +2111,20 @@
             } else if (existingLabel) {
                 existingLabel.remove();
             }
-
-            if (sticker.clipPath) {
-                element.style.clipPath = sticker.clipPath;
-                element.style.webkitClipPath = sticker.clipPath;
+            const clipPath = layout.clipPath || '';
+            if (clipPath) {
+                element.style.clipPath = clipPath;
+                element.style.webkitClipPath = clipPath;
             } else {
                 element.style.clipPath = '';
                 element.style.webkitClipPath = '';
             }
             const img = element.querySelector('img');
             if (img) {
-                img.style.clipPath = sticker.clipPath || '';
+                img.style.clipPath = clipPath;
+                img.style.webkitClipPath = clipPath;
             }
+            this.syncStickerLegacyFields(sticker);
         },
 
         selectSticker: function(id) {
@@ -2000,7 +2134,7 @@
             elements.forEach(el => {
                 el.classList.toggle('active', el.dataset.stickerId === id);
             });
-            const sticker = this.profile.stickers.find(s => s.id === id);
+            const sticker = id ? this.findStickerById(id, { viewport: this.getActiveStickerViewport() }) : null;
             document.dispatchEvent(new CustomEvent('ourspace:sticker-selected', {
                 detail: { id, sticker }
             }));
@@ -2011,14 +2145,13 @@
             if (!sticker.id) {
                 sticker.id = `sticker-${Date.now()}-${Math.random().toString(16).slice(2)}`;
             }
-            if (typeof sticker.x !== 'number') sticker.x = 50;
-            if (typeof sticker.y !== 'number') sticker.y = 50;
-            if (typeof sticker.scale !== 'number') sticker.scale = 1;
-            if (typeof sticker.zIndex !== 'number') sticker.zIndex = 30;
             if (!STICKER_FRAME_STYLES.includes(sticker.frameStyle)) {
                 sticker.frameStyle = 'none';
             }
+            sticker.viewportScope = this.getActiveStickerViewport();
             this.normalizeFrameTextData(sticker);
+            this.ensureStickerLayouts(sticker);
+            this.syncStickerLegacyFields(sticker);
             this.profile.stickers.push(sticker);
             this.renderStickers();
             this.selectSticker(sticker.id);
@@ -2059,11 +2192,12 @@
                 return null;
             }
             const label = meta.label || `Cutout ${this.profile.stickerDeck.length + 1}`;
+            const layout = this.getStickerLayout(sticker, this.getActiveStickerLayoutKey());
             return this.addStickerAsset({
                 url: sticker.url,
-                clipPath: sticker.clipPath || '',
-                scale: typeof sticker.scale === 'number' ? sticker.scale : 1,
-                zIndex: typeof sticker.zIndex === 'number' ? sticker.zIndex : 40,
+                clipPath: layout.clipPath || '',
+                scale: typeof layout.scale === 'number' ? layout.scale : 1,
+                zIndex: typeof layout.zIndex === 'number' ? layout.zIndex : (sticker.zIndex || 40),
                 label,
                 sourceStickerId: sticker.id,
                 frameStyle: STICKER_FRAME_STYLES.includes(sticker.frameStyle) ? sticker.frameStyle : 'none',
@@ -2103,9 +2237,22 @@
         },
 
         updateSticker: function(id, updates, options = {}) {
-            const sticker = this.profile.stickers.find(s => s.id === id);
+            const sticker = this.findStickerById(id, { viewport: options.viewport });
             if (!sticker) return;
-            Object.assign(sticker, updates);
+            const layoutKeys = ['x', 'y', 'scale', 'zIndex', 'clipPath'];
+            const stickerViewport = STICKER_VIEWPORTS.includes(sticker.viewportScope) ? sticker.viewportScope : null;
+            const layoutKey = options.layoutKey || stickerViewport || this.getActiveStickerLayoutKey();
+            const targetLayout = this.getStickerLayout(sticker, layoutKey);
+            Object.entries(updates).forEach(([key, value]) => {
+                if (layoutKeys.includes(key)) {
+                    targetLayout[key] = value;
+                } else {
+                    sticker[key] = value;
+                }
+            });
+            if (layoutKey === 'desktop') {
+                this.syncStickerLegacyFields(sticker);
+            }
             if (!STICKER_FRAME_STYLES.includes(sticker.frameStyle)) {
                 sticker.frameStyle = 'none';
             }
@@ -2113,7 +2260,7 @@
             this.applyStickerStyles(sticker);
             if (!options.silent) {
                 // Removed auto-save - only save when user clicks Save Profile button
-                this.notifyStickerUpdate();
+                this.notifyStickerUpdate(layoutKey);
             }
         },
 
@@ -2126,9 +2273,13 @@
             // Removed auto-save - only save when user clicks Save Profile button
         },
 
-        notifyStickerUpdate: function() {
+        notifyStickerUpdate: function(viewport) {
+            const targetViewport = STICKER_VIEWPORTS.includes(viewport) ? viewport : this.getActiveStickerViewport();
             document.dispatchEvent(new CustomEvent('ourspace:stickers-updated', {
-                detail: { stickers: this.profile.stickers }
+                detail: {
+                    stickers: this.getStickersForViewport(targetViewport),
+                    viewport: targetViewport
+                }
             }));
         },
 
@@ -2138,14 +2289,17 @@
             const bounds = this.stickerLayer.getBoundingClientRect();
             const width = bounds.width || window.innerWidth || 1;
             const height = bounds.height || window.innerHeight || 1;
+            const layoutKey = this.getActiveStickerLayoutKey();
+            const layout = this.getStickerLayout(sticker, layoutKey);
             const state = {
                 id: sticker.id,
                 pointerId: startEvent.pointerId,
                 startX: startEvent.clientX,
                 startY: startEvent.clientY,
-                initialX: sticker.x || 50,
-                initialY: sticker.y || 50,
-                bounds: { width, height }
+                initialX: layout.x || 50,
+                initialY: layout.y || 50,
+                bounds: { width, height },
+                layoutKey
             };
             this.stickerState.dragging = state;
 
@@ -2153,8 +2307,12 @@
                 if (event.pointerId !== state.pointerId) return;
                 const deltaX = (event.clientX - state.startX) / state.bounds.width * 100;
                 const deltaY = (event.clientY - state.startY) / state.bounds.height * 100;
-                sticker.x = Math.max(0, Math.min(100, state.initialX + deltaX));
-                sticker.y = Math.max(0, Math.min(100, state.initialY + deltaY));
+                const targetLayout = this.getStickerLayout(sticker, state.layoutKey);
+                targetLayout.x = Math.max(0, Math.min(100, state.initialX + deltaX));
+                targetLayout.y = Math.max(0, Math.min(100, state.initialY + deltaY));
+                if (state.layoutKey === 'desktop') {
+                    this.syncStickerLegacyFields(sticker);
+                }
                 this.applyStickerStyles(sticker);
             };
 
@@ -2165,7 +2323,7 @@
                 window.removeEventListener('pointercancel', endHandler);
                 this.stickerState.dragging = null;
                 // Removed auto-save - only save when user clicks Save Profile button
-                this.notifyStickerUpdate();
+                this.notifyStickerUpdate(state.layoutKey);
             };
 
             window.addEventListener('pointermove', moveHandler);
@@ -2175,8 +2333,10 @@
 
         startStickerCutout: function(id) {
             if (this.viewMode || !this.stickerLayer) return;
-            const sticker = this.profile.stickers.find(s => s.id === id);
+            const sticker = this.findStickerById(id, { viewport: this.getActiveStickerViewport() });
             if (!sticker) return;
+            const layoutKey = this.getActiveStickerLayoutKey();
+            const layout = this.getStickerLayout(sticker, layoutKey);
             const element = this.stickerLayer.querySelector(`[data-sticker-id="${id}"]`);
             if (!element) return;
 
@@ -2240,10 +2400,13 @@
                         const y = (p.y / canvas.height) * 100;
                         return `${x.toFixed(2)}% ${y.toFixed(2)}%`;
                     }).join(', ');
-                    sticker.clipPath = `polygon(${coords})`;
+                    layout.clipPath = `polygon(${coords})`;
+                    if (layoutKey === 'desktop') {
+                        this.syncStickerLegacyFields(sticker);
+                    }
                     this.applyStickerStyles(sticker);
                     // Removed auto-save - only save when user clicks Save Profile button
-                    this.notifyStickerUpdate();
+                    this.notifyStickerUpdate(layoutKey);
                     this.duplicateStickerToDeck(sticker);
                 }
             };
@@ -2261,12 +2424,17 @@
         },
 
         clearStickerCutout: function(id) {
-            const sticker = this.profile.stickers.find(s => s.id === id);
+            const sticker = this.findStickerById(id, { viewport: this.getActiveStickerViewport() });
             if (!sticker) return;
-            sticker.clipPath = '';
+            const layoutKey = this.getActiveStickerLayoutKey();
+            const layout = this.getStickerLayout(sticker, layoutKey);
+            layout.clipPath = '';
+            if (layoutKey === 'desktop') {
+                this.syncStickerLegacyFields(sticker);
+            }
             this.applyStickerStyles(sticker);
             // Removed auto-save - only save when user clicks Save Profile button
-            this.notifyStickerUpdate();
+            this.notifyStickerUpdate(layoutKey);
         },
 
         // Enable drag-to-frame behavior on an element
@@ -2308,6 +2476,7 @@
             const canActivate = (event) => {
                 if (event.button !== 0) return false;
                 if (!options.allowInViewMode && isViewMode()) return false;
+                if (typeof this.canEditProfile === 'function' && !this.canEditProfile()) return false;
                 if (options.isActive && !options.isActive()) return false;
                 if (options.ignoreSelector && event.target.closest(options.ignoreSelector)) return false;
                 return true;
@@ -2388,9 +2557,50 @@
             this.renderStickers();
         },
 
+        setReadOnlyProfile: function(enabled) {
+            const next = !!enabled;
+            if (this._readOnlyProfile === next) {
+                document.body.classList.toggle('read-only-profile', this._readOnlyProfile);
+                if (this._readOnlyProfile) {
+                    this.applyViewMode();
+                } else {
+                    this.updateModeButton();
+                }
+                return;
+            }
+
+            this._readOnlyProfile = next;
+            document.body.classList.toggle('read-only-profile', this._readOnlyProfile);
+
+            if (this._readOnlyProfile) {
+                this._viewModeBeforeReadOnly = this.viewMode;
+                if (!this.viewMode) {
+                    this.viewMode = true;
+                }
+                this.applyViewMode();
+            } else {
+                if (typeof this._viewModeBeforeReadOnly === 'boolean') {
+                    this.viewMode = this._viewModeBeforeReadOnly;
+                }
+                this.applyViewMode();
+            }
+        },
+
+        isReadOnlyProfile: function() {
+            return !!this._readOnlyProfile;
+        },
+
+        canEditProfile: function() {
+            return !this._readOnlyProfile;
+        },
+
         // Toggle view mode
         toggleViewMode: function() {
+            if (this.isReadOnlyProfile()) {
+                return;
+            }
             this.viewMode = !this.viewMode;
+            console.log('[ViewMode] toggling', this.viewMode);
             this.saveViewMode();
             this.applyViewMode();
 
@@ -2414,31 +2624,58 @@
         },
 
         // Setup mode toggle button
+
         setupModeToggle: function() {
             const toggleBtn = document.getElementById('mode-toggle-btn');
             if (toggleBtn) {
+                console.log('[ModeToggle] listener attached');
                 toggleBtn.addEventListener('click', () => {
+                    if (this.isReadOnlyProfile()) {
+                        return;
+                    }
                     this.toggleViewMode();
                 });
+
             }
+
         },
+
+
 
         // Update mode button text
+
         updateModeButton: function() {
             const toggleBtn = document.getElementById('mode-toggle-btn');
-            if (toggleBtn) {
-                const icon = toggleBtn.querySelector('.mode-icon');
-                const text = toggleBtn.querySelector('.mode-text');
-
-                if (this.viewMode) {
-                    if (icon) icon.textContent = '👁️';
-                    if (text) text.textContent = 'View';
-                } else {
-                    if (icon) icon.textContent = '🎨';
-                    if (text) text.textContent = 'Customize';
-                }
+            if (!toggleBtn) {
+                return;
+            }
+            const icon = toggleBtn.querySelector('.mode-icon');
+            const text = toggleBtn.querySelector('.mode-text');
+            const readOnly = this.isReadOnlyProfile();
+            toggleBtn.disabled = readOnly;
+            toggleBtn.classList.toggle('disabled', readOnly);
+            toggleBtn.setAttribute('aria-disabled', readOnly ? 'true' : 'false');
+            let iconText = '';
+            let labelText = '';
+            if (readOnly) {
+                iconText = 'LOCK';
+                labelText = 'View Only';
+            } else if (this.viewMode) {
+                iconText = 'VIEW';
+                labelText = 'View';
+            } else {
+                iconText = 'EDIT';
+                labelText = 'Customize';
+            }
+            if (icon) {
+                icon.textContent = iconText;
+            }
+            if (text) {
+                text.textContent = labelText;
             }
         },
+
+
 
         // Preload critical images for faster initial display
         preloadCriticalImages: function() {
