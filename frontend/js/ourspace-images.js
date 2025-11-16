@@ -307,6 +307,10 @@
 
             // Click to view in lightbox (not in reorder mode)
             const img = pictureItem.querySelector('img');
+            if (img) {
+                img.draggable = false;
+                img.setAttribute('draggable', 'false');
+            }
             if (img && !picturesReorderMode) {
                 img.addEventListener('click', function(e) {
                     e.stopPropagation();

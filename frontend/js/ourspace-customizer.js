@@ -1,4 +1,4 @@
-﻿// OurSpace Customizer - Customization Panel Logic
+// OurSpace Customizer - Customization Panel Logic
 
 (function() {
     'use strict';
@@ -134,7 +134,7 @@
         const layoutSource = isPhone ? (profile.layout?.mobilePreset || profile.layout?.preset) : (profile.layout?.preset || 'classic');
         let layoutName = formatSummaryLabel(layoutSource);
         if (isPhone) {
-            layoutName = `${layoutName} · phone`;
+            layoutName = `${layoutName} � phone`;
         }
         const lastSaved = window.OurSpace?._lastSavedTimestamp || 0;
         const lastModified = profile.meta?.lastModified || 0;
@@ -252,7 +252,7 @@
 
         const updateState = () => {
             const collapsed = panel.classList.contains('collapsed');
-            toggleBtn.textContent = collapsed ? '›' : '‹';
+            toggleBtn.textContent = collapsed ? '�' : '�';
             toggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
         };
 
@@ -2733,7 +2733,7 @@
             try {
                 const url = await uploadCustomWidgetMedia(file);
                 mediaInput.value = url;
-                uploadLabel.textContent = 'Media uploaded ✔';
+                uploadLabel.textContent = 'Media uploaded ?';
             } catch (error) {
                 console.error('[Customizer] Failed to upload custom widget media', error);
                 uploadLabel.textContent = 'Upload failed';
@@ -3348,7 +3348,7 @@
         bindEffectToggle(effectKaleidoscope, 'kaleidoscope', { speed: 18 });
         bindEffectToggle(effectVhsGlitch, 'vhsGlitch', { intensity: 0.3 });
         bindEffectToggle(effectStardust, 'stardustTrail', { density: 1.2, color: '#ffffff' });
-        bindEffectToggle(effectEmojiOrbit, 'emojiOrbit', { emojis: ['💫', '🦋', '🌙', '⭐', '💖'] });
+        bindEffectToggle(effectEmojiOrbit, 'emojiOrbit', { emojis: ['??', '??', '??', '?', '??'] });
         bindEffectToggle(effectEmojiBurst, 'emojiBurst', { frequency: 2 });
         bindEffectToggle(effectEmojiWave, 'emojiWave', { speed: 4000 });
         bindEffectToggle(effectEmojiPop, 'emojiPop', {});
@@ -3511,7 +3511,7 @@
         if (saveBtn) {
             saveBtn.addEventListener('click', function() {
                 if (window.OurSpace.saveProfile()) {
-                    alert('Profile saved successfully! ✨');
+                    alert('Profile saved successfully! ?');
                 }
             });
         }
@@ -3555,6 +3555,7 @@
     }
 
 })();
+
 
 
 
