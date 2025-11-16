@@ -240,6 +240,79 @@
     terminalOutput.parentElement.scrollTop = terminalOutput.parentElement.scrollHeight;
   }
 
+  function createPromptProgressTracker(initialStatus = "Waiting for processing...") {
+    if (!terminalOutput) {
+      return null;
+    }
+    const shell = document.createElement("div");
+    shell.className = "eld-progress";
+    shell.innerHTML = `
+      <div class="eld-progress__bar">
+        <div class="eld-progress__fill" style="width: 0%;"></div>
+      </div>
+      <div class="eld-progress__meta">
+        <span class="eld-progress__label">${initialStatus}</span>
+        <span class="eld-progress__eta">ETA --:--</span>
+      </div>
+    `;
+    terminalOutput.appendChild(shell);
+    terminalOutput.parentElement.scrollTop = terminalOutput.parentElement.scrollHeight;
+
+    const fillEl = shell.querySelector(".eld-progress__fill");
+    const labelEl = shell.querySelector(".eld-progress__label");
+    const etaEl = shell.querySelector(".eld-progress__eta");
+
+    const tracker = {
+      update(progressRatio = 0, etaSeconds) {
+        if (fillEl) {
+          const pct = Math.max(0, Math.min(progressRatio, 1));
+          fillEl.style.width = `${(pct * 100).toFixed(1)}%`;
+        }
+        if (etaEl && etaSeconds !== undefined) {
+          etaEl.textContent = formatProgressEta(etaSeconds);
+        }
+      },
+      setStatus(text) {
+        if (labelEl && text) {
+          labelEl.textContent = text;
+        }
+      },
+      complete(message = "Processing complete") {
+        tracker.setStatus(message);
+        tracker.update(1, 0);
+        if (etaEl) {
+          etaEl.textContent = "Done";
+        }
+        shell.classList.add("is-complete");
+        setTimeout(() => tracker.remove(), 1200);
+      },
+      fail(message = "Processing failed") {
+        tracker.setStatus(message);
+        shell.classList.add("is-error");
+        if (etaEl) {
+          etaEl.textContent = "Error";
+        }
+        setTimeout(() => tracker.remove(), 1600);
+      },
+      remove() {
+        if (shell?.parentElement) {
+          shell.remove();
+        }
+      },
+    };
+
+    return tracker;
+  }
+
+  function formatProgressEta(seconds) {
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      return "ETA --:--";
+    }
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.max(0, Math.round(seconds % 60));
+    return `ETA ${mins}:${secs.toString().padStart(2, "0")}`;
+  }
+
   function showModePrompt() {
     const block = document.createElement("div");
     block.className = "eld-terminal-line info";
@@ -335,7 +408,9 @@
     await simulatePromptProgress(seed);
     addTerminalLine("$ Uploading to server...", "info");
 
+    let progressTracker = null;
     try {
+      // Start the job
       const response = await fetch(PROMPT_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -344,13 +419,67 @@
       if (!response.ok) {
         throw new Error(`Server returned ${response.status}`);
       }
-      const data = await response.json();
-      addTerminalLine("✔ Server processing complete", "success");
-      addTerminalLine("");
-      await sleep(500);
-      addTerminalLine("$ Displaying results...", "info");
-      await sleep(600);
-      displayResults(null, data);
+      const startData = await response.json();
+      if (startData.error) {
+        throw new Error(startData.error);
+      }
+      const jobId = startData.job_id;
+
+      addTerminalLine("✔ Job submitted to queue", "success");
+      addTerminalLine("$ Waiting for processing...", "info");
+
+      // Poll for completion
+      const pollDelayMs = 2000;
+      let attempts = 0;
+      const maxAttempts = 200; // 200 * 2 seconds = 400 seconds max
+      const maxDurationMs = maxAttempts * pollDelayMs;
+      const pollStart = Date.now();
+      progressTracker = createPromptProgressTracker("Waiting for processing...");
+      progressTracker?.update(0, Math.round(maxDurationMs / 1000));
+
+      while (attempts < maxAttempts) {
+        await sleep(pollDelayMs); // Poll every 2 seconds
+        const statusResponse = await fetch(`/api/imgen/status/${jobId}`);
+        const statusData = await statusResponse.json();
+        const elapsedMs = Date.now() - pollStart;
+        const fallbackEtaSeconds = Math.max(0, Math.round((maxDurationMs - elapsedMs) / 1000));
+        const etaFromStatus = Number(statusData?.eta_seconds);
+        const etaSeconds = Number.isFinite(etaFromStatus)
+          ? etaFromStatus
+          : fallbackEtaSeconds;
+        const progressRatio = Math.min(elapsedMs / maxDurationMs, 0.98);
+        progressTracker?.update(progressRatio, etaSeconds);
+
+        const queuePosition = Number(statusData?.queue_position);
+        if (Number.isFinite(queuePosition) && queuePosition >= 0) {
+          progressTracker?.setStatus(`Queue position ${queuePosition}`);
+        } else if (statusData?.status === "running") {
+          progressTracker?.setStatus("Rendering on server...");
+        } else if (statusData?.status === "queued") {
+          progressTracker?.setStatus("Waiting in queue...");
+        }
+
+        if (statusData.status === "completed") {
+          progressTracker?.complete("Processing complete");
+          progressTracker = null;
+          addTerminalLine("✔ Server processing complete", "success");
+          addTerminalLine("");
+          await sleep(500);
+          addTerminalLine("$ Displaying results...", "info");
+          await sleep(600);
+          displayResults(null, statusData.result);
+          return;
+        } else if (statusData.status === "failed") {
+          progressTracker?.fail("Processing failed");
+          progressTracker = null;
+          throw new Error(statusData.error || "Processing failed");
+        }
+        // Still pending, continue polling
+        attempts++;
+      }
+      progressTracker?.fail("Processing timed out");
+      progressTracker = null;
+      throw new Error("Processing timed out");
     } catch (error) {
       console.error("Prompt error:", error);
       addTerminalLine("");
@@ -360,7 +489,15 @@
       addTerminalLine("$ Restoring prompt input...", "warning");
       await sleep(600);
       showPromptInput(promptText);
+      if (progressTracker) {
+        progressTracker.fail("Processing failed");
+        progressTracker = null;
+      }
     } finally {
+      if (progressTracker) {
+        progressTracker.remove();
+        progressTracker = null;
+      }
       isProcessing = false;
     }
   }
@@ -592,6 +729,9 @@
     const mode = data?.mode || (file ? "upload" : "prompt");
     const hasInputFile = !!file;
     const stageOrder = mode === "prompt" ? [...PROMPT_STAGE_ORDER] : ["vae", "refined", "upsampled", "hd"];
+    const previewMap =
+      data?.previews ||
+      (data?.preview ? { hd: data.preview } : null);
     if (mode === "prompt") {
       setResultVisibility(["hd"]);
     } else {
@@ -625,19 +765,36 @@
     }
 
     // Display server results if available
-    if (data && data.previews) {
+    if (previewMap) {
       stageOrder.forEach(stage => {
-        if (data.previews[stage]) {
-          const img = document.getElementById(`result-${stage}`);
-          const downloadBtn = document.getElementById(`download-${stage}`);
-          const dataUrl = data.previews[stage];
-          const filename = `${stage}_${Date.now()}.png`;
+        const dataUrl = previewMap[stage];
+        if (!dataUrl) {
+          return;
+        }
+        const img = document.getElementById(`result-${stage}`);
+        const downloadBtn = document.getElementById(`download-${stage}`);
+        const filename = `${stage}_${Date.now()}.png`;
+        if (img) {
           img.src = dataUrl;
+        }
+        if (downloadBtn) {
           downloadBtn.href = dataUrl;
           downloadBtn.download = filename;
-          stageDownloads[stage] = { dataUrl, filename };
         }
+        stageDownloads[stage] = { dataUrl, filename };
       });
+    } else if (data?.image_url) {
+      const hdImg = document.getElementById("result-hd");
+      const downloadBtn = document.getElementById("download-hd");
+      const filename = data.filename || `hd_${Date.now()}.png`;
+      if (hdImg) {
+        hdImg.src = data.image_url;
+      }
+      if (downloadBtn) {
+        downloadBtn.href = data.image_url;
+        downloadBtn.removeAttribute("download");
+      }
+      stageDownloads.hd = { dataUrl: data.image_url, filename };
     } else {
       markStagePreviewsUnavailable("preview unavailable");
       if (hasInputFile) {
