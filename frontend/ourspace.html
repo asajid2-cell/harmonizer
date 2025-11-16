@@ -67,9 +67,34 @@
                 <button id="toggle-panel" class="toggle-btn" aria-label="Collapse sidebar">&laquo;</button>
             </div>
 
-            <div class="panel-content">
+            <div class="panel-content tabbed-panel" data-active-tab="themes">
+                <div class="panel-summary" id="customizer-summary">
+                    <div class="summary-item">
+                        <span>Theme</span>
+                        <strong id="summary-theme-name">Classic</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>Layout</span>
+                        <strong id="summary-layout-name">Classic</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>Status</span>
+                        <strong id="summary-save-state">Unsaved</strong>
+                    </div>
+                </div>
+
+                <div class="panel-tabs">
+                    <button class="panel-tab active" data-tab="themes">Themes</button>
+                    <button class="panel-tab" data-tab="background">Background</button>
+                    <button class="panel-tab" data-tab="widgets">Widgets</button>
+                    <button class="panel-tab" data-tab="scenes">Scenes</button>
+                    <button class="panel-tab" data-tab="effects">Effects</button>
+                    <button class="panel-tab" data-tab="layout">Layout</button>
+                    <button class="panel-tab" data-tab="account">Account</button>
+                </div>
+
                 <!-- Theme Presets -->
-                        <section class="panel-section">
+                        <section class="panel-section" data-panel="themes">
                             <h3>Theme Presets</h3>
                             <input type="text" id="theme-filter" class="theme-filter" placeholder="Search themes..." aria-label="Search themes">
                             <div class="theme-grid">
@@ -99,18 +124,18 @@
                                 <button class="theme-btn" data-theme="electricdream">Electric Dream</button>
                                 <button class="theme-btn" data-theme="cyberpsycho">Cyber Psycho</button>
                                 <button class="theme-btn" data-theme="unicornblood">Unicorn Blood</button>
-                                <button class="theme-btn" data-theme="scenecore">Stage Bloom</button>
-                                <button class="theme-btn" data-theme="weirdcore">Liminal Bloom</button>
-                                <button class="theme-btn" data-theme="dreamcore">Lucid Mirage</button>
-                                <button class="theme-btn" data-theme="kidcore">Sticker Parade</button>
-                                <button class="theme-btn" data-theme="angelcore">Angelcore</button>
-                                <button class="theme-btn" data-theme="witchcore">Moonlit Coven</button>
-                                <button class="theme-btn" data-theme="goblincore">Goblincore</button>
-                                <button class="theme-btn" data-theme="fairycore">Prism Fae</button>
-                                <button class="theme-btn" data-theme="cryptidcore">Cryptid Night</button>
-                                <button class="theme-btn" data-theme="mermaidcore">Siren Lagoon</button>
-                                <button class="theme-btn" data-theme="royalcore">Opulent Throne</button>
-                                <button class="theme-btn" data-theme="trashcore">Dumpster Pop</button>
+                                <button class="theme-btn" data-theme="stagebloom">Stage Bloom</button>
+                                <button class="theme-btn" data-theme="liminalveil">Liminal Veil</button>
+                                <button class="theme-btn" data-theme="lucidmirage">Lucid Mirage</button>
+                                <button class="theme-btn" data-theme="stickerparade">Sticker Parade</button>
+                                <button class="theme-btn" data-theme="haloaurora">Halo Aurora</button>
+                                <button class="theme-btn" data-theme="moonlitcoven">Moonlit Coven</button>
+                                <button class="theme-btn" data-theme="mosswild">Moss Wild</button>
+                                <button class="theme-btn" data-theme="prismfae">Prism Fae</button>
+                                <button class="theme-btn" data-theme="cryptidnight">Cryptid Night</button>
+                                <button class="theme-btn" data-theme="sirenlagoon">Siren Lagoon</button>
+                                <button class="theme-btn" data-theme="opulentthrone">Opulent Throne</button>
+                                <button class="theme-btn" data-theme="dumpsterpop">Dumpster Pop</button>
                                 <button class="theme-btn" data-theme="bloodrave">Bloodrave</button>
                                 <button class="theme-btn" data-theme="pastelgore">Sugar Shock</button>
                                 <button class="theme-btn" data-theme="neonoir">Neon Noir</button>
@@ -143,7 +168,7 @@
                 </section>
 
                 <!-- Colors -->
-                <section class="panel-section">
+                <section class="panel-section" data-panel="themes">
                     <h3>Colors</h3>
                     <div class="color-controls">
                         <label>
@@ -176,7 +201,7 @@
                 </section>
 
                 <!-- Widget Styling -->
-                <section class="panel-section">
+                <section class="panel-section" data-panel="widgets">
                     <h3>Widget Styling</h3>
                     <div class="style-controls">
                         <label>
@@ -202,8 +227,33 @@
                     </div>
                 </section>
 
+                <!-- Scene Manager -->
+                <section class="panel-section" data-panel="scenes">
+                    <h3>Scene Memory</h3>
+                    <p class="scene-helper-text">Capture complete looks (themes, widgets, layouts) and swap between them with one click.</p>
+                    <div class="scene-editor">
+                        <label>
+                            Name
+                            <input type="text" id="scene-name" placeholder="e.g. Midnight Neon">
+                        </label>
+                        <label>
+                            Notes
+                            <textarea id="scene-description" rows="2" placeholder="What makes this scene special?"></textarea>
+                        </label>
+                        <div class="scene-editor-actions">
+                            <button id="scene-capture-btn" class="scene-btn primary">Capture Current Scene</button>
+                            <button id="scene-clear-btn" class="scene-btn subtle">Clear</button>
+                        </div>
+                    </div>
+                    <div id="scene-empty-state" class="scene-empty">
+                        <p>No scenes saved yet.</p>
+                        <p>Use “Capture Current Scene” to store this vibe forever.</p>
+                    </div>
+                    <div id="scene-list" class="scene-list"></div>
+                </section>
+
                 <!-- Background -->
-                <section class="panel-section">
+                <section class="panel-section" data-panel="background">
                     <h3>Background</h3>
                     <select id="bg-type">
                         <option value="solid">Solid Color</option>
@@ -422,7 +472,7 @@
                 </section>
 
                 <!-- Stickers -->
-                <section class="panel-section" id="sticker-panel">
+                <section class="panel-section" id="sticker-panel" data-panel="widgets">
                     <h3>Stickers</h3>
                     <input type="file" id="sticker-upload" accept="image/*" style="display: none;">
                     <button id="add-sticker-btn" class="action-btn">Add Sticker</button>
@@ -477,7 +527,7 @@
                 </section>
 
                 <!-- Fonts -->
-                <section class="panel-section">
+                <section class="panel-section" data-panel="themes">
                     <h3>Fonts</h3>
                     <select id="font-family">
                         <option value="Comic Sans MS">Comic Sans</option>
@@ -522,7 +572,7 @@
                 </section>
 
                 <!-- Layout Editor -->
-                <section class="panel-section">
+                <section class="panel-section" data-panel="layout">
                     <h3>Layout Editor</h3>
 
                     <div class="checkbox-group">
@@ -581,7 +631,7 @@
                 </section>
 
                 <!-- Effects -->
-                <section class="panel-section">
+                <section class="panel-section" data-panel="effects">
                     <h3>Effects</h3>
                     <div class="checkbox-group">
                         <label>
@@ -759,7 +809,7 @@
                 </section>
 
                 <!-- Layout -->
-                <section class="panel-section">
+                <section class="panel-section" data-panel="layout">
                     <h3>Layout</h3>
                     <div class="layout-btns">
                         <button class="layout-btn active" data-layout="classic">Classic</button>
@@ -772,7 +822,21 @@
                 </section>
 
                 <!-- Custom Widgets -->
-                <section class="panel-section">
+                <section class="panel-section" data-panel="widgets">
+                    <h3>Widget Visibility</h3>
+                    <div class="widget-visibility-grid">
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="aboutMe" checked> About Me</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="interests" checked> Interests</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="pictureWall" checked> Picture Wall</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="comments" checked> Comments</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="topFriends" checked> Top Friends</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="music" checked> Music Player</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="customHtml" checked> Custom HTML</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="customWidgets" checked> Custom Widgets</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="stats" checked> Stats</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="contact" checked> Contact Panel</label>
+                    </div>
+
                     <h3>Custom Widgets</h3>
                     <div class="custom-widget-form">
                         <label>
@@ -809,7 +873,7 @@
                 </section>
 
                 <!-- Authentication & Account -->
-                <section class="panel-section">
+                <section class="panel-section" data-panel="account">
                     <h3>Account</h3>
                     <div id="auth-info" class="auth-info">
                         <span class="auth-message">Checking login status...</span>
@@ -826,7 +890,7 @@
                 </section>
 
                 <!-- Save/Load -->
-                <section class="panel-section">
+                <section class="panel-section" data-panel="account">
                     <button id="save-profile" class="action-btn"> Save Profile</button>
                     <button id="load-from-database" class="action-btn" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);"> Load from Database</button>
                     <button id="load-profile" class="action-btn"> Load from File</button>
@@ -1009,7 +1073,7 @@
                                         <option value="6">6</option>
                                     </select>
                                 </label>
-                                <label>
+                                <label class="customize-mode-only">
                                     Rows:
                                     <select id="grid-rows">
                                         <option value="2">2</option>
@@ -1066,7 +1130,7 @@
                         </div>
                         <div class="widget-content">
                              <div class="friends-controls">
-                                 <label>
+                                 <label class="customize-mode-only">
                                      Slots:
                                      <select id="friends-slots">
                                          <option value="4">4</option>
@@ -1082,6 +1146,15 @@
                                          <option value="3">3</option>
                                          <option value="4" selected>4</option>
                                          <option value="5">5</option>
+                                     </select>
+                                 </label>
+                                 <label class="customize-mode-only">
+                                     Rows:
+                                     <select id="friends-rows">
+                                         <option value="1">1</option>
+                                         <option value="2" selected>2</option>
+                                         <option value="3">3</option>
+                                         <option value="4">4</option>
                                      </select>
                                  </label>
                                  <button id="friends-reorder-btn" style="margin-left: 10px;">Reorder</button>

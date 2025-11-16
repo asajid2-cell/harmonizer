@@ -60,6 +60,24 @@
     const frameSupportsText = (style) => Object.prototype.hasOwnProperty.call(FRAME_TEXT_DEFAULTS, style);
     const getFrameTextDefaults = (style) => FRAME_TEXT_DEFAULTS[style] || { text: '', color: '' };
 
+    const WIDGET_DOM_MAP = Object.freeze({
+        aboutMe: '#about-me-widget',
+        interests: '#interests-widget',
+        customHtml: '#custom-html-widget',
+        customWidgets: '#custom-widgets-container',
+        music: '#music-widget',
+        pictureWall: '#picture-wall-widget',
+        comments: '#comments-widget',
+        topFriends: '#top-friends-widget',
+        stats: '#stats-widget',
+        contact: '#contact-widget'
+    });
+
+    const WIDGET_VISIBILITY_DEFAULTS = Object.freeze(Object.keys(WIDGET_DOM_MAP).reduce((acc, key) => {
+        acc[key] = true;
+        return acc;
+    }, {}));
+
     const encodePatternSvg = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg.trim())}")`;
 
     const PATTERN_LIBRARY = Object.freeze({
@@ -503,6 +521,7 @@
                 visible: true,
                 slots: 8,
                 columns: 4,
+                rows: 2,
                 friends: []
             },
             music: {
@@ -531,6 +550,8 @@
             },
             customWidgets: []
         },
+        widgetsVisibility: Object.assign({}, WIDGET_VISIBILITY_DEFAULTS),
+        sceneDeck: [],
         layout: {
             preset: "classic"
         },
@@ -619,6 +640,7 @@
             // Load profile from server or localStorage
             await this.loadProfile();
             this.ensureStickerData();
+            this.ensureSceneDeck();
             this.initStickerLayer();
 
             // Load view mode preference
@@ -1312,6 +1334,7 @@
         // Load content into page
         loadContent: function() {
             this.ensureCustomHtmlData();
+            this.ensureWidgetVisibilityState();
 
             // Profile info
             const profileName = document.getElementById('profile-name');
@@ -1415,6 +1438,29 @@
             window.dispatchEvent(new CustomEvent('ourspace:contentLoaded'));
 
             console.log("[OurSpace] Content loaded");
+            this.applyWidgetVisibility();
+        },
+
+        ensureWidgetVisibilityState: function() {
+            if (!this.profile.widgetsVisibility || typeof this.profile.widgetsVisibility !== 'object') {
+                this.profile.widgetsVisibility = Object.assign({}, WIDGET_VISIBILITY_DEFAULTS);
+            } else {
+                Object.keys(WIDGET_VISIBILITY_DEFAULTS).forEach((key) => {
+                    if (typeof this.profile.widgetsVisibility[key] !== 'boolean') {
+                        this.profile.widgetsVisibility[key] = true;
+                    }
+                });
+            }
+        },
+
+        applyWidgetVisibility: function() {
+            this.ensureWidgetVisibilityState();
+            Object.entries(WIDGET_DOM_MAP).forEach(([key, selector]) => {
+                const el = document.querySelector(selector);
+                if (!el) return;
+                const visible = this.profile.widgetsVisibility[key] !== false;
+                el.style.display = visible ? '' : 'none';
+            });
         },
 
         // Update stats display
@@ -1514,6 +1560,22 @@
                 }
                 this.normalizeFrameTextData(entry);
             });
+        },
+
+        ensureSceneDeck: function() {
+            if (!Array.isArray(this.profile.sceneDeck)) {
+                this.profile.sceneDeck = [];
+                return this.profile.sceneDeck;
+            }
+            this.profile.sceneDeck = this.profile.sceneDeck
+                .filter(scene => scene && typeof scene === 'object')
+                .map(scene => {
+                    if (!scene.id) {
+                        scene.id = `scene-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                    }
+                    return scene;
+                });
+            return this.profile.sceneDeck;
         },
 
         getPublicBaseUrl: function() {

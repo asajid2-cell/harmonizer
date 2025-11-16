@@ -12,12 +12,80 @@
     };
 
     const themeButtonMap = new Map();
+    const SCENE_ID_PREFIX = 'scene-';
+    const THEME_ALIAS_MAP = Object.freeze({
+        scenecore: 'stagebloom',
+        weirdcore: 'liminalveil',
+        dreamcore: 'lucidmirage',
+        kidcore: 'stickerparade',
+        angelcore: 'haloaurora',
+        witchcore: 'moonlitcoven',
+        goblincore: 'mosswild',
+        fairycore: 'prismfae',
+        cryptidcore: 'cryptidnight',
+        mermaidcore: 'sirenlagoon',
+        royalcore: 'opulentthrone',
+        trashcore: 'dumpsterpop'
+    });
+    const THEME_ALIAS_INVERSE = Object.freeze(Object.entries(THEME_ALIAS_MAP).reduce((acc, [legacy, current]) => {
+        if (!acc[current]) {
+            acc[current] = [];
+        }
+        acc[current].push(legacy);
+        return acc;
+    }, {}));
+
+    function resolveThemeName(themeName) {
+        if (!themeName) {
+            return themeName;
+        }
+        return THEME_ALIAS_MAP[themeName] || themeName;
+    }
+
+    function ensureSceneDeckData() {
+        if (!window.OurSpace || !window.OurSpace.profile) {
+            return [];
+        }
+        if (window.OurSpace.ensureSceneDeck) {
+            return window.OurSpace.ensureSceneDeck();
+        }
+        if (!Array.isArray(window.OurSpace.profile.sceneDeck)) {
+            window.OurSpace.profile.sceneDeck = [];
+        }
+        return window.OurSpace.profile.sceneDeck;
+    }
+
+    function createSceneSnapshot() {
+        const profile = window.OurSpace?.profile;
+        if (!profile) {
+            return {};
+        }
+        if (window.OurSpaceLayoutEditor && typeof window.OurSpaceLayoutEditor.snapshotCurrentLayout === 'function') {
+            window.OurSpaceLayoutEditor.snapshotCurrentLayout();
+        }
+        const snapshot = JSON.parse(JSON.stringify(profile));
+        snapshot.sceneDeck = [];
+        return snapshot;
+    }
+
+    function formatSceneTimestamp(timestamp) {
+        if (!timestamp) return 'moments ago';
+        const diff = Date.now() - timestamp;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        if (days > 0) return `${days}d ago`;
+        if (hours > 0) return `${hours}h ago`;
+        if (minutes > 0) return `${minutes}m ago`;
+        return 'moments ago';
+    }
 
     function highlightThemeButton(themeName) {
         if (!themeName) return;
+        const resolved = resolveThemeName(themeName);
         themeButtonMap.forEach((btn, key) => {
             if (!btn) return;
-            btn.classList.toggle('active', key === themeName);
+            btn.classList.toggle('active', key === resolved);
         });
     }
 
@@ -30,9 +98,69 @@
                 return;
             }
             const label = (btn.textContent || '').toLowerCase();
-            const matches = key.toLowerCase().includes(search) || label.includes(search);
+            const aliases = THEME_ALIAS_INVERSE[key] || [];
+            const aliasMatches = aliases.some(alias => alias.toLowerCase().includes(search));
+            const matches = key.toLowerCase().includes(search) || label.includes(search) || aliasMatches;
             btn.style.display = matches ? '' : 'none';
         });
+    }
+
+    function formatSummaryLabel(name) {
+        if (!name) return 'Custom';
+        return name
+            .replace(/[-_]/g, ' ')
+            .replace(/([a-z])([A-Z])/g, '$1 $2')
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+
+    function updateCustomizerSummary() {
+        const themeNameEl = document.getElementById('summary-theme-name');
+        const layoutNameEl = document.getElementById('summary-layout-name');
+        const statusEl = document.getElementById('summary-save-state');
+        if (!themeNameEl || !layoutNameEl || !statusEl) {
+            return;
+        }
+        const profile = window.OurSpace?.profile || {};
+        const currentThemeName = resolveThemeName(profile.theme?.name || 'custom');
+        if (profile.theme && profile.theme.name !== currentThemeName) {
+            profile.theme.name = currentThemeName;
+        }
+        const themeBtn = themeButtonMap.get(currentThemeName);
+        const themeLabel = themeBtn ? (themeBtn.textContent || '').trim() : currentThemeName;
+        const themeName = formatSummaryLabel(themeLabel);
+        const layoutName = formatSummaryLabel(profile.layout?.preset || 'classic');
+        const lastSaved = window.OurSpace?._lastSavedTimestamp || 0;
+        const lastModified = profile.meta?.lastModified || 0;
+        const hasUnsaved = lastModified > lastSaved;
+
+        themeNameEl.textContent = themeName;
+        layoutNameEl.textContent = layoutName;
+        statusEl.textContent = hasUnsaved ? 'Unsaved changes' : 'All changes saved';
+        statusEl.classList.toggle('unsaved', hasUnsaved);
+    }
+
+    window.OurSpaceCustomizer = window.OurSpaceCustomizer || {};
+    window.OurSpaceCustomizer.updateSummary = updateCustomizerSummary;
+
+    function setupPanelTabs() {
+        const tabButtons = document.querySelectorAll('.panel-tab');
+        const panelContainer = document.querySelector('#customization-panel .panel-content.tabbed-panel');
+        if (!tabButtons.length || !panelContainer) return;
+
+        const setActive = (tabName) => {
+            panelContainer.dataset.activeTab = tabName;
+            tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
+        };
+
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!btn.dataset.tab) return;
+                setActive(btn.dataset.tab);
+            });
+        });
+
+        const initial = document.querySelector('.panel-tab.active')?.dataset.tab || tabButtons[0].dataset.tab;
+        setActive(initial);
     }
 
     window.addEventListener('DOMContentLoaded', function() {
@@ -59,9 +187,13 @@
 
         // Widget styling controls
         setupWidgetStyleControls();
+        setupWidgetVisibilityControls();
 
         // Custom widget creator
         setupCustomWidgetCreator();
+
+        // Scene memory manager
+        setupSceneManager();
 
         // Effects controls
         setupEffectsControls();
@@ -71,6 +203,9 @@
 
         // Save/Load/Export/Reset
         setupProfileActions();
+
+        setupPanelTabs();
+        updateCustomizerSummary();
 
         console.log("[Customizer] Initialization complete");
     }
@@ -100,6 +235,13 @@
     function setupThemePresets() {
         const themeBtns = document.querySelectorAll('.theme-btn');
         themeButtonMap.clear();
+        const profileTheme = window.OurSpace?.profile?.theme;
+        if (profileTheme && profileTheme.name) {
+            const normalized = resolveThemeName(profileTheme.name);
+            if (normalized !== profileTheme.name) {
+                profileTheme.name = normalized;
+            }
+        }
 
         themeBtns.forEach(btn => {
             if (!btn.dataset.theme) return;
@@ -117,7 +259,7 @@
             });
         }
 
-        const initialTheme = window.OurSpace?.profile?.theme?.name || 'classic';
+        const initialTheme = resolveThemeName(window.OurSpace?.profile?.theme?.name || 'classic');
         if (themeButtonMap.has(initialTheme)) {
             highlightThemeButton(initialTheme);
         }
@@ -647,7 +789,7 @@
                     pattern: 'sparkles'
                 }
             },
-            scenecore: {
+            stagebloom: {
                 name: 'Stage Bloom',
                 colors: {
                     background: '#000000',
@@ -667,7 +809,7 @@
                     pattern: 'checkers'
                 }
             },
-            weirdcore: {
+            liminalveil: {
                 name: 'Liminal Bloom',
                 colors: {
                     background: '#ffe5b4',
@@ -687,7 +829,7 @@
                     pattern: 'dots'
                 }
             },
-            dreamcore: {
+            lucidmirage: {
                 name: 'Lucid Mirage',
                 colors: {
                     background: '#f0e6ff',
@@ -707,7 +849,7 @@
                     pattern: 'clouds'
                 }
             },
-            kidcore: {
+            stickerparade: {
                 name: 'Sticker Parade',
                 colors: {
                     background: '#ffff00',
@@ -727,8 +869,8 @@
                     pattern: 'stars'
                 }
             },
-            angelcore: {
-                name: 'angelcore',
+            haloaurora: {
+                name: 'haloaurora',
                 colors: {
                     background: '#ffffff',
                     text: '#d4af37',
@@ -747,7 +889,7 @@
                     pattern: 'sparkles'
                 }
             },
-            witchcore: {
+            moonlitcoven: {
                 name: 'Moonlit Coven',
                 colors: {
                     background: '#1a0033',
@@ -767,8 +909,8 @@
                     pattern: 'stars'
                 }
             },
-            goblincore: {
-                name: 'goblincore',
+            mosswild: {
+                name: 'mosswild',
                 colors: {
                     background: '#3d2b1f',
                     text: '#b5a397',
@@ -787,7 +929,7 @@
                     pattern: 'dots'
                 }
             },
-            fairycore: {
+            prismfae: {
                 name: 'Prism Fae',
                 colors: {
                     background: '#f0fff0',
@@ -807,7 +949,7 @@
                     pattern: 'butterflies'
                 }
             },
-            cryptidcore: {
+            cryptidnight: {
                 name: 'Cryptid Night',
                 colors: {
                     background: '#1c3b1a',
@@ -827,7 +969,7 @@
                     pattern: 'stripes'
                 }
             },
-            mermaidcore: {
+            sirenlagoon: {
                 name: 'Siren Lagoon',
                 colors: {
                     background: '#00ced1',
@@ -847,7 +989,7 @@
                     pattern: 'sparkles'
                 }
             },
-            royalcore: {
+            opulentthrone: {
                 name: 'Opulent Throne',
                 colors: {
                     background: '#4b0082',
@@ -867,7 +1009,7 @@
                     pattern: 'roses'
                 }
             },
-            trashcore: {
+            dumpsterpop: {
                 name: 'Dumpster Pop',
                 colors: {
                     background: '#708090',
@@ -1569,9 +1711,10 @@
             }
         };
 
-        const theme = themes[themeName];
+        const resolvedThemeName = resolveThemeName(themeName);
+        const theme = themes[resolvedThemeName];
         if (theme) {
-            window.OurSpace.profile.theme.name = theme.name;
+            window.OurSpace.profile.theme.name = resolvedThemeName;
             Object.assign(window.OurSpace.profile.theme.colors, theme.colors);
             Object.assign(window.OurSpace.profile.theme.fonts, theme.fonts);
             Object.assign(window.OurSpace.profile.theme.background, theme.background);
@@ -1586,10 +1729,11 @@
             updateFontControls();
             updateBackgroundControls();
             updateWidgetStyleControls();
-            highlightThemeButton(theme.name);
+            highlightThemeButton(resolvedThemeName);
 
             // Apply and save
             window.OurSpace.applyTheme();
+            updateCustomizerSummary();
             // Auto-save removed - only save when user clicks Save Profile button
         }
     }
@@ -2345,62 +2489,86 @@
     }
 
     function setupWidgetStyleControls() {
-        const tweaks = ensureWidgetTweaks();
-
         const radiusInput = document.getElementById('widget-radius');
-        const radiusDisplay = document.getElementById('widget-radius-display');
         const borderInput = document.getElementById('widget-border');
-        const borderDisplay = document.getElementById('widget-border-display');
         const blurInput = document.getElementById('widget-blur');
-        const blurDisplay = document.getElementById('widget-blur-display');
         const glowStrengthInput = document.getElementById('widget-glow-strength');
-        const glowStrengthDisplay = document.getElementById('widget-glow-strength-display');
         const glowColorInput = document.getElementById('widget-glow-color');
+
+        const commitTweaks = (mutator) => {
+            const tweaks = ensureWidgetTweaks();
+            mutator(tweaks);
+            window.OurSpace.applyTheme();
+            updateWidgetStyleControls();
+        };
 
         if (radiusInput) {
             radiusInput.addEventListener('input', function() {
                 const val = parseInt(this.value, 10) || 0;
-                tweaks.radius = val;
-                if (radiusDisplay) radiusDisplay.textContent = val + 'px';
-                window.OurSpace.applyTheme();
+                commitTweaks((t) => {
+                    t.radius = val;
+                });
             });
         }
 
         if (borderInput) {
             borderInput.addEventListener('input', function() {
                 const val = parseInt(this.value, 10) || 0;
-                tweaks.border = val;
-                if (borderDisplay) borderDisplay.textContent = val + 'px';
-                window.OurSpace.applyTheme();
+                commitTweaks((t) => {
+                    t.border = val;
+                });
             });
         }
 
         if (blurInput) {
             blurInput.addEventListener('input', function() {
                 const val = parseInt(this.value, 10) || 0;
-                tweaks.blur = val;
-                if (blurDisplay) blurDisplay.textContent = val + 'px';
-                window.OurSpace.applyTheme();
+                commitTweaks((t) => {
+                    t.blur = val;
+                });
             });
         }
 
         if (glowStrengthInput) {
             glowStrengthInput.addEventListener('input', function() {
                 const val = parseInt(this.value, 10) || 0;
-                tweaks.glowStrength = val;
-                if (glowStrengthDisplay) glowStrengthDisplay.textContent = val + 'px';
-                window.OurSpace.applyTheme();
+                commitTweaks((t) => {
+                    t.glowStrength = val;
+                });
             });
         }
 
         if (glowColorInput) {
             glowColorInput.addEventListener('input', function() {
-                tweaks.glowColor = this.value || '#00ffff';
-                window.OurSpace.applyTheme();
+                const color = this.value || '#00ffff';
+                commitTweaks((t) => {
+                    t.glowColor = color;
+                });
             });
         }
 
         updateWidgetStyleControls();
+    }
+
+    function setupWidgetVisibilityControls() {
+        const toggles = document.querySelectorAll('.widget-visibility-toggle');
+        if (!toggles.length || !window.OurSpace) return;
+
+        if (typeof window.OurSpace.ensureWidgetVisibilityState === 'function') {
+            window.OurSpace.ensureWidgetVisibilityState();
+        }
+        const state = window.OurSpace.profile.widgetsVisibility || {};
+
+        toggles.forEach(toggle => {
+            const key = toggle.dataset.widget;
+            toggle.checked = state[key] !== false;
+            toggle.addEventListener('change', function() {
+                state[key] = this.checked;
+                if (typeof window.OurSpace.applyWidgetVisibility === 'function') {
+                    window.OurSpace.applyWidgetVisibility();
+                }
+            });
+        });
     }
 
     function updateWidgetStyleControls() {
@@ -2581,6 +2749,230 @@
         });
 
         renderList();
+    }
+
+    function setupSceneManager() {
+        const nameInput = document.getElementById('scene-name');
+        const descInput = document.getElementById('scene-description');
+        const captureBtn = document.getElementById('scene-capture-btn');
+        const clearBtn = document.getElementById('scene-clear-btn');
+        const listEl = document.getElementById('scene-list');
+        const emptyState = document.getElementById('scene-empty-state');
+
+        if (!nameInput || !captureBtn || !listEl || !emptyState) {
+            return;
+        }
+
+        const getDeck = () => ensureSceneDeckData();
+
+        const resetInputs = () => {
+            nameInput.value = '';
+            if (descInput) {
+                descInput.value = '';
+            }
+        };
+
+        const markDirty = () => {
+            if (window.OurSpace?.profile?.meta) {
+                window.OurSpace.profile.meta.lastModified = Date.now();
+            }
+            updateCustomizerSummary();
+        };
+
+        const renderScenes = () => {
+            const deck = getDeck();
+            listEl.innerHTML = '';
+            if (!deck.length) {
+                emptyState.style.display = 'block';
+                return;
+            }
+            emptyState.style.display = 'none';
+            deck.forEach(scene => {
+                const card = document.createElement('div');
+                card.className = 'scene-card';
+                card.dataset.sceneId = scene.id;
+                if (scene.isActive) {
+                    card.classList.add('active');
+                }
+
+                const header = document.createElement('div');
+                header.className = 'scene-card-header';
+
+                const title = document.createElement('h4');
+                title.textContent = scene.name || 'Untitled Scene';
+                header.appendChild(title);
+
+                const meta = document.createElement('span');
+                meta.className = 'scene-card-meta';
+                meta.textContent = `Updated ${formatSceneTimestamp(scene.updatedAt || scene.createdAt)}`;
+                header.appendChild(meta);
+
+                card.appendChild(header);
+
+                const swatch = document.createElement('div');
+                swatch.className = 'scene-swatch';
+                const primary = scene.snapshot?.theme?.colors?.background || '#555';
+                const secondary = scene.snapshot?.theme?.colors?.widgetBg || '#999';
+                swatch.style.background = `linear-gradient(90deg, ${primary}, ${secondary})`;
+                card.appendChild(swatch);
+
+                if (scene.description) {
+                    const desc = document.createElement('p');
+                    desc.className = 'scene-description';
+                    desc.textContent = scene.description;
+                    card.appendChild(desc);
+                }
+
+                const actions = document.createElement('div');
+                actions.className = 'scene-actions';
+                const applyBtn = document.createElement('button');
+                applyBtn.className = 'scene-action-btn scene-apply';
+                applyBtn.dataset.sceneAction = 'apply';
+                applyBtn.textContent = 'Apply Scene';
+                actions.appendChild(applyBtn);
+
+                const updateBtn = document.createElement('button');
+                updateBtn.className = 'scene-action-btn';
+                updateBtn.dataset.sceneAction = 'update';
+                updateBtn.textContent = 'Update Snapshot';
+                actions.appendChild(updateBtn);
+
+                const renameBtn = document.createElement('button');
+                renameBtn.className = 'scene-action-btn';
+                renameBtn.dataset.sceneAction = 'rename';
+                renameBtn.textContent = 'Rename';
+                actions.appendChild(renameBtn);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'scene-action-btn danger';
+                deleteBtn.dataset.sceneAction = 'delete';
+                deleteBtn.textContent = 'Delete';
+                actions.appendChild(deleteBtn);
+
+                card.appendChild(actions);
+                listEl.appendChild(card);
+            });
+        };
+
+        const setActiveScene = (sceneId) => {
+            getDeck().forEach(scene => {
+                scene.isActive = scene.id === sceneId;
+            });
+        };
+
+        const applyScene = (scene) => {
+            if (!scene || !scene.snapshot) return;
+            const deck = getDeck();
+            const snapshot = JSON.parse(JSON.stringify(scene.snapshot));
+            snapshot.sceneDeck = deck;
+            if (!snapshot.meta) {
+                snapshot.meta = {};
+            }
+            snapshot.meta.lastModified = Date.now();
+            window.OurSpace.profile = snapshot;
+            scene.lastAppliedAt = Date.now();
+            setActiveScene(scene.id);
+            markDirty();
+            window.OurSpace.applyTheme(true);
+            window.OurSpace.loadContent();
+            window.OurSpace.updateStats();
+            if (window.OurSpaceWidgets && typeof window.OurSpaceWidgets.renderCustomWidgets === 'function') {
+                window.OurSpaceWidgets.renderCustomWidgets();
+            }
+            if (window.OurSpaceLayoutEditor && typeof window.OurSpaceLayoutEditor.updateFromProfile === 'function') {
+                window.OurSpaceLayoutEditor.updateFromProfile();
+            }
+            updateColorPickers();
+            updateFontControls();
+            updateWidgetStyleControls();
+            updateBackgroundControls();
+            if (window.OurSpace && typeof window.OurSpace.saveProfile === 'function') {
+                window.OurSpace.saveProfile();
+            }
+            renderScenes();
+        };
+
+        captureBtn.addEventListener('click', () => {
+            const deck = getDeck();
+            const sceneName = (nameInput.value || '').trim() || `Scene ${deck.length + 1}`;
+            const description = (descInput?.value || '').trim();
+            const now = Date.now();
+            const scene = {
+                id: (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : `${SCENE_ID_PREFIX}${now}`,
+                name: sceneName,
+                description,
+                createdAt: now,
+                updatedAt: now,
+                lastAppliedAt: null,
+                isActive: true,
+                snapshot: createSceneSnapshot()
+            };
+            deck.forEach(entry => {
+                entry.isActive = false;
+            });
+            deck.unshift(scene);
+            markDirty();
+            resetInputs();
+            renderScenes();
+        });
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                resetInputs();
+            });
+        }
+
+        listEl.addEventListener('click', (event) => {
+            const actionBtn = event.target.closest('[data-scene-action]');
+            if (!actionBtn) return;
+            const card = actionBtn.closest('.scene-card');
+            if (!card) return;
+            const sceneId = card.dataset.sceneId;
+            const action = actionBtn.dataset.sceneAction;
+            const deck = getDeck();
+            const scene = deck.find(item => item.id === sceneId);
+            if (!scene) return;
+
+            if (action === 'apply') {
+                applyScene(scene);
+                return;
+            }
+
+            if (action === 'update') {
+                scene.snapshot = createSceneSnapshot();
+                scene.updatedAt = Date.now();
+                setActiveScene(scene.id);
+                markDirty();
+                renderScenes();
+                return;
+            }
+
+            if (action === 'rename') {
+                const nextName = prompt('Rename scene', scene.name || 'Untitled Scene');
+                if (nextName) {
+                    scene.name = nextName.trim();
+                    scene.updatedAt = Date.now();
+                    markDirty();
+                    renderScenes();
+                }
+                return;
+            }
+
+            if (action === 'delete') {
+                const confirmDelete = confirm(`Delete "${scene.name || 'this scene'}"?`);
+                if (confirmDelete) {
+                    const index = deck.findIndex(item => item.id === sceneId);
+                    if (index !== -1) {
+                        deck.splice(index, 1);
+                        markDirty();
+                        renderScenes();
+                    }
+                }
+            }
+        });
+
+        renderScenes();
     }
 
     // Effects Controls
@@ -2877,6 +3269,8 @@
                 if (grid) {
                     grid.className = `content-grid layout-${layout}`;
                 }
+
+                updateCustomizerSummary();
 
                 // Auto-save removed - only save when user clicks Save Profile button
             });
