@@ -1248,8 +1248,18 @@ body.lightning-rumble {
     height: 100%;
     background: conic-gradient(from 0deg, rgba(255,0,150,0.15), rgba(100,200,255,0.15), rgba(255,255,0,0.15), rgba(255,0,150,0.15));
     animation: kaleidoscopeSpin var(--kaleidoscope-speed) linear infinite;
+    animation-play-state: paused;
     mix-blend-mode: screen;
     pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease;
+}
+
+.kaleidoscope-overlay.active {
+    opacity: 1;
+    visibility: visible;
+    animation-play-state: running;
 }
 
 @keyframes kaleidoscopeSpin {
@@ -1268,7 +1278,16 @@ body.lightning-rumble {
                 linear-gradient(120deg, rgba(255,0,0,0.08), rgba(0,255,255,0.08));
     mix-blend-mode: screen;
     animation: vhsGlitch 2s steps(4) infinite;
+    animation-play-state: paused;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease;
+}
+
+.vhs-glitch-overlay.active {
     opacity: var(--vhs-glitch-strength, 0.3);
+    visibility: visible;
+    animation-play-state: running;
 }
 
 @keyframes vhsGlitch {
