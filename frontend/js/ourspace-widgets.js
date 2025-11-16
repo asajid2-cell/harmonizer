@@ -784,19 +784,22 @@
         } else {
             html += '<div class="friends-list-container">';
             dbFriends.forEach((friend) => {
-                const friendUsername = friend.friend_username;
-                const profilePic = friend.profile_pic || '/static/default-avatar.png';
-                const createdDate = new Date(friend.created_at).toLocaleDateString();
+                const friendUsername = friend.friend_username || friend.username || friend.name || 'Friend';
+                const friendDisplayName = friend.display_name || friend.displayName || friendUsername;
+                const profilePic = friend.profile_pic || friend.profilePicture || friend.avatar || '/static/default-avatar.png';
+                const createdDate = friend.created_at ? new Date(friend.created_at).toLocaleDateString() : '';
+                const friendId = friend.friend_id || friend.id || '';
+                const friendIdAttr = friendId ? String(friendId) : '';
 
                 html += `
-                    <div class="friend-list-item" data-username="${escapeHtml(friendUsername)}">
-                        <img src="${profilePic}" alt="${escapeHtml(friendUsername)}" loading="lazy" decoding="async">
+                    <div class="friend-list-item" data-username="${escapeHtml(friendUsername)}" data-friend-id="${escapeHtml(friendIdAttr)}">
+                        <img src="${profilePic}" alt="${escapeHtml(friendDisplayName)}" loading="lazy" decoding="async" onerror="this.src='/static/default-avatar.png'">
                         <div class="friend-list-item-info">
-                            <div class="friend-list-item-name">${escapeHtml(friendUsername)}</div>
-                            <div class="friend-list-item-date" style="font-size: 10px; opacity: 0.7;">Friends since ${createdDate}</div>
+                            <div class="friend-list-item-name">${escapeHtml(friendDisplayName)}</div>
+                            <div class="friend-list-item-date" style="font-size: 10px; opacity: 0.7;">${createdDate ? `Friends since ${createdDate}` : ''}</div>
                         </div>
                         <div class="friend-list-item-actions">
-                            <button class="remove-friend-btn" data-username="${escapeHtml(friendUsername)}">Remove</button>
+                            <button class="remove-friend-btn" data-username="${escapeHtml(friendUsername)}" data-display-name="${escapeHtml(friendDisplayName)}" data-friend-id="${escapeHtml(friendIdAttr)}">Remove</button>
                         </div>
                     </div>
                 `;
@@ -832,13 +835,15 @@
         removeBtns.forEach(btn => {
             btn.addEventListener('click', async function() {
                 const username = this.dataset.username;
+                const friendId = this.dataset.friendId;
+                const displayName = this.dataset.displayName || username;
 
-                if (confirm(`Remove ${username} from your friends list?`)) {
+                if (confirm(`Remove ${displayName} from your friends list?`)) {
                     try {
                         const response = await fetch('/api/ourspace/friends/remove', {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({username: username})
+                            body: JSON.stringify(friendId ? { friend_id: parseInt(friendId, 10) } : { username: username })
                         });
 
                         const data = await response.json();

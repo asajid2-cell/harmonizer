@@ -532,7 +532,10 @@
         const enabled = !!(config && config.enabled);
         let overlay = document.getElementById('retro-scanlines');
         if (!enabled) {
-            if (overlay) overlay.classList.remove('active');
+            if (overlay) {
+                overlay.classList.remove('active');
+                overlay.remove();
+            }
             return;
         }
         if (!overlay) {
@@ -677,13 +680,19 @@
 
     // TV Static Overlay
     function toggleTvStatic(config) {
-        const overlay = ensureOverlay('tv-static-overlay', 'tv-static-overlay');
+        let overlay = document.getElementById('tv-static-overlay');
         if (!config.enabled) {
-            overlay.classList.remove('active');
+            if (overlay) {
+                overlay.classList.remove('active');
+                overlay.remove();
+            }
             return;
         }
+        if (!overlay) {
+            overlay = ensureOverlay('tv-static-overlay', 'tv-static-overlay');
+        }
         const opacity = config.opacity !== undefined ? config.opacity : 0.25;
-        overlay.style.opacity = opacity;
+        overlay.style.setProperty('--tv-static-opacity', opacity);
         overlay.classList.add('active');
     }
 

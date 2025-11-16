@@ -1232,7 +1232,18 @@ body.lightning-rumble {
                       repeating-linear-gradient(90deg, rgba(0,0,0,0.08), rgba(0,0,0,0.08) 2px, transparent 2px, transparent 4px);
     mix-blend-mode: screen;
     animation: tvStatic 0.4s steps(2) infinite;
+    animation-play-state: paused;
     pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease;
+    z-index: 9982;
+}
+
+.tv-static-overlay.active {
+    opacity: var(--tv-static-opacity, 0.25);
+    visibility: visible;
+    animation-play-state: running;
 }
 
 @keyframes tvStatic {

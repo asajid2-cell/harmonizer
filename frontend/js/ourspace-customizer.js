@@ -3066,6 +3066,12 @@
         const effectChromatic = document.getElementById('effect-chromatic-trails');
         const effectFloatingEmojis = document.getElementById('effect-floating-emojis');
         const effectLightning = document.getElementById('effect-lightning-flickers');
+        const effectMatrixRain = document.getElementById('effect-matrix-rain');
+        const effectDiscoBall = document.getElementById('effect-disco-ball');
+        const effectTvStatic = document.getElementById('effect-tv-static');
+        const effectKaleidoscope = document.getElementById('effect-kaleidoscope');
+        const effectVhsGlitch = document.getElementById('effect-vhs-glitch');
+        const effectStardust = document.getElementById('effect-stardust');
         const effectEmojiOrbit = document.getElementById('effect-emoji-orbit');
         const effectEmojiBurst = document.getElementById('effect-emoji-burst');
         const effectEmojiWave = document.getElementById('effect-emoji-wave');
@@ -3336,6 +3342,12 @@
             refresh: {},
             format: val => Math.round(val * 100) + '%'
         });
+        bindEffectToggle(effectMatrixRain, 'matrixRain', { density: 1 });
+        bindEffectToggle(effectDiscoBall, 'discoBall', { color: '#ff00ff', accent: '#00ffff', sparkle: 1 });
+        bindEffectToggle(effectTvStatic, 'tvStatic', { opacity: 0.25 });
+        bindEffectToggle(effectKaleidoscope, 'kaleidoscope', { speed: 18 });
+        bindEffectToggle(effectVhsGlitch, 'vhsGlitch', { intensity: 0.3 });
+        bindEffectToggle(effectStardust, 'stardustTrail', { density: 1.2, color: '#ffffff' });
         bindEffectToggle(effectEmojiOrbit, 'emojiOrbit', { emojis: ['💫', '🦋', '🌙', '⭐', '💖'] });
         bindEffectToggle(effectEmojiBurst, 'emojiBurst', { frequency: 2 });
         bindEffectToggle(effectEmojiWave, 'emojiWave', { speed: 4000 });

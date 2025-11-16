@@ -575,21 +575,54 @@ def get_friends(user_id: int) -> List[Dict[str, Any]]:
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT u.id, u.username, u.profile_published
+        SELECT u.id,
+               u.username,
+               u.profile_published,
+               f.created_at,
+               p.profile_data
         FROM friendships f
         JOIN users u ON f.friend_id = u.id
+        LEFT JOIN profiles p ON p.user_id = u.id
         WHERE f.user_id = ?
         ORDER BY u.username
     """, (user_id,))
 
-    friends = [
-        {
+    friends = []
+    for row in cursor.fetchall():
+        display_name = row['username']
+        profile_pic = ''
+
+        if row['profile_data']:
+            try:
+                profile_json = json.loads(row['profile_data'])
+                profile_section = profile_json.get('profile', {})
+                display_name = (
+                    profile_section.get('name')
+                    or profile_section.get('displayName')
+                    or profile_section.get('profileName')
+                    or profile_json.get('profileName')
+                    or row['username']
+                )
+                profile_pic = (
+                    profile_section.get('profilePicture')
+                    or profile_section.get('avatar')
+                    or profile_json.get('profilePicture')
+                    or ''
+                )
+            except Exception as exc:
+                print(f"Error parsing profile data for friend {row['username']}: {exc}")
+
+        friends.append({
             "id": row['id'],
+            "friend_id": row['id'],
+            "friend_username": row['username'],
             "username": row['username'],
-            "published": bool(row['profile_published'])
-        }
-        for row in cursor.fetchall()
-    ]
+            "display_name": display_name,
+            "profile_pic": profile_pic,
+            "profilePicture": profile_pic,
+            "profile_published": bool(row['profile_published']),
+            "created_at": row['created_at']
+        })
 
     conn.close()
     return friends

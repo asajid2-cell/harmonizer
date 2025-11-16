@@ -2658,13 +2658,13 @@
             let iconText = '';
             let labelText = '';
             if (readOnly) {
-                iconText = 'LOCK';
+                iconText = '🔒';
                 labelText = 'View Only';
             } else if (this.viewMode) {
-                iconText = 'VIEW';
+                iconText = '👁️';
                 labelText = 'View';
             } else {
-                iconText = 'EDIT';
+                iconText = '🎨';
                 labelText = 'Customize';
             }
             if (icon) {
