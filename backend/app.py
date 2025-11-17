@@ -2134,7 +2134,7 @@ def api_rl_model():
     if model_data is None and RL_MODEL_PATH.exists():
         data = _read_model(RL_MODEL_PATH)
         if data:
-            resolved_variant = resolved_variant or PRIMARY_RL_VARIANT
+            resolved_variant = resolved_variant or BASELINE_RL_VARIANT
             model_data = data
 
     if model_data is None:
