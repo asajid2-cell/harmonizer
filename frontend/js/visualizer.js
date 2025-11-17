@@ -41,6 +41,15 @@ function createHtmlAudioController(sourceUrl, options) {
     audio.loop = !!(window.harmonizerLoopEnabled);
     audio.volume = clampVolume(options && typeof options.volume === "number" ? options.volume : 1);
 
+    // Debug logging for loop behavior
+    console.log('[AudioController] Created audio with loop =', audio.loop);
+    audio.addEventListener('ended', function() {
+        console.log('[AudioController] Audio ended event fired! loop =', audio.loop, 'currentTime =', audio.currentTime, 'duration =', audio.duration);
+    });
+    audio.addEventListener('pause', function() {
+        console.log('[AudioController] Audio paused, loop =', audio.loop, 'currentTime =', audio.currentTime);
+    });
+
     var requestFrame = (typeof window !== "undefined" && window.requestAnimationFrame) ?
         window.requestAnimationFrame.bind(window) :
         function(cb) { return setTimeout(cb, 16); };

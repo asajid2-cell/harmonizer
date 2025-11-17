@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diffusion Models - Complete Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1.6;
+            padding: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            border-bottom: 2px solid #ffffff;
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+
+        header .meta {
+            font-size: 14px;
+            text-align: left;
+        }
+
+        /* Table of Contents */
+        #toc {
+            border: 2px solid #ffffff;
+            padding: 20px;
+            margin-bottom: 40px;
+        }
+
+        #toc h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        #toc ul {
+            list-style: none;
+            text-align: left;
+        }
+
+        #toc li {
+            margin-bottom: 8px;
+        }
+
+        #toc a {
+            color: #ffffff;
+            text-decoration: none;
+            border-bottom: 1px solid #ffffff;
+        }
+
+        #toc a:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        /* Sections */
+        section {
+            margin-bottom: 50px;
+        }
+
+        h2 {
+            font-size: 22px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ffffff;
+            padding-bottom: 10px;
+            text-align: left;
+        }
+
+        h3 {
+            font-size: 18px;
+            margin: 25px 0 15px 0;
+            border-left: 4px solid #ffffff;
+            padding-left: 15px;
+            text-align: left;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        /* Highlight boxes */
+        .highlight {
+            background-color: #ffffff;
+            color: #000000;
+            padding: 15px;
+            margin: 20px 0;
+            border: 2px solid #ffffff;
+        }
+
+        .highlight strong {
+            text-decoration: underline;
+        }
+
+        /* Formula boxes */
+        .formula {
+            text-align: center;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #ffffff;
+            font-size: 16px;
+        }
+
+        /* Note boxes */
+        .note {
+            border: 2px solid #ffffff;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .note::before {
+            content: "NOTE: ";
+            font-weight: bold;
+        }
+
+        /* Code blocks */
+        pre {
+            background-color: #1a1a1a;
+            border: 1px solid #ffffff;
+            padding: 15px;
+            overflow-x: auto;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-left: 40px;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #ffffff;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #ffffff;
+            color: #000000;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #1a1a1a;
+        }
+
+        /* ASCII diagrams */
+        .ascii-diagram {
+            background-color: #1a1a1a;
+            border: 2px solid #ffffff;
+            padding: 20px;
+            margin: 20px 0;
+            white-space: pre;
+            overflow-x: auto;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        /* Action buttons */
+        .action-buttons {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            background-color: #ffffff;
+            color: #000000;
+            border: 2px solid #ffffff;
+            padding: 12px 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background-color: #000000;
+            color: #ffffff;
+        }
+
+        /* End card */
+        .end-card {
+            border: 2px solid #ffffff;
+            padding: 30px;
+            text-align: center;
+            margin-top: 60px;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background-color: #ffffff;
+                color: #000000;
+            }
+
+            .action-buttons {
+                display: none;
+            }
+
+            h2, h3 {
+                border-color: #000000;
+            }
+
+            .highlight, th {
+                background-color: #000000;
+                color: #ffffff;
+            }
+
+            table, th, td, .note, .formula, #toc, .ascii-diagram {
+                border-color: #000000;
+            }
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>DIFFUSION MODELS - COMPLETE GUIDE</h1>
+        <div class="meta">
+            CMPUT 328 - Deep Learning | Denoising Diffusion Probabilistic Models (DDPM)<br>
+            From Forward Diffusion to Reverse Denoising and Beyond
+        </div>
+    </header>
+
+    <nav id="toc">
+        <h2>TABLE OF CONTENTS</h2>
+        <ul>
+            <li><a href="#section1">1. INTRODUCTION TO DIFFUSION MODELS</a></li>
+            <li><a href="#section2">2. THE DIFFUSION PROCESS INTUITION</a></li>
+            <li><a href="#section3">3. FORWARD DIFFUSION MATHEMATICS</a></li>
+            <li><a href="#section4">4. REVERSE DENOISING PROCESS</a></li>
+            <li><a href="#section5">5. TRAINING ALGORITHM</a></li>
+            <li><a href="#section6">6. SAMPLING (INFERENCE) ALGORITHM</a></li>
+            <li><a href="#section7">7. ARCHITECTURE: U-NET WITH TIME EMBEDDING</a></li>
+            <li><a href="#section8">8. MATHEMATICAL FOUNDATIONS</a></li>
+            <li><a href="#section9">9. ADVANTAGES OVER GANS</a></li>
+            <li><a href="#section10">10. PRACTICAL CONSIDERATIONS</a></li>
+            <li><a href="#section11">11. ADVANCED TOPICS & VARIANTS</a></li>
+        </ul>
+    </nav>
+
+    <section id="section1">
+        <h2>1. INTRODUCTION TO DIFFUSION MODELS</h2>
+
+        <h3>What are Diffusion Models?</h3>
+        <p>
+            Diffusion Models are a class of generative models that learn to generate data by reversing a gradual noising process. They have emerged as state-of-the-art for high-quality image generation, powering systems like DALL-E 2, Stable Diffusion, and Imagen.
+        </p>
+
+        <div class="highlight">
+            <strong>Core Idea:</strong> If we can learn to reverse the process of adding noise to data, we can generate new data by starting from pure noise and progressively denoising it.
+        </div>
+
+        <h3>Historical Context</h3>
+        <p>
+            Diffusion models have roots in non-equilibrium thermodynamics and were formalized for deep learning by Sohl-Dickstein et al. (2015). The breakthrough came with Denoising Diffusion Probabilistic Models (DDPM) by Ho et al. (2020), which simplified training and achieved remarkable results.
+        </p>
+
+        <p><strong>Key milestones:</strong></p>
+        <ul>
+            <li><strong>2015:</strong> Deep Unsupervised Learning using Nonequilibrium Thermodynamics</li>
+            <li><strong>2020:</strong> DDPM - Practical training procedure, high-quality samples</li>
+            <li><strong>2021:</strong> Improved DDPM - Faster sampling, better quality</li>
+            <li><strong>2022:</strong> DALL-E 2, Stable Diffusion - Mainstream applications</li>
+            <li><strong>2023+:</strong> Video diffusion, 3D generation, text-to-anything</li>
+        </ul>
+
+        <h3>Why Diffusion Models Matter</h3>
+        <p><strong>Advantages over GANs:</strong></p>
+        <ul>
+            <li><strong>Training stability:</strong> No adversarial dynamics, no mode collapse</li>
+            <li><strong>Sample quality:</strong> State-of-the-art FID scores</li>
+            <li><strong>Likelihood-based:</strong> Can evaluate exact log-likelihood</li>
+            <li><strong>Flexibility:</strong> Easy to condition on text, images, etc.</li>
+            <li><strong>Scalability:</strong> Straightforward to scale to high resolutions</li>
+        </ul>
+
+        <p><strong>Trade-offs:</strong></p>
+        <ul>
+            <li><strong>Sampling speed:</strong> Requires many denoising steps (100-1000)</li>
+            <li><strong>Computational cost:</strong> Slower inference than GANs</li>
+            <li><strong>Memory:</strong> Need to store noise schedule parameters</li>
+        </ul>
+
+        <div class="ascii-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                  DIFFUSION MODEL OVERVIEW                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  FORWARD PROCESS (Fixed, Adds Noise)                          │
+│  ═════════════════════════════════════════                     │
+│                                                                 │
+│  x₀ ────> x₁ ────> x₂ ────> ... ────> x_T                     │
+│  │        │        │                   │                       │
+│  │        │        │                   │                       │
+│  Clean   Slightly More            Pure Noise                   │
+│  Image   Noisy    Noisy           (Gaussian)                   │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────     │
+│                                                                 │
+│  REVERSE PROCESS (Learned, Removes Noise)                      │
+│  ═════════════════════════════════════════════                 │
+│                                                                 │
+│  x₀ <──── x₁ <──── x₂ <──── ... <──── x_T                     │
+│  │        │        │                   │                       │
+│  │        │        │                   │                       │
+│  Clean   Denoise  Denoise          Start Here                  │
+│  Image   Step     Step             (Random)                    │
+│          ↑        ↑                                            │
+│          └────────┴──── Neural Network Predicts               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+        </div>
+
+        <h3>The Two-Phase Process</h3>
+
+        <p><strong>Phase 1: Forward Diffusion (Fixed, No Learning)</strong></p>
+        <p>
+            Gradually add Gaussian noise to data over T timesteps until it becomes pure noise. This process is:
+        </p>
+        <ul>
+            <li>Predetermined by a noise schedule</li>
+            <li>Mathematically simple (closed-form)</li>
+            <li>No neural networks involved</li>
+            <li>Converts any data to standard Gaussian noise</li>
+        </ul>
+
+        <p><strong>Phase 2: Reverse Denoising (Learned)</strong></p>
+        <p>
+            Train a neural network to reverse the forward process, denoising step-by-step:
+        </p>
+        <ul>
+            <li>Neural network learns to predict noise at each step</li>
+            <li>Start from random noise x_T ~ N(0, I)</li>
+            <li>Iteratively denoise: x_T → x_{T-1} → ... → x_1 → x_0</li>
+            <li>Final output x_0 is a generated sample</li>
+        </ul>
+
+        <div class="note">
+            The key insight is that adding noise is easy (forward process), but if we can learn to reverse it (backward process), we have a powerful generative model.
+        </div>
+    </section>
+
+    <section id="section2">
+        <h2>2. THE DIFFUSION PROCESS INTUITION</h2>
+
+        <h3>The Ink Drop Analogy</h3>
+        <p>
+            Imagine dropping ink into a glass of water:
+        </p>
+
+        <ol>
+            <li><strong>t=0:</strong> Clear water with a drop of concentrated ink (clean image)</li>
+            <li><strong>t=1 to t=T-1:</strong> Ink gradually diffuses, spreading throughout the water (adding noise)</li>
+            <li><strong>t=T:</strong> Ink completely dispersed, water looks uniformly murky (pure noise)</li>
+        </ol>
+
+        <p>
+            Now imagine you could reverse this process: starting with murky water and somehow un-diffusing it back to a clear drop of ink. This is exactly what diffusion models learn to do!
+        </p>
+
+        <div class="ascii-diagram">
+FORWARD DIFFUSION (Ink dispersing in water)
+
+t=0          t=20         t=50         t=100
+┌────┐       ┌────┐       ┌────┐       ┌────┐
+│ ●  │       │░●░ │       │░░░░│       │░░░░│
+│    │  -->  │░░░ │  -->  │░░░░│  -->  │░░░░│
+│    │       │ ░  │       │░░░░│       │░░░░│
+└────┘       └────┘       └────┘       └────┘
+Clear       Slightly    Very Noisy   Pure Noise
+Drop        Diffused    (Uniform)
+
+REVERSE DENOISING (Learning to un-diffuse)
+
+t=100        t=50         t=20         t=0
+┌────┐       ┌────┐       ┌────┐       ┌────┐
+│░░░░│       │░░░░│       │░●░ │       │ ●  │
+│░░░░│  <--  │░░░░│  <--  │░░░ │  <--  │    │
+│░░░░│       │░░░░│       │ ░  │       │    │
+└────┘       └────┘       └────┘       └────┘
+        </div>
+
+        <h3>Why This Works for Generation</h3>
+        <p>
+            Once we've learned to denoise (reverse the diffusion), we can generate new samples:
+        </p>
+
+        <ol>
+            <li>Sample random noise from N(0, I) - like murky water</li>
+            <li>Apply the learned denoising process step by step</li>
+            <li>Gradually reveal a clean image - like un-diffusing ink</li>
+            <li>The final result is a new sample from the learned distribution</li>
+        </ol>
+
+        <div class="highlight">
+            <strong>Key Insight:</strong> We're not directly learning to generate images. We're learning to denoise, which indirectly gives us generation capability.
+        </div>
+
+        <h3>Comparison to Other Generative Models</h3>
+
+        <table>
+            <tr>
+                <th>Model</th>
+                <th>Approach</th>
+                <th>Generation Process</th>
+            </tr>
+            <tr>
+                <td>GAN</td>
+                <td>Adversarial</td>
+                <td>One-shot: noise → image (single forward pass)</td>
+            </tr>
+            <tr>
+                <td>VAE</td>
+                <td>Latent encoding</td>
+                <td>One-shot: latent code → image (decode)</td>
+            </tr>
+            <tr>
+                <td>Diffusion</td>
+                <td>Iterative denoising</td>
+                <td>Multi-step: noise → ... → image (T steps)</td>
+            </tr>
+            <tr>
+                <td>Autoregressive</td>
+                <td>Sequential prediction</td>
+                <td>Pixel-by-pixel: predict each pixel given previous</td>
+            </tr>
+        </table>
+
+        <h3>The Markov Chain Perspective</h3>
+        <p>
+            Diffusion models can be viewed as Markov chains:
+        </p>
+
+        <p><strong>Forward chain:</strong></p>
+        <ul>
+            <li>Each step x_t only depends on x_{t-1} (Markov property)</li>
+            <li>q(x_t | x_{t-1}) is a simple Gaussian transition</li>
+            <li>The chain gradually destroys information</li>
+        </ul>
+
+        <p><strong>Reverse chain:</strong></p>
+        <ul>
+            <li>Each step x_{t-1} depends on x_t (going backward)</li>
+            <li>p(x_{t-1} | x_t) is approximated by a neural network</li>
+            <li>The chain gradually creates information</li>
+        </ul>
+
+        <div class="formula">
+Forward: x_0 → x_1 → x_2 → ... → x_T (destroy structure)<br>
+Reverse: x_T → x_{T-1} → x_{T-2} → ... → x_0 (create structure)
+        </div>
+    </section>
+
+    <section id="section3">
+        <h2>3. FORWARD DIFFUSION MATHEMATICS</h2>
+
+        <h3>Single-Step Forward Process</h3>
+        <p>
+            At each timestep t, we add Gaussian noise to the previous state:
+        </p>
+
+        <div class="formula">
+q(x_t | x_{t-1}) = N(x_t; √(1 - β_t) · x_{t-1}, β_t · I)
+        </div>
+
+        <p><strong>Components:</strong></p>
+        <ul>
+            <li><strong>x_t:</strong> Noisy image at timestep t</li>
+            <li><strong>x_{t-1}:</strong> Image from previous timestep</li>
+            <li><strong>β_t:</strong> Noise schedule parameter (controls how much noise to add)</li>
+            <li><strong>√(1 - β_t):</strong> Scaling factor to preserve variance</li>
+            <li><strong>I:</strong> Identity matrix (isotropic noise)</li>
+        </ul>
+
+        <p><strong>Sampling equation:</strong></p>
+        <div class="formula">
+x_t = √(1 - β_t) · x_{t-1} + √β_t · ε,  where ε ~ N(0, I)
+        </div>
+
+        <h3>The Noise Schedule β_t</h3>
+        <p>
+            The noise schedule controls how quickly we add noise. It's a sequence of values from β_1 to β_T.
+        </p>
+
+        <p><strong>Common schedules:</strong></p>
+        <ul>
+            <li><strong>Linear:</strong> β_t increases linearly from β_1 = 1e-4 to β_T = 0.02</li>
+            <li><strong>Cosine:</strong> Smoother increase, better preserves structure</li>
+            <li><strong>Quadratic:</strong> Faster increase in noise</li>
+        </ul>
+
+        <div class="note">
+            The choice of noise schedule significantly affects training stability and sample quality. Linear schedule is most common for DDPM.
+        </div>
+
+        <h3>Multi-Step Forward Process (Closed Form)</h3>
+        <p>
+            A powerful property: we can jump directly from x_0 to x_t in one step, without computing intermediate steps!
+        </p>
+
+        <p><strong>Define cumulative products:</strong></p>
+        <div class="formula">
+α_t = 1 - β_t<br>
+ᾱ_t = ∏_{s=1}^t α_s  (product of all alphas up to t)
+        </div>
+
+        <p><strong>Closed-form sampling:</strong></p>
+        <div class="formula">
+q(x_t | x_0) = N(x_t; √ᾱ_t · x_0, (1 - ᾱ_t) · I)
+        </div>
+
+        <p><strong>Reparameterization for sampling:</strong></p>
+        <div class="formula">
+x_t = √ᾱ_t · x_0 + √(1 - ᾱ_t) · ε,  where ε ~ N(0, I)
+        </div>
+
+        <div class="highlight">
+            <strong>Key Advantage:</strong> This closed form allows us to train on any timestep t without running the full forward process. We can directly sample noisy versions of x_0 at any noise level.
+        </div>
+
+        <h3>Properties of the Forward Process</h3>
+
+        <p><strong>1. Variance preservation:</strong></p>
+        <p>
+            The variance of x_t is designed to remain constant (approximately 1):
+        </p>
+        <div class="formula">
+Var(x_t) = ᾱ_t · Var(x_0) + (1 - ᾱ_t) ≈ 1
+        </div>
+
+        <p><strong>2. Convergence to pure noise:</strong></p>
+        <p>
+            As t → T, ᾱ_t → 0, so:
+        </p>
+        <div class="formula">
+x_T ≈ √(1 - ᾱ_T) · ε ≈ N(0, I)
+        </div>
+
+        <p>
+            This means x_T is approximately pure Gaussian noise, regardless of the original x_0.
+        </p>
+
+        <p><strong>3. Information destruction:</strong></p>
+        <p>
+            The signal-to-noise ratio decreases monotonically:
+        </p>
+        <div class="formula">
+SNR(t) = ᾱ_t / (1 - ᾱ_t)
+        </div>
+
+        <p>As t increases, SNR decreases, and the image loses structure.</p>
+
+        <h3>PyTorch Implementation of Forward Process</h3>
+
+        <pre><code># Noise schedule (linear)
+def linear_beta_schedule(timesteps, beta_start=1e-4, beta_end=0.02):
+    return torch.linspace(beta_start, beta_end, timesteps)
+
+# Precompute alpha values
+betas = linear_beta_schedule(timesteps=1000)
+alphas = 1.0 - betas
+alphas_cumprod = torch.cumprod(alphas, dim=0)
+alphas_cumprod_prev = torch.cat([torch.tensor([1.0]), alphas_cumprod[:-1]])
+
+# Forward diffusion (closed form)
+def q_sample(x_0, t, noise=None):
+    """
+    Sample from q(x_t | x_0) - add noise to x_0 directly
+
+    Args:
+        x_0: Clean image (batch_size, channels, height, width)
+        t: Timestep (batch_size,)
+        noise: Optional pre-sampled noise
+
+    Returns:
+        Noisy image x_t
+    """
+    if noise is None:
+        noise = torch.randn_like(x_0)
+
+    # Get sqrt(alpha_cumprod) for each sample in batch
+    sqrt_alphas_cumprod_t = extract(torch.sqrt(alphas_cumprod), t, x_0.shape)
+    sqrt_one_minus_alphas_cumprod_t = extract(
+        torch.sqrt(1.0 - alphas_cumprod), t, x_0.shape
+    )
+
+    # Apply noise: x_t = sqrt(alpha_cumprod_t) * x_0 + sqrt(1 - alpha_cumprod_t) * noise
+    return sqrt_alphas_cumprod_t * x_0 + sqrt_one_minus_alphas_cumprod_t * noise
+
+def extract(a, t, x_shape):
+    """
+    Extract values from 'a' at indices 't' and reshape for broadcasting
+    """
+    batch_size = t.shape[0]
+    out = a.gather(-1, t)
+    return out.reshape(batch_size, *((1,) * (len(x_shape) - 1)))</code></pre>
+    </section>
+
+    <section id="section4">
+        <h2>4. REVERSE DENOISING PROCESS</h2>
+
+        <h3>The Goal: Learn p(x_{t-1} | x_t)</h3>
+        <p>
+            The reverse process learns to go backward through the diffusion chain, removing noise step by step.
+        </p>
+
+        <p><strong>If we knew the true data distribution:</strong></p>
+        <div class="formula">
+p(x_{t-1} | x_t) = ?
+        </div>
+
+        <p>
+            This is intractable to compute exactly. However, if β_t is small enough, the reverse process is also approximately Gaussian!
+        </p>
+
+        <div class="highlight">
+            <strong>Key Theorem:</strong> When β_t is small, the reverse process p(x_{t-1} | x_t) is approximately Gaussian with learnable mean and fixed variance.
+        </div>
+
+        <h3>Parameterizing the Reverse Process</h3>
+        <p>
+            We model the reverse process as a Gaussian:
+        </p>
+
+        <div class="formula">
+p_θ(x_{t-1} | x_t) = N(x_{t-1}; μ_θ(x_t, t), Σ_θ(x_t, t))
+        </div>
+
+        <p><strong>Simplification (DDPM):</strong></p>
+        <p>
+            Keep variance fixed, only learn the mean:
+        </p>
+
+        <div class="formula">
+p_θ(x_{t-1} | x_t) = N(x_{t-1}; μ_θ(x_t, t), σ_t² · I)
+        </div>
+
+        <p>Where σ_t² is chosen to be either β_t or β̃_t (posterior variance).</p>
+
+        <h3>What Should the Neural Network Predict?</h3>
+        <p>
+            There are multiple equivalent parameterizations:
+        </p>
+
+        <p><strong>Option 1: Predict the mean μ_θ(x_t, t) directly</strong></p>
+        <p><strong>Option 2: Predict the noise ε_θ(x_t, t)</strong></p>
+        <p><strong>Option 3: Predict the clean image x̂_0</strong></p>
+
+        <p>
+            DDPM found that predicting the noise (Option 2) works best empirically.
+        </p>
+
+        <div class="highlight">
+            <strong>Standard Choice:</strong> Train a neural network ε_θ(x_t, t) to predict the noise that was added at timestep t.
+        </div>
+
+        <h3>Noise Prediction Network</h3>
+        <p>
+            Given noisy image x_t and timestep t, predict the noise ε:
+        </p>
+
+        <div class="formula">
+ε_θ(x_t, t) ≈ ε
+        </div>
+
+        <p>Where ε is the actual noise that was added to create x_t from x_0:</p>
+
+        <div class="formula">
+x_t = √ᾱ_t · x_0 + √(1 - ᾱ_t) · ε
+        </div>
+
+        <p><strong>Once we have predicted noise, we can compute the mean:</strong></p>
+
+        <div class="formula">
+μ_θ(x_t, t) = (1/√α_t) · (x_t - (β_t/√(1 - ᾱ_t)) · ε_θ(x_t, t))
+        </div>
+
+        <h3>Denoising Step Formula</h3>
+        <p>
+            To sample x_{t-1} given x_t, we:
+        </p>
+
+        <ol>
+            <li>Predict the noise using the network: ε̂ = ε_θ(x_t, t)</li>
+            <li>Compute the mean using the formula above</li>
+            <li>Sample with added randomness (except at t=1):</li>
+        </ol>
+
+        <div class="formula">
+x_{t-1} = μ_θ(x_t, t) + σ_t · z,  where z ~ N(0, I) if t > 1, else z = 0
+        </div>
+
+        <div class="note">
+            At the final step (t=1), we don't add noise - we just use the predicted mean to get x_0.
+        </div>
+
+        <h3>Posterior Variance</h3>
+        <p>
+            The posterior q(x_{t-1} | x_t, x_0) has variance:
+        </p>
+
+        <div class="formula">
+β̃_t = ((1 - ᾱ_{t-1}) / (1 - ᾱ_t)) · β_t
+        </div>
+
+        <p><strong>Two choices for σ_t²:</strong></p>
+        <ul>
+            <li><strong>σ_t² = β_t:</strong> Upper bound, more random sampling</li>
+            <li><strong>σ_t² = β̃_t:</strong> Lower bound, less random, often better quality</li>
+        </ul>
+
+        <p>DDPM uses β̃_t for better results.</p>
+
+        <h3>Intuition: Separating Signal and Noise</h3>
+        <p>
+            Think of x_t as a mixture of signal and noise:
+        </p>
+
+        <div class="formula">
+x_t = signal_t + noise_t
+        </div>
+
+        <p>
+            The network learns to identify and remove the noise component, leaving us with a slightly cleaner signal. Repeating this T times progressively reveals the original image.
+        </p>
+
+        <div class="ascii-diagram">
+REVERSE DENOISING VISUALIZATION
+
+t=1000 (Pure Noise)              t=500 (Vague Shapes)
+┌──────────────┐                 ┌──────────────┐
+│▓▓▒▒░░▓▓▒▒░░│                 │░░  ▓▓  ░░  │
+│▒▒░░▓▓▒▒░░▓▓│   Denoise       │  ░░▓▓░░    │
+│░░▓▓▒▒░░▓▓▒▒│   ──────>       │░░  ░░  ▓▓  │
+│▓▓▒▒░░▓▓▒▒░░│                 │    ▓▓  ░░░░│
+└──────────────┘                 └──────────────┘
+
+t=100 (Clear Structure)          t=0 (Clean Image)
+┌──────────────┐                 ┌──────────────┐
+│              │                 │              │
+│   ▓▓▓▓▓▓    │   Denoise       │   ████████   │
+│   ▓▓  ▓▓    │   ──────>       │   ██  ██    │
+│   ▓▓▓▓▓▓    │                 │   ████████   │
+└──────────────┘                 └──────────────┘
+        </div>
+    </section>
+
+    <section id="section5">
+        <h2>5. TRAINING ALGORITHM</h2>
+
+        <h3>Training Objective</h3>
+        <p>
+            The goal is to train the neural network ε_θ(x_t, t) to predict the noise that was added at each timestep.
+        </p>
+
+        <p><strong>Simplified training loss (DDPM):</strong></p>
+
+        <div class="formula">
+L_simple = E_{t, x_0, ε} [ ||ε - ε_θ(x_t, t)||² ]
+        </div>
+
+        <p><strong>Where:</strong></p>
+        <ul>
+            <li><strong>t:</strong> Random timestep sampled uniformly from {1, ..., T}</li>
+            <li><strong>x_0:</strong> Clean image from training data</li>
+            <li><strong>ε:</strong> Random noise sampled from N(0, I)</li>
+            <li><strong>x_t:</strong> Noisy image created by adding ε to x_0</li>
+            <li><strong>ε_θ(x_t, t):</strong> Network's prediction of the noise</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>Training is simple:</strong> Just predict what noise was added! This is much simpler than GANs (no adversarial training) or VAEs (no KL divergence).
+        </div>
+
+        <h3>Training Algorithm Pseudocode</h3>
+
+        <div class="highlight">
+            <strong>DDPM Training Loop:</strong><br><br>
+            REPEAT until converged:<br>
+            &nbsp;&nbsp;1. Sample clean image x_0 from training data<br>
+            &nbsp;&nbsp;2. Sample timestep t ~ Uniform({1, ..., T})<br>
+            &nbsp;&nbsp;3. Sample noise ε ~ N(0, I)<br>
+            &nbsp;&nbsp;4. Create noisy image: x_t = √ᾱ_t · x_0 + √(1 - ᾱ_t) · ε<br>
+            &nbsp;&nbsp;5. Predict noise: ε̂ = ε_θ(x_t, t)<br>
+            &nbsp;&nbsp;6. Compute loss: L = ||ε - ε̂||²<br>
+            &nbsp;&nbsp;7. Update θ using gradient descent: θ ← θ - η · ∇_θ L<br>
+        </div>
+
+        <h3>PyTorch Training Implementation</h3>
+
+        <pre><code># Simplified DDPM training loop
+def train_ddpm(model, dataloader, optimizer, timesteps=1000, epochs=100):
+    """
+    Train a diffusion model to predict noise
+
+    Args:
+        model: Neural network (U-Net) that predicts noise
+        dataloader: Training data loader
+        optimizer: Optimizer (e.g., Adam)
+        timesteps: Number of diffusion steps (T)
+        epochs: Training epochs
+    """
+
+    for epoch in range(epochs):
+        for batch_idx, (x_0, _) in enumerate(dataloader):
+            x_0 = x_0.to(device)
+            batch_size = x_0.size(0)
+
+            # Sample random timesteps
+            t = torch.randint(0, timesteps, (batch_size,), device=device).long()
+
+            # Sample noise
+            noise = torch.randn_like(x_0)
+
+            # Create noisy images using closed-form forward process
+            x_t = q_sample(x_0, t, noise=noise)
+
+            # Predict noise
+            noise_pred = model(x_t, t)
+
+            # Compute MSE loss
+            loss = F.mse_loss(noise_pred, noise)
+
+            # Backprop and update
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            if batch_idx % 100 == 0:
+                print(f'Epoch {epoch}, Batch {batch_idx}, Loss: {loss.item():.4f}')
+
+        # Optionally generate samples for monitoring
+        if epoch % 10 == 0:
+            generate_samples(model, timesteps, num_samples=16)</code></pre>
+
+        <h3>Why This Training Works</h3>
+
+        <p><strong>1. Direct supervision:</strong></p>
+        <p>
+            Unlike GANs, we have a clear ground truth (the actual noise ε). The network learns a supervised denoising task.
+        </p>
+
+        <p><strong>2. All timesteps contribute:</strong></p>
+        <p>
+            By randomly sampling t, the network learns to denoise at all noise levels. This makes training stable and comprehensive.
+        </p>
+
+        <p><strong>3. Variance reduction:</strong></p>
+        <p>
+            The loss is an expectation over many random variables (t, x_0, ε), but in practice we get low-variance gradients.
+        </p>
+
+        <p><strong>4. Scalability:</strong></p>
+        <p>
+            The loss scales well - we can train on high-resolution images by sampling small patches or using progressive training.
+        </p>
+
+        <h3>Training Hyperparameters</h3>
+
+        <table>
+            <tr>
+                <th>Parameter</th>
+                <th>Typical Value</th>
+                <th>Purpose</th>
+            </tr>
+            <tr>
+                <td>T (timesteps)</td>
+                <td>1000</td>
+                <td>Number of diffusion steps</td>
+            </tr>
+            <tr>
+                <td>Learning rate</td>
+                <td>1e-4 to 2e-4</td>
+                <td>Adam optimizer LR</td>
+            </tr>
+            <tr>
+                <td>Batch size</td>
+                <td>32-128</td>
+                <td>Depends on image size and GPU memory</td>
+            </tr>
+            <tr>
+                <td>β_1</td>
+                <td>1e-4</td>
+                <td>Starting noise schedule value</td>
+            </tr>
+            <tr>
+                <td>β_T</td>
+                <td>0.02</td>
+                <td>Final noise schedule value</td>
+            </tr>
+            <tr>
+                <td>EMA decay</td>
+                <td>0.9999</td>
+                <td>Exponential moving average of weights</td>
+            </tr>
+        </table>
+
+        <div class="note">
+            Many implementations use Exponential Moving Average (EMA) of model weights for sampling, which improves sample quality significantly.
+        </div>
+
+        <h3>Loss Variations</h3>
+
+        <p><strong>Simple loss (DDPM):</strong></p>
+        <div class="formula">
+L_simple = ||ε - ε_θ(x_t, t)||²
+        </div>
+
+        <p><strong>Weighted loss:</strong></p>
+        <div class="formula">
+L_weighted = E[w_t · ||ε - ε_θ(x_t, t)||²]
+        </div>
+
+        <p>Where w_t can emphasize certain timesteps.</p>
+
+        <p><strong>Hybrid loss (predict x_0):</strong></p>
+        <div class="formula">
+L_hybrid = ||x_0 - x̂_0||² + λ · ||ε - ε_θ(x_t, t)||²
+        </div>
+
+        <p>Improved DDPM uses hybrid objectives for better results.</p>
+    </section>
+
+    <section id="section6">
+        <h2>6. SAMPLING (INFERENCE) ALGORITHM</h2>
+
+        <h3>Generation Process</h3>
+        <p>
+            Once trained, we can generate new images by sampling from the reverse process.
+        </p>
+
+        <div class="highlight">
+            <strong>Sampling Algorithm (DDPM):</strong><br><br>
+            1. Sample x_T ~ N(0, I) (pure random noise)<br>
+            <br>
+            2. FOR t = T, T-1, ..., 1:<br>
+            &nbsp;&nbsp;&nbsp;a. Predict noise: ε̂ = ε_θ(x_t, t)<br>
+            &nbsp;&nbsp;&nbsp;b. Compute mean: μ = (1/√α_t) · (x_t - (β_t/√(1 - ᾱ_t)) · ε̂)<br>
+            &nbsp;&nbsp;&nbsp;c. Sample z ~ N(0, I) if t > 1, else z = 0<br>
+            &nbsp;&nbsp;&nbsp;d. Compute x_{t-1} = μ + σ_t · z<br>
+            <br>
+            3. RETURN x_0 (generated image)
+        </div>
+
+        <h3>PyTorch Sampling Implementation</h3>
+
+        <pre><code># Sampling (generation) algorithm
+@torch.no_grad()
+def p_sample(model, x_t, t, t_index):
+    """
+    Single reverse diffusion step: x_t -> x_{t-1}
+
+    Args:
+        model: Trained noise prediction network
+        x_t: Current noisy image
+        t: Current timestep (tensor)
+        t_index: Timestep as integer for indexing
+
+    Returns:
+        x_{t-1}: Less noisy image
+    """
+    # Precomputed values
+    betas_t = extract(betas, t, x_t.shape)
+    sqrt_one_minus_alphas_cumprod_t = extract(
+        torch.sqrt(1. - alphas_cumprod), t, x_t.shape
+    )
+    sqrt_recip_alphas_t = extract(torch.sqrt(1.0 / alphas), t, x_t.shape)
+
+    # Predict noise
+    predicted_noise = model(x_t, t)
+
+    # Compute mean
+    model_mean = sqrt_recip_alphas_t * (
+        x_t - betas_t * predicted_noise / sqrt_one_minus_alphas_cumprod_t
+    )
+
+    if t_index == 0:
+        # No noise at final step
+        return model_mean
+    else:
+        # Add noise
+        posterior_variance_t = extract(posterior_variance, t, x_t.shape)
+        noise = torch.randn_like(x_t)
+        return model_mean + torch.sqrt(posterior_variance_t) * noise
+
+@torch.no_grad()
+def p_sample_loop(model, shape, timesteps=1000):
+    """
+    Full sampling loop: x_T -> x_0
+
+    Args:
+        model: Trained diffusion model
+        shape: Shape of images to generate (batch, channels, height, width)
+        timesteps: Number of diffusion steps
+
+    Returns:
+        Generated images
+    """
+    device = next(model.parameters()).device
+
+    # Start from pure noise
+    x = torch.randn(shape, device=device)
+
+    # Iteratively denoise
+    for i in reversed(range(0, timesteps)):
+        t = torch.full((shape[0],), i, device=device, dtype=torch.long)
+        x = p_sample(model, x, t, i)
+
+    return x
+
+# Generate samples
+@torch.no_grad()
+def generate_samples(model, timesteps, num_samples=16, channels=3,
+                    img_size=32):
+    """
+    Generate new samples from trained model
+    """
+    model.eval()
+    shape = (num_samples, channels, img_size, img_size)
+    samples = p_sample_loop(model, shape, timesteps)
+
+    # Denormalize from [-1, 1] to [0, 1]
+    samples = (samples + 1) / 2
+    samples = torch.clamp(samples, 0, 1)
+
+    return samples</code></pre>
+
+        <h3>Sampling Time Complexity</h3>
+        <p>
+            The main drawback of diffusion models is slow sampling:
+        </p>
+
+        <ul>
+            <li><strong>T forward passes:</strong> Typically T = 1000 steps</li>
+            <li><strong>Sequential:</strong> Must run steps in order, can't parallelize</li>
+            <li><strong>Time cost:</strong> ~1000× slower than GANs</li>
+        </ul>
+
+        <p><strong>Example timing (single image):</strong></p>
+        <ul>
+            <li>GAN: ~0.01 seconds (1 forward pass)</li>
+            <li>DDPM: ~10 seconds (1000 forward passes)</li>
+        </ul>
+
+        <div class="note">
+            This has motivated research into faster sampling methods like DDIM, which can reduce steps to 50-100 with minimal quality loss.
+        </div>
+
+        <h3>Accelerated Sampling: DDIM</h3>
+        <p>
+            Denoising Diffusion Implicit Models (DDIM) enable faster sampling by skipping timesteps.
+        </p>
+
+        <p><strong>Key idea:</strong></p>
+        <ul>
+            <li>Instead of using all T steps, use only a subset (e.g., every 20th step)</li>
+            <li>Modify the sampling equation to be deterministic (remove noise)</li>
+            <li>Can reduce from 1000 steps to 50 steps with minimal quality loss</li>
+        </ul>
+
+        <div class="formula">
+DDPM: 1000 steps, stochastic (adds noise at each step)<br>
+DDIM: 50-100 steps, deterministic (no added noise), ~20× faster
+        </div>
+
+        <h3>Conditional Generation</h3>
+        <p>
+            Diffusion models can be easily conditioned on additional information (text, class labels, images):
+        </p>
+
+        <p><strong>Classifier-free guidance:</strong></p>
+        <div class="formula">
+ε̂_guided = ε̂_uncond + w · (ε̂_cond - ε̂_uncond)
+        </div>
+
+        <p>Where:</p>
+        <ul>
+            <li><strong>ε̂_cond:</strong> Noise predicted with conditioning (e.g., text prompt)</li>
+            <li><strong>ε̂_uncond:</strong> Noise predicted without conditioning</li>
+            <li><strong>w:</strong> Guidance weight (higher = follow condition more closely)</li>
+        </ul>
+
+        <p>This technique is used in DALL-E 2 and Stable Diffusion for text-to-image generation.</p>
+    </section>
+
+    <section id="section7">
+        <h2>7. ARCHITECTURE: U-NET WITH TIME EMBEDDING</h2>
+
+        <h3>Why U-Net?</h3>
+        <p>
+            The standard architecture for diffusion models is a U-Net with time embeddings. This architecture:
+        </p>
+
+        <ul>
+            <li><strong>Preserves spatial resolution:</strong> Skip connections maintain fine details</li>
+            <li><strong>Multi-scale processing:</strong> Downsampling and upsampling capture different levels of structure</li>
+            <li><strong>Time-aware:</strong> Embeddings tell the network which noise level to denoise</li>
+            <li><strong>Proven effective:</strong> Originally for image segmentation, works great for denoising</li>
+        </ul>
+
+        <div class="ascii-diagram">
+U-NET ARCHITECTURE FOR DIFFUSION
+
+Input: Noisy Image x_t + Time Embedding t
+
+┌─────────────────────────────────────────────────────┐
+│                   ENCODER (Downsample)              │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  x_t (64×64) ──> Conv+GN+SiLU ──> 64×64, C=64     │
+│                       │              │              │
+│                       │         (skip conn)         │
+│                       ↓              │              │
+│              Downsample ──> 32×32, C=128 ──┐       │
+│                       │              │      │       │
+│                       │         (skip conn) │       │
+│                       ↓              │      │       │
+│              Downsample ──> 16×16, C=256 ──┼──┐    │
+│                       │              │      │  │    │
+│                       │         (skip conn) │  │    │
+│                       ↓              │      │  │    │
+│                                      │      │  │    │
+├─────────────────────────────────────┼──────┼──┼────┤
+│                  BOTTLENECK          │      │  │    │
+├─────────────────────────────────────┼──────┼──┼────┤
+│                                      │      │  │    │
+│         Self-Attention + ResBlocks   │      │  │    │
+│                 8×8, C=512           │      │  │    │
+│                       │              │      │  │    │
+├─────────────────────────────────────┼──────┼──┼────┤
+│                  DECODER (Upsample)  │      │  │    │
+├─────────────────────────────────────┼──────┼──┼────┤
+│                       │              │      │  │    │
+│                Upsample ──> 16×16 <──┘      │  │    │
+│                       │    + skip           │  │    │
+│                       ↓                     │  │    │
+│                Upsample ──> 32×32 <─────────┘  │    │
+│                       │    + skip              │    │
+│                       ↓                        │    │
+│                Upsample ──> 64×64 <────────────┘    │
+│                       │    + skip                   │
+│                       ↓                             │
+│              Output Conv ──> 64×64, C=3            │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+
+Output: Predicted Noise ε̂
+
+Time Embedding t is injected at each resolution level
+        </div>
+
+        <h3>Time Embedding</h3>
+        <p>
+            The timestep t is encoded into a high-dimensional embedding that's injected into the network.
+        </p>
+
+        <p><strong>Sinusoidal positional encoding:</strong></p>
+        <div class="formula">
+emb[2i] = sin(t / 10000^(2i/d))<br>
+emb[2i+1] = cos(t / 10000^(2i/d))
+        </div>
+
+        <p>Where d is the embedding dimension (typically 256 or 512).</p>
+
+        <p><strong>Why this works:</strong></p>
+        <ul>
+            <li>Different frequencies capture different timescales</li>
+            <li>Similar to positional encodings in Transformers</li>
+            <li>Network learns to condition behavior on noise level</li>
+        </ul>
+
+        <pre><code># Time embedding (sinusoidal)
+class SinusoidalPositionEmbeddings(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, time):
+        device = time.device
+        half_dim = self.dim // 2
+        embeddings = math.log(10000) / (half_dim - 1)
+        embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
+        embeddings = time[:, None] * embeddings[None, :]
+        embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
+        return embeddings</code></pre>
+
+        <h3>Simplified U-Net Implementation</h3>
+
+        <pre><code># Simplified U-Net for diffusion
+class SimpleUNet(nn.Module):
+    def __init__(self, channels=3, time_emb_dim=256):
+        super().__init__()
+
+        # Time embedding
+        self.time_mlp = nn.Sequential(
+            SinusoidalPositionEmbeddings(time_emb_dim),
+            nn.Linear(time_emb_dim, time_emb_dim),
+            nn.GELU(),
+            nn.Linear(time_emb_dim, time_emb_dim)
+        )
+
+        # Encoder (downsampling)
+        self.conv1 = nn.Conv2d(channels, 64, 3, padding=1)
+        self.down1 = Down(64, 128, time_emb_dim)
+        self.down2 = Down(128, 256, time_emb_dim)
+
+        # Bottleneck
+        self.bottleneck = nn.Sequential(
+            nn.Conv2d(256, 512, 3, padding=1),
+            nn.GroupNorm(8, 512),
+            nn.SiLU(),
+            SelfAttention(512),  # Attention at lowest resolution
+            nn.Conv2d(512, 256, 3, padding=1)
+        )
+
+        # Decoder (upsampling)
+        self.up1 = Up(256 + 256, 128, time_emb_dim)  # +256 from skip connection
+        self.up2 = Up(128 + 128, 64, time_emb_dim)
+
+        # Output
+        self.out = nn.Conv2d(64 + 64, channels, 1)
+
+    def forward(self, x, t):
+        # Get time embedding
+        t_emb = self.time_mlp(t)
+
+        # Encoder with skip connections
+        x1 = self.conv1(x)
+        x2 = self.down1(x1, t_emb)
+        x3 = self.down2(x2, t_emb)
+
+        # Bottleneck
+        x = self.bottleneck(x3)
+
+        # Decoder with skip connections
+        x = self.up1(torch.cat([x, x3], dim=1), t_emb)
+        x = self.up2(torch.cat([x, x2], dim=1), t_emb)
+        x = self.out(torch.cat([x, x1], dim=1))
+
+        return x</code></pre>
+
+        <h3>Key Components</h3>
+
+        <p><strong>1. ResNet blocks:</strong></p>
+        <ul>
+            <li>Residual connections for gradient flow</li>
+            <li>Group normalization (more stable than BatchNorm)</li>
+            <li>SiLU (Swish) activation function</li>
+        </ul>
+
+        <p><strong>2. Self-attention layers:</strong></p>
+        <ul>
+            <li>Applied at lower resolutions (e.g., 16×16)</li>
+            <li>Captures long-range dependencies</li>
+            <li>Crucial for image coherence</li>
+        </ul>
+
+        <p><strong>3. Skip connections:</strong></p>
+        <ul>
+            <li>Concatenate encoder features with decoder features</li>
+            <li>Preserve fine-grained spatial information</li>
+            <li>Enable accurate noise prediction</li>
+        </ul>
+
+        <p><strong>4. Adaptive Group Normalization:</strong></p>
+        <ul>
+            <li>Normalizes features based on time embedding</li>
+            <li>Allows network to adapt to different noise levels</li>
+            <li>Replaces BatchNorm for better conditioning</li>
+        </ul>
+    </section>
+
+    <section id="section8">
+        <h2>8. MATHEMATICAL FOUNDATIONS</h2>
+
+        <h3>Variational Lower Bound</h3>
+        <p>
+            The theoretical foundation of diffusion models comes from maximizing the log-likelihood of the data.
+        </p>
+
+        <p><strong>Goal: Maximize</strong></p>
+        <div class="formula">
+log p_θ(x_0) = log ∫ p_θ(x_{0:T}) dx_{1:T}
+        </div>
+
+        <p>
+            This is intractable, so we optimize a variational lower bound (ELBO):
+        </p>
+
+        <div class="formula">
+log p_θ(x_0) ≥ E_q [ log p_θ(x_{0:T}) / q(x_{1:T} | x_0) ]
+        </div>
+
+        <div class="note">
+            In practice, the simplified loss L_simple works better than directly optimizing the ELBO, but the ELBO provides theoretical justification.
+        </div>
+
+        <h3>Connection to Score Matching</h3>
+        <p>
+            Diffusion models are closely related to score-based generative models.
+        </p>
+
+        <p><strong>The score:</strong></p>
+        <div class="formula">
+s_θ(x, t) = ∇_x log p_t(x)
+        </div>
+
+        <p>
+            This is the gradient of the log density. Predicting the noise ε is equivalent to predicting the score:
+        </p>
+
+        <div class="formula">
+ε_θ(x_t, t) = -√(1 - ᾱ_t) · s_θ(x_t, t)
+        </div>
+
+        <p>
+            Both approaches learn the same thing from different perspectives!
+        </p>
+
+        <h3>Stochastic Differential Equations (SDEs)</h3>
+        <p>
+            The diffusion process can be viewed as discretizing a continuous SDE.
+        </p>
+
+        <p><strong>Forward SDE:</strong></p>
+        <div class="formula">
+dx = f(x, t)dt + g(t)dw
+        </div>
+
+        <p>
+            Where dw is Brownian motion. The reverse-time SDE is:
+        </p>
+
+        <div class="formula">
+dx = [f(x, t) - g(t)² ∇_x log p_t(x)] dt + g(t)dw̄
+        </div>
+
+        <p>
+            This continuous perspective enables:
+        </p>
+        <ul>
+            <li>Flexible sampling trajectories</li>
+            <li>Connections to neural ODEs</li>
+            <li>Probability flow ODEs for deterministic sampling</li>
+        </ul>
+
+        <h3>Why the Math Works</h3>
+
+        <p><strong>1. Small diffusion steps:</strong></p>
+        <p>
+            When β_t is small, the reverse process is approximately Gaussian, making it learnable.
+        </p>
+
+        <p><strong>2. Markov property:</strong></p>
+        <p>
+            Each step only depends on the previous one, simplifying the distribution.
+        </p>
+
+        <p><strong>3. Convergence to Gaussian:</strong></p>
+        <p>
+            After enough steps, any distribution becomes approximately Gaussian (central limit theorem behavior).
+        </p>
+
+        <p><strong>4. Tractable training:</strong></p>
+        <p>
+            The closed-form forward process enables efficient training without running the full chain.
+        </p>
+    </section>
+
+    <section id="section9">
+        <h2>9. ADVANTAGES OVER GANS</h2>
+
+        <h3>Training Stability</h3>
+        <p>
+            Diffusion models have fundamentally stable training:
+        </p>
+
+        <ul>
+            <li><strong>No adversarial dynamics:</strong> No discriminator to balance</li>
+            <li><strong>No mode collapse:</strong> Cover full distribution naturally</li>
+            <li><strong>Monotonic improvement:</strong> Loss consistently decreases</li>
+            <li><strong>Robust to hyperparameters:</strong> Less sensitive tuning</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>Key Difference:</strong> Diffusion models optimize a single objective (predict noise), while GANs balance two competing objectives (generator vs discriminator).
+        </div>
+
+        <h3>Sample Quality and Diversity</h3>
+        <p><strong>Quality metrics:</strong></p>
+        <ul>
+            <li>State-of-the-art FID scores (better than most GANs)</li>
+            <li>Sharp, detailed images</li>
+            <li>Consistent quality across samples</li>
+        </ul>
+
+        <p><strong>Diversity:</strong></p>
+        <ul>
+            <li>No mode collapse - naturally cover full distribution</li>
+            <li>Can generate rare examples</li>
+            <li>Better precision-recall trade-off</li>
+        </ul>
+
+        <h3>Likelihood-Based Framework</h3>
+        <p>
+            Unlike GANs, diffusion models can compute likelihood:
+        </p>
+
+        <ul>
+            <li><strong>Evaluate log p(x):</strong> Measure how likely a sample is</li>
+            <li><strong>Anomaly detection:</strong> Low likelihood indicates outliers</li>
+            <li><strong>Compression:</strong> Use as a learned compression codec</li>
+            <li><strong>Theoretical guarantees:</strong> Provable convergence properties</li>
+        </ul>
+
+        <h3>Conditioning and Control</h3>
+        <p>
+            Diffusion models are easier to condition:
+        </p>
+
+        <p><strong>Text-to-image (like DALL-E 2, Stable Diffusion):</strong></p>
+        <ul>
+            <li>Simply concatenate text embeddings with time embeddings</li>
+            <li>Classifier-free guidance for strong conditioning</li>
+            <li>More controllable than GAN conditioning</li>
+        </ul>
+
+        <p><strong>Inpainting and editing:</strong></p>
+        <ul>
+            <li>Easy to constrain certain pixels</li>
+            <li>Iterative refinement enables editing</li>
+            <li>Better than GAN inversion</li>
+        </ul>
+
+        <h3>Comparison Table: Diffusion Models vs GANs</h3>
+
+        <table>
+            <tr>
+                <th>Aspect</th>
+                <th>Diffusion Models</th>
+                <th>GANs</th>
+            </tr>
+            <tr>
+                <td>Training Stability</td>
+                <td>Very stable, no collapse</td>
+                <td>Unstable, mode collapse common</td>
+            </tr>
+            <tr>
+                <td>Sample Quality</td>
+                <td>State-of-the-art (FID ~2-5)</td>
+                <td>Excellent (FID ~5-20)</td>
+            </tr>
+            <tr>
+                <td>Sample Diversity</td>
+                <td>Excellent coverage</td>
+                <td>Can miss modes</td>
+            </tr>
+            <tr>
+                <td>Sampling Speed</td>
+                <td>Slow (1000 steps, ~10s)</td>
+                <td>Fast (1 step, ~0.01s)</td>
+            </tr>
+            <tr>
+                <td>Training Objective</td>
+                <td>Single loss (MSE)</td>
+                <td>Minimax game (adversarial)</td>
+            </tr>
+            <tr>
+                <td>Likelihood</td>
+                <td>Can compute log p(x)</td>
+                <td>Cannot compute likelihood</td>
+            </tr>
+            <tr>
+                <td>Hyperparameter Tuning</td>
+                <td>Robust, less sensitive</td>
+                <td>Sensitive, careful tuning needed</td>
+            </tr>
+            <tr>
+                <td>Conditioning</td>
+                <td>Easy and flexible</td>
+                <td>More difficult</td>
+            </tr>
+            <tr>
+                <td>Architecture</td>
+                <td>U-Net standard</td>
+                <td>Various (DCGAN, StyleGAN)</td>
+            </tr>
+            <tr>
+                <td>Applications</td>
+                <td>Text-to-image, super-resolution</td>
+                <td>Face generation, style transfer</td>
+            </tr>
+        </table>
+
+        <div class="note">
+            While diffusion models excel in most areas, GANs still have the advantage for real-time applications due to their much faster sampling speed.
+        </div>
+    </section>
+
+    <section id="section10">
+        <h2>10. PRACTICAL CONSIDERATIONS</h2>
+
+        <h3>Choosing Timesteps (T)</h3>
+        <p><strong>Trade-offs:</strong></p>
+        <ul>
+            <li><strong>T = 100:</strong> Fast sampling, but may miss fine details</li>
+            <li><strong>T = 1000:</strong> Standard choice, good quality-speed balance</li>
+            <li><strong>T = 4000:</strong> Very high quality, but very slow</li>
+        </ul>
+
+        <p><strong>Rule of thumb:</strong> Start with T=1000, reduce with DDIM if speed matters.</p>
+
+        <h3>Noise Schedule Selection</h3>
+        <p><strong>Linear schedule:</strong></p>
+        <pre><code>beta_start = 1e-4
+beta_end = 0.02
+betas = torch.linspace(beta_start, beta_end, T)</code></pre>
+
+        <p><strong>Cosine schedule (often better):</strong></p>
+        <pre><code>def cosine_beta_schedule(timesteps, s=0.008):
+    steps = timesteps + 1
+    x = torch.linspace(0, timesteps, steps)
+    alphas_cumprod = torch.cos(((x / timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
+    alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+    betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+    return torch.clip(betas, 0.0001, 0.9999)</code></pre>
+
+        <h3>Image Normalization</h3>
+        <p>
+            Always normalize images to [-1, 1] to match the Gaussian noise:
+        </p>
+
+        <pre><code># Normalize to [-1, 1]
+images = (images - 0.5) * 2
+
+# Denormalize for visualization
+images = (images + 1) / 2</code></pre>
+
+        <h3>EMA (Exponential Moving Average)</h3>
+        <p>
+            Using EMA of model weights significantly improves sample quality:
+        </p>
+
+        <pre><code>class EMA:
+    def __init__(self, model, decay=0.9999):
+        self.model = model
+        self.decay = decay
+        self.shadow = {}
+        self.backup = {}
+
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                self.shadow[name] = param.data.clone()
+
+    def update(self):
+        for name, param in self.model.named_parameters():
+            if param.requires_grad:
+                self.shadow[name].mul_(self.decay).add_(
+                    param.data, alpha=1 - self.decay
+                )</code></pre>
+
+        <p>Use the EMA weights for sampling, not the raw training weights.</p>
+
+        <h3>Memory Optimization</h3>
+        <p><strong>For high-resolution images:</strong></p>
+        <ul>
+            <li><strong>Gradient checkpointing:</strong> Trade compute for memory</li>
+            <li><strong>Mixed precision (FP16):</strong> Reduce memory by 2×</li>
+            <li><strong>Patch-based training:</strong> Train on image patches</li>
+            <li><strong>Progressive training:</strong> Start at low resolution</li>
+        </ul>
+
+        <h3>Monitoring Training</h3>
+        <p><strong>Key metrics to track:</strong></p>
+        <ul>
+            <li><strong>Training loss:</strong> Should decrease smoothly</li>
+            <li><strong>Sample quality:</strong> Generate images every N epochs</li>
+            <li><strong>FID score:</strong> Compute periodically on validation set</li>
+            <li><strong>Gradient norms:</strong> Ensure no exploding/vanishing gradients</li>
+        </ul>
+
+        <pre><code># Generate samples for monitoring
+if epoch % 10 == 0:
+    model.eval()
+    samples = generate_samples(model, timesteps=1000, num_samples=16)
+    save_image(samples, f'samples/epoch_{epoch}.png')
+
+    # Compute FID
+    fid = compute_fid(real_features, generated_features)
+    print(f'Epoch {epoch}, FID: {fid:.2f}')</code></pre>
+
+        <h3>Common Issues and Solutions</h3>
+
+        <table>
+            <tr>
+                <th>Problem</th>
+                <th>Symptom</th>
+                <th>Solution</th>
+            </tr>
+            <tr>
+                <td>Blurry samples</td>
+                <td>Generated images lack detail</td>
+                <td>Train longer, use cosine schedule, add attention</td>
+            </tr>
+            <tr>
+                <td>NaN losses</td>
+                <td>Loss becomes NaN during training</td>
+                <td>Reduce LR, check normalization, clip gradients</td>
+            </tr>
+            <tr>
+                <td>Slow convergence</td>
+                <td>Loss decreases very slowly</td>
+                <td>Increase LR, increase batch size, use EMA</td>
+            </tr>
+            <tr>
+                <td>OOM errors</td>
+                <td>Out of memory</td>
+                <td>Reduce batch size, use FP16, gradient checkpointing</td>
+            </tr>
+            <tr>
+                <td>Color shift</td>
+                <td>Generated images wrong colors</td>
+                <td>Check normalization, verify data preprocessing</td>
+            </tr>
+        </table>
+    </section>
+
+    <section id="section11">
+        <h2>11. ADVANCED TOPICS & VARIANTS</h2>
+
+        <h3>DDIM: Denoising Diffusion Implicit Models</h3>
+        <p>
+            DDIM accelerates sampling by using a deterministic process:
+        </p>
+
+        <ul>
+            <li><strong>Skip timesteps:</strong> Use only 50-100 steps instead of 1000</li>
+            <li><strong>Deterministic:</strong> Remove stochastic noise term</li>
+            <li><strong>Same quality:</strong> Minimal degradation in sample quality</li>
+            <li><strong>~20× speedup:</strong> Much faster inference</li>
+        </ul>
+
+        <div class="formula">
+x_{t-1} = √ᾱ_{t-1} · predicted_x_0 + √(1 - ᾱ_{t-1}) · predicted_ε
+        </div>
+
+        <h3>Latent Diffusion Models (Stable Diffusion)</h3>
+        <p>
+            Run diffusion in a compressed latent space instead of pixel space:
+        </p>
+
+        <ol>
+            <li><strong>Encode:</strong> VAE encoder: image → latent (8× compression)</li>
+            <li><strong>Diffuse:</strong> Run diffusion in latent space</li>
+            <li><strong>Decode:</strong> VAE decoder: latent → image</li>
+        </ol>
+
+        <p><strong>Advantages:</strong></p>
+        <ul>
+            <li>Much faster (8× fewer pixels to process)</li>
+            <li>Lower memory requirements</li>
+            <li>Can handle high-resolution images (512×512, 1024×1024)</li>
+            <li>Powers Stable Diffusion and Imagen</li>
+        </ul>
+
+        <h3>Classifier-Free Guidance</h3>
+        <p>
+            Strengthen conditioning (e.g., text prompts) without a classifier:
+        </p>
+
+        <div class="formula">
+ε̂ = ε̂_uncond + w · (ε̂_cond - ε̂_uncond)
+        </div>
+
+        <p><strong>How it works:</strong></p>
+        <ul>
+            <li>Train one model with and without conditioning</li>
+            <li>At inference, blend unconditional and conditional predictions</li>
+            <li>Higher w = follow condition more strongly</li>
+            <li>Used in DALL-E 2, Imagen, Stable Diffusion</li>
+        </ul>
+
+        <h3>Cascaded Diffusion</h3>
+        <p>
+            Generate images at progressively higher resolutions:
+        </p>
+
+        <ol>
+            <li><strong>Base model:</strong> Generate 64×64 image</li>
+            <li><strong>Super-resolution 1:</strong> Upsample to 256×256</li>
+            <li><strong>Super-resolution 2:</strong> Upsample to 1024×1024</li>
+        </ol>
+
+        <p>
+            This approach is used in DALL-E 2 and Imagen for high-resolution generation.
+        </p>
+
+        <h3>Applications</h3>
+
+        <p><strong>1. Text-to-Image:</strong></p>
+        <ul>
+            <li>DALL-E 2, Stable Diffusion, Imagen, Midjourney</li>
+            <li>Condition diffusion on CLIP text embeddings</li>
+            <li>State-of-the-art quality and controllability</li>
+        </ul>
+
+        <p><strong>2. Super-Resolution:</strong></p>
+        <ul>
+            <li>Condition on low-resolution images</li>
+            <li>Generate plausible high-resolution details</li>
+            <li>Better than traditional upsampling methods</li>
+        </ul>
+
+        <p><strong>3. Inpainting:</strong></p>
+        <ul>
+            <li>Fill in missing regions of images</li>
+            <li>Constrain known pixels during diffusion</li>
+            <li>Natural and coherent completions</li>
+        </ul>
+
+        <p><strong>4. Image-to-Image Translation:</strong></p>
+        <ul>
+            <li>Style transfer, colorization, etc.</li>
+            <li>Condition on source image</li>
+            <li>More flexible than CycleGAN</li>
+        </ul>
+
+        <p><strong>5. Video Generation:</strong></p>
+        <ul>
+            <li>Extend to 3D U-Nets (spatial + temporal)</li>
+            <li>Generate coherent video sequences</li>
+            <li>Emerging area of research</li>
+        </ul>
+
+        <p><strong>6. 3D Generation:</strong></p>
+        <ul>
+            <li>DreamFusion: text-to-3D using diffusion</li>
+            <li>Generate 3D shapes, NeRFs, meshes</li>
+            <li>Rapidly advancing field</li>
+        </ul>
+
+        <h3>Future Directions</h3>
+        <ul>
+            <li><strong>Faster sampling:</strong> Reduce to single-step generation</li>
+            <li><strong>Continuous-time models:</strong> Neural ODEs/SDEs</li>
+            <li><strong>Better conditioning:</strong> More controllable generation</li>
+            <li><strong>Multi-modal:</strong> Audio, video, 3D, etc.</li>
+            <li><strong>Efficient training:</strong> Reduce computational requirements</li>
+        </ul>
+    </section>
+
+    <div class="end-card">
+        <h2>END OF LESSON</h2>
+        <p>You have completed the comprehensive guide to Diffusion Models.</p>
+        <p>
+            <strong>Topics Covered:</strong><br>
+            Introduction • Diffusion Process • Forward Process • Reverse Process •<br>
+            Training • Sampling • U-Net Architecture • Mathematics •<br>
+            Advantages over GANs • Practical Tips • Advanced Variants
+        </p>
+        <p>
+            <strong>Next Steps:</strong><br>
+            Implement a simple diffusion model in PyTorch •<br>
+            Compare with GANs on the same dataset •<br>
+            Explore conditional generation with text embeddings •<br>
+            Review the Anki flashcards to reinforce key concepts
+        </p>
+    </div>
+
+    <div class="action-buttons">
+        <button class="btn" onclick="window.print()">EXPORT PDF</button>
+        <a href="Diffusion_Flashcards.apkg" class="btn" download>DOWNLOAD ANKI DECK</a>
+    </div>
+
+    <script>
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
