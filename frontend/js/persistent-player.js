@@ -865,20 +865,26 @@
         }
 
         handleEnded() {
+            console.log('[PersistentPlayer] handleEnded called, audio.loop =', this.audio.loop);
+
             // If native HTML5 loop is enabled, let it handle the looping
             if (this.audio.loop) {
+                console.log('[PersistentPlayer] Loop enabled, letting native loop handle it');
                 return;
             }
 
             if (this.playbackSettings.loopOne) {
+                console.log('[PersistentPlayer] loopOne mode, restarting track');
                 this.setTrack(this.trackRegistry.get(this.state?.src) || this.state, { startTime: 0, autoPlay: true });
                 return;
             }
             const nextMeta = this.getNextTrack(1);
             if (nextMeta) {
+                console.log('[PersistentPlayer] Advancing to next track');
                 this.setTrack(nextMeta, { startTime: 0, autoPlay: true });
                 return;
             }
+            console.log('[PersistentPlayer] No next track, stopping playback');
             this.persistState({ isPlaying: false, currentTime: this.audio.duration || 0 });
             this.root.dataset.playing = 'false';
         }
