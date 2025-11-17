@@ -510,6 +510,12 @@ body.advanced-expanded .viz-sidebar .advanced-sections::-webkit-scrollbar {
     outline: none;
 }
 
+.viz-mode-switch select option {
+    background: #1a1a2e;
+    color: #ffffff;
+    padding: 8px;
+}
+
 body.state-home .viz-mode-switch {
     display: none;
 }

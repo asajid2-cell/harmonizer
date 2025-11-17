@@ -836,11 +836,12 @@ jgs   `-=========-`()
         const params = new URLSearchParams(window.location.search);
         const tridParam = params.get('trid');
         const requestedMode = (params.get('mode') || 'canon').toLowerCase();
-        const allowedModes = new Set(['canon', 'jukebox', 'eternal']);
+        const allowedModes = new Set(['canon', 'jukebox', 'eternal', 'autoharmonizer', 'sculptor']);
         const normalizedMode = allowedModes.has(requestedMode) ? requestedMode : modeFromBody;
         document.body.dataset.mode = normalizedMode;
         if (vizModeSelect) {
             vizModeSelect.value = normalizedMode;
+            console.log('[Mode Select] Set dropdown to:', normalizedMode);
         }
         currentModeKey = syncAlgorithmButtons(normalizedMode);
         applyModePolicyDefaults(currentModeKey);
