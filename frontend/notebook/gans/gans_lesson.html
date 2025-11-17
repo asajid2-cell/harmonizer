@@ -1,0 +1,2104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generative Adversarial Networks (GANs) - Complete Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1.6;
+            padding: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            border-bottom: 2px solid #ffffff;
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+
+        header .meta {
+            font-size: 14px;
+            text-align: left;
+        }
+
+        /* Table of Contents */
+        #toc {
+            border: 2px solid #ffffff;
+            padding: 20px;
+            margin-bottom: 40px;
+        }
+
+        #toc h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        #toc ul {
+            list-style: none;
+            text-align: left;
+        }
+
+        #toc li {
+            margin-bottom: 8px;
+        }
+
+        #toc a {
+            color: #ffffff;
+            text-decoration: none;
+            border-bottom: 1px solid #ffffff;
+        }
+
+        #toc a:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        /* Sections */
+        section {
+            margin-bottom: 50px;
+        }
+
+        h2 {
+            font-size: 22px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ffffff;
+            padding-bottom: 10px;
+            text-align: left;
+        }
+
+        h3 {
+            font-size: 18px;
+            margin: 25px 0 15px 0;
+            border-left: 4px solid #ffffff;
+            padding-left: 15px;
+            text-align: left;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        /* Highlight boxes */
+        .highlight {
+            background-color: #ffffff;
+            color: #000000;
+            padding: 15px;
+            margin: 20px 0;
+            border: 2px solid #ffffff;
+        }
+
+        .highlight strong {
+            text-decoration: underline;
+        }
+
+        /* Formula boxes */
+        .formula {
+            text-align: center;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #ffffff;
+            font-size: 16px;
+        }
+
+        /* Note boxes */
+        .note {
+            border: 2px solid #ffffff;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .note::before {
+            content: "NOTE: ";
+            font-weight: bold;
+        }
+
+        /* Code blocks */
+        pre {
+            background-color: #1a1a1a;
+            border: 1px solid #ffffff;
+            padding: 15px;
+            overflow-x: auto;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-left: 40px;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #ffffff;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #ffffff;
+            color: #000000;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #1a1a1a;
+        }
+
+        /* ASCII diagrams */
+        .ascii-diagram {
+            background-color: #1a1a1a;
+            border: 2px solid #ffffff;
+            padding: 20px;
+            margin: 20px 0;
+            white-space: pre;
+            overflow-x: auto;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        /* Action buttons */
+        .action-buttons {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            background-color: #ffffff;
+            color: #000000;
+            border: 2px solid #ffffff;
+            padding: 12px 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background-color: #000000;
+            color: #ffffff;
+        }
+
+        /* End card */
+        .end-card {
+            border: 2px solid #ffffff;
+            padding: 30px;
+            text-align: center;
+            margin-top: 60px;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background-color: #ffffff;
+                color: #000000;
+            }
+
+            .action-buttons {
+                display: none;
+            }
+
+            h2, h3 {
+                border-color: #000000;
+            }
+
+            .highlight, th {
+                background-color: #000000;
+                color: #ffffff;
+            }
+
+            table, th, td, .note, .formula, #toc, .ascii-diagram {
+                border-color: #000000;
+            }
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>GENERATIVE ADVERSARIAL NETWORKS (GANs)</h1>
+        <div class="meta">
+            CMPUT 328 - Deep Learning | Complete Educational Guide<br>
+            From Vanilla GAN to WGAN-GP and Beyond
+        </div>
+    </header>
+
+    <nav id="toc">
+        <h2>TABLE OF CONTENTS</h2>
+        <ul>
+            <li><a href="#section1">1. INTRODUCTION TO GANS</a></li>
+            <li><a href="#section2">2. VANILLA GAN FUNDAMENTALS</a></li>
+            <li><a href="#section3">3. TRAINING INSTABILITY & PROBLEMS</a></li>
+            <li><a href="#section4">4. WASSERSTEIN GAN (WGAN)</a></li>
+            <li><a href="#section5">5. WGAN WITH GRADIENT PENALTY (WGAN-GP)</a></li>
+            <li><a href="#section6">6. CYCLEGAN</a></li>
+            <li><a href="#section7">7. EVALUATION METRICS</a></li>
+            <li><a href="#section8">8. PRACTICAL IMPLEMENTATION</a></li>
+            <li><a href="#section9">9. COMPARISON SUMMARY</a></li>
+        </ul>
+    </nav>
+
+    <section id="section1">
+        <h2>1. INTRODUCTION TO GANS</h2>
+
+        <h3>What are Generative Models?</h3>
+        <p>
+            Generative models are a class of machine learning models that learn to create new data samples that resemble the training data. Unlike discriminative models that learn to classify or predict labels, generative models learn the underlying probability distribution of the data itself.
+        </p>
+
+        <div class="highlight">
+            <strong>Key Concept:</strong> A generative model learns P(X), the probability distribution of data X, allowing it to generate new samples that look like they came from the same distribution.
+        </div>
+
+        <h3>The GAN Innovation</h3>
+        <p>
+            Generative Adversarial Networks (GANs), introduced by Ian Goodfellow and colleagues in 2014, revolutionized generative modeling by framing it as a competitive game between two neural networks.
+        </p>
+
+        <p>
+            Before GANs, generative models like Variational Autoencoders (VAEs) struggled to produce sharp, realistic images. GANs changed this by introducing an adversarial training process that pushes both networks to improve simultaneously.
+        </p>
+
+        <h3>The Two-Player Game Analogy</h3>
+        <p>
+            Think of a GAN as a game between a counterfeiter and a detective:
+        </p>
+
+        <ul>
+            <li><strong>The Counterfeiter (Generator):</strong> Tries to create fake money that looks real</li>
+            <li><strong>The Detective (Discriminator):</strong> Tries to distinguish real money from counterfeit</li>
+        </ul>
+
+        <p>
+            As the detective gets better at spotting fakes, the counterfeiter must improve their technique. As the counterfeiter produces more convincing fakes, the detective must become more discerning. This back-and-forth competition drives both to excellence.
+        </p>
+
+        <div class="ascii-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                        GAN GAME DYNAMICS                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   Generator (G)                    Discriminator (D)            │
+│   ┌───────────┐                    ┌───────────────┐           │
+│   │  Noise z  │                    │               │           │
+│   └─────┬─────┘                    │               │           │
+│         │                          │               │           │
+│         v                          │               │           │
+│   ┌───────────┐     Fake x        │   Real/Fake   │           │
+│   │  G(z) ───────────────────────>│  Classifier   │           │
+│   │ Generator │                    │               │           │
+│   └───────────┘                    │               │           │
+│         ^                          │               │           │
+│         │                          └───────┬───────┘           │
+│         │                                  │                   │
+│         │        Gradient Signal           │                   │
+│         └──────────────────────────────────┘                   │
+│                                                                 │
+│   Real Data ──────────────────────────────> D                  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+        </div>
+
+        <h3>Generator vs Discriminator Roles</h3>
+
+        <p><strong>Generator (G):</strong></p>
+        <ul>
+            <li>Input: Random noise vector z (typically from Gaussian distribution)</li>
+            <li>Output: Synthetic data x_fake = G(z)</li>
+            <li>Goal: Fool the discriminator into thinking fake data is real</li>
+            <li>Training objective: Maximize D(G(z))</li>
+        </ul>
+
+        <p><strong>Discriminator (D):</strong></p>
+        <ul>
+            <li>Input: Either real data x_real or fake data x_fake</li>
+            <li>Output: Probability that input is real (0 to 1)</li>
+            <li>Goal: Correctly classify real vs fake data</li>
+            <li>Training objective: Maximize D(x_real) and minimize D(x_fake)</li>
+        </ul>
+
+        <div class="note">
+            The discriminator is trained on both real and fake data, while the generator never sees real data directly - it only learns from the discriminator's feedback.
+        </div>
+    </section>
+
+    <section id="section2">
+        <h2>2. VANILLA GAN FUNDAMENTALS</h2>
+
+        <h3>Architecture Overview</h3>
+
+        <p><strong>Generator Architecture: Noise → Image</strong></p>
+        <p>
+            The generator transforms a low-dimensional random noise vector into a high-dimensional data sample (e.g., an image). This is an upsampling process.
+        </p>
+
+        <div class="ascii-diagram">
+Generator: z (100D) → Image (28×28 = 784D)
+
+┌────────┐     ┌────────┐     ┌────────┐     ┌────────┐
+│ Noise  │────>│Linear  │────>│Linear  │────>│Linear  │────> Image
+│  z     │     │+ ReLU  │     │+ ReLU  │     │+ Tanh  │
+│ (100)  │     │ (256)  │     │ (512)  │     │ (784)  │
+└────────┘     └────────┘     └────────┘     └────────┘
+        </div>
+
+        <p><strong>Discriminator Architecture: Image → Probability</strong></p>
+        <p>
+            The discriminator is essentially a binary classifier that outputs a single probability value indicating whether the input is real or fake.
+        </p>
+
+        <div class="ascii-diagram">
+Discriminator: Image (784D) → Probability (1D)
+
+┌────────┐     ┌────────┐     ┌────────┐     ┌────────┐
+│ Image  │────>│Linear  │────>│Linear  │────>│Linear  │────> P(real)
+│ (784)  │     │+LeakyR │     │+LeakyR │     │+Sigmoid│
+│        │     │ (512)  │     │ (256)  │     │  (1)   │
+└────────┘     └────────┘     └────────┘     └────────┘
+        </div>
+
+        <h3>The Minimax Objective</h3>
+
+        <p>
+            The GAN training process is formalized as a minimax game where the generator tries to minimize what the discriminator tries to maximize.
+        </p>
+
+        <div class="formula">
+min<sub>G</sub> max<sub>D</sub> V(D,G) = E<sub>x~p<sub>data</sub></sub>[log D(x)] + E<sub>z~p<sub>z</sub></sub>[log(1 - D(G(z)))]
+        </div>
+
+        <p><strong>Breaking down the objective:</strong></p>
+        <ul>
+            <li><strong>E<sub>x~p<sub>data</sub></sub>[log D(x)]:</strong> Expected log probability that D correctly identifies real data</li>
+            <li><strong>E<sub>z~p<sub>z</sub></sub>[log(1 - D(G(z)))]:</strong> Expected log probability that D correctly identifies fake data</li>
+            <li><strong>Discriminator (max):</strong> Wants both terms to be large (correct classifications)</li>
+            <li><strong>Generator (min):</strong> Wants the second term to be small (fool the discriminator)</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>Intuitive Explanation:</strong> The discriminator wants to output D(x_real) ≈ 1 and D(x_fake) ≈ 0, maximizing the objective. The generator wants D(G(z)) ≈ 1, which minimizes the second term and thus the overall objective.
+        </div>
+
+        <h3>Binary Cross-Entropy Loss</h3>
+
+        <p>
+            In practice, the minimax objective is implemented using Binary Cross-Entropy (BCE) loss, which measures the difference between predicted and actual binary labels.
+        </p>
+
+        <div class="formula">
+BCE(y, ŷ) = -[y log(ŷ) + (1-y) log(1-ŷ)]
+        </div>
+
+        <p><strong>For the Discriminator:</strong></p>
+        <pre><code># Real samples (label = 1)
+loss_real = BCE(D(x_real), 1)
+
+# Fake samples (label = 0)
+loss_fake = BCE(D(G(z)), 0)
+
+# Total discriminator loss
+loss_D = loss_real + loss_fake</code></pre>
+
+        <p><strong>For the Generator:</strong></p>
+        <pre><code># Generator wants D to output 1 for fake samples
+loss_G = BCE(D(G(z)), 1)</code></pre>
+
+        <div class="note">
+            The original GAN paper proposed minimizing log(1 - D(G(z))) for the generator, but in practice, maximizing log(D(G(z))) works better because it provides stronger gradients early in training.
+        </div>
+
+        <h3>Training Algorithm</h3>
+
+        <p>
+            GANs use alternating optimization: train the discriminator for one or more steps, then train the generator for one step, and repeat.
+        </p>
+
+        <div class="highlight">
+            <strong>Training Loop (Vanilla GAN):</strong><br><br>
+            FOR each training iteration:<br>
+            &nbsp;&nbsp;1. DISCRIMINATOR TRAINING STEP<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;a. Sample minibatch of real data x from dataset<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;b. Sample minibatch of noise z from prior p(z)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;c. Generate fake data: x_fake = G(z)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;d. Compute loss: L_D = BCE(D(x_real), 1) + BCE(D(x_fake), 0)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;e. Update D parameters by ascending gradient<br>
+            <br>
+            &nbsp;&nbsp;2. GENERATOR TRAINING STEP<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;a. Sample minibatch of noise z from prior p(z)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;b. Generate fake data: x_fake = G(z)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;c. Compute loss: L_G = BCE(D(G(z)), 1)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;d. Update G parameters by descending gradient<br>
+        </div>
+
+        <h3>PyTorch Implementation Example</h3>
+
+        <pre><code># Simplified vanilla GAN training loop
+for epoch in range(num_epochs):
+    for real_images, _ in dataloader:
+        batch_size = real_images.size(0)
+
+        # ==================
+        # Train Discriminator
+        # ==================
+        optimizer_D.zero_grad()
+
+        # Real images
+        real_labels = torch.ones(batch_size, 1)
+        real_output = discriminator(real_images)
+        loss_D_real = criterion(real_output, real_labels)
+
+        # Fake images
+        noise = torch.randn(batch_size, latent_dim)
+        fake_images = generator(noise)
+        fake_labels = torch.zeros(batch_size, 1)
+        fake_output = discriminator(fake_images.detach())
+        loss_D_fake = criterion(fake_output, fake_labels)
+
+        # Total discriminator loss
+        loss_D = loss_D_real + loss_D_fake
+        loss_D.backward()
+        optimizer_D.step()
+
+        # ==================
+        # Train Generator
+        # ==================
+        optimizer_G.zero_grad()
+
+        # Generator wants D to output 1 for fake images
+        noise = torch.randn(batch_size, latent_dim)
+        fake_images = generator(noise)
+        fake_output = discriminator(fake_images)
+        real_labels = torch.ones(batch_size, 1)
+
+        loss_G = criterion(fake_output, real_labels)
+        loss_G.backward()
+        optimizer_G.step()</code></pre>
+    </section>
+
+    <section id="section3">
+        <h2>3. TRAINING INSTABILITY & PROBLEMS</h2>
+
+        <p>
+            Despite their success, vanilla GANs are notoriously difficult to train. Several fundamental problems arise from the adversarial training dynamics.
+        </p>
+
+        <h3>Mode Collapse</h3>
+
+        <p><strong>What it is:</strong></p>
+        <p>
+            Mode collapse occurs when the generator learns to produce only a limited variety of samples, ignoring much of the data distribution. Instead of generating diverse outputs, it "collapses" to producing a few safe samples that fool the discriminator.
+        </p>
+
+        <p><strong>Why it happens:</strong></p>
+        <ul>
+            <li>The generator finds a few samples that reliably fool the discriminator</li>
+            <li>It has no incentive to explore other parts of the data distribution</li>
+            <li>The minimax objective doesn't explicitly reward diversity</li>
+            <li>Once the discriminator updates, the generator may jump to a different mode</li>
+        </ul>
+
+        <div class="ascii-diagram">
+Mode Collapse Visualization (MNIST digits):
+
+Full Distribution:        Mode Collapse:
+┌───────────────┐         ┌───────────────┐
+│ 0 1 2 3 4    │         │ 7 7 7 7 7    │
+│ 5 6 7 8 9    │   -->   │ 7 7 7 7 7    │
+│ 3 1 5 2 8    │         │ 7 7 7 7 7    │
+│ 9 4 6 0 1    │         │ 7 7 7 7 7    │
+└───────────────┘         └───────────────┘
+(Diverse samples)         (Only generates 7s)
+        </div>
+
+        <div class="note">
+            In severe mode collapse, the generator might produce identical or near-identical samples regardless of the input noise vector z.
+        </div>
+
+        <h3>Vanishing/Exploding Gradients</h3>
+
+        <p><strong>When discriminator becomes too strong:</strong></p>
+        <p>
+            If the discriminator becomes very good at distinguishing real from fake, it outputs values very close to 0 or 1. This causes the gradient of log(1 - D(G(z))) to vanish, leaving the generator with no learning signal.
+        </p>
+
+        <div class="formula">
+When D(G(z)) ≈ 0: ∂/∂G log(1 - D(G(z))) ≈ 0
+        </div>
+
+        <p>
+            This is known as the <strong>vanishing gradient problem</strong>. The generator stops learning because the discriminator is so confident that the samples are fake.
+        </p>
+
+        <p><strong>Loss of learning signal:</strong></p>
+        <ul>
+            <li>Early in training: Discriminator easily spots fakes (D(G(z)) ≈ 0)</li>
+            <li>Generator receives near-zero gradients</li>
+            <li>Generator improvement stalls</li>
+            <li>This is why we maximize log(D(G(z))) instead in practice</li>
+        </ul>
+
+        <div class="ascii-diagram">
+Gradient Flow Problem:
+
+Strong Discriminator (D ≈ 1 for real, D ≈ 0 for fake)
+         │
+         v
+Saturated Sigmoid (flat regions)
+         │
+         v
+Near-zero gradients to Generator
+         │
+         v
+Generator stops learning
+        </div>
+
+        <h3>Non-Convergence Issues</h3>
+
+        <p>
+            Unlike typical neural network training where loss decreases monotonically, GAN training involves two competing objectives that may never reach equilibrium.
+        </p>
+
+        <p><strong>Oscillating behavior:</strong></p>
+        <ul>
+            <li>Generator and discriminator losses oscillate without clear convergence</li>
+            <li>Neither network reaches a stable optimum</li>
+            <li>Training can be stable for epochs, then suddenly destabilize</li>
+            <li>No clear stopping criterion based on loss values</li>
+        </ul>
+
+        <table>
+            <tr>
+                <th>Epoch</th>
+                <th>G Loss</th>
+                <th>D Loss</th>
+                <th>Observation</th>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>2.45</td>
+                <td>0.89</td>
+                <td>D too strong</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>1.12</td>
+                <td>1.23</td>
+                <td>Better balance</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>3.78</td>
+                <td>0.45</td>
+                <td>Oscillation</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>0.67</td>
+                <td>2.01</td>
+                <td>G too strong</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>2.89</td>
+                <td>0.91</td>
+                <td>Instability</td>
+            </tr>
+        </table>
+
+        <h3>Lack of Meaningful Metrics</h3>
+
+        <p><strong>BCE loss doesn't correlate with quality:</strong></p>
+        <p>
+            The discriminator and generator losses provide little information about the actual quality of generated samples. You can have:
+        </p>
+
+        <ul>
+            <li><strong>Low generator loss but poor samples:</strong> Generator found a way to fool D with low-quality images</li>
+            <li><strong>High generator loss but good samples:</strong> Discriminator got better, but generator is still producing quality outputs</li>
+            <li><strong>Balanced losses but mode collapse:</strong> Both networks in equilibrium, but generator only produces a few modes</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>The Problem:</strong> You cannot look at loss curves alone to determine if your GAN is training well. You must visually inspect generated samples, which makes debugging and hyperparameter tuning extremely difficult.
+        </div>
+
+        <p><strong>Diagnostic challenges:</strong></p>
+        <ul>
+            <li>Cannot determine convergence from loss values</li>
+            <li>Cannot set early stopping criteria</li>
+            <li>Cannot compare different model architectures objectively</li>
+            <li>Must manually inspect samples throughout training</li>
+        </ul>
+
+        <div class="note">
+            These fundamental problems motivated the development of improved GAN variants like Wasserstein GAN (WGAN), which addresses many of these issues through a different distance metric and training procedure.
+        </div>
+    </section>
+
+    <section id="section4">
+        <h2>4. WASSERSTEIN GAN (WGAN)</h2>
+
+        <h3>Motivation: Why We Need Better Distance Metrics</h3>
+
+        <p>
+            The instability of vanilla GANs stems from using the Jensen-Shannon (JS) divergence implicitly through the BCE loss. When the real and fake distributions have minimal overlap, the JS divergence becomes constant, providing no useful gradient.
+        </p>
+
+        <p><strong>The core problem:</strong></p>
+        <ul>
+            <li>Real data distribution p_data and generated distribution p_g often have disjoint supports</li>
+            <li>JS divergence = log(2) when supports don't overlap</li>
+            <li>Gradient becomes zero, halting learning</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>Solution:</strong> Wasserstein GAN uses Earth Mover's Distance (Wasserstein distance), which provides meaningful gradients even when distributions don't overlap.
+        </div>
+
+        <h3>Earth Mover's Distance (Wasserstein Distance)</h3>
+
+        <p><strong>Intuitive explanation (moving piles of earth):</strong></p>
+        <p>
+            Imagine you have two piles of earth with different shapes. The Wasserstein distance measures the minimum amount of "work" needed to transform one pile into the other, where work = amount of earth × distance moved.
+        </p>
+
+        <div class="ascii-diagram">
+Earth Mover's Distance Intuition:
+
+Distribution A:          Distribution B:
+    ███                     ███
+   █████                   █████
+  ███████                 ███████
+ █████████        -->    █████████
+▀▀▀▀▀▀▀▀▀▀▀             ▀▀▀▀▀▀▀▀▀▀▀▀
+
+W(A,B) = minimum cost to move earth from A to match B
+
+Key property: W(A,B) is continuous and provides
+              gradients even when A and B don't overlap
+        </div>
+
+        <p><strong>Mathematical definition:</strong></p>
+        <div class="formula">
+W(p_r, p_g) = inf<sub>γ∈Π(p_r,p_g)</sub> E<sub>(x,y)~γ</sub>[||x - y||]
+        </div>
+
+        <p>Where:</p>
+        <ul>
+            <li>p_r is the real data distribution</li>
+            <li>p_g is the generated data distribution</li>
+            <li>γ is a joint distribution with marginals p_r and p_g</li>
+            <li>The infimum is taken over all possible joint distributions</li>
+        </ul>
+
+        <p><strong>Why Wasserstein distance is better:</strong></p>
+        <ul>
+            <li>Provides continuous gradients everywhere</li>
+            <li>Correlates with sample quality (lower W = better samples)</li>
+            <li>Works even when distributions are far apart</li>
+            <li>No saturation issues</li>
+        </ul>
+
+        <h3>From Discriminator to Critic</h3>
+
+        <p>
+            WGAN replaces the discriminator with a "critic" that outputs raw scores instead of probabilities.
+        </p>
+
+        <table>
+            <tr>
+                <th>Aspect</th>
+                <th>Vanilla GAN Discriminator</th>
+                <th>WGAN Critic</th>
+            </tr>
+            <tr>
+                <td>Output activation</td>
+                <td>Sigmoid (0 to 1)</td>
+                <td>None (any real number)</td>
+            </tr>
+            <tr>
+                <td>Output interpretation</td>
+                <td>Probability of being real</td>
+                <td>Raw score (higher = more real)</td>
+            </tr>
+            <tr>
+                <td>Training objective</td>
+                <td>Maximize classification accuracy</td>
+                <td>Maximize separation between real and fake scores</td>
+            </tr>
+            <tr>
+                <td>Loss function</td>
+                <td>Binary Cross-Entropy</td>
+                <td>Wasserstein loss</td>
+            </tr>
+        </table>
+
+        <p><strong>Critic architecture (no sigmoid):</strong></p>
+        <pre><code>class Critic(nn.Module):
+    def __init__(self):
+        super(Critic, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(784, 512),
+            nn.LeakyReLU(0.2),
+            nn.Linear(512, 256),
+            nn.LeakyReLU(0.2),
+            nn.Linear(256, 1)
+            # NO SIGMOID - outputs raw scores
+        )
+
+    def forward(self, x):
+        return self.model(x)</code></pre>
+
+        <h3>Kantorovich-Rubinstein Duality</h3>
+
+        <p>
+            Computing the Wasserstein distance directly is intractable. The Kantorovich-Rubinstein duality theorem provides a practical way to compute it using a critic function.
+        </p>
+
+        <div class="formula">
+W(p_r, p_g) = sup<sub>||f||<sub>L</sub>≤1</sub> E<sub>x~p_r</sub>[f(x)] - E<sub>x~p_g</sub>[f(x)]
+        </div>
+
+        <p>Where:</p>
+        <ul>
+            <li>f is a 1-Lipschitz function (the critic)</li>
+            <li>||f||<sub>L</sub> ≤ 1 means the function has Lipschitz constant at most 1</li>
+            <li>The supremum is taken over all 1-Lipschitz functions</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>Key Insight:</strong> The critic network approximates the optimal f. By training the critic to maximize the difference between scores on real and fake data (while maintaining the Lipschitz constraint), we approximate the Wasserstein distance.
+        </div>
+
+        <h3>Lipschitz Constraint</h3>
+
+        <p>
+            A function f is 1-Lipschitz if for all x₁ and x₂:
+        </p>
+
+        <div class="formula">
+|f(x₁) - f(x₂)| ≤ ||x₁ - x₂||
+        </div>
+
+        <p>
+            This means the function cannot change faster than the input changes - it has bounded gradients.
+        </p>
+
+        <p><strong>Weight clipping (original WGAN approach):</strong></p>
+        <p>
+            The original WGAN paper enforced the Lipschitz constraint by clipping critic weights to a small range [-c, c] after each update.
+        </p>
+
+        <pre><code># Weight clipping (original WGAN)
+for param in critic.parameters():
+    param.data.clamp_(-0.01, 0.01)  # Clip to [-0.01, 0.01]</code></pre>
+
+        <p><strong>Problems with weight clipping:</strong></p>
+        <ul>
+            <li><strong>Capacity limitation:</strong> Constraining weights to a small range reduces the critic's capacity</li>
+            <li><strong>Gradient explosion/vanishing:</strong> Can lead to pathological value surfaces</li>
+            <li><strong>Slow training:</strong> Critic needs many updates to reach optimum</li>
+            <li><strong>Hyperparameter sensitivity:</strong> Clipping threshold c is difficult to tune</li>
+        </ul>
+
+        <div class="note">
+            These limitations of weight clipping led to the development of WGAN-GP (Gradient Penalty), which enforces the Lipschitz constraint in a more principled way.
+        </div>
+
+        <h3>WGAN Loss Functions</h3>
+
+        <p><strong>Critic loss (maximize):</strong></p>
+        <div class="formula">
+L_C = E<sub>x~p_r</sub>[C(x)] - E<sub>z~p_z</sub>[C(G(z))]
+        </div>
+
+        <p><strong>Generator loss (minimize):</strong></p>
+        <div class="formula">
+L_G = -E<sub>z~p_z</sub>[C(G(z))]
+        </div>
+
+        <p><strong>PyTorch implementation:</strong></p>
+        <pre><code># WGAN losses (without gradient penalty yet)
+# Critic loss
+critic_real = critic(real_images).mean()
+critic_fake = critic(fake_images).mean()
+loss_C = -(critic_real - critic_fake)  # Maximize → minimize negative
+
+# Generator loss
+fake_images = generator(noise)
+loss_G = -critic(fake_images).mean()  # Maximize critic score on fakes</code></pre>
+
+        <div class="highlight">
+            <strong>Key Difference:</strong> Notice there's no BCE loss, no labels (0 or 1), and no sigmoid activation. We're directly optimizing the difference between real and fake scores.
+        </div>
+    </section>
+
+    <section id="section5">
+        <h2>5. WGAN WITH GRADIENT PENALTY (WGAN-GP)</h2>
+
+        <h3>Gradient Penalty Concept</h3>
+
+        <p>
+            WGAN-GP improves upon WGAN by replacing weight clipping with a gradient penalty term that directly enforces the Lipschitz constraint by penalizing the gradient norm of the critic.
+        </p>
+
+        <p><strong>The idea:</strong></p>
+        <p>
+            A 1-Lipschitz function must have gradients with norm at most 1 everywhere. Instead of clipping weights, we add a penalty term that encourages ||∇f(x)||₂ = 1.
+        </p>
+
+        <div class="formula">
+GP = λ · E<sub>x̂~p<sub>x̂</sub></sub>[(||∇<sub>x̂</sub> C(x̂)||₂ - 1)²]
+        </div>
+
+        <p>Where:</p>
+        <ul>
+            <li>λ is the gradient penalty coefficient (typically 10)</li>
+            <li>x̂ are interpolated samples between real and fake data</li>
+            <li>||∇<sub>x̂</sub> C(x̂)||₂ is the L2 norm of the critic's gradient with respect to x̂</li>
+            <li>We penalize deviations from gradient norm = 1</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>Enforcing 1-Lipschitz constraint:</strong> By penalizing gradients that deviate from norm 1, we ensure the critic function doesn't change too rapidly, satisfying the Lipschitz constraint needed for the Wasserstein distance approximation.
+        </div>
+
+        <h3>Implementation Details</h3>
+
+        <p><strong>Interpolated samples:</strong></p>
+        <p>
+            We compute the gradient penalty on random interpolations between real and fake samples, not on real/fake data directly.
+        </p>
+
+        <div class="formula">
+x̂ = ε · x_real + (1 - ε) · x_fake,  where ε ~ Uniform(0, 1)
+        </div>
+
+        <p><strong>Why interpolations?</strong></p>
+        <ul>
+            <li>The optimal critic has gradients with norm 1 almost everywhere between real and fake distributions</li>
+            <li>Interpolations sample the space between distributions</li>
+            <li>This is where the Lipschitz constraint matters most</li>
+            <li>More efficient than sampling uniformly over entire input space</li>
+        </ul>
+
+        <h3>Gradient Computation</h3>
+
+        <p><strong>Full gradient penalty implementation (PyTorch):</strong></p>
+        <pre><code>def compute_gradient_penalty(critic, real_images, fake_images, device):
+    """
+    Compute gradient penalty for WGAN-GP
+
+    Args:
+        critic: Critic network
+        real_images: Batch of real images
+        fake_images: Batch of generated images
+        device: 'cuda' or 'cpu'
+
+    Returns:
+        gradient_penalty: Scalar penalty value
+    """
+    batch_size = real_images.size(0)
+
+    # Random weight term for interpolation
+    epsilon = torch.rand(batch_size, 1, 1, 1, device=device)
+    epsilon = epsilon.expand_as(real_images)
+
+    # Interpolated samples
+    interpolated = epsilon * real_images + (1 - epsilon) * fake_images
+    interpolated.requires_grad_(True)
+
+    # Critic scores for interpolated samples
+    critic_interpolated = critic(interpolated)
+
+    # Compute gradients of critic scores w.r.t. interpolated samples
+    gradients = torch.autograd.grad(
+        outputs=critic_interpolated,
+        inputs=interpolated,
+        grad_outputs=torch.ones_like(critic_interpolated),
+        create_graph=True,
+        retain_graph=True,
+        only_inputs=True
+    )[0]
+
+    # Flatten gradients
+    gradients = gradients.view(batch_size, -1)
+
+    # Compute gradient norm
+    gradient_norm = gradients.norm(2, dim=1)
+
+    # Penalty for deviation from norm = 1
+    gradient_penalty = ((gradient_norm - 1) ** 2).mean()
+
+    return gradient_penalty</code></pre>
+
+        <div class="note">
+            The create_graph=True flag is crucial - it allows us to backpropagate through the gradient computation itself, which is necessary for training the critic to have norm-1 gradients.
+        </div>
+
+        <h3>Training Algorithm</h3>
+
+        <p><strong>WGAN-GP Training Procedure:</strong></p>
+        <div class="highlight">
+            FOR each training iteration:<br>
+            <br>
+            &nbsp;&nbsp;FOR n_critic iterations (typically 5):<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;1. Sample real data x_real and noise z<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;2. Generate fake data: x_fake = G(z)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;3. Compute critic scores: C(x_real), C(x_fake)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;4. Compute gradient penalty on interpolated samples<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;5. Total critic loss: L_C = C(x_fake) - C(x_real) + λ · GP<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;6. Update critic parameters<br>
+            <br>
+            &nbsp;&nbsp;Generator update:<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;1. Sample noise z<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;2. Generate fake data: x_fake = G(z)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;3. Compute generator loss: L_G = -C(G(z))<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;4. Update generator parameters<br>
+        </div>
+
+        <p><strong>Key hyperparameters:</strong></p>
+        <table>
+            <tr>
+                <th>Parameter</th>
+                <th>Standard Value</th>
+                <th>Purpose</th>
+            </tr>
+            <tr>
+                <td>λ (lambda)</td>
+                <td>10</td>
+                <td>Gradient penalty coefficient</td>
+            </tr>
+            <tr>
+                <td>n_critic</td>
+                <td>5</td>
+                <td>Critic updates per generator update</td>
+            </tr>
+            <tr>
+                <td>Learning rate</td>
+                <td>1e-4 (0.0001)</td>
+                <td>Lower than vanilla GAN for stability</td>
+            </tr>
+            <tr>
+                <td>β₁ (Adam)</td>
+                <td>0.5</td>
+                <td>Momentum parameter</td>
+            </tr>
+            <tr>
+                <td>β₂ (Adam)</td>
+                <td>0.9</td>
+                <td>RMSprop parameter</td>
+            </tr>
+        </table>
+
+        <h3>Complete Training Loop</h3>
+
+        <pre><code># WGAN-GP Training Loop
+for epoch in range(num_epochs):
+    for i, (real_images, _) in enumerate(dataloader):
+        real_images = real_images.to(device)
+        batch_size = real_images.size(0)
+
+        # ==================
+        # Train Critic (n_critic times)
+        # ==================
+        for _ in range(n_critic):
+            optimizer_C.zero_grad()
+
+            # Generate fake images
+            noise = torch.randn(batch_size, latent_dim, device=device)
+            fake_images = generator(noise)
+
+            # Critic scores
+            critic_real = critic(real_images).mean()
+            critic_fake = critic(fake_images).mean()
+
+            # Gradient penalty
+            gp = compute_gradient_penalty(critic, real_images,
+                                         fake_images.detach(), device)
+
+            # Total critic loss
+            loss_C = critic_fake - critic_real + lambda_gp * gp
+
+            loss_C.backward()
+            optimizer_C.step()
+
+        # ==================
+        # Train Generator
+        # ==================
+        optimizer_G.zero_grad()
+
+        noise = torch.randn(batch_size, latent_dim, device=device)
+        fake_images = generator(noise)
+
+        # Generator loss
+        loss_G = -critic(fake_images).mean()
+
+        loss_G.backward()
+        optimizer_G.step()
+
+        # Log Wasserstein distance estimate
+        wasserstein_distance = critic_real - critic_fake</code></pre>
+
+        <h3>Stability Improvements</h3>
+
+        <p><strong>Smoother loss curves:</strong></p>
+        <p>
+            WGAN-GP exhibits much more stable training compared to vanilla GAN. The losses decrease smoothly and predictably.
+        </p>
+
+        <div class="ascii-diagram">
+Loss Comparison Over Training:
+
+Vanilla GAN:                    WGAN-GP:
+Loss                            Loss
+  │                               │
+  │   ╱╲  ╱╲                     │╲
+  │  ╱  ╲╱  ╲   ╱╲               │ ╲
+  │ ╱         ╲╱  ╲              │  ╲___
+  │╱                ╲            │      ╲____
+  │         (erratic)            │           ╲____
+  └─────────────────> Iter       └─────────────────> Iter
+                                     (smooth decrease)
+        </div>
+
+        <p><strong>Meaningful Wasserstein distance metric:</strong></p>
+        <ul>
+            <li>W-distance correlates with sample quality</li>
+            <li>Lower W-distance = generated distribution closer to real</li>
+            <li>Provides interpretable training progress</li>
+            <li>Can use for early stopping or model selection</li>
+        </ul>
+
+        <p><strong>Better sample quality:</strong></p>
+        <ul>
+            <li>Sharper, more realistic images</li>
+            <li>Reduced mode collapse</li>
+            <li>More stable training allows longer training</li>
+            <li>Less sensitive to hyperparameters</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>Empirical Results:</strong> In practice, WGAN-GP demonstrates 2-5x reduction in loss volatility, more consistent convergence across random seeds, and significantly improved sample quality compared to vanilla GAN with the same architecture and training time.
+        </div>
+    </section>
+
+    <section id="section6">
+        <h2>6. CYCLEGAN</h2>
+
+        <h3>Unpaired Image Translation Problem</h3>
+
+        <p>
+            Traditional image-to-image translation methods (like pix2pix) require paired training examples: input image A and corresponding output image B. CycleGAN solves the harder problem of translation without paired data.
+        </p>
+
+        <p><strong>The challenge:</strong></p>
+        <ul>
+            <li>Paired data is expensive or impossible to obtain (e.g., photo ↔ painting)</li>
+            <li>Need to learn mapping between two domains X and Y</li>
+            <li>Only have separate collections of images from each domain</li>
+            <li>No one-to-one correspondence between images</li>
+        </ul>
+
+        <div class="ascii-diagram">
+Paired vs Unpaired Data:
+
+Paired (pix2pix):              Unpaired (CycleGAN):
+Domain X   Domain Y            Domain X        Domain Y
+┌──────┐   ┌──────┐           ┌──────┐        ┌──────┐
+│ Cat  │───│ Edge │           │ Cat  │        │ Edge │
+└──────┘   └──────┘           └──────┘        └──────┘
+┌──────┐   ┌──────┐           ┌──────┐        ┌──────┐
+│ Dog  │───│ Edge │           │ Horse│        │ Edge │
+└──────┘   └──────┘           └──────┘        └──────┘
+┌──────┐   ┌──────┐           ┌──────┐        ┌──────┐
+│Horse │───│ Edge │           │ Dog  │        │ Edge │
+└──────┘   └──────┘           └──────┘        └──────┘
+(Aligned pairs)               (Unaligned collections)
+        </div>
+
+        <h3>Cycle Consistency Loss</h3>
+
+        <p>
+            The key innovation of CycleGAN is cycle consistency: if we translate from domain X to Y and back to X, we should get back the original image.
+        </p>
+
+        <p><strong>Forward cycle: X → Y → X</strong></p>
+        <p>
+            If we map image x from domain X to domain Y using generator G, then map it back using generator F, we should recover x.
+        </p>
+
+        <div class="formula">
+Forward Cycle: x → G(x) → F(G(x)) ≈ x
+        </div>
+
+        <p><strong>Backward cycle: Y → X → Y</strong></p>
+        <p>
+            Similarly, mapping y from Y to X and back should recover y.
+        </p>
+
+        <div class="formula">
+Backward Cycle: y → F(y) → G(F(y)) ≈ y
+        </div>
+
+        <div class="ascii-diagram">
+Cycle Consistency Visualization:
+
+        Forward Cycle
+     x ────────> G(x) ────────> F(G(x))
+   (photo)     (painting)      (photo')
+     │                             │
+     └─────────── x ≈ F(G(x)) ────┘
+              (should match!)
+
+        Backward Cycle
+     y ────────> F(y) ────────> G(F(y))
+ (painting)     (photo)      (painting')
+     │                             │
+     └─────────── y ≈ G(F(y)) ────┘
+              (should match!)
+        </div>
+
+        <p><strong>Cycle consistency loss:</strong></p>
+        <div class="formula">
+L<sub>cyc</sub>(G, F) = E<sub>x~X</sub>[||F(G(x)) - x||₁] + E<sub>y~Y</sub>[||G(F(y)) - y||₁]
+        </div>
+
+        <h3>Architecture</h3>
+
+        <p><strong>Two generators:</strong></p>
+        <ul>
+            <li><strong>G: X → Y</strong> (e.g., photo → painting)</li>
+            <li><strong>F: Y → X</strong> (e.g., painting → photo)</li>
+        </ul>
+
+        <p><strong>Two discriminators:</strong></p>
+        <ul>
+            <li><strong>D<sub>X</sub>:</strong> Distinguishes real X images from F(y)</li>
+            <li><strong>D<sub>Y</sub>:</strong> Distinguishes real Y images from G(x)</li>
+        </ul>
+
+        <div class="ascii-diagram">
+CycleGAN Architecture:
+
+Domain X (Photos)              Domain Y (Paintings)
+     ┌────┐                         ┌────┐
+     │ x  │──────────G─────────────>│G(x)│
+     └────┘                         └────┘
+       ↑  ↖                           │  ↓
+       │   F                          │  D_Y
+       │    ↖                         ↓
+     ┌────┐  F(G(x))               ┌────┐
+     │F(y)│<──────────F─────────────│ y  │
+     └────┘                         └────┘
+       ↓                              ↑
+      D_X                             │
+
+Cycle: x → G(x) → F(G(x)) ≈ x
+Cycle: y → F(y) → G(F(y)) ≈ y
+        </div>
+
+        <h3>Total Loss Function</h3>
+
+        <p>
+            The CycleGAN objective combines adversarial losses (to make translations realistic) with cycle consistency losses (to preserve content).
+        </p>
+
+        <p><strong>Adversarial losses:</strong></p>
+        <div class="formula">
+L<sub>GAN</sub>(G, D<sub>Y</sub>) = E<sub>y~Y</sub>[log D<sub>Y</sub>(y)] + E<sub>x~X</sub>[log(1 - D<sub>Y</sub>(G(x)))]
+<br><br>
+L<sub>GAN</sub>(F, D<sub>X</sub>) = E<sub>x~X</sub>[log D<sub>X</sub>(x)] + E<sub>y~Y</sub>[log(1 - D<sub>X</sub>(F(y)))]
+        </div>
+
+        <p><strong>Full objective:</strong></p>
+        <div class="formula">
+L(G, F, D<sub>X</sub>, D<sub>Y</sub>) = L<sub>GAN</sub>(G, D<sub>Y</sub>) + L<sub>GAN</sub>(F, D<sub>X</sub>) + λ · L<sub>cyc</sub>(G, F)
+        </div>
+
+        <p>Where λ controls the relative importance of cycle consistency (typically λ = 10).</p>
+
+        <h3>Training Procedure</h3>
+
+        <pre><code># CycleGAN Training (simplified)
+for epoch in range(num_epochs):
+    for real_X, real_Y in dataloader:
+
+        # ==================
+        # Train Generators
+        # ==================
+        optimizer_G.zero_grad()
+
+        # Forward cycle: X -> Y -> X
+        fake_Y = G(real_X)
+        reconstructed_X = F(fake_Y)
+        loss_cycle_X = L1(reconstructed_X, real_X)
+
+        # Backward cycle: Y -> X -> Y
+        fake_X = F(real_Y)
+        reconstructed_Y = G(fake_X)
+        loss_cycle_Y = L1(reconstructed_Y, real_Y)
+
+        # Adversarial losses
+        loss_G_adv = -D_Y(fake_Y).mean()
+        loss_F_adv = -D_X(fake_X).mean()
+
+        # Total generator loss
+        loss_G = (loss_G_adv + loss_F_adv +
+                 lambda_cyc * (loss_cycle_X + loss_cycle_Y))
+        loss_G.backward()
+        optimizer_G.step()
+
+        # ==================
+        # Train Discriminators
+        # ==================
+        # D_Y discriminates Y domain
+        optimizer_D_Y.zero_grad()
+        loss_D_Y_real = D_Y(real_Y).mean()
+        loss_D_Y_fake = D_Y(fake_Y.detach()).mean()
+        loss_D_Y = loss_D_Y_fake - loss_D_Y_real
+        loss_D_Y.backward()
+        optimizer_D_Y.step()
+
+        # D_X discriminates X domain
+        optimizer_D_X.zero_grad()
+        loss_D_X_real = D_X(real_X).mean()
+        loss_D_X_fake = D_X(fake_X.detach()).mean()
+        loss_D_X = loss_D_X_fake - loss_D_X_real
+        loss_D_X.backward()
+        optimizer_D_X.step()</code></pre>
+
+        <h3>Applications</h3>
+
+        <p><strong>Style transfer:</strong></p>
+        <ul>
+            <li>Photos to paintings (Monet, Van Gogh, Cezanne styles)</li>
+            <li>Paintings to photorealistic images</li>
+            <li>Day to night scenes</li>
+            <li>Summer to winter landscapes</li>
+        </ul>
+
+        <p><strong>Object transfiguration:</strong></p>
+        <ul>
+            <li>Horses ↔ Zebras</li>
+            <li>Apples ↔ Oranges</li>
+            <li>Dogs ↔ Cats</li>
+        </ul>
+
+        <p><strong>Domain adaptation:</strong></p>
+        <ul>
+            <li>Synthetic data to real-world appearance</li>
+            <li>Simulation to reality transfer</li>
+            <li>Medical image modality translation (MRI ↔ CT)</li>
+        </ul>
+
+        <div class="note">
+            CycleGAN works best when the geometric structure is preserved between domains. It can change appearance, style, and texture, but cannot handle transformations that significantly alter object shape or layout.
+        </div>
+    </section>
+
+    <section id="section7">
+        <h2>7. EVALUATION METRICS</h2>
+
+        <p>
+            Evaluating GANs is challenging because we care about both sample quality (do images look realistic?) and sample diversity (do we cover the full distribution?). No single metric captures both perfectly.
+        </p>
+
+        <h3>Inception Score (IS)</h3>
+
+        <p><strong>What it measures:</strong></p>
+        <p>
+            Inception Score uses a pre-trained Inception network to evaluate generated images based on two criteria:
+        </p>
+
+        <ul>
+            <li><strong>Quality:</strong> Each image should be confidently classified as a specific class</li>
+            <li><strong>Diversity:</strong> Overall distribution should cover all classes uniformly</li>
+        </ul>
+
+        <div class="formula">
+IS(G) = exp(E<sub>x~p<sub>g</sub></sub>[KL(p(y|x) || p(y))])
+        </div>
+
+        <p>Where:</p>
+        <ul>
+            <li>p(y|x) is the conditional class distribution (quality)</li>
+            <li>p(y) is the marginal class distribution (diversity)</li>
+            <li>KL is Kullback-Leibler divergence</li>
+        </ul>
+
+        <p><strong>Interpretation:</strong></p>
+        <ul>
+            <li>Higher IS = better quality and diversity</li>
+            <li>Random noise: IS ≈ 1</li>
+            <li>Perfect model on ImageNet: IS ≈ 300+</li>
+            <li>Good GAN on CIFAR-10: IS ≈ 8-10</li>
+        </ul>
+
+        <p><strong>Limitations:</strong></p>
+        <ul>
+            <li>Only works for images that Inception was trained on (ImageNet classes)</li>
+            <li>Doesn't compare to real data distribution directly</li>
+            <li>Can be fooled by mode collapse (if generator produces one perfect image per class)</li>
+            <li>Not sensitive to intra-class diversity</li>
+            <li>Requires generated images to match ImageNet domain</li>
+        </ul>
+
+        <div class="note">
+            Inception Score should not be used in isolation. It's possible to have high IS but poor actual quality, or to have mode collapse with good IS if each mode is high quality.
+        </div>
+
+        <h3>Fréchet Inception Distance (FID)</h3>
+
+        <p><strong>What it measures:</strong></p>
+        <p>
+            FID compares the distribution of generated images to real images by looking at their features in the Inception network's feature space.
+        </p>
+
+        <p><strong>How it works:</strong></p>
+        <ol>
+            <li>Pass real and generated images through Inception network</li>
+            <li>Extract features from intermediate layer (before classification)</li>
+            <li>Model both feature distributions as multivariate Gaussians</li>
+            <li>Compute Fréchet distance between the two Gaussians</li>
+        </ol>
+
+        <div class="formula">
+FID = ||μ<sub>r</sub> - μ<sub>g</sub>||² + Tr(Σ<sub>r</sub> + Σ<sub>g</sub> - 2(Σ<sub>r</sub>Σ<sub>g</sub>)<sup>1/2</sup>)
+        </div>
+
+        <p>Where:</p>
+        <ul>
+            <li>μ<sub>r</sub>, Σ<sub>r</sub> = mean and covariance of real data features</li>
+            <li>μ<sub>g</sub>, Σ<sub>g</sub> = mean and covariance of generated data features</li>
+            <li>Tr = trace of a matrix</li>
+        </ul>
+
+        <p><strong>Interpretation:</strong></p>
+        <ul>
+            <li><strong>Lower FID = better</strong> (closer to real distribution)</li>
+            <li>FID = 0 means identical distributions</li>
+            <li>Good GANs: FID < 10-50 (dataset dependent)</li>
+            <li>Poor GANs: FID > 100</li>
+        </ul>
+
+        <div class="ascii-diagram">
+FID Visualization (Feature Space):
+
+Real Distribution:        Generated Distribution:
+     ╭─────╮                   ╭─────╮
+    ╱       ╲                 ╱       ╲
+   │   μ_r   │               │   μ_g   │
+    ╲       ╱                 ╲       ╱
+     ╰─────╯                   ╰─────╯
+        ↑                         ↑
+     Σ_r (spread)             Σ_g (spread)
+
+FID measures distance between these distributions
+in Inception feature space
+        </div>
+
+        <p><strong>Advantages over IS:</strong></p>
+        <ul>
+            <li>Directly compares to real data distribution</li>
+            <li>More sensitive to mode collapse and lack of diversity</li>
+            <li>Correlates better with human judgment of quality</li>
+            <li>More robust and consistent across different datasets</li>
+            <li>Detects both quality issues and diversity problems</li>
+        </ul>
+
+        <p><strong>Limitations:</strong></p>
+        <ul>
+            <li>Still relies on Inception network (biased toward ImageNet)</li>
+            <li>Gaussian assumption may not hold for complex distributions</li>
+            <li>Requires many samples for stable estimation (typically 10k+)</li>
+            <li>Cannot tell you what's wrong, just that something is wrong</li>
+        </ul>
+
+        <h3>Comparison of Metrics</h3>
+
+        <table>
+            <tr>
+                <th>Aspect</th>
+                <th>Inception Score (IS)</th>
+                <th>Fréchet Inception Distance (FID)</th>
+            </tr>
+            <tr>
+                <td>What it measures</td>
+                <td>Quality + diversity of classes</td>
+                <td>Distance to real distribution</td>
+            </tr>
+            <tr>
+                <td>Better value</td>
+                <td>Higher is better</td>
+                <td>Lower is better</td>
+            </tr>
+            <tr>
+                <td>Uses real data</td>
+                <td>No (only generator samples)</td>
+                <td>Yes (compares to real)</td>
+            </tr>
+            <tr>
+                <td>Detects mode collapse</td>
+                <td>Poorly</td>
+                <td>Well</td>
+            </tr>
+            <tr>
+                <td>Samples needed</td>
+                <td>~5,000</td>
+                <td>~10,000+</td>
+            </tr>
+            <tr>
+                <td>Computational cost</td>
+                <td>Low</td>
+                <td>Medium</td>
+            </tr>
+            <tr>
+                <td>Human correlation</td>
+                <td>Moderate</td>
+                <td>Better</td>
+            </tr>
+        </table>
+
+        <div class="highlight">
+            <strong>Best Practice:</strong> Use FID as the primary metric for GAN evaluation, supplemented by visual inspection of samples and potentially IS for additional validation. No metric replaces human evaluation of sample quality and diversity.
+        </div>
+
+        <h3>PyTorch Implementation (FID)</h3>
+
+        <pre><code>import torch
+from scipy import linalg
+import numpy as np
+
+def calculate_fid(real_features, fake_features):
+    """
+    Calculate Fréchet Inception Distance
+
+    Args:
+        real_features: Features from real images (N x D)
+        fake_features: Features from generated images (M x D)
+
+    Returns:
+        fid_score: Scalar FID value (lower is better)
+    """
+    # Calculate mean and covariance
+    mu_real = np.mean(real_features, axis=0)
+    mu_fake = np.mean(fake_features, axis=0)
+
+    sigma_real = np.cov(real_features, rowvar=False)
+    sigma_fake = np.cov(fake_features, rowvar=False)
+
+    # Calculate squared difference of means
+    diff = mu_real - mu_fake
+    mean_diff = diff.dot(diff)
+
+    # Calculate sqrt of product of covariances
+    covmean, _ = linalg.sqrtm(sigma_real.dot(sigma_fake), disp=False)
+
+    # Handle numerical errors
+    if np.iscomplexobj(covmean):
+        covmean = covmean.real
+
+    # Calculate FID
+    fid = mean_diff + np.trace(sigma_real + sigma_fake - 2*covmean)
+
+    return fid
+
+# Extract features using pre-trained Inception
+inception_model = torchvision.models.inception_v3(pretrained=True)
+inception_model.fc = torch.nn.Identity()  # Remove final layer
+inception_model.eval()
+
+def get_features(images):
+    with torch.no_grad():
+        features = inception_model(images)
+    return features.cpu().numpy()
+
+# Compute FID
+real_features = get_features(real_images)
+fake_features = get_features(generated_images)
+fid_score = calculate_fid(real_features, fake_features)
+print(f"FID Score: {fid_score:.2f}")</code></pre>
+    </section>
+
+    <section id="section8">
+        <h2>8. PRACTICAL IMPLEMENTATION</h2>
+
+        <h3>Key Takeaways from Assignment 8</h3>
+
+        <p>
+            The Assignment 8 implementation on FashionMNIST provides valuable insights into the practical differences between Vanilla GAN and WGAN-GP.
+        </p>
+
+        <p><strong>Vanilla GAN instability observed:</strong></p>
+        <ul>
+            <li>Loss curves oscillate wildly without clear convergence</li>
+            <li>Discriminator scores D(real) and D(fake) diverge from ideal 0.5</li>
+            <li>Training can suddenly destabilize even after stable epochs</li>
+            <li>Sample quality varies unpredictably across epochs</li>
+            <li>High batch-level volatility (large standard deviation)</li>
+        </ul>
+
+        <p><strong>WGAN-GP stability improvements:</strong></p>
+        <ul>
+            <li>Smooth, decreasing loss curves indicate real progress</li>
+            <li>Wasserstein distance correlates with visual sample quality</li>
+            <li>Gradient penalty stabilizes around 0.5-2.0 range</li>
+            <li>Consistent improvement in sample sharpness over epochs</li>
+            <li>2-5× reduction in loss volatility compared to Vanilla GAN</li>
+        </ul>
+
+        <p><strong>Batch-level volatility analysis:</strong></p>
+        <p>
+            Examining loss at the batch level reveals the extent of training instability:
+        </p>
+
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Vanilla GAN</th>
+                <th>WGAN-GP</th>
+            </tr>
+            <tr>
+                <td>Generator loss std dev</td>
+                <td>~0.45</td>
+                <td>~0.12</td>
+            </tr>
+            <tr>
+                <td>Discriminator/Critic loss std dev</td>
+                <td>~0.38</td>
+                <td>~0.09</td>
+            </tr>
+            <tr>
+                <td>Stability improvement</td>
+                <td>Baseline</td>
+                <td>3.7× less volatile</td>
+            </tr>
+        </table>
+
+        <div class="note">
+            These volatility metrics provide quantitative evidence for WGAN-GP's superior stability, complementing qualitative visual assessment.
+        </div>
+
+        <h3>Complete Generator Architecture (PyTorch)</h3>
+
+        <pre><code>import torch
+import torch.nn as nn
+
+class Generator(nn.Module):
+    """
+    Generator network for FashionMNIST (28x28 grayscale images)
+    Maps 64-dimensional noise to 784-dimensional image
+    """
+    def __init__(self, latent_dim=64, img_dim=784):
+        super(Generator, self).__init__()
+
+        self.model = nn.Sequential(
+            # Input: latent_dim (64)
+            nn.Linear(latent_dim, 256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.BatchNorm1d(256),
+
+            # Hidden layer 1
+            nn.Linear(256, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.BatchNorm1d(512),
+
+            # Hidden layer 2
+            nn.Linear(512, 1024),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.BatchNorm1d(1024),
+
+            # Output: img_dim (784)
+            nn.Linear(1024, img_dim),
+            nn.Tanh()  # Output in [-1, 1] to match normalized images
+        )
+
+    def forward(self, z):
+        """
+        Args:
+            z: Noise vector (batch_size, latent_dim)
+        Returns:
+            Generated image (batch_size, img_dim)
+        """
+        img = self.model(z)
+        return img</code></pre>
+
+        <h3>Complete Critic Architecture (PyTorch)</h3>
+
+        <pre><code>class Critic(nn.Module):
+    """
+    Critic network for WGAN-GP
+    NO sigmoid activation - outputs raw scores
+    """
+    def __init__(self, img_dim=784):
+        super(Critic, self).__init__()
+
+        self.model = nn.Sequential(
+            # Input: img_dim (784)
+            nn.Linear(img_dim, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            # Hidden layer 1
+            nn.Linear(512, 256),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            # Output: single score (no sigmoid!)
+            nn.Linear(256, 1)
+        )
+
+    def forward(self, img):
+        """
+        Args:
+            img: Image (batch_size, img_dim)
+        Returns:
+            Critic score (batch_size, 1) - raw unbounded value
+        """
+        score = self.model(img)
+        return score</code></pre>
+
+        <h3>Gradient Penalty Function (Complete)</h3>
+
+        <pre><code>def compute_gradient_penalty(critic, real_images, fake_images, device='cuda'):
+    """
+    Compute gradient penalty for WGAN-GP
+
+    Enforces 1-Lipschitz constraint by penalizing gradients
+    that deviate from norm = 1
+
+    Args:
+        critic: Critic network
+        real_images: Batch of real images (B, 784)
+        fake_images: Batch of generated images (B, 784)
+        device: 'cuda' or 'cpu'
+
+    Returns:
+        gradient_penalty: Scalar penalty value
+    """
+    batch_size = real_images.size(0)
+
+    # Random interpolation coefficient for each sample
+    epsilon = torch.rand(batch_size, 1, device=device)
+
+    # Interpolated samples between real and fake
+    interpolated = epsilon * real_images + (1 - epsilon) * fake_images
+    interpolated.requires_grad_(True)
+
+    # Get critic scores for interpolated samples
+    critic_interpolated = critic(interpolated)
+
+    # Compute gradients of scores w.r.t. interpolated inputs
+    gradients = torch.autograd.grad(
+        outputs=critic_interpolated,
+        inputs=interpolated,
+        grad_outputs=torch.ones_like(critic_interpolated),
+        create_graph=True,      # Allow backprop through this operation
+        retain_graph=True,      # Don't free computation graph
+        only_inputs=True        # Only compute w.r.t. inputs
+    )[0]
+
+    # Compute L2 norm of gradients for each sample
+    gradients = gradients.view(batch_size, -1)
+    gradient_norm = gradients.norm(2, dim=1)
+
+    # Penalize deviation from norm = 1
+    gradient_penalty = ((gradient_norm - 1) ** 2).mean()
+
+    return gradient_penalty</code></pre>
+
+        <h3>Training Loop Structure (WGAN-GP)</h3>
+
+        <pre><code># Hyperparameters
+latent_dim = 64
+img_dim = 28 * 28
+lr = 1e-4
+beta1 = 0.5
+beta2 = 0.9
+n_critic = 5
+lambda_gp = 10
+num_epochs = 5
+batch_size = 128
+
+# Initialize models
+generator = Generator(latent_dim, img_dim).to(device)
+critic = Critic(img_dim).to(device)
+
+# Optimizers
+optimizer_G = torch.optim.Adam(generator.parameters(),
+                               lr=lr, betas=(beta1, beta2))
+optimizer_C = torch.optim.Adam(critic.parameters(),
+                               lr=lr, betas=(beta1, beta2))
+
+# Training loop
+for epoch in range(num_epochs):
+    for batch_idx, (real_images, _) in enumerate(dataloader):
+        real_images = real_images.view(-1, img_dim).to(device)
+        batch_size = real_images.size(0)
+
+        # ==================
+        # Train Critic (n_critic times per generator update)
+        # ==================
+        for _ in range(n_critic):
+            optimizer_C.zero_grad()
+
+            # Sample noise and generate fake images
+            noise = torch.randn(batch_size, latent_dim, device=device)
+            fake_images = generator(noise)
+
+            # Critic scores on real and fake
+            critic_real = critic(real_images).mean()
+            critic_fake = critic(fake_images.detach()).mean()
+
+            # Gradient penalty
+            gp = compute_gradient_penalty(critic, real_images,
+                                         fake_images.detach(), device)
+
+            # Wasserstein loss with gradient penalty
+            loss_C = critic_fake - critic_real + lambda_gp * gp
+
+            loss_C.backward()
+            optimizer_C.step()
+
+        # ==================
+        # Train Generator (once per n_critic critic updates)
+        # ==================
+        optimizer_G.zero_grad()
+
+        # Generate fake images
+        noise = torch.randn(batch_size, latent_dim, device=device)
+        fake_images = generator(noise)
+
+        # Generator wants critic to output high scores for fakes
+        loss_G = -critic(fake_images).mean()
+
+        loss_G.backward()
+        optimizer_G.step()
+
+        # ==================
+        # Logging
+        # ==================
+        if batch_idx % 100 == 0:
+            wasserstein_dist = (critic_real - critic_fake).item()
+            print(f"Epoch [{epoch}/{num_epochs}] Batch [{batch_idx}] "
+                  f"Loss_G: {loss_G.item():.4f} "
+                  f"Loss_C: {loss_C.item():.4f} "
+                  f"W-dist: {wasserstein_dist:.4f} "
+                  f"GP: {gp.item():.4f}")</code></pre>
+
+        <h3>Common Pitfalls and Solutions</h3>
+
+        <table>
+            <tr>
+                <th>Problem</th>
+                <th>Symptom</th>
+                <th>Solution</th>
+            </tr>
+            <tr>
+                <td>Forgot to remove sigmoid</td>
+                <td>Critic outputs always in [0,1]</td>
+                <td>Ensure critic has no sigmoid activation</td>
+            </tr>
+            <tr>
+                <td>Wrong sign in losses</td>
+                <td>Losses increase instead of decrease</td>
+                <td>Critic minimizes negative W-distance</td>
+            </tr>
+            <tr>
+                <td>Gradient penalty too low</td>
+                <td>Training unstable, mode collapse</td>
+                <td>Use λ = 10 (standard value)</td>
+            </tr>
+            <tr>
+                <td>Not enough critic updates</td>
+                <td>Generator dominates, poor samples</td>
+                <td>Use n_critic = 5</td>
+            </tr>
+            <tr>
+                <td>Learning rate too high</td>
+                <td>Oscillating losses, instability</td>
+                <td>Use lr = 1e-4 (conservative)</td>
+            </tr>
+            <tr>
+                <td>Forgot create_graph=True</td>
+                <td>Error during backward pass</td>
+                <td>Enable in autograd.grad for GP</td>
+            </tr>
+        </table>
+
+        <div class="highlight">
+            <strong>Debugging Checklist:</strong>
+            <ol>
+                <li>Verify critic has no sigmoid activation</li>
+                <li>Check loss signs (should decrease over time)</li>
+                <li>Monitor gradient penalty (should be 0.5-2.0)</li>
+                <li>Ensure n_critic > 1 (typically 5)</li>
+                <li>Use conservative learning rate (1e-4)</li>
+                <li>Visualize samples every epoch to catch mode collapse early</li>
+            </ol>
+        </div>
+    </section>
+
+    <section id="section9">
+        <h2>9. COMPARISON SUMMARY</h2>
+
+        <h3>Vanilla GAN vs WGAN vs WGAN-GP</h3>
+
+        <table>
+            <tr>
+                <th>Feature</th>
+                <th>Vanilla GAN</th>
+                <th>WGAN</th>
+                <th>WGAN-GP</th>
+            </tr>
+            <tr>
+                <td>Distance Metric</td>
+                <td>JS Divergence (implicit)</td>
+                <td>Wasserstein Distance</td>
+                <td>Wasserstein Distance</td>
+            </tr>
+            <tr>
+                <td>Loss Function</td>
+                <td>Binary Cross-Entropy</td>
+                <td>Wasserstein loss</td>
+                <td>Wasserstein loss + GP</td>
+            </tr>
+            <tr>
+                <td>Output Activation</td>
+                <td>Sigmoid (0-1)</td>
+                <td>None (raw scores)</td>
+                <td>None (raw scores)</td>
+            </tr>
+            <tr>
+                <td>Network Name</td>
+                <td>Discriminator</td>
+                <td>Critic</td>
+                <td>Critic</td>
+            </tr>
+            <tr>
+                <td>Lipschitz Constraint</td>
+                <td>None</td>
+                <td>Weight clipping</td>
+                <td>Gradient penalty</td>
+            </tr>
+            <tr>
+                <td>Training Stability</td>
+                <td>Unstable</td>
+                <td>More stable</td>
+                <td>Very stable</td>
+            </tr>
+            <tr>
+                <td>Mode Collapse</td>
+                <td>Common</td>
+                <td>Less common</td>
+                <td>Rare</td>
+            </tr>
+            <tr>
+                <td>Meaningful Metric</td>
+                <td>No</td>
+                <td>Yes (W-distance)</td>
+                <td>Yes (W-distance)</td>
+            </tr>
+            <tr>
+                <td>Learning Rate</td>
+                <td>~2e-4</td>
+                <td>~1e-4</td>
+                <td>~1e-4</td>
+            </tr>
+            <tr>
+                <td>Update Ratio (D/C:G)</td>
+                <td>1:1</td>
+                <td>5:1</td>
+                <td>5:1</td>
+            </tr>
+            <tr>
+                <td>Sample Quality</td>
+                <td>Good (if stable)</td>
+                <td>Better</td>
+                <td>Best</td>
+            </tr>
+            <tr>
+                <td>Training Time</td>
+                <td>Fastest</td>
+                <td>Moderate</td>
+                <td>Slowest (GP overhead)</td>
+            </tr>
+        </table>
+
+        <h3>When to Use Each Variant</h3>
+
+        <p><strong>Use Vanilla GAN when:</strong></p>
+        <ul>
+            <li>You have extensive GAN training experience</li>
+            <li>Computational resources are very limited</li>
+            <li>You can carefully tune hyperparameters</li>
+            <li>The task is simple and well-studied</li>
+        </ul>
+
+        <p><strong>Use WGAN when:</strong></p>
+        <ul>
+            <li>You need more stable training than Vanilla GAN</li>
+            <li>Computational cost of gradient penalty is prohibitive</li>
+            <li>You're willing to accept weight clipping limitations</li>
+            <li>Historical/research comparison purposes</li>
+        </ul>
+
+        <p><strong>Use WGAN-GP when:</strong></p>
+        <ul>
+            <li><strong>Default choice for most applications</strong></li>
+            <li>Training stability is crucial</li>
+            <li>You need meaningful progress metrics</li>
+            <li>You want to minimize mode collapse risk</li>
+            <li>Computational resources allow gradient penalty</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>Recommendation:</strong> For new GAN projects, start with WGAN-GP. It provides the best balance of stability, sample quality, and ease of training. Only fall back to Vanilla GAN if computational constraints demand it.
+        </div>
+
+        <h3>Evolution of GAN Training</h3>
+
+        <div class="ascii-diagram">
+Evolution Timeline:
+
+2014: Vanilla GAN
+      │
+      ├─> Breakthrough: Adversarial training
+      ├─> Problem: Unstable training, mode collapse
+      │
+      v
+
+2017: WGAN
+      │
+      ├─> Innovation: Wasserstein distance
+      ├─> Improvement: Meaningful metrics, smoother training
+      ├─> Problem: Weight clipping limitations
+      │
+      v
+
+2017: WGAN-GP
+      │
+      ├─> Innovation: Gradient penalty
+      ├─> Improvement: Stable training, best quality
+      ├─> Current: Standard for many applications
+      │
+      v
+
+2017+: CycleGAN, StyleGAN, Progressive GAN, BigGAN...
+        </div>
+
+        <h3>Key Lessons Learned</h3>
+
+        <p><strong>From Vanilla GAN:</strong></p>
+        <ul>
+            <li>Adversarial training is powerful but challenging</li>
+            <li>Loss values alone don't indicate training progress</li>
+            <li>Visual inspection is crucial for GAN development</li>
+            <li>Balancing generator and discriminator is critical</li>
+        </ul>
+
+        <p><strong>From WGAN:</strong></p>
+        <ul>
+            <li>Choice of distance metric matters enormously</li>
+            <li>Continuous, meaningful metrics enable better training</li>
+            <li>Theoretical foundations guide practical improvements</li>
+            <li>Lipschitz constraint is key to stability</li>
+        </ul>
+
+        <p><strong>From WGAN-GP:</strong></p>
+        <ul>
+            <li>Enforcing constraints through regularization > hard constraints</li>
+            <li>Gradient penalties are more flexible than weight clipping</li>
+            <li>Stability enables longer training and better results</li>
+            <li>Extra computation for stability is often worth it</li>
+        </ul>
+
+        <div class="note">
+            The progression from Vanilla GAN to WGAN-GP demonstrates how theoretical insights (Wasserstein distance, Lipschitz continuity) combined with practical engineering (gradient penalty implementation) can dramatically improve model performance and training reliability.
+        </div>
+    </section>
+
+    <div class="end-card">
+        <h2>END OF LESSON</h2>
+        <p>You have completed the comprehensive guide to Generative Adversarial Networks.</p>
+        <p>
+            <strong>Topics Covered:</strong><br>
+            Introduction • Vanilla GAN • Training Problems • Wasserstein GAN •<br>
+            WGAN-GP • CycleGAN • Evaluation Metrics • Implementation • Comparison
+        </p>
+        <p>
+            <strong>Next Steps:</strong><br>
+            Practice implementing these architectures in PyTorch •<br>
+            Study the Diffusion Models lesson for state-of-the-art generative modeling •<br>
+            Review the Anki flashcards to reinforce key concepts
+        </p>
+    </div>
+
+    <div class="action-buttons">
+        <button class="btn" onclick="window.print()">EXPORT PDF</button>
+        <a href="GANs_Flashcards.apkg" class="btn" download>DOWNLOAD ANKI DECK</a>
+    </div>
+
+    <script>
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
