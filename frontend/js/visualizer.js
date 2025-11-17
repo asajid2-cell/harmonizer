@@ -5796,7 +5796,14 @@ function createCanonDriver(player) {
                 console.log('[Canon Driver] Loop enabled, restarting from beginning');
                 curQ = 0;
                 maxBeatReached = 0;
-                player.seek(0);
+                // Seek to start - handle different player types
+                if (player.audio && player.audio.currentTime !== undefined) {
+                    player.audio.currentTime = 0;
+                } else if (typeof player.seek === 'function') {
+                    player.seek(0);
+                } else if (player.playFrom) {
+                    player.playFrom(0);
+                }
                 // Continue processing from the beginning
                 setTimeout(function() {
                     process();
