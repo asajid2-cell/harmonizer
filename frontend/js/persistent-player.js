@@ -865,6 +865,11 @@
         }
 
         handleEnded() {
+            // If native HTML5 loop is enabled, let it handle the looping
+            if (this.audio.loop) {
+                return;
+            }
+
             if (this.playbackSettings.loopOne) {
                 this.setTrack(this.trackRegistry.get(this.state?.src) || this.state, { startTime: 0, autoPlay: true });
                 return;
