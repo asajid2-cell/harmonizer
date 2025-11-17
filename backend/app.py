@@ -49,6 +49,11 @@ except ImportError:  # pragma: no cover
     from rl.storage import log_jump_event  # type: ignore
     from rl import db as rl_db  # type: ignore
 
+try:
+    from .image_optimizer import ImageOptimizer
+except ImportError:  # pragma: no cover
+    from image_optimizer import ImageOptimizer  # type: ignore
+
 RL_SNIPPET_DIR = rl_db.SNIPPET_DIR
 RL_MODEL_PATH = rl_db.MODEL_PATH
 PRIMARY_RL_VARIANT = "a"
@@ -758,7 +763,6 @@ def media(filename: str):
     from flask import request, Response
 
     # Check if this is an image and if optimization is requested
-    from image_optimizer import ImageOptimizer
     optimizer = ImageOptimizer(UPLOAD_FOLDER)
 
     if optimizer.is_image(filename):
@@ -3548,7 +3552,6 @@ def serve_frontend_asset(asset_path: str):
 @app.route("/api/image-cache/stats", methods=["GET"])
 def image_cache_stats():
     """Get image optimization cache statistics."""
-    from image_optimizer import ImageOptimizer
     optimizer = ImageOptimizer(UPLOAD_FOLDER)
     stats = optimizer.get_cache_stats()
     return jsonify(stats)
@@ -3557,7 +3560,6 @@ def image_cache_stats():
 @app.route("/api/image-cache/clear", methods=["POST"])
 def image_cache_clear():
     """Clear image optimization cache."""
-    from image_optimizer import ImageOptimizer
     optimizer = ImageOptimizer(UPLOAD_FOLDER)
 
     older_than_days = request.args.get('older_than_days', type=int)
@@ -3572,7 +3574,6 @@ def image_cache_batch_optimize():
     Batch optimize all images in uploads folder.
     Pre-generates WebP and AVIF variants for faster first access.
     """
-    from image_optimizer import ImageOptimizer
     import time
 
     optimizer = ImageOptimizer(UPLOAD_FOLDER)
