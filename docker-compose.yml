@@ -17,10 +17,10 @@ services:
       resources:
         limits:
           memory: 1500M  # Leave 500M for system
-          cpus: '1.5'
+          cpus: '0.95'
         reservations:
           memory: 512M
-          cpus: '0.5'
+          cpus: '0.25'
 
   watchtower:
     image: containrrr/watchtower:latest
