@@ -37,12 +37,40 @@
     diffusion: { label: "[S3] Diffusion process", alt: "Diffusion visualization" },
   };
 
+  const API_OVERRIDE_BASE = resolveApiOverrideBase();
   configureApiLinks();
+
+  function resolveApiOverrideBase() {
+    if (typeof window === "undefined") {
+      return "";
+    }
+    const win = window;
+    let queryBase = "";
+    try {
+      const params = new URLSearchParams(win.location.search || "");
+      queryBase = params.get("apiBase") || params.get("api_base") || "";
+    } catch (err) {
+      queryBase = "";
+    }
+    const doc = typeof document !== "undefined" ? document : null;
+    const datasetBase =
+      (doc?.documentElement?.dataset?.eldrichifyApiBase ||
+        doc?.body?.dataset?.eldrichifyApiBase ||
+        "").trim();
+    const globalBase = (
+      win.ELDRICHIFY_API_BASE ||
+      win.__ELDRICHIFY_API_BASE ||
+      ""
+    ).trim();
+    return (queryBase || datasetBase || globalBase || "").replace(/\/+$/, "");
+  }
 
   function getApiBase() {
     const cfg = window.HARMONIZER_CONFIG || {};
-    const raw = typeof cfg.apiBaseUrl === "string" ? cfg.apiBaseUrl.trim() : "";
-    return raw ? raw.replace(/\/+$/, "") : "";
+    const configBase =
+      typeof cfg.apiBaseUrl === "string" ? cfg.apiBaseUrl.trim() : "";
+    const base = API_OVERRIDE_BASE || configBase;
+    return base ? base.replace(/\/+$/, "") : "";
   }
 
   function buildApiUrl(path = "") {
@@ -68,6 +96,11 @@
     return buildApiUrl("/api/eldrichify");
   }
 
+  function getUploadStatusEndpoint(jobId) {
+    const encoded = encodeURIComponent(jobId);
+    return buildApiUrl(`/api/eldrichify/status/${encoded}`);
+  }
+
   function getPromptEndpoint() {
     return buildApiUrl("/api/imgen");
   }
@@ -84,6 +117,29 @@
     if (modelWeightsLink) {
       modelWeightsLink.href = buildApiUrl("/download-model-weights");
     }
+  }
+
+  async function parseJsonResponse(response, context) {
+    try {
+      return await response.clone().json();
+    } catch (err) {
+      const body = await response.text();
+      const sample = body.slice(0, 200).replace(/\s+/g, " ").trim();
+      throw new Error(
+        `${context} returned invalid JSON: ${err?.message || err}. Body: ${sample || "[empty]"}`
+      );
+    }
+  }
+
+  async function ensureOk(response, context) {
+    if (response.ok) {
+      return;
+    }
+    const body = await response.text();
+    const sample = body.slice(0, 200).replace(/\s+/g, " ").trim();
+    throw new Error(
+      `${context} failed (${response.status}): ${sample || "[empty]"}`
+    );
   }
 
   // Initialize
@@ -465,14 +521,15 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: promptText, seed }),
       });
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
-      }
-      const startData = await response.json();
+      await ensureOk(response, "Prompt job submission");
+      const startData = await parseJsonResponse(response, "Prompt job submission");
       if (startData.error) {
         throw new Error(startData.error);
       }
-      const jobId = startData.job_id;
+      const jobId = startData.job_id || startData.jobId || startData.data?.job_id;
+      if (!jobId) {
+        throw new Error("Prompt API response missing job identifier");
+      }
 
       addTerminalLine("✔ Job submitted to queue", "success");
       addTerminalLine("$ Waiting for processing...", "info");
@@ -489,7 +546,8 @@
       while (attempts < maxAttempts) {
         await sleep(pollDelayMs); // Poll every 2 seconds
         const statusResponse = await fetch(getPromptStatusEndpoint(jobId));
-        const statusData = await statusResponse.json();
+        await ensureOk(statusResponse, "Prompt status check");
+        const statusData = await parseJsonResponse(statusResponse, "Prompt status check");
         const elapsedMs = Date.now() - pollStart;
         const fallbackEtaSeconds = Math.max(0, Math.round((maxDurationMs - elapsedMs) / 1000));
         const etaFromStatus = Number(statusData?.eta_seconds);
@@ -722,39 +780,82 @@
     await sleep(300);
     addTerminalLine("$ Uploading to server...", "info");
 
+    let progressTracker = null;
     try {
       const formData = new FormData();
       formData.append("image", file);
 
+      // Start the job
       const response = await fetch(getUploadEndpoint(), {
         method: "POST",
         body: formData,
       });
-
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
+      await ensureOk(response, "Upload job submission");
+      const startData = await parseJsonResponse(response, "Upload job submission");
+      if (startData.error) {
+        throw new Error(startData.error);
+      }
+      const jobId = startData.job_id || startData.jobId || startData.data?.job_id;
+      if (!jobId) {
+        throw new Error("Upload API response missing job identifier");
       }
 
-      const data = await response.json();
+      addTerminalLine("✔ Job submitted to queue", "success");
+      addTerminalLine("$ Waiting for processing...", "info");
 
-      addTerminalLine("✓ Server processing complete", "success");
-      addTerminalLine("");
-      addTerminalLine("─".repeat(60), "info");
-      addTerminalLine("$ Rendering pipeline outputs:", "info");
-      addTerminalLine("");
+      // Poll for completion
+      const pollDelayMs = 2000;
+      let attempts = 0;
+      const maxAttempts = 200; // 200 * 2 seconds = 400 seconds max
+      const maxDurationMs = maxAttempts * pollDelayMs;
+      const pollStart = Date.now();
+      progressTracker = createPromptProgressTracker("Processing image...");
+      progressTracker?.update(0, Math.round(maxDurationMs / 1000));
 
-      // Queue all stages including HD
-      UPLOAD_STAGE_ORDER.forEach(stage => {
-        queueStagePreview(stage);
-      });
+      while (attempts < maxAttempts) {
+        await sleep(pollDelayMs); // Poll every 2 seconds
+        const statusResponse = await fetch(getUploadStatusEndpoint(jobId));
+        await ensureOk(statusResponse, "Upload status check");
+        const statusData = await parseJsonResponse(statusResponse, "Upload status check");
+        const elapsedMs = Date.now() - pollStart;
+        const fallbackEtaSeconds = Math.max(0, Math.round((maxDurationMs - elapsedMs) / 1000));
+        const progressRatio = Math.min(elapsedMs / maxDurationMs, 0.98);
+        progressTracker?.update(progressRatio, fallbackEtaSeconds);
+        progressTracker?.setStatus("Processing on server...");
 
-      await revealStagePreviews(data.previews, UPLOAD_STAGE_ORDER);
-      await sleep(400);
-      addTerminalLine("");
-      addTerminalLine("─".repeat(60), "info");
-      addTerminalLine("✔ Pipeline complete!", "success");
-      await sleep(200);
-      displayResults(file, data);
+        if (statusData.status === "completed") {
+          progressTracker?.complete("Processing complete");
+          progressTracker = null;
+          addTerminalLine("✓ Server processing complete", "success");
+          addTerminalLine("");
+          addTerminalLine("─".repeat(60), "info");
+          addTerminalLine("$ Rendering pipeline outputs:", "info");
+          addTerminalLine("");
+
+          // Queue all stages including HD
+          UPLOAD_STAGE_ORDER.forEach(stage => {
+            queueStagePreview(stage);
+          });
+
+          await revealStagePreviews(statusData.result.previews, UPLOAD_STAGE_ORDER);
+          await sleep(400);
+          addTerminalLine("");
+          addTerminalLine("─".repeat(60), "info");
+          addTerminalLine("✔ Pipeline complete!", "success");
+          await sleep(200);
+          displayResults(file, statusData.result);
+          return;
+        } else if (statusData.status === "failed") {
+          progressTracker?.fail("Processing failed");
+          progressTracker = null;
+          throw new Error(statusData.error || "Processing failed");
+        }
+        // Still pending, continue polling
+        attempts++;
+      }
+      progressTracker?.fail("Processing timed out");
+      progressTracker = null;
+      throw new Error("Processing timed out");
 
     } catch (error) {
       console.error("Upload error:", error);
@@ -769,9 +870,17 @@
 
       // Fallback: show input image only
       displayResults(file, null);
+      if (progressTracker) {
+        progressTracker.fail("Processing failed");
+        progressTracker = null;
+      }
+    } finally {
+      if (progressTracker) {
+        progressTracker.remove();
+        progressTracker = null;
+      }
+      isProcessing = false;
     }
-
-    isProcessing = false;
   }
 
   function displayResults(file, data) {

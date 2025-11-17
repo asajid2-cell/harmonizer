@@ -269,10 +269,34 @@ ELDRICHIFY_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 IMGEN_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
+STATIC_CACHE_SECONDS = 31536000
+HTML_CACHE_SECONDS = 300
+STATIC_CACHE_EXTENSIONS = {
+    ".css",
+    ".js",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".svg",
+    ".ico",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".mp3",
+    ".mp4",
+    ".wav",
+}
 
 # Async image generation job system
 _imgen_jobs = {}  # job_id -> {"status": "pending|completed|failed", "result": {...}, "error": str, "created": datetime}
 _imgen_lock = threading.Lock()
+
+# Async eldrichify job system
+_eldrichify_jobs = {}  # job_id -> {"status": "pending|completed|failed", "result": {...}, "error": str, "created": datetime}
+_eldrichify_lock = threading.Lock()
 
 def _cleanup_old_jobs():
     """Remove jobs older than 10 minutes"""
@@ -281,6 +305,50 @@ def _cleanup_old_jobs():
         to_delete = [jid for jid, job in _imgen_jobs.items() if job["created"] < cutoff]
         for jid in to_delete:
             del _imgen_jobs[jid]
+    with _eldrichify_lock:
+        to_delete = [jid for jid, job in _eldrichify_jobs.items() if job["created"] < cutoff]
+        for jid in to_delete:
+            del _eldrichify_jobs[jid]
+
+def _process_eldrichify_job(job_id, file_bytes, filename, target_size):
+    """Background thread worker for eldrichify processing"""
+    try:
+        pipeline = get_eldrichify_pipeline()
+        # Process the image from bytes
+        import io
+        upload_stream = io.BytesIO(file_bytes)
+        result = pipeline.run_from_file(upload_stream, target_resolution=(target_size, target_size))
+
+        # Save the final image
+        output_filename = f"{uuid.uuid4().hex}.png"
+        relative_path = Path("eldrichify") / output_filename
+        absolute_path = UPLOAD_FOLDER / relative_path
+        absolute_path.parent.mkdir(parents=True, exist_ok=True)
+        pipeline.to_pil(result.final).save(absolute_path, format="PNG")
+
+        # Generate previews
+        previews = {
+            name: _tensor_to_data_url(pipeline, tensor)
+            for name, tensor in result.stages.items()
+            if name != "final"
+        }
+
+        with _eldrichify_lock:
+            _eldrichify_jobs[job_id]["status"] = "completed"
+            _eldrichify_jobs[job_id]["result"] = {
+                "mode": "upload",
+                "image_url": f"/media/{relative_path.as_posix()}",
+                "filename": output_filename,
+                "original_size": {"width": result.original_size[0], "height": result.original_size[1]},
+                "previews": previews,
+            }
+    except Exception as exc:
+        print(f"[eldrichify] Job {job_id} failed: {exc}", flush=True)
+        import traceback
+        traceback.print_exc()
+        with _eldrichify_lock:
+            _eldrichify_jobs[job_id]["status"] = "failed"
+            _eldrichify_jobs[job_id]["error"] = str(exc)
 
 def _process_imgen_job(job_id, prompt, guidance, steps, seed):
     """Background thread worker for image generation"""
@@ -327,6 +395,51 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(24))
 # Session(app)  # Not needed for OurSpace functionality - using Flask's built-in session
 app.config["RL_LABELER_TOKEN"] = RL_LABELER_TOKEN
 app.config["RL_POLICY_MODE"] = rl_policy_override
+
+# Performance optimizations for 2GB RAM VPS
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000  # 1 year cache for static files
+app.config["JSON_SORT_KEYS"] = False  # Faster JSON responses
+
+# Add caching headers
+@app.after_request
+def add_performance_headers(response):
+    """Add caching headers for better mobile performance"""
+    # Cache static assets aggressively
+    if request.path.startswith(('/css/', '/js/', '/img/', '/media/', '/assets/')):
+        response.cache_control.max_age = 31536000  # 1 year
+        response.cache_control.public = True
+    # Cache API responses briefly
+    elif request.path.startswith('/api/'):
+        response.cache_control.max_age = 0
+        response.cache_control.no_cache = True
+    # Enable compression hint
+    if 'Content-Type' in response.headers:
+        content_type = response.headers['Content-Type']
+        if any(ct in content_type for ct in ['text/', 'application/json', 'application/javascript']):
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+def _set_cache_headers(response, seconds: int, *, public: bool = True):
+    """Apply Cache-Control and Expires headers to a response."""
+    if public:
+        response.cache_control.public = True
+    else:
+        response.cache_control.private = True
+    response.cache_control.max_age = seconds
+    response.expires = datetime.utcnow() + timedelta(seconds=seconds)
+    return response
+
+
+def _send_cached_file(path: Path, *, treat_as_html: bool = False):
+    """Send a static file with sensible caching defaults."""
+    response = send_file(path, conditional=True)
+    suffix = path.suffix.lower()
+    if suffix in STATIC_CACHE_EXTENSIONS:
+        _set_cache_headers(response, STATIC_CACHE_SECONDS)
+    elif suffix in {".html", ".htm"} or treat_as_html:
+        _set_cache_headers(response, HTML_CACHE_SECONDS, public=False)
+    return response
 
 
 def _require_rl_token():
@@ -601,7 +714,7 @@ def cheatsheets_page():
     """Serve the cheatsheets landing page."""
     cheatsheets_index = FRONTEND_DIR / "cheatsheets" / "index.html"
     if cheatsheets_index.is_file():
-        return send_file(cheatsheets_index)
+        return _send_cached_file(cheatsheets_index, treat_as_html=True)
     abort(404)
 
 
@@ -616,7 +729,7 @@ def cheatsheets_asset(resource: str):
         abort(404)
 
     if target.is_file():
-        return send_file(target)
+        return _send_cached_file(target)
 
     abort(404)
 
@@ -633,7 +746,7 @@ def projects_page():
     """Serve the album projects page."""
     projects_index = FRONTEND_DIR / "projects.html"
     if projects_index.is_file():
-        return send_file(projects_index)
+        return _send_cached_file(projects_index, treat_as_html=True)
     abort(404)
 
 @app.route("/media/<path:filename>")
@@ -664,6 +777,7 @@ def analysis_file(filename: str):
 
 @app.route("/api/eldrichify", methods=["POST", "OPTIONS"])
 def api_eldrichify():
+    """Start async eldrichify job and return job ID immediately"""
     if request.method == "OPTIONS":
         return ("", 204)
     upload = request.files.get("image")
@@ -676,35 +790,47 @@ def api_eldrichify():
     # Get target size from form data (default 768)
     target_size = int(request.form.get("target_size", 768))
 
-    pipeline = get_eldrichify_pipeline()
-    try:
-        upload.stream.seek(0)
-        # Pass target size as a tuple (width, height)
-        result = pipeline.run_from_file(upload.stream, target_resolution=(target_size, target_size))
-    except Exception as exc:  # pragma: no cover - runtime safety
-        print(f"[eldrichify] failed to process upload: {exc}", flush=True)
-        return jsonify({"error": "VAE pipeline failed to process the image."}), 500
+    # Read file data into memory
+    upload.stream.seek(0)
+    file_bytes = upload.stream.read()
+    filename = upload.filename
 
-    filename = f"{uuid.uuid4().hex}.png"
-    relative_path = Path("eldrichify") / filename
-    absolute_path = UPLOAD_FOLDER / relative_path
-    absolute_path.parent.mkdir(parents=True, exist_ok=True)
-    pipeline.to_pil(result.final).save(absolute_path, format="PNG")
-
-    previews = {
-        name: _tensor_to_data_url(pipeline, tensor)
-        for name, tensor in result.stages.items()
-        if name != "final"
-    }
-    return jsonify(
-        {
-            "mode": "upload",
-            "image_url": f"/media/{relative_path.as_posix()}",
-            "filename": filename,
-            "original_size": {"width": result.original_size[0], "height": result.original_size[1]},
-            "previews": previews,
+    # Create job
+    job_id = str(uuid.uuid4())
+    _cleanup_old_jobs()
+    with _eldrichify_lock:
+        _eldrichify_jobs[job_id] = {
+            "status": "pending",
+            "result": None,
+            "error": None,
+            "created": datetime.now(),
         }
+
+    # Start background thread
+    thread = threading.Thread(
+        target=_process_eldrichify_job,
+        args=(job_id, file_bytes, filename, target_size),
+        daemon=True
     )
+    thread.start()
+
+    return jsonify({"job_id": job_id, "status": "pending"})
+
+
+@app.route("/api/eldrichify/status/<job_id>", methods=["GET"])
+def api_eldrichify_status(job_id):
+    """Poll for eldrichify job completion"""
+    with _eldrichify_lock:
+        job = _eldrichify_jobs.get(job_id)
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+
+        if job["status"] == "completed":
+            return jsonify({"status": "completed", "result": job["result"]})
+        elif job["status"] == "failed":
+            return jsonify({"status": "failed", "error": job["error"]}), 500
+        else:
+            return jsonify({"status": "pending"})
 
 
 @app.route("/download-traced-model")
@@ -761,8 +887,8 @@ def api_imgen():
 
     # Create job
     job_id = str(uuid.uuid4())
+    _cleanup_old_jobs()
     with _imgen_lock:
-        _cleanup_old_jobs()
         _imgen_jobs[job_id] = {
             "status": "pending",
             "result": None,
@@ -3347,7 +3473,7 @@ def serve_study_asset(study_path: str):
     except ValueError:
         abort(404)
     if target.is_file():
-        return send_file(target)
+        return _send_cached_file(target)
     abort(404)
 
 
@@ -3363,9 +3489,9 @@ def serve_frontend_asset(asset_path: str):
     if target.is_dir():
         index_path = target / "index.html"
         if index_path.is_file():
-            return send_file(index_path)
+            return _send_cached_file(index_path, treat_as_html=True)
     if target.is_file():
-        return send_file(target)
+        return _send_cached_file(target)
     abort(404)
 
 

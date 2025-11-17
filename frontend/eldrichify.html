@@ -9,6 +9,34 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./modern.css" />
     <link rel="stylesheet" href="./eldrichify.css" />
+    <script>
+      (function () {
+        var apiBase = "";
+        try {
+          var params = new URLSearchParams(window.location.search || "");
+          apiBase = params.get("apiBase") || params.get("api_base") || "";
+        } catch (err) {
+          apiBase = "";
+        }
+        if (!apiBase && document.documentElement) {
+          apiBase = document.documentElement.dataset.eldrichifyApiBase || "";
+        }
+        if (apiBase) {
+          apiBase = apiBase.replace(/\/+$/, "");
+          if (document.documentElement) {
+            document.documentElement.dataset.eldrichifyApiBase = apiBase;
+          }
+          if (document.body) {
+            document.body.dataset.eldrichifyApiBase = apiBase;
+          }
+          window.ELDRICHIFY_API_BASE = apiBase;
+          var existingConfig = window.HARMONIZER_CONFIG || {};
+          window.HARMONIZER_CONFIG = Object.assign({}, existingConfig, {
+            apiBaseUrl: apiBase,
+          });
+        }
+      })();
+    </script>
 </head>
 <body class="eldrichify-terminal">
     <div class="site-landing-banner"><a href="/">&#8592; Return to Internet Discotheque</a></div>
@@ -28,6 +56,7 @@
                         <li>&#10022; Residual MLP refiner keeps the latent grid steady before reconstruction</li>
                         <li>&#10022; DF2K-trained upsampler handles the HD pass while preserving those non-photoreal patterns</li>
                         <li>&#10022; Real-time processing, visualization, and transformation pipeline</li>
+                        <li>&#10022; Server-side inference runs full diffusion chain on CPU—processing may take 30-90s per job depending on load</li>
                     </ul>
                     <div class="eld-cta-row">
                         <button type="button" class="launch-link viz-button" id="launch-pipeline-btn">Launch Pipeline</button>

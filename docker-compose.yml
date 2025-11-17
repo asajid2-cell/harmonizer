@@ -12,6 +12,15 @@ services:
       - ./data:/app/backend/data
       - ./backend/ourspace_data:/app/backend/ourspace_data
     restart: unless-stopped
+    # Resource limits for 2GB RAM VPS
+    deploy:
+      resources:
+        limits:
+          memory: 1500M  # Leave 500M for system
+          cpus: '1.5'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
 
   watchtower:
     image: containrrr/watchtower:latest
