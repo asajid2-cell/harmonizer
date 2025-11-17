@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import base64
+import hashlib
 import hmac
 import io
 import os
@@ -251,6 +252,7 @@ DATA_FOLDER.mkdir(parents=True, exist_ok=True)
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
 STUDY_DIR.mkdir(parents=True, exist_ok=True)
 DISCO_MEMORY_PATH = DATA_FOLDER / "discoteque_memory.jsonl"
+AUDIO_CACHE_PATH = DATA_FOLDER / "audio_cache.json"
 ELDRICHIFY_OUTPUT_DIR = UPLOAD_FOLDER / "eldrichify"
 IMGEN_OUTPUT_DIR = UPLOAD_FOLDER / "imgen"
 CHEATSHEET_UPLOAD_DIR = UPLOAD_FOLDER / "cheatsheets"
@@ -309,6 +311,81 @@ _eldrichify_lock = threading.Lock()
 # Async audio processing job system
 _audio_jobs = {}  # job_id -> {"status": "pending|processing|completed|failed", "result": {...}, "error": str, "created": datetime, "progress": str}
 _audio_lock = threading.Lock()
+
+# Audio cache system - maps file hash to track_id
+_audio_cache = {}  # hash -> {"track_id": str, "title": str, "artist": str, "created": datetime}
+_cache_lock = threading.Lock()
+
+def _load_audio_cache():
+    """Load audio cache from disk"""
+    global _audio_cache
+    if AUDIO_CACHE_PATH.exists():
+        try:
+            with AUDIO_CACHE_PATH.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+                # Convert ISO datetime strings back to datetime objects
+                for hash_key, entry in data.items():
+                    if isinstance(entry.get("created"), str):
+                        entry["created"] = datetime.fromisoformat(entry["created"])
+                _audio_cache = data
+                print(f"[Cache] Loaded {len(_audio_cache)} cached tracks", flush=True)
+        except Exception as e:
+            print(f"[Cache] Failed to load cache: {e}", flush=True)
+            _audio_cache = {}
+
+def _save_audio_cache():
+    """Save audio cache to disk"""
+    try:
+        # Convert datetime objects to ISO strings for JSON serialization
+        serializable = {}
+        for hash_key, entry in _audio_cache.items():
+            serializable[hash_key] = {
+                **entry,
+                "created": entry["created"].isoformat() if isinstance(entry["created"], datetime) else entry["created"]
+            }
+        with AUDIO_CACHE_PATH.open("w", encoding="utf-8") as f:
+            json.dump(serializable, f, indent=2)
+    except Exception as e:
+        print(f"[Cache] Failed to save cache: {e}", flush=True)
+
+def _compute_file_hash(file_path: Path) -> str:
+    """Compute SHA256 hash of a file"""
+    sha256 = hashlib.sha256()
+    with file_path.open("rb") as f:
+        # Read in chunks to handle large files
+        for chunk in iter(lambda: f.read(8192), b""):
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+def _get_cached_track(file_hash: str) -> Optional[dict]:
+    """Check if track exists in cache"""
+    with _cache_lock:
+        cached = _audio_cache.get(file_hash)
+        if cached:
+            # Verify the track files still exist
+            track_id = cached["track_id"]
+            json_path = DATA_FOLDER / f"{track_id}.json"
+            if json_path.exists():
+                print(f"[Cache] Cache HIT for hash {file_hash[:12]}... -> {track_id}", flush=True)
+                return cached
+            else:
+                # Cache entry is stale - remove it
+                print(f"[Cache] Stale entry removed for hash {file_hash[:12]}...", flush=True)
+                del _audio_cache[file_hash]
+                _save_audio_cache()
+    return None
+
+def _add_to_cache(file_hash: str, track_id: str, title: str, artist: str):
+    """Add a processed track to the cache"""
+    with _cache_lock:
+        _audio_cache[file_hash] = {
+            "track_id": track_id,
+            "title": title,
+            "artist": artist,
+            "created": datetime.now()
+        }
+        _save_audio_cache()
+        print(f"[Cache] Added {track_id} with hash {file_hash[:12]}...", flush=True)
 
 def _cleanup_old_jobs():
     """Remove jobs older than 10 minutes"""
@@ -402,7 +479,7 @@ def _process_imgen_job(job_id, prompt, guidance, steps, seed):
             _imgen_jobs[job_id]["status"] = "failed"
             _imgen_jobs[job_id]["error"] = str(exc)
 
-def _process_audio_job(job_id, audio_path, audio_path2, track_id, track_id2, title, artist, algorithm):
+def _process_audio_job(job_id, audio_path, audio_path2, track_id, track_id2, title, artist, algorithm, file_hash=None):
     """Background thread worker for audio analysis"""
     try:
         with _audio_lock:
@@ -478,6 +555,10 @@ def _process_audio_job(job_id, audio_path, audio_path2, track_id, track_id2, tit
         else:
             mode = "eternal"
 
+        # Add to cache if hash was provided
+        if file_hash and algorithm != "autoharmonizer":
+            _add_to_cache(file_hash, final_track_id, title, artist)
+
         with _audio_lock:
             _audio_jobs[job_id]["status"] = "completed"
             _audio_jobs[job_id]["progress"] = "Complete!"
@@ -511,6 +592,9 @@ app.config["RL_POLICY_MODE"] = rl_policy_override
 # Performance optimizations for 2GB RAM VPS
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000  # 1 year cache for static files
 app.config["JSON_SORT_KEYS"] = False  # Faster JSON responses
+
+# Load audio cache on startup
+_load_audio_cache()
 
 # Add caching headers
 @app.after_request
@@ -2003,6 +2087,49 @@ def api_process():
         if title is None:
             title = audio_path.stem if audio_path else "Untitled"
 
+        # Check cache for single audio uploads (not autoharmonizer)
+        file_hash = None
+        if source == "upload" and algorithm != "autoharmonizer":
+            file_hash = _compute_file_hash(audio_path)
+            cached = _get_cached_track(file_hash)
+            if cached:
+                # Cache hit! Return immediately
+                cached_track_id = cached["track_id"]
+                if algorithm == "canon":
+                    mode = "canon"
+                elif algorithm == "jukebox":
+                    mode = "jukebox"
+                elif algorithm == "sculptor":
+                    mode = "sculptor"
+                else:
+                    mode = "eternal"
+
+                print(f"[API] Cache hit! Returning {cached_track_id} instantly", flush=True)
+
+                # Create a fake job that's already completed
+                job_id = str(uuid.uuid4())
+                with _audio_lock:
+                    _audio_jobs[job_id] = {
+                        "status": "completed",
+                        "progress": "Retrieved from cache!",
+                        "result": {
+                            "trackId": cached_track_id,
+                            "mode": mode,
+                            "title": cached["title"],
+                            "artist": cached["artist"],
+                        },
+                        "error": None,
+                        "created": datetime.now(),
+                        "track_id": cached_track_id,
+                        "algorithm": algorithm,
+                    }
+
+                return jsonify({
+                    "jobId": job_id,
+                    "trackId": cached_track_id,
+                    "status": "cached"
+                })
+
         # Create async job for audio processing
         job_id = str(uuid.uuid4())
 
@@ -2020,7 +2147,7 @@ def api_process():
         # Start background processing thread
         thread = threading.Thread(
             target=_process_audio_job,
-            args=(job_id, audio_path, audio_path2, track_id, track_id2, title, artist, algorithm),
+            args=(job_id, audio_path, audio_path2, track_id, track_id2, title, artist, algorithm, file_hash),
             daemon=True
         )
         thread.start()
