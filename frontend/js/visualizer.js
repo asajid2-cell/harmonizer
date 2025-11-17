@@ -5791,6 +5791,14 @@ function createCanonDriver(player) {
 
     function process() {
         if (curQ >= masterQs.length) {
+            // Check if loop is enabled - restart from beginning
+            if (window.harmonizerLoopEnabled) {
+                console.log('[Canon Driver] Loop enabled, restarting from beginning');
+                curQ = 0;
+                maxBeatReached = 0;
+                player.seek(0);
+                return;
+            }
             // Check if we should auto-play the next track in queue
             if (autoPlayNext && playNextInQueue()) {
                 console.log('[Canon Driver] Auto-playing next track in queue');
