@@ -38,7 +38,7 @@ function createHtmlAudioController(sourceUrl, options) {
     var audio = new Audio(resolved);
     audio.preload = "auto";
     audio.crossOrigin = "anonymous";
-    audio.loop = false;
+    audio.loop = !!(window.harmonizerLoopEnabled);
     audio.volume = clampVolume(options && typeof options.volume === "number" ? options.volume : 1);
 
     var requestFrame = (typeof window !== "undefined" && window.requestAnimationFrame) ?
@@ -145,6 +145,12 @@ function createHtmlAudioController(sourceUrl, options) {
         },
         getVolume: function() {
             return audio.volume;
+        },
+        setLoop: function(enabled) {
+            audio.loop = !!enabled;
+        },
+        getLoop: function() {
+            return audio.loop;
         },
         fadeTo: fadeTo
     };
@@ -7771,6 +7777,9 @@ function createSectionSculptorDriver(player) {
         if (previewPlayer.ensureLoaded) {
             previewPlayer.ensureLoaded();
         }
+        // Expose players globally for loop control
+        window.queuePlayer = queuePlayer;
+        window.previewPlayer = previewPlayer;
     }
 
     initializeAudioControllers();

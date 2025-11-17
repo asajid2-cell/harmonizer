@@ -270,6 +270,10 @@ jgs   `-=========-`()
                                 <input type="checkbox" id="base-audio-only-toggle">
                                 <span>Base audio only</span>
                             </label>
+                            <label class="audio-compare-toggle" for="loop-playback-toggle" title="Loop playback continuously">
+                                <input type="checkbox" id="loop-playback-toggle">
+                                <span>Loop</span>
+                            </label>
                             <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
                                 Advanced: Off
                             </button>
@@ -631,9 +635,9 @@ jgs   `-=========-`()
 
         function applyModePolicyDefaults(modeName, options) {
             const normalized = (modeName || '').toLowerCase();
-            // All modes use variant 'a' (RL) by default for intelligent jumping
-            const defaultVariant = 'a';
-            const defaultPolicy = 'rl';
+            // Default to No RL (variant 'b') for simpler baseline behavior
+            const defaultVariant = 'b';
+            const defaultPolicy = 'baseline';
             const variantChanged = rlModelVariant !== defaultVariant;
             rlModelVariant = defaultVariant;
             window.harmonizerModelVariant = defaultVariant;
@@ -2342,6 +2346,44 @@ jgs   `-=========-`()
         });
 
         window.addEventListener('harmonizer:beatRoundingSync', syncBeatToggle);
+    })();
+
+    // Loop playback toggle
+    (function() {
+        const loopToggle = document.getElementById('loop-playback-toggle');
+        if (!loopToggle) return;
+
+        function setLoopOnAllAudio(enabled) {
+            // Set loop on Section Sculptor players
+            if (typeof window.queuePlayer !== 'undefined' && window.queuePlayer && typeof window.queuePlayer.setLoop === 'function') {
+                window.queuePlayer.setLoop(enabled);
+            }
+            if (typeof window.previewPlayer !== 'undefined' && window.previewPlayer && typeof window.previewPlayer.setLoop === 'function') {
+                window.previewPlayer.setLoop(enabled);
+            }
+
+            // Set loop on all HTML5 audio elements (for Canonizer, Jukebox, etc.)
+            document.querySelectorAll('audio').forEach(function(audioEl) {
+                audioEl.loop = enabled;
+            });
+
+            // Store preference for new audio elements
+            window.harmonizerLoopEnabled = enabled;
+        }
+
+        loopToggle.addEventListener('change', function(event) {
+            setLoopOnAllAudio(event.target.checked);
+        });
+
+        // Apply loop setting when new audio is created
+        const originalAudio = window.Audio;
+        window.Audio = function(src) {
+            const audio = new originalAudio(src);
+            if (window.harmonizerLoopEnabled) {
+                audio.loop = true;
+            }
+            return audio;
+        };
     })();
     </script>
 <script src="./js/persistent-player.js" defer></script>
