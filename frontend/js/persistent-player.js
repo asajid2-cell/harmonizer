@@ -416,7 +416,7 @@
             this.audio.autoplay = false;
             this.audio.playsInline = true;
             this.audio.crossOrigin = 'anonymous';
-            this.audio.loop = false;
+            this.audio.loop = !!(window.harmonizerLoopEnabled);
             this.audio.volume = this.volume;
             this.audio.dataset.role = 'persistent-player-audio';
             this.audio.style.display = 'none';
