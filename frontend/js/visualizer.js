@@ -509,10 +509,8 @@ function getGlobalPolicyMode(modeName) {
         return (globalMode || "rl").toLowerCase();
     }
     var normalizedMode = (modeName || "").toLowerCase();
-    var defaultPolicy = "rl";
-    if (normalizedMode === "canon") {
-        defaultPolicy = "baseline";
-    } else if (normalizedMode === "jukebox" || normalizedMode === "eternal") {
+    var defaultPolicy = "rl";  // All modes use RL policy by default for intelligent jumping
+    if (normalizedMode === "canon" || normalizedMode === "jukebox" || normalizedMode === "eternal" || normalizedMode === "autoharmonizer") {
         defaultPolicy = "rl";
     }
     return defaultPolicy;
@@ -564,7 +562,18 @@ function scoreJumpQuality(edge, options) {
         if (tally) {
             tally.fallback += 1;
         }
-        return null;
+        // Fallback heuristic scoring when no RL model is available
+        var similarity = typeof edge.similarity === "number" ? edge.similarity : 0;
+        var span = typeof edge.span === "number" ? edge.span : 0;
+        var sameSection = edge.sameSection ? 1 : 0;
+
+        // Simple heuristic: favor high similarity, moderate jumps, same section
+        var simScore = similarity * 100;  // 0-100
+        var jumpPenalty = Math.min(span / 10, 30);  // Penalize very long jumps
+        var sectionBonus = sameSection * 15;  // Bonus for staying in same section
+        var canonBonus = (edge.reason === "canon_pair") ? 25 : 0;  // Bonus for canon pairs
+
+        return simScore - jumpPenalty + sectionBonus + canonBonus;
     }
     var totalBeats =
         typeof options.totalBeats === "number"
