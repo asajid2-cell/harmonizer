@@ -2432,7 +2432,17 @@ jgs   `-=========-`()
         }
 
         loopToggle.addEventListener('change', function(event) {
+            console.log('[Loop] Toggle changed to:', event.target.checked);
             setLoopOnAllAudio(event.target.checked);
+
+            // Debug: verify it was set
+            setTimeout(function() {
+                var audioEls = document.querySelectorAll('audio');
+                console.log('[Loop] Found', audioEls.length, 'audio elements');
+                audioEls.forEach(function(el, idx) {
+                    console.log('[Loop] Audio', idx, 'loop =', el.loop);
+                });
+            }, 100);
         });
 
         // Apply loop setting when new audio is created

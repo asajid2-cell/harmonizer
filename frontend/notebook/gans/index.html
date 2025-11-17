@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Notebook &mdash; Internet Discotheque</title>
+    <title>GANs Notes &mdash; Internet Discotheque</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@600&display=swap" rel="stylesheet">
@@ -24,7 +24,6 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
             --lime: #9dff63;
             --ink: #0b0814;
             --text: #f2f6ff;
-            --banner-height: 56px;
         }
         * { box-sizing: border-box; }
         body { margin: 0; min-height: 100vh; font-family: "JetBrains Mono", monospace; color: var(--text); background-color: #000; background-image: radial-gradient(circle, #ffffff 1px, transparent 1px), radial-gradient(circle, #ffffff 1px, transparent 1px); background-size: 50px 50px, 80px 80px; background-position: 0 0, 40px 40px; background-attachment: fixed; padding: 0 16px 72px; position: relative; overflow-x: hidden; }
@@ -40,6 +39,10 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
             background: linear-gradient(90deg, #ff00ff 0%, #ff6600 25%, #00ffff 50%, #00ff00 75%, #ff00ff 100%);
             box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
             animation: bar-glow 3s ease-in-out infinite;
+        }
+        @keyframes bar-glow {
+            0%, 100% { opacity: 1; box-shadow: 0 0 20px rgba(255, 0, 255, 0.8); }
+            50% { opacity: 0.85; box-shadow: 0 0 30px rgba(255, 0, 255, 1); }
         }
         .site-landing-banner {
             width: calc(100% + 32px);
@@ -61,20 +64,11 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
             letter-spacing: 0.2em;
             text-transform: uppercase;
             text-decoration: none;
+            margin: 0 8px;
         }
         .site-landing-banner a:hover,
         .site-landing-banner a:focus-visible {
             color: #ffbed8;
-        }
-        @keyframes bar-glow {
-            0%, 100% {
-                opacity: 1;
-                box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
-            }
-            50% {
-                opacity: 0.85;
-                box-shadow: 0 0 30px rgba(255, 0, 255, 1);
-            }
         }
         .wrapper {
             max-width: 1100px;
@@ -103,7 +97,7 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
         }
         .retro-columns h1 {
             margin: 0 0 8px;
-            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            font-size: clamp(1.5rem, 4vw, 2.2rem);
             letter-spacing: 0.35em;
         }
         .retro-columns p {
@@ -117,70 +111,54 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
             font-size: 0.78rem;
             color: var(--lime);
         }
-        .hero-ascii {
-            border: 2px solid var(--amber);
-            padding: 12px;
-            background: rgba(0,0,0,0.6);
-            text-align: center;
-            color: var(--amber);
-        }
-        .hero-ascii pre { margin: 0; white-space: pre; }
-        .ascii-panel {
-            margin-top: 26px;
-            border: 2px dashed var(--lime);
-            padding: 16px;
-            background: rgba(5, 3, 10, 0.8);
-        }
-        .ascii-panel h2 {
-            margin: 0 0 12px;
-            letter-spacing: 0.3em;
-            font-size: 0.9rem;
-            color: var(--lime);
-        }
-        .ascii-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 12px;
-        }
-        .ascii-grid pre {
-            margin: 0;
-            padding: 14px;
-            border: 1px solid var(--grid);
-            background: rgba(0,0,0,0.55);
-            min-height: 150px;
-            color: var(--lime);
-            white-space: pre;
-        }
-        .link-strip {
+        .notes-list {
             margin-top: 30px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 16px;
+            list-style: none;
+            padding: 0;
+            border-top: 2px solid var(--grid);
         }
-        .link-card {
-            border: 2px solid var(--pink);
-            padding: 18px;
-            text-decoration: none;
-            color: var(--text);
-            background: rgba(0,0,0,0.65);
+        .notes-list li {
+            padding: 20px 0;
+            border-bottom: 1px solid var(--grid);
             transition: all 0.2s ease;
         }
-        .link-card h3 {
-            margin: 8px 0 10px;
-            letter-spacing: 0.3em;
+        .notes-list li:hover {
+            background: rgba(31, 251, 255, 0.05);
+            padding-left: 12px;
+        }
+        .note-title {
             font-size: 1.15rem;
             text-transform: uppercase;
+            letter-spacing: 0.15em;
             color: var(--cyan);
+            margin-bottom: 8px;
         }
-        .link-card p {
-            margin: 0;
-            font-size: 0.9rem;
+        .note-desc {
+            margin: 6px 0 10px;
             color: rgba(255,255,255,0.75);
-            line-height: 1.5;
+            line-height: 1.55;
+            font-size: 0.9rem;
         }
-        .link-card:hover {
-            border-color: var(--cyan);
-            background: rgba(31, 251, 255, 0.1);
+        .note-links {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .note-links a {
+            text-decoration: none;
+            border: 1px solid var(--pink);
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--pink);
+            background: rgba(0,0,0,0.4);
+            transition: all 0.2s ease;
+        }
+        .note-links a:hover {
+            background: var(--pink);
+            color: #000;
         }
         .footer-note {
             margin-top: 32px;
@@ -193,79 +171,33 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
     </style>
 </head>
 <body>
-    <div class="site-landing-banner"><a href="/">&#8592; Return to Internet Discotheque</a></div>
+    <div class="site-landing-banner">
+        <a href="/">&#8592; Home</a>
+        <a href="/notebook.html">&#8592; Notebook</a>
+    </div>
     <div class="wrapper">
-        <div class="retro-banner">*** NOTEBOOK ARCHIVE &mdash; STUDY NOTES DATABASE ***</div>
+        <div class="retro-banner">*** GANS NOTES &mdash; GENERATIVE ADVERSARIAL NETWORKS ***</div>
         <section class="retro-columns">
             <div>
-                <h1>NOTEBOOK</h1>
-                <p>A collection of organized study notes, lessons, and flashcard decks.</p>
-            </div>
-            <div class="hero-ascii" aria-label="notebook icon">
-<pre>
-    ___________
-   |  _______  |
-   | |       | |
-   | | NOTES | |
-   | |_______| |
-   |  _______  |
-   | |       | |
-   | |_______| |
-   |___________|
-      [ ][ ]
-   digital brain
-</pre>
+                <h1>GANS</h1>
+                <p>Complete guide to Generative Adversarial Networks. Covers architecture, training dynamics, loss functions, and applications.</p>
+                <p class="hero-note">Click a topic to study &rarr;</p>
             </div>
         </section>
-        <section class="ascii-panel">
-            <h2>STUDY SECTIONS</h2>
-            <div class="ascii-grid" aria-label="study mascots">
-<pre aria-label="study wizard">
-    /\
-   /  \
-  | () |  << wizard
-  |____|     guide
-   |  |
-   |  |
-</pre>
-<pre aria-label="nerd ghost">
-   .--.
-  ( oo )  << study
-   \__/      ghost
-   |  |
-   '  '
-</pre>
-<pre aria-label="book stack">
-  ______
- |______|
- |______|  << notes
- |______|     pile
-  ||  ||
-</pre>
-<pre aria-label="thinking cap">
-   ____
-  /____\  << brain
- |  ^^  |    power
-  \____/
-</pre>
-            </div>
-        </section>
-        <section class="link-strip">
-            <a class="link-card" href="/notebook/visual-recognition/">
-                <h3>VISUAL RECOGNITION</h3>
-                <p>CMPUT 328 complete course notes &mdash; from logistic regression to autoencoders. 8 assignments, lessons + Anki decks.</p>
-            </a>
-            <a class="link-card" href="/notebook/gans/">
-                <h3>GANS</h3>
-                <p>Generative Adversarial Networks &mdash; complete guide to GANs architecture, training dynamics, and applications. Lesson + Anki deck included.</p>
-            </a>
-            <a class="link-card" href="/notebook/diffusion/">
-                <h3>DIFFUSION MODELS</h3>
-                <p>Diffusion Models deep dive &mdash; forward/reverse processes, denoising techniques, and state-of-the-art implementations. Lesson + Anki deck included.</p>
-            </a>
-        </section>
-        <p class="footer-note">More sections coming soon...</p>
+
+        <ul class="notes-list">
+            <li>
+                <div class="note-title">Generative Adversarial Networks · Complete Guide</div>
+                <p class="note-desc">In-depth exploration of GANs architecture, training dynamics, generator-discriminator interplay, common pitfalls, and modern variants. Includes loss functions, optimization strategies, and practical applications.</p>
+                <div class="note-links">
+                    <a href="gans_lesson.html">Read Lesson</a>
+                    <a href="/Study/GANS/GANs_Flashcards.apkg" download>Download Anki Deck</a>
+                </div>
+            </li>
+        </ul>
+
+        <p class="footer-note">Generative AI · Deep Learning</p>
     </div>
-<script src="./js/persistent-player.js" defer></script>
+<script src="../../js/persistent-player.js" defer></script>
 </body>
 </html>
