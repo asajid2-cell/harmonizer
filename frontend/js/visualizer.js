@@ -295,6 +295,11 @@ function configureCanvasForMode() {
 }
 
 function applyModeLayout() {
+    // Sync body data-mode attribute with JavaScript mode variable
+    if (document.body && document.body.dataset) {
+        document.body.dataset.mode = mode;
+    }
+
     var orbitMode = configureCanvasForMode();
     if (paper) {
         paper.setSize(W, TH);
@@ -2869,7 +2874,7 @@ function init() {
     pulseNotes(baseNoteStrength);
     if (document.body && document.body.dataset && document.body.dataset.mode) {
         var bodyMode = document.body.dataset.mode.toLowerCase();
-        if (bodyMode === "jukebox" || bodyMode === "canon" || bodyMode === "eternal") {
+        if (bodyMode === "jukebox" || bodyMode === "canon" || bodyMode === "eternal" || bodyMode === "autoharmonizer" || bodyMode === "sculptor") {
             mode = bodyMode;
         }
     }
