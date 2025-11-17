@@ -306,6 +306,10 @@ _imgen_lock = threading.Lock()
 _eldrichify_jobs = {}  # job_id -> {"status": "pending|completed|failed", "result": {...}, "error": str, "created": datetime}
 _eldrichify_lock = threading.Lock()
 
+# Async audio processing job system
+_audio_jobs = {}  # job_id -> {"status": "pending|processing|completed|failed", "result": {...}, "error": str, "created": datetime, "progress": str}
+_audio_lock = threading.Lock()
+
 def _cleanup_old_jobs():
     """Remove jobs older than 10 minutes"""
     cutoff = datetime.now() - timedelta(minutes=10)
@@ -317,6 +321,10 @@ def _cleanup_old_jobs():
         to_delete = [jid for jid, job in _eldrichify_jobs.items() if job["created"] < cutoff]
         for jid in to_delete:
             del _eldrichify_jobs[jid]
+    with _audio_lock:
+        to_delete = [jid for jid, job in _audio_jobs.items() if job["created"] < cutoff]
+        for jid in to_delete:
+            del _audio_jobs[jid]
 
 def _process_eldrichify_job(job_id, file_bytes, filename, target_size):
     """Background thread worker for eldrichify processing"""
@@ -393,6 +401,102 @@ def _process_imgen_job(job_id, prompt, guidance, steps, seed):
         with _imgen_lock:
             _imgen_jobs[job_id]["status"] = "failed"
             _imgen_jobs[job_id]["error"] = str(exc)
+
+def _process_audio_job(job_id, audio_path, audio_path2, track_id, track_id2, title, artist, algorithm):
+    """Background thread worker for audio analysis"""
+    try:
+        with _audio_lock:
+            _audio_jobs[job_id]["status"] = "processing"
+            _audio_jobs[job_id]["progress"] = "Loading audio file..."
+
+        print(f"[Audio] Job {job_id} started for track {track_id}", flush=True)
+
+        # Import build_profile
+        try:
+            from .analysis.analyze_track import build_profile, build_autoharmonizer_profile
+        except ImportError:
+            from analysis.analyze_track import build_profile, build_autoharmonizer_profile  # type: ignore
+
+        with _audio_lock:
+            _audio_jobs[job_id]["progress"] = "Analyzing beats and sections..."
+
+        # Process first track
+        from flask import url_for
+        media_url = f"/media/{audio_path.name}"
+        output_path = DATA_FOLDER / f"{track_id}.json"
+        build_profile(
+            audio_path=audio_path,
+            track_id=track_id,
+            title=title,
+            artist=artist,
+            audio_url=media_url,
+            output_path=output_path,
+        )
+
+        # For autoharmonizer, process second track
+        if algorithm == "autoharmonizer" and audio_path2 and track_id2:
+            with _audio_lock:
+                _audio_jobs[job_id]["progress"] = "Processing second track..."
+
+            title2 = Path(audio_path2.stem).stem if audio_path2 else "Untitled Track 2"
+            media_url2 = f"/media/{audio_path2.name}"
+            output_path2 = DATA_FOLDER / f"{track_id2}.json"
+            build_profile(
+                audio_path=audio_path2,
+                track_id=track_id2,
+                title=title2,
+                artist=artist,
+                audio_url=media_url2,
+                output_path=output_path2,
+            )
+
+            with _audio_lock:
+                _audio_jobs[job_id]["progress"] = "Computing cross-track similarity..."
+
+            combined_track_id = f"{track_id}+{track_id2}"
+            combined_output_path = DATA_FOLDER / f"{combined_track_id}.json"
+            build_autoharmonizer_profile(
+                track1_path=output_path,
+                track2_path=output_path2,
+                combined_track_id=combined_track_id,
+                output_path=combined_output_path,
+            )
+
+            final_track_id = combined_track_id
+        else:
+            final_track_id = track_id
+
+        # Determine mode
+        if algorithm == "canon":
+            mode = "canon"
+        elif algorithm == "jukebox":
+            mode = "jukebox"
+        elif algorithm == "sculptor":
+            mode = "sculptor"
+        elif algorithm == "autoharmonizer":
+            mode = "autoharmonizer"
+        else:
+            mode = "eternal"
+
+        with _audio_lock:
+            _audio_jobs[job_id]["status"] = "completed"
+            _audio_jobs[job_id]["progress"] = "Complete!"
+            _audio_jobs[job_id]["result"] = {
+                "trackId": final_track_id,
+                "mode": mode,
+                "title": title,
+                "artist": artist,
+            }
+
+        print(f"[Audio] Job {job_id} completed successfully", flush=True)
+
+    except Exception as exc:
+        print(f"[Audio] Job {job_id} failed: {exc}", flush=True)
+        import traceback
+        traceback.print_exc()
+        with _audio_lock:
+            _audio_jobs[job_id]["status"] = "failed"
+            _audio_jobs[job_id]["error"] = str(exc)
 
 app = Flask(__name__, static_folder=None)
 
@@ -1899,68 +2003,66 @@ def api_process():
         if title is None:
             title = audio_path.stem if audio_path else "Untitled"
 
-        # Process first track
-        media_url = url_for("media", filename=audio_path.name)
-        output_path = DATA_FOLDER / f"{track_id}.json"
-        build_profile(
-            audio_path=audio_path,
-            track_id=track_id,
-            title=title,
-            artist=artist,
-            audio_url=media_url,
-            output_path=output_path,
+        # Create async job for audio processing
+        job_id = str(uuid.uuid4())
+
+        with _audio_lock:
+            _audio_jobs[job_id] = {
+                "status": "pending",
+                "progress": "Queued for processing...",
+                "result": None,
+                "error": None,
+                "created": datetime.now(),
+                "track_id": track_id,
+                "algorithm": algorithm,
+            }
+
+        # Start background processing thread
+        thread = threading.Thread(
+            target=_process_audio_job,
+            args=(job_id, audio_path, audio_path2, track_id, track_id2, title, artist, algorithm),
+            daemon=True
         )
+        thread.start()
 
-        # For autoharmonizer, process second track and compute cross-track similarity
-        if algorithm == "autoharmonizer":
-            if not audio_path2 or not track_id2:
-                return jsonify({"error": "Autoharmonizer requires two tracks."}), 400
+        print(f"[API] Created async job {job_id} for track {track_id}", flush=True)
 
-            # Process second track
-            title2 = Path(audio_path2.stem).stem if audio_path2 else "Untitled Track 2"
-            media_url2 = url_for("media", filename=audio_path2.name)
-            output_path2 = DATA_FOLDER / f"{track_id2}.json"
-            build_profile(
-                audio_path=audio_path2,
-                track_id=track_id2,
-                title=title2,
-                artist=artist,
-                audio_url=media_url2,
-                output_path=output_path2,
-            )
-
-            # Compute cross-track similarity and create combined profile
-            try:
-                from .analysis.analyze_track import build_autoharmonizer_profile
-            except ImportError:
-                from analysis.analyze_track import build_autoharmonizer_profile
-            combined_track_id = f"{track_id}+{track_id2}"
-            combined_output_path = DATA_FOLDER / f"{combined_track_id}.json"
-            build_autoharmonizer_profile(
-                track1_path=output_path,
-                track2_path=output_path2,
-                combined_track_id=combined_track_id,
-                output_path=combined_output_path,
-            )
-
-            mode = "autoharmonizer"
-            redirect_url = url_for("index", trid=combined_track_id, mode=mode)
-            return jsonify({"redirect": redirect_url, "trackId": combined_track_id})
-
-        if algorithm == "canon":
-            mode = "canon"
-        elif algorithm == "jukebox":
-            mode = "jukebox"
-        elif algorithm == "sculptor":
-            mode = "sculptor"
-        else:
-            mode = "eternal"
-        redirect_url = url_for("index", trid=track_id, mode=mode)
-        return jsonify({"redirect": redirect_url, "trackId": track_id})
+        # Return job ID immediately - frontend will poll for completion
+        return jsonify({
+            "jobId": job_id,
+            "trackId": track_id,
+            "status": "processing"
+        })
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 500
     except Exception as exc:  # pragma: no cover
         return jsonify({"error": f"Unexpected error: {exc}"}), 500
+
+
+@app.route("/api/process/status/<job_id>", methods=["GET", "OPTIONS"])
+def api_process_status(job_id):
+    """Poll for audio processing job status"""
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    with _audio_lock:
+        job = _audio_jobs.get(job_id)
+
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+
+    response = {
+        "jobId": job_id,
+        "status": job["status"],
+        "progress": job.get("progress", ""),
+    }
+
+    if job["status"] == "completed":
+        response["result"] = job["result"]
+    elif job["status"] == "failed":
+        response["error"] = job.get("error", "Unknown error")
+
+    return jsonify(response)
 
 
 @app.route("/api/playlist-info", methods=["POST", "OPTIONS"])

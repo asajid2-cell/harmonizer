@@ -957,11 +957,13 @@ jgs   `-=========-`()
             const submitButton = form.querySelector('button[type="submit"]');
             submitButton.disabled = true;
             submitButton.textContent = 'Processing...';
-            statusPanel.textContent = 'Analyzing audio... this can take a minute.';
+            statusPanel.textContent = 'Starting audio analysis...';
 
             try {
                 const formData = new FormData(form);
                 const selectedAlgorithm = (formData.get('algorithm') || 'canon').toString().toLowerCase();
+
+                // Submit the job
                 const response = await fetch(buildApiUrl('api/process'), {
                     method: 'POST',
                     body: formData
@@ -972,7 +974,7 @@ jgs   `-=========-`()
                 if (!contentType || !contentType.includes('application/json')) {
                     const textResponse = await response.text();
                     if (textResponse.includes('<!DOCTYPE') || textResponse.includes('<html')) {
-                        throw new Error('Request timed out. Audio processing takes 2-3 minutes - please try again or use a shorter track.');
+                        throw new Error('Server error - please try again.');
                     }
                     throw new Error('Server returned an invalid response.');
                 }
@@ -981,11 +983,20 @@ jgs   `-=========-`()
                 if (!response.ok) {
                     throw new Error(payload.error || 'Something went wrong.');
                 }
-                if (!payload.trackId) {
+
+                const jobId = payload.jobId;
+                if (!jobId) {
                     throw new Error('Unexpected response from server.');
                 }
-                statusPanel.textContent = 'Ready! Loading the visualizer...';
-                window.location.href = buildFrontendRedirect(payload.trackId, selectedAlgorithm);
+
+                // Poll for job completion
+                statusPanel.textContent = 'Processing audio... this takes 2-3 minutes.';
+                const result = await pollJobStatus(jobId, statusPanel);
+
+                // Job completed successfully
+                statusPanel.textContent = 'Complete! Loading visualizer...';
+                window.location.href = buildFrontendRedirect(result.trackId, result.mode || selectedAlgorithm);
+
             } catch (err) {
                 statusPanel.textContent = err.message;
             } finally {
@@ -993,6 +1004,44 @@ jgs   `-=========-`()
                 submitButton.textContent = 'Transform Track';
             }
         });
+
+        async function pollJobStatus(jobId, statusPanel) {
+            const maxAttempts = 180; // 3 minutes (180 * 1 second)
+            let attempts = 0;
+
+            while (attempts < maxAttempts) {
+                try {
+                    const response = await fetch(buildApiUrl(`api/process/status/${jobId}`));
+                    if (!response.ok) {
+                        throw new Error('Failed to check processing status');
+                    }
+
+                    const data = await response.json();
+
+                    // Update status message with progress
+                    if (data.progress) {
+                        statusPanel.textContent = data.progress;
+                    }
+
+                    if (data.status === 'completed') {
+                        return data.result;
+                    }
+
+                    if (data.status === 'failed') {
+                        throw new Error(data.error || 'Processing failed');
+                    }
+
+                    // Still processing - wait 1 second before next poll
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    attempts++;
+
+                } catch (err) {
+                    throw err;
+                }
+            }
+
+            throw new Error('Processing timeout - please try again with a shorter track');
+        }
 
         async function processPlaylist(entries, form) {
             const submitButton = form.querySelector('button[type="submit"]');
