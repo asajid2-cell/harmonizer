@@ -966,6 +966,17 @@ jgs   `-=========-`()
                     method: 'POST',
                     body: formData
                 });
+
+                // Check if response is JSON or HTML error page
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const textResponse = await response.text();
+                    if (textResponse.includes('<!DOCTYPE') || textResponse.includes('<html')) {
+                        throw new Error('Request timed out. Audio processing takes 2-3 minutes - please try again or use a shorter track.');
+                    }
+                    throw new Error('Server returned an invalid response.');
+                }
+
                 const payload = await response.json();
                 if (!response.ok) {
                     throw new Error(payload.error || 'Something went wrong.');
