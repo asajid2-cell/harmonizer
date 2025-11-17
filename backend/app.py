@@ -751,6 +751,52 @@ def projects_page():
 
 @app.route("/media/<path:filename>")
 def media(filename: str):
+    """
+    Serve media files with automatic image optimization.
+    Supports query params: ?w=800&h=600&fmt=webp
+    """
+    from flask import request, Response
+
+    # Check if this is an image and if optimization is requested
+    from image_optimizer import ImageOptimizer
+    optimizer = ImageOptimizer(UPLOAD_FOLDER)
+
+    if optimizer.is_image(filename):
+        # Get optimization parameters from query string
+        max_width = request.args.get('w', type=int)
+        max_height = request.args.get('h', type=int)
+        force_format = request.args.get('fmt', type=str)
+
+        # Get Accept header for format negotiation
+        accept_header = request.headers.get('Accept', '')
+
+        try:
+            # Get optimized image
+            image_data, mimetype = optimizer.get_optimized_image(
+                filename,
+                accept_header=accept_header,
+                max_width=max_width,
+                max_height=max_height,
+                force_format=force_format
+            )
+
+            # Create response
+            response = Response(image_data, mimetype=mimetype)
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Cache-Control'] = 'public, max-age=31536000'  # 1 year cache
+            response.headers['Vary'] = 'Accept'  # Vary based on Accept header
+
+            return response
+
+        except FileNotFoundError:
+            from flask import abort
+            abort(404)
+        except Exception as e:
+            print(f"[Media] Optimization failed for {filename}: {e}")
+            # Fallback to original file serving
+            pass
+
+    # Serve non-images or fallback
     mimetype = mimetypes.guess_type(filename)[0] or "application/octet-stream"
     response = send_from_directory(
         UPLOAD_FOLDER,
@@ -3493,6 +3539,93 @@ def serve_frontend_asset(asset_path: str):
     if target.is_file():
         return _send_cached_file(target)
     abort(404)
+
+
+# ============================================================================
+# Image Optimization Cache Management API
+# ============================================================================
+
+@app.route("/api/image-cache/stats", methods=["GET"])
+def image_cache_stats():
+    """Get image optimization cache statistics."""
+    from image_optimizer import ImageOptimizer
+    optimizer = ImageOptimizer(UPLOAD_FOLDER)
+    stats = optimizer.get_cache_stats()
+    return jsonify(stats)
+
+
+@app.route("/api/image-cache/clear", methods=["POST"])
+def image_cache_clear():
+    """Clear image optimization cache."""
+    from image_optimizer import ImageOptimizer
+    optimizer = ImageOptimizer(UPLOAD_FOLDER)
+
+    older_than_days = request.args.get('older_than_days', type=int)
+    optimizer.clear_cache(older_than_days=older_than_days)
+
+    return jsonify({"success": True, "message": "Cache cleared"})
+
+
+@app.route("/api/image-cache/batch-optimize", methods=["POST"])
+def image_cache_batch_optimize():
+    """
+    Batch optimize all images in uploads folder.
+    Pre-generates WebP and AVIF variants for faster first access.
+    """
+    from image_optimizer import ImageOptimizer
+    import time
+
+    optimizer = ImageOptimizer(UPLOAD_FOLDER)
+
+    # Get all image files
+    image_files = []
+    for ext in optimizer.IMAGE_FORMATS:
+        image_files.extend(UPLOAD_FOLDER.rglob(f'*{ext}'))
+
+    optimized_count = 0
+    failed_count = 0
+    start_time = time.time()
+
+    for img_path in image_files:
+        # Skip files in the cache folder
+        if optimizer.cache_folder in img_path.parents:
+            continue
+
+        try:
+            # Get relative path
+            rel_path = img_path.relative_to(UPLOAD_FOLDER)
+
+            # Pre-generate WebP variant
+            optimizer.get_optimized_image(
+                str(rel_path),
+                accept_header='image/webp',
+                max_width=None,
+                max_height=None
+            )
+
+            # Pre-generate AVIF variant
+            optimizer.get_optimized_image(
+                str(rel_path),
+                accept_header='image/avif',
+                max_width=None,
+                max_height=None
+            )
+
+            optimized_count += 1
+
+        except Exception as e:
+            print(f"[BatchOptimize] Failed to optimize {img_path}: {e}")
+            failed_count += 1
+
+    elapsed_time = time.time() - start_time
+
+    return jsonify({
+        "success": True,
+        "total_files": len(image_files),
+        "optimized": optimized_count,
+        "failed": failed_count,
+        "elapsed_seconds": round(elapsed_time, 2)
+    })
 
 
 if __name__ == "__main__":
