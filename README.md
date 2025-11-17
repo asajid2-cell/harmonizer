@@ -3,7 +3,7 @@
 Creative lab combining AI-powered image generation, social profiles, and audio experiments.
 
 ## Features
-
+- **Harmonizer** - Upload music and transform it, jump between beats and loop.
 - **Eldrichify** - AI image transformation using diffusion models
 - **IMGEN** - Text-to-image generation pipeline
 - **OurSpace** - MySpace-inspired customizable profiles with auth system
