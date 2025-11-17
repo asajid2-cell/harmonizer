@@ -635,9 +635,16 @@ jgs   `-=========-`()
 
         function applyModePolicyDefaults(modeName, options) {
             const normalized = (modeName || '').toLowerCase();
-            // Default to No RL (variant 'b') for simpler baseline behavior
-            const defaultVariant = 'b';
-            const defaultPolicy = 'baseline';
+            // Eternal modes (jukebox and eternal) default to Model A with RL
+            // Canon and other modes default to No RL (variant 'b') for simpler baseline
+            let defaultVariant, defaultPolicy;
+            if (normalized === 'jukebox' || normalized === 'eternal') {
+                defaultVariant = 'a';
+                defaultPolicy = 'rl';
+            } else {
+                defaultVariant = 'b';
+                defaultPolicy = 'baseline';
+            }
             const variantChanged = rlModelVariant !== defaultVariant;
             rlModelVariant = defaultVariant;
             window.harmonizerModelVariant = defaultVariant;
