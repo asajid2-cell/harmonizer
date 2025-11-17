@@ -435,7 +435,9 @@ var ADVANCED_DEFAULTS = {
         dwellBeats: 6,
         density: 2,
         jumpBubbleBeats: 8,
-        variation: 2
+        variation: 2,
+        rlMinDwellBeats: 8,
+        rlRepeatPenalty: 12
     },
     eternalOverlay: {
         musicality: 60,
@@ -461,6 +463,13 @@ var ADVANCED_DEFAULTS = {
         loopThreshold: 0.76,
         sectionBias: 0.20,
         jumpVariance: 0.65
+    },
+    sculptorConfig: {
+        durationScale: 1.0,
+        minSectionSeconds: 6,
+        maxSectionSeconds: 32,
+        previewSeconds: 4,
+        transitionOverlapSeconds: 0.5
     }
 };
 
@@ -472,7 +481,8 @@ var advancedSettings = {
     canonOverlay: cloneSettings(ADVANCED_DEFAULTS.canonOverlay),
     eternalOverlay: cloneSettings(ADVANCED_DEFAULTS.eternalOverlay),
     jukeboxLoop: cloneSettings(ADVANCED_DEFAULTS.jukeboxLoop),
-    eternalLoop: cloneSettings(ADVANCED_DEFAULTS.eternalLoop)
+    eternalLoop: cloneSettings(ADVANCED_DEFAULTS.eternalLoop),
+    sculptorConfig: cloneSettings(ADVANCED_DEFAULTS.sculptorConfig)
 };
 
 var canonAdvancedEnabled = false;
@@ -482,9 +492,14 @@ var advancedEnabled = {
     canonOverlay: false,
     eternalOverlay: false,
     jukeboxLoop: false,
-    eternalLoop: false
+    eternalLoop: false,
+    sculptorConfig: false
 };
 var canonLoopGraph = {};
+var DEFAULT_CANON_RL_TUNING = {
+    minDwell: 8,
+    repeatPenalty: 12
+};
 
 function getGlobalRLModel() {
     if (typeof window !== "undefined" && window.harmonizerRLModel) {
@@ -545,6 +560,44 @@ function getSharedRLTally() {
     return ensureGlobalRLTally(getGlobalRLModel());
 }
 
+function computeHeuristicScore(edge) {
+    if (!edge) {
+        return 0;
+    }
+    var similarity =
+        typeof edge.similarity === "number"
+            ? Math.max(0, Math.min(1, edge.similarity))
+            : 0;
+    var span = Math.max(0, typeof edge.span === "number" ? edge.span : 0);
+    var sameSection = edge.sameSection ? 1 : 0;
+    var isCanonJump =
+        edge.reason === "canon_pair" || edge.reason === "canon_loop";
+    var isSequential = edge.reason === "sequential";
+
+    var spanPenalty = isCanonJump
+        ? Math.min(span / 512, 0.12)
+        : Math.min(span / 256, 0.25);
+    var sectionAdj = sameSection ? 0.05 : -0.02;
+    var canonBonus = isCanonJump ? 0.2 : 0;
+    var sequentialPenalty = isSequential ? 0.12 : 0;
+    var bonusForSmoothShortHop =
+        !isSequential && span <= 16 ? 0.04 : 0;
+
+    var score =
+        similarity +
+        canonBonus +
+        sectionAdj +
+        bonusForSmoothShortHop -
+        spanPenalty -
+        sequentialPenalty;
+
+    if (edge.reason === "manual") {
+        score -= 0.05;
+    }
+
+    return Math.max(0, Math.min(1, score));
+}
+
 function scoreJumpQuality(edge, options) {
     options = options || {};
     var rlModel = getGlobalRLModel();
@@ -562,18 +615,7 @@ function scoreJumpQuality(edge, options) {
         if (tally) {
             tally.fallback += 1;
         }
-        // Fallback heuristic scoring when no RL model is available
-        var similarity = typeof edge.similarity === "number" ? edge.similarity : 0;
-        var span = typeof edge.span === "number" ? edge.span : 0;
-        var sameSection = edge.sameSection ? 1 : 0;
-
-        // Simple heuristic: favor high similarity, moderate jumps, same section
-        var simScore = similarity * 100;  // 0-100
-        var jumpPenalty = Math.min(span / 10, 30);  // Penalize very long jumps
-        var sectionBonus = sameSection * 15;  // Bonus for staying in same section
-        var canonBonus = (edge.reason === "canon_pair") ? 25 : 0;  // Bonus for canon pairs
-
-        return simScore - jumpPenalty + sectionBonus + canonBonus;
+        return computeHeuristicScore(edge);
     }
     var totalBeats =
         typeof options.totalBeats === "number"
@@ -603,7 +645,64 @@ function scoreJumpQuality(edge, options) {
             0,
     };
     if (rlModel.type === "gbrt") {
-        return evaluateGbrtScore(rlModel, features);
+        var rlScore = evaluateGbrtScore(rlModel, features);
+        if (typeof rlScore !== "number") {
+            if (tally) {
+                tally.fallback += 1;
+            }
+            return computeHeuristicScore(edge);
+        }
+        var heuristicScore = computeHeuristicScore(edge);
+        var blend = 0.75;
+        var combined =
+            rlScore * blend + heuristicScore * (1 - blend);
+
+        var recentJumpBeats =
+            typeof options.recentJumpBeats === "number"
+                ? options.recentJumpBeats
+                : 0;
+        var minJumpDwell =
+            typeof options.minJumpDwell === "number"
+                ? options.minJumpDwell
+                : getCanonRlMinDwell();
+
+        if (
+            edge.reason !== "sequential" &&
+            typeof edge.span === "number" &&
+            edge.span > 64 &&
+            recentJumpBeats < minJumpDwell
+        ) {
+            var deficit = minJumpDwell - recentJumpBeats;
+            var penalty = Math.min(
+                0.35,
+                (deficit / Math.max(1, minJumpDwell)) * 0.35,
+            );
+            combined -= penalty;
+            if (tally) {
+                tally.penalized += 1;
+            }
+        } else if (
+            edge.reason !== "sequential" &&
+            recentJumpBeats > minJumpDwell * 1.5
+        ) {
+            combined += 0.05;
+            if (tally) {
+                tally.boosted += 1;
+            }
+        }
+
+        var spanPenalty = Math.min(
+            Math.max(0, (edge.span || 0) - 128) / 512,
+            0.25,
+        );
+        if (spanPenalty > 0) {
+            combined -= spanPenalty;
+            if (tally) {
+                tally.penalized += 1;
+            }
+        }
+
+        return Math.max(0, Math.min(1, combined));
     }
     if (tally) {
         tally.fallback += 1;
@@ -649,11 +748,44 @@ var DEFAULT_CANON_PRESET_ID = "canon-legacy-default";
     if (legacySettings.musicality === undefined) {
         legacySettings.musicality = 65;
     }
+    var balancedSettings = cloneSettings(ADVANCED_DEFAULTS.canonOverlay);
+    balancedSettings.musicality = 72;
+    balancedSettings.minOffsetBeats = 12;
+    balancedSettings.maxOffsetBeats = 96;
+    balancedSettings.dwellBeats = 8;
+    balancedSettings.jumpBubbleBeats = 10;
+    balancedSettings.variation = 6;
+    balancedSettings.rlMinDwellBeats = 10;
+    balancedSettings.rlRepeatPenalty = 18;
+
+    var wildSettings = cloneSettings(ADVANCED_DEFAULTS.canonOverlay);
+    wildSettings.musicality = 55;
+    wildSettings.minOffsetBeats = 6;
+    wildSettings.maxOffsetBeats = 72;
+    wildSettings.dwellBeats = 4;
+    wildSettings.density = 3;
+    wildSettings.jumpBubbleBeats = 4;
+    wildSettings.variation = 18;
+    wildSettings.rlMinDwellBeats = 4;
+    wildSettings.rlRepeatPenalty = 8;
+
     advancedPresets.canonOverlay = [
         {
             id: DEFAULT_CANON_PRESET_ID,
             name: "Legacy Default",
             settings: legacySettings,
+            createdAt: Date.now()
+        },
+        {
+            id: "canon-balanced-flow",
+            name: "Balanced Flow",
+            settings: balancedSettings,
+            createdAt: Date.now()
+        },
+        {
+            id: "canon-wild-weave",
+            name: "Wild Weave",
+            settings: wildSettings,
             createdAt: Date.now()
         }
     ];
@@ -885,6 +1017,46 @@ function setAdvancedGroupSettingValue(group, key, value) {
     }
 }
 
+function clampNumber(value, minValue, maxValue) {
+    var min = typeof minValue === "number" ? minValue : value;
+    var max = typeof maxValue === "number" ? maxValue : value;
+    if (!isFinite(value)) {
+        return min;
+    }
+    if (isFinite(min) && value < min) {
+        return min;
+    }
+    if (isFinite(max) && value > max) {
+        return max;
+    }
+    return value;
+}
+
+function getCanonRlTuning() {
+    var settings = ensureAdvancedGroupSettings("canonOverlay") || {};
+    var minDwellRaw = coerceNumber(settings.rlMinDwellBeats);
+    var repeatPenaltyRaw = coerceNumber(settings.rlRepeatPenalty);
+    var minDwell = minDwellRaw !== null ? minDwellRaw : DEFAULT_CANON_RL_TUNING.minDwell;
+    var repeatPenalty =
+        repeatPenaltyRaw !== null
+            ? repeatPenaltyRaw
+            : DEFAULT_CANON_RL_TUNING.repeatPenalty;
+    minDwell = clampNumber(Math.round(minDwell), 2, 96);
+    repeatPenalty = clampNumber(Math.round(repeatPenalty), 0, 48);
+    return {
+        minDwell: minDwell,
+        repeatPenalty: repeatPenalty,
+    };
+}
+
+function getCanonRlMinDwell() {
+    return getCanonRlTuning().minDwell;
+}
+
+function getCanonRlRepeatPenalty() {
+    return getCanonRlTuning().repeatPenalty;
+}
+
 function resetAdvancedGroupSettings(group) {
     var defaults = cloneAdvancedDefaults(group);
     advancedSettings[group] = cloneSettings(defaults);
@@ -1015,6 +1187,34 @@ function sanitizeLoopSettings(raw, defaults) {
     return merged;
 }
 
+function sanitizeSculptorSettings(raw, defaults) {
+    var merged = cloneSettings(defaults || ADVANCED_DEFAULTS.sculptorConfig);
+    var source = raw || {};
+    function clampNumber(value, min, max) {
+        var num = parseFloat(value);
+        if (!isFinite(num)) {
+            num = min;
+        }
+        if (isFinite(min) && num < min) {
+            num = min;
+        }
+        if (isFinite(max) && num > max) {
+            num = max;
+        }
+        return num;
+    }
+
+    merged.durationScale = clampNumber(source.durationScale, 0.4, 2.5);
+    merged.minSectionSeconds = clampNumber(source.minSectionSeconds, 2, 60);
+    merged.maxSectionSeconds = clampNumber(source.maxSectionSeconds, 4, 120);
+    if (merged.maxSectionSeconds <= merged.minSectionSeconds) {
+        merged.maxSectionSeconds = Math.max(merged.minSectionSeconds + 1, merged.maxSectionSeconds);
+    }
+    merged.previewSeconds = clampNumber(source.previewSeconds, 1, 12);
+    merged.transitionOverlapSeconds = clampNumber(source.transitionOverlapSeconds, 0, 8);
+    return merged;
+}
+
 function getLoopSettingsForMode(modeName) {
     var groupKey = (modeName === "eternal") ? "eternalLoop" : "jukeboxLoop";
     var defaults = cloneAdvancedDefaults(groupKey);
@@ -1023,6 +1223,13 @@ function getLoopSettingsForMode(modeName) {
     var sanitized = sanitizeLoopSettings(useAdvanced ? state : defaults, defaults);
     sanitized.modeName = modeName;
     return sanitized;
+}
+
+function getSculptorSettings() {
+    var defaults = cloneAdvancedDefaults("sculptorConfig");
+    var state = cloneAdvancedState("sculptorConfig");
+    var useAdvanced = isAdvancedGroupEnabled("sculptorConfig");
+    return sanitizeSculptorSettings(useAdvanced ? state : defaults, defaults);
 }
 
 function generatePresetId() {
@@ -1772,10 +1979,21 @@ if (typeof window !== "undefined") {
     window.isBeatRoundingEnabled = function() {
         return beatRoundingEnabled;
     };
+    window.getSculptorSettingsSnapshot = function() {
+        return getSculptorSettings();
+    };
+    window.applySculptorSettings = function(options) {
+        if (mode === "sculptor" && window.driver && typeof window.driver.applySettings === "function") {
+            window.driver.applySettings(getSculptorSettings());
+            if (typeof window.refreshSculptorPalette === "function") {
+                window.refreshSculptorPalette();
+            }
+        }
+    };
     window.getAdvancedSettings = function(group) {
         // If no group specified, return all settings
         if (!group) {
-            var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop'];
+            var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop', 'sculptorConfig'];
             var allSettings = {};
             allGroups.forEach(function(g) {
                 allSettings[g] = {
@@ -1800,7 +2018,7 @@ if (typeof window !== "undefined") {
             throw new Error('Invalid settings object');
         }
 
-        var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop'];
+        var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop', 'sculptorConfig'];
         allGroups.forEach(function(group) {
             if (!allSettings[group]) {
                 return;
@@ -1839,6 +2057,9 @@ if (typeof window !== "undefined") {
             if (mode === "jukebox" && isAdvancedGroupEnabled("jukeboxLoop")) {
                 window.applyAdvancedGroup("jukeboxLoop", { source: "import" });
             }
+            if (mode === "sculptor" && isAdvancedGroupEnabled("sculptorConfig")) {
+                window.applyAdvancedGroup("sculptorConfig", { source: "import" });
+            }
         }
 
         console.log('[Settings] Applied imported settings to all groups');
@@ -1846,7 +2067,7 @@ if (typeof window !== "undefined") {
 
     window.syncAllGroupsFromState = function() {
         if (typeof window.syncGroupFromState === 'function') {
-            var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop'];
+            var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop', 'sculptorConfig'];
             allGroups.forEach(function(group) {
                 window.syncGroupFromState(group);
             });
@@ -1880,6 +2101,10 @@ if (typeof window !== "undefined") {
                     refreshJukeboxVisualization();
                 }, 50);
             }
+        } else if (group === "sculptorConfig" && mode === "sculptor") {
+            if (typeof window.applySculptorSettings === "function") {
+                window.applySculptorSettings({ reason: enabled ? "enable" : "disable" });
+            }
         }
     };
     window.isAdvancedGroupEnabled = isAdvancedGroupEnabled;
@@ -1892,6 +2117,12 @@ if (typeof window !== "undefined") {
         if (group === "eternalOverlay") {
             if (mode === "eternal" && eternalAdvancedEnabled) {
                 scheduleEternalOverlayRecalc("ui");
+            }
+            return;
+        }
+        if (group === "sculptorConfig") {
+            if (typeof window.applySculptorSettings === "function") {
+                window.applySculptorSettings({ reason: "setting", field: key });
             }
             return;
         }
@@ -1929,6 +2160,10 @@ if (typeof window !== "undefined") {
             setTimeout(function() {
                 refreshJukeboxVisualization();
             }, 50);
+        } else if (group === "sculptorConfig" && mode === "sculptor") {
+            if (typeof window.applySculptorSettings === "function") {
+                window.applySculptorSettings({ reason: "reset" });
+            }
         }
         console.log('[resetAdvancedGroup] Reset complete, new settings:', advancedSettings[group]);
         return snapshot;
@@ -1942,6 +2177,10 @@ if (typeof window !== "undefined") {
             recomputeLoopGraphForMode("jukebox");
         } else if (group === "eternalLoop" && mode === "eternal") {
             recomputeLoopGraphForMode("eternal");
+        } else if (group === "sculptorConfig" && mode === "sculptor") {
+            if (typeof window.applySculptorSettings === "function") {
+                window.applySculptorSettings({ source: options && options.source });
+            }
         }
     };
     window.applyImmediateAdvancedSetting = function(group, key, value) {
@@ -1983,6 +2222,11 @@ if (typeof window !== "undefined") {
             handled = true;
             applyLoopFieldToDriver(key, numericValue);
             scheduleEternalLoopRecalc();
+        } else if (group === "sculptorConfig" && mode === "sculptor") {
+            handled = true;
+            if (typeof window.applySculptorSettings === "function") {
+                window.applySculptorSettings({ source: "immediate", field: key });
+            }
         }
 
         if (!handled && typeof window.applyAdvancedGroup === "function") {
@@ -3005,7 +3249,7 @@ function initSculptorControls() {
 
     function handleTimelineDrop(event) {
         event.preventDefault();
-        sculptorTimelineRoot.css("border-color", "rgba(255,255,255,0.2)");
+        sculptorTimelineRoot.removeClass("is-drop-target");
         if (!draggedElement || !driver) {
             return;
         }
@@ -3025,10 +3269,10 @@ function initSculptorControls() {
     // Show/hide sculptor controls based on mode
     function updateSculptorVisibility() {
         if (mode === "sculptor") {
-            sculptorControls.show();
+            sculptorControls.show().css("display", "flex").addClass("is-visible");
             initializeSculptorUI();
         } else {
-            sculptorControls.hide();
+            sculptorControls.removeClass("is-visible").hide();
         }
     }
 
@@ -3056,8 +3300,9 @@ function initSculptorControls() {
         var paletteHTML = "";
         state.sectionData.forEach(function(section) {
             var color = getSectionColor(section.label);
-            var displayLabel = getSectionDisplayName(section);
-            paletteHTML += createSectionChip(section.index, displayLabel, color, false);
+            var displayLabel = getSectionDisplayName(section, { includeIndex: true });
+            var meta = formatSectionMeta(section);
+            paletteHTML += createSectionChip(section.index, displayLabel, color, false, { meta: meta });
         });
 
         sculptorPalette.html(paletteHTML);
@@ -3084,11 +3329,11 @@ function initSculptorControls() {
                     e.originalEvent.dataTransfer.setData("text/plain", sectionIdx);
                     e.originalEvent.dataTransfer.effectAllowed = "copy";
                 }
-                $(this).css("opacity", "0.5");
+                chip.addClass("is-dragging");
             });
 
             chip.on("dragend", function() {
-                $(this).css("opacity", "1");
+                chip.removeClass("is-dragging");
                 draggedElement = null;
             });
         });
@@ -3097,21 +3342,61 @@ function initSculptorControls() {
         updateTimelineDisplay();
     }
 
-    // Create a section chip HTML
-    function createSectionChip(sectionIdx, label, color, isTimeline) {
-        var chipClass = isTimeline ? "sculptor-timeline-chip" : "sculptor-section-chip";
-        var removeBtn = isTimeline ? '<button class="sculptor-chip-remove" data-queue-pos="' + sectionIdx + '" ' +
-            'style="background: none; border: none; color: #fff; cursor: pointer; font-weight: bold; ' +
-            'padding: 0 4px; margin-left: 4px;" title="Remove">&times;</button>' : '';
+    function escapeHtml(value) {
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
 
-        return '<div class="' + chipClass + '" data-section-idx="' + sectionIdx + '" ' +
-            'draggable="true" ' +
-            'style="padding: 6px 12px; background: ' + color + '; border-radius: 12px; ' +
-            'cursor: ' + (isTimeline ? 'move' : 'pointer') + '; display: inline-flex; align-items: center; gap: 6px; ' +
-            'border: 2px solid transparent; user-select: none; transition: all 0.2s;">' +
-            '<span style="font-weight: bold;">' + label + '</span>' +
+    // Create a section chip HTML
+    function createSectionChip(sectionIdx, label, color, isTimeline, options) {
+        options = options || {};
+        var classes = ["sculptor-chip", isTimeline ? "sculptor-timeline-chip" : "sculptor-section-chip"];
+        if (options.isPlaying) {
+            classes.push("playing");
+        }
+        if (options.isNext) {
+            classes.push("up-next");
+        }
+        var removeBtn = "";
+        if (isTimeline) {
+            var removeLabel = "Remove " + label + " from timeline";
+            removeBtn =
+                '<button type="button" class="sculptor-chip-remove" data-queue-pos="' +
+                options.queuePos +
+                '" aria-label="' +
+                escapeHtml(removeLabel) +
+                '">&times;</button>';
+        }
+        var metaMarkup = options.meta
+            ? '<span class="sculptor-chip-meta">' + escapeHtml(options.meta) + "</span>"
+            : "";
+
+        var styleAttr = color ? ' style="--chip-accent:' + color + ';"' : "";
+        var attrs =
+            ' data-section-idx="' +
+            sectionIdx +
+            '"' +
+            (isTimeline ? ' data-queue-pos="' + options.queuePos + '"' : "");
+        return (
+            '<div class="' +
+            classes.join(" ") +
+            '"' +
+            attrs +
+            styleAttr +
+            ' draggable="true">' +
+            '<span class="sculptor-chip-marker"></span>' +
+            '<div class="sculptor-chip-body">' +
+            '<span class="sculptor-chip-label">' +
+            escapeHtml(label) +
+            "</span>" +
+            metaMarkup +
+            "</div>" +
             removeBtn +
-            '</div>';
+            "</div>"
+        );
     }
 
     // Preview a section (play it once)
@@ -3131,7 +3416,23 @@ function initSculptorControls() {
         if (!state || !state.sectionQueue || !state.sectionData) return;
 
         // Update info text
-        sculptorQueueInfo.text(state.sectionQueue.length + " sections in timeline");
+        var queueLabel = state.sectionQueue.length === 1 ? "section" : "sections";
+        var infoParts = [state.sectionQueue.length + " " + queueLabel + " queued"];
+        if (state.running && typeof state.currentSection === "number") {
+            var playingIndex = state.sectionQueue[state.currentSection];
+            var playingSection = typeof playingIndex === "number" ? state.sectionData[playingIndex] : null;
+            if (playingSection) {
+                infoParts.push("Playing: " + getSectionDisplayName(playingSection, { includeIndex: true }));
+            }
+        }
+        if (typeof state.nextSection === "number") {
+            var nextIndex = state.sectionQueue[state.nextSection];
+            var nextSection = typeof nextIndex === "number" ? state.sectionData[nextIndex] : null;
+            if (nextSection) {
+                infoParts.push("Next: " + getSectionDisplayName(nextSection, { includeIndex: true }));
+            }
+        }
+        sculptorQueueInfo.text(infoParts.join(" \u00B7 "));
 
         // Show/hide empty message
         if (state.sectionQueue.length === 0) {
@@ -3144,22 +3445,24 @@ function initSculptorControls() {
 
         // Build timeline display
         var html = "";
+        var nextQueuePos = (typeof state.nextSection === "number") ? state.nextSection : null;
         state.sectionQueue.forEach(function(sectionIdx, queuePos) {
             var section = state.sectionData[sectionIdx];
+            if (!section) {
+                return;
+            }
             var isPlaying = state.running && queuePos === state.currentSection;
+            var isNext = state.running && queuePos === nextQueuePos;
             var color = getSectionColor(section.label);
-            var displayLabel = getSectionDisplayName(section, { includeQueuePosition: true, queuePos: queuePos });
+            var displayLabel = getSectionDisplayName(section, { includeIndex: true });
+            var meta = formatSectionMeta(section, { includeQueueSlot: true, queuePos: queuePos });
 
-            html += '<div class="sculptor-timeline-chip" data-queue-pos="' + queuePos + '" data-section-idx="' + sectionIdx + '" ' +
-                    'draggable="true" ' +
-                    'style="padding: 6px 12px; background: ' + color + '; border-radius: 12px; ' +
-                    'cursor: move; display: inline-flex; align-items: center; gap: 6px; ' +
-                    'border: 2px solid ' + (isPlaying ? '#fff' : 'transparent') + '; user-select: none; transition: all 0.2s;">' +
-                    '<span style="font-weight: bold;">' + displayLabel + '</span>' +
-                    '<button class="sculptor-chip-remove" data-queue-pos="' + queuePos + '" ' +
-                    'style="background: none; border: none; color: #fff; cursor: pointer; font-weight: bold; ' +
-                    'padding: 0 4px; margin-left: 4px;" title="Remove">&times;</button>' +
-                    '</div>';
+            html += createSectionChip(sectionIdx, displayLabel, color, true, {
+                queuePos: queuePos,
+                meta: meta,
+                isPlaying: isPlaying,
+                isNext: isNext
+            });
         });
 
         sculptorTimeline.html(html);
@@ -3190,11 +3493,11 @@ function initSculptorControls() {
                     e.originalEvent.dataTransfer.setData("text/plain", sectionIdx);
                     e.originalEvent.dataTransfer.effectAllowed = "move";
                 }
-                $(this).css("opacity", "0.5");
+                chip.addClass("is-dragging");
             });
 
             chip.on("dragend", function() {
-                $(this).css("opacity", "1");
+                chip.removeClass("is-dragging");
                 draggedElement = null;
             });
 
@@ -3227,16 +3530,30 @@ function initSculptorControls() {
         if (!section) {
             return "Section";
         }
-        var base = section.label || "Section";
-        var indexPart = (typeof section.index === "number") ? (" " + (section.index + 1)) : "";
-        var label = base + indexPart;
-        if (options.includeQueuePosition && typeof options.queuePos === "number") {
-            label += " · #" + (options.queuePos + 1);
+        var parts = [];
+        parts.push(section.label || "Section");
+        if (options.includeIndex && typeof section.index === "number") {
+            parts.push("#" + (section.index + 1));
         }
-        if (options.includeTime && typeof section.start === "number") {
-            label += " · " + fmtTime(section.start);
+        return parts.join(" ");
+    }
+
+    function formatSectionMeta(section, metaOptions) {
+        metaOptions = metaOptions || {};
+        if (!section) {
+            return "";
         }
-        return label;
+        var parts = [];
+        if (metaOptions.includeQueueSlot && typeof metaOptions.queuePos === "number") {
+            parts.push("Slot " + (metaOptions.queuePos + 1));
+        }
+        if (typeof section.start === "number") {
+            parts.push(fmtTime(section.start));
+        }
+        if (typeof section.duration === "number") {
+            parts.push(section.duration.toFixed(1) + "s");
+        }
+        return parts.join(" \u00B7 ");
     }
 
     // Setup drop zone for timeline
@@ -3249,17 +3566,18 @@ function initSculptorControls() {
         if (e.originalEvent && e.originalEvent.dataTransfer) {
             e.originalEvent.dataTransfer.dropEffect = draggedElement.fromTimeline ? "move" : "copy";
         }
-        $(this).css("border-color", "#4A90E2");
+        $(this).addClass("is-drop-target");
     });
 
     sculptorTimelineRoot.on("dragleave", function(e) {
         if (e.target === this) {
-            $(this).css("border-color", "rgba(255,255,255,0.2)");
+            $(this).removeClass("is-drop-target");
         }
     });
 
     sculptorTimelineRoot.on("drop", function(e) {
         handleTimelineDrop(e);
+        $(this).removeClass("is-drop-target");
     });
 
     // Button handlers
@@ -3817,6 +4135,17 @@ $(document).ready(function() {
         } else {
             minimizeBtn.html("−");
         }
+    });
+
+    // Visualization maximize toggle
+    var vizMaxButton = $("#viz-minimize-btn");
+    vizMaxButton.on("click", function() {
+        var body = $("body");
+        var maximized = !body.hasClass("viz-maximized");
+        body.toggleClass("viz-maximized", maximized);
+        vizMaxButton
+            .text(maximized ? "Exit Fullscreen" : "Maximize Player")
+            .attr("aria-pressed", maximized ? "true" : "false");
     });
 
     // Close queue button handler
@@ -4936,12 +5265,15 @@ function updateCursors(q) {
     var TW = W - hPad;
     var x = hPad + TW * q.start / trackDuration - cursorWidth / 2;
     masterCursor.attr( {x:x} );
-
-    var ox = hPad + TW * q.other.start / trackDuration - cursorWidth / 2;
-    if (q.ppath) {
-        moveAlong(otherCursor, q.ppath, q.other.duration * .75);
+    if (q.other && typeof q.other.start === "number") {
+        var ox = hPad + TW * q.other.start / trackDuration - cursorWidth / 2;
+        if (q.ppath && typeof q.other.duration === "number") {
+            moveAlong(otherCursor, q.ppath, q.other.duration * .75);
+        } else {
+            otherCursor.attr( {x:ox} );
+        }
     } else {
-        otherCursor.attr( {x:ox} );
+        otherCursor.attr({ x });
     }
 }
 
@@ -5100,13 +5432,21 @@ function fmtTime(time) {
 }
 
 function createCanonDriver(player) {
+    var rlConfig = getCanonRlTuning();
+    var rlMinDwell = rlConfig.minDwell;
+    var rlRepeatPenalty = rlConfig.repeatPenalty;
+
     var curQ = 0;
     var running = false;
     var mtime = $("#mtime");
     var lastLoggedIndex = null;
     var lastCanonHop = { source: null, target: null };
     var recentCanonTargets = [];
-    var CANON_RECENT_LIMIT = 12;
+    var canonJumpHistory = [];
+    var CANON_RECENT_LIMIT = 20;
+    var CANON_JUMP_HISTORY_LIMIT = 8;
+    var beatsSinceLastCanonJump = rlMinDwell;
+    var maxBeatReached = 0;
 
     function clearLastCanonHop() {
         lastCanonHop.source = null;
@@ -5115,6 +5455,8 @@ function createCanonDriver(player) {
 
     function clearRecentCanonTargets() {
         recentCanonTargets = [];
+        canonJumpHistory = [];
+        beatsSinceLastCanonJump = rlMinDwell;
     }
 
     function markRecentCanonTarget(index) {
@@ -5125,6 +5467,45 @@ function createCanonDriver(player) {
         if (recentCanonTargets.length > CANON_RECENT_LIMIT) {
             recentCanonTargets.shift();
         }
+    }
+
+    function markCanonJumpTarget(index) {
+        if (typeof index !== "number" || index < 0) {
+            return;
+        }
+        markRecentCanonTarget(index);
+        canonJumpHistory.push(index);
+        if (canonJumpHistory.length > CANON_JUMP_HISTORY_LIMIT) {
+            canonJumpHistory.shift();
+        }
+    }
+
+    function getCanonJumpRepeatCount(index) {
+        if (!canonJumpHistory || !canonJumpHistory.length) {
+            return 0;
+        }
+        var count = 0;
+        for (var i = 0; i < canonJumpHistory.length; i++) {
+            if (canonJumpHistory[i] === index) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    function registerCanonDecision(reason) {
+        if (reason === "sequential") {
+            beatsSinceLastCanonJump = Math.min(
+                beatsSinceLastCanonJump + 1,
+                Math.max(rlMinDwell * 4, 16),
+            );
+        } else {
+            beatsSinceLastCanonJump = 0;
+        }
+    }
+
+    function getBeatsSinceLastCanonJump() {
+        return beatsSinceLastCanonJump;
     }
 
     function isRecentlyVisitedCanonTarget(index) {
@@ -5249,6 +5630,7 @@ function createCanonDriver(player) {
             return { index: masterQs.length, reason: "end" };
         }
         var totalBeats = masterQs.length;
+        var beatsSinceLastJump = getBeatsSinceLastCanonJump();
         var sequentialTarget = allowLooping
             ? (sourceIndex + 1) % totalBeats
             : sourceIndex + 1;
@@ -5315,12 +5697,36 @@ function createCanonDriver(player) {
             ) {
                 return;
             }
+            // Prevent backward jumps that would create tight loops
+            if (
+                allowLooping &&
+                candidate.reason !== "sequential" &&
+                candidate.target < sourceIndex &&
+                sourceIndex > maxBeatReached - 20
+            ) {
+                // Only allow backward jumps if we're not near our max progress
+                // This prevents loops where we keep jumping back from the same region
+                return;
+            }
             var score = scoreJumpQuality(candidate, {
                 modeName: "canon",
                 currentIndex: sourceIndex,
                 totalBeats: totalBeats,
                 dwellBeats: dwellBeats,
+                recentJumpBeats: beatsSinceLastJump,
+                minJumpDwell: rlMinDwell,
             });
+            if (
+                typeof score === "number" &&
+                candidate.reason !== "sequential"
+            ) {
+                var repeatCount = getCanonJumpRepeatCount(
+                    candidate.target,
+                );
+                if (repeatCount > 0) {
+                    score -= repeatCount * rlRepeatPenalty;
+                }
+            }
             candidate.score = score;
             if (
                 typeof score === "number" &&
@@ -5378,6 +5784,10 @@ function createCanonDriver(player) {
             stop();
         } else if (running) {
             var currentIndex = curQ;
+            // Track maximum beat reached to prevent tight loops
+            if (currentIndex > maxBeatReached) {
+                maxBeatReached = currentIndex;
+            }
             var nextQ = masterQs[currentIndex];
             nextQ.tile.highlight();
             if (nextQ.other && nextQ.other.tile) {
@@ -5397,7 +5807,10 @@ function createCanonDriver(player) {
                 logCanonTransition(choice.index, reason);
                 lastCanonHop.source = currentIndex;
                 lastCanonHop.target = choice.index;
-                markRecentCanonTarget(choice.index);
+                registerCanonDecision(reason);
+                if (reason !== "sequential") {
+                    markCanonJumpTarget(choice.index);
+                }
             } else {
                 clearLastCanonHop();
                 clearRecentCanonTargets();
@@ -5451,9 +5864,9 @@ function createCanonDriver(player) {
             }
             curQ = startIdx;
             lastLoggedIndex = startIdx;
+            maxBeatReached = startIdx;
             clearLastCanonHop();
             clearRecentCanonTargets();
-            markRecentCanonTarget(startIdx);
             running = true;
             process();
             setURL();
@@ -5466,7 +5879,6 @@ function createCanonDriver(player) {
             resetTileColors(masterQs);
             clearLastCanonHop();
             clearRecentCanonTargets();
-            markRecentCanonTarget(curQ);
             running = true;
             process();
             setURL();
@@ -5506,7 +5918,16 @@ function createCanonDriver(player) {
             }
             clearLastCanonHop();
             clearRecentCanonTargets();
-            markRecentCanonTarget(q.which);
+            registerCanonDecision("manual");
+            markCanonJumpTarget(q.which);
+        },
+
+        // Expose curQ and running as properties for debugging/testing
+        get curQ() {
+            return curQ;
+        },
+        get running() {
+            return running;
         }
     };
 }
@@ -6696,6 +7117,14 @@ function createJukeboxDriver(player, options) {
             } else {
                 scheduleNextJump(true);
             }
+        },
+
+        // Expose currentIndex and running as properties for debugging/testing
+        get curQ() {
+            return currentIndex;
+        },
+        get running() {
+            return running;
         }
     };
 }
@@ -6708,8 +7137,14 @@ function createAutoharmonizerDriver(player) {
     var processTimer = null;
     var mtime = $("#mtime");
     var beatsSinceCross = 0;
-    var MIN_BEATS_BEFORE_CROSS = 2;  // Allow cross-track jumps after just 2 beats
-    var FORCE_CROSS_AFTER = 6;        // Force cross-track jump after 6 beats on same track
+    var rlConfig = getCanonRlTuning();
+    var rlMinDwell = Math.max(2, rlConfig.minDwell);
+    var rlRepeatPenalty = rlConfig.repeatPenalty;
+    var MIN_BEATS_BEFORE_CROSS = Math.max(2, Math.round(rlMinDwell / 2));
+    var FORCE_CROSS_AFTER = Math.max(MIN_BEATS_BEFORE_CROSS + 2, rlMinDwell + 2);
+    var crossRecentTargets = [];
+    var CROSS_RECENT_LIMIT = Math.max(4, Math.round(rlRepeatPenalty / 2) + 4);
+    var CROSS_REPEAT_FACTOR = Math.max(0.2, 1 - rlRepeatPenalty / 32);
 
     var autoharmonizerData = curTrack && curTrack.analysis && curTrack.analysis.autoharmonizer;
     if (!autoharmonizerData) {
@@ -6831,6 +7266,33 @@ function createAutoharmonizerDriver(player) {
         }
     }
 
+    function crossTargetId(trackNum, beatIndex) {
+        return trackNum + ":" + beatIndex;
+    }
+
+    function markCrossTarget(trackNum, beatIndex) {
+        if (typeof beatIndex !== "number" || beatIndex < 0) {
+            return;
+        }
+        var id = crossTargetId(trackNum, beatIndex);
+        crossRecentTargets.push(id);
+        if (crossRecentTargets.length > CROSS_RECENT_LIMIT) {
+            crossRecentTargets.shift();
+        }
+    }
+
+    function isRecentCrossTarget(trackNum, beatIndex) {
+        if (!crossRecentTargets || !crossRecentTargets.length) {
+            return false;
+        }
+        var id = crossTargetId(trackNum, beatIndex);
+        return crossRecentTargets.indexOf(id) !== -1;
+    }
+
+    function resetCrossHistory() {
+        crossRecentTargets = [];
+    }
+
     function crossfadeToTrack(targetTrack, beatIndex, crossfadeMs) {
         var targetBeats = getBeatsForTrack(targetTrack);
         var targetController = getControllerForTrack(targetTrack);
@@ -6872,6 +7334,7 @@ function createAutoharmonizerDriver(player) {
         currentTrack = targetTrack;
         curQ = beatIndex;
         beatsSinceCross = 0;
+        markCrossTarget(targetTrack, beatIndex);
         scheduleNextProcess(Math.max(beat.duration, 0.2));
     }
 
@@ -6934,37 +7397,61 @@ function createAutoharmonizerDriver(player) {
         }
 
         var totalWeight = 0;
-        var weights = candidates.map(function(c) {
+        var weightedCandidates = candidates.map(function(c) {
+            var normalizedIndex = typeof c.target_index === "number"
+                ? c.target_index
+                : parseInt(c.target_index, 10);
+            if (!isFinite(normalizedIndex)) {
+                normalizedIndex = 0;
+            }
             var w = Math.pow(Math.max(0.01, c.similarity), 1.4);
+            var candidateTrack = c.target_track || trackNum;
+            if (candidateTrack === trackNum && isRecentCrossTarget(candidateTrack, normalizedIndex)) {
+                w *= CROSS_REPEAT_FACTOR;
+            }
             totalWeight += w;
-            return w;
+            return {
+                candidate: c,
+                normalizedIndex: normalizedIndex,
+                weight: w
+            };
         });
+
+        if (totalWeight <= 0) {
+            var beatsFallback = getBeatsForTrack(trackNum);
+            var idx = beatsFallback && beatsFallback.length ? (currentBeatIdx + 1) % beatsFallback.length : 0;
+            return {
+                track: trackNum,
+                index: idx,
+                reason: "sequential",
+                similarity: 0
+            };
+        }
+
         var rand = Math.random() * totalWeight;
         var cumulative = 0;
-        for (var i = 0; i < candidates.length; i++) {
-            cumulative += weights[i];
+        for (var i = 0; i < weightedCandidates.length; i++) {
+            cumulative += weightedCandidates[i].weight;
             if (rand <= cumulative) {
-                var choice = candidates[i];
-                var normalizedIndex = typeof choice.target_index === "number"
-                    ? choice.target_index
-                    : parseInt(choice.target_index, 10);
+                var selected = weightedCandidates[i];
+                var choice = selected.candidate;
+                var targetTrack = choice.target_track || trackNum;
                 return {
-                    track: choice.target_track,
-                    index: isNaN(normalizedIndex) ? 0 : normalizedIndex,
-                    reason: choice.reason || (choice.source_track === choice.target_track ? "intra-track" : "cross-track"),
+                    track: targetTrack,
+                    index: selected.normalizedIndex,
+                    reason: choice.reason || (choice.source_track === targetTrack ? "intra-track" : "cross-track"),
                     similarity: choice.similarity
                 };
             }
         }
-        var fallback = candidates[0];
-        var fallbackIndex = typeof fallback.target_index === "number"
-            ? fallback.target_index
-            : parseInt(fallback.target_index, 10);
+        var fallback = weightedCandidates[0];
+        var fallbackIndex = fallback.normalizedIndex;
+        var fallbackTrack = fallback.candidate.target_track || trackNum;
         return {
-            track: fallback.target_track,
+            track: fallbackTrack,
             index: isNaN(fallbackIndex) ? 0 : fallbackIndex,
-            reason: fallback.reason || "fallback",
-            similarity: fallback.similarity
+            reason: fallback.candidate.reason || "fallback",
+            similarity: fallback.candidate.similarity
         };
     }
 
@@ -6986,6 +7473,7 @@ function updateHudForBeat(beat) {
         clearProcessTimer();
         running = false;
         beatsSinceCross = 0;
+        resetCrossHistory();
         if (track1Controller) {
             track1Controller.fadeTo(0, 200);
             track1Controller.stop();
@@ -7048,7 +7536,8 @@ function updateHudForBeat(beat) {
         }
 
         if (shouldJump) {
-            var choice = selectNextBeat(curQ, currentTrack, { preferCross: crossPressure });
+        var preferCross = crossPressure || beatsSinceCross >= MIN_BEATS_BEFORE_CROSS;
+            var choice = selectNextBeat(curQ, currentTrack, { preferCross: preferCross });
             var beatsForTrack = getBeatsForTrack(choice.track);
             if (choice && beatsForTrack && beatsForTrack.length) {
                 var sequentialIndex = (choice.track === currentTrack) ? ((curQ + 1) % beats.length) : null;
@@ -7062,6 +7551,7 @@ function updateHudForBeat(beat) {
                         console.log("[Autoharmonizer] Intra-track jump", choice);
                         curQ = choice.index % beatsForTrack.length;
                         syncControllerToBeat(getControllerForTrack(currentTrack), beatsForTrack[curQ], { forceSeek: true });
+                        markCrossTarget(choice.track, curQ);
                         scheduleNextProcess(Math.max(beatsForTrack[curQ].duration || beatDuration, 0.2));
                         beatsSinceCross++;
                         return;
@@ -7091,6 +7581,7 @@ function updateHudForBeat(beat) {
             curQ = 0;
             currentTrack = 1;
             beatsSinceCross = 0;
+            resetCrossHistory();
 
             // Start track1 audibly
             track1Controller.setVolume(0.72);
@@ -7160,6 +7651,14 @@ function updateHudForBeat(beat) {
                 currentBeat: curQ,
                 currentTrack: currentTrack
             };
+        },
+
+        // Expose curQ and running as properties for debugging/testing
+        get curQ() {
+            return curQ;
+        },
+        get running() {
+            return running;
         }
     };
 }
@@ -7205,19 +7704,37 @@ function createSectionSculptorDriver(player) {
     }
 
     // Build section metadata
-    var sectionData = sections.map(function(section, idx) {
-        return {
-            index: idx,
-            label: labelSection(section, idx, sections),
-            start: section.start,
-            duration: section.duration,
-            tempo: section.tempo || baseTempo,
-            loudness: section.loudness_start || 0,
-            confidence: section.confidence || 0.5
-        };
-    });
+    var sculptorSettings = getSculptorSettings();
+    var sectionData = [];
+    rebuildSectionMeta();
 
     console.log("[Section Sculptor] Loaded", sectionData.length, "sections - queue starts empty");
+
+    function rebuildSectionMeta(customSettings) {
+        if (customSettings) {
+            sculptorSettings = sanitizeSculptorSettings(customSettings, ADVANCED_DEFAULTS.sculptorConfig);
+        } else {
+            sculptorSettings = getSculptorSettings();
+        }
+        sectionData = sections.map(function(section, idx) {
+            var baseDuration = Math.max(0.25, section.duration || 0.25);
+            var scaledDuration = Math.max(0.1, baseDuration * sculptorSettings.durationScale);
+            var clampedByScale = Math.min(baseDuration, scaledDuration);
+            var trimmedToMax = Math.min(sculptorSettings.maxSectionSeconds, clampedByScale);
+            var duration = Math.max(sculptorSettings.minSectionSeconds, trimmedToMax);
+            duration = Math.min(duration, baseDuration);
+            return {
+                index: idx,
+                label: labelSection(section, idx, sections),
+                start: section.start,
+                duration: duration,
+                rawDuration: baseDuration,
+                tempo: section.tempo || baseTempo,
+                loudness: section.loudness_start || 0,
+                confidence: section.confidence || 0.5
+            };
+        });
+    }
 
     var queuePlayer = null;
     var previewPlayer = null;
@@ -7329,10 +7846,11 @@ function createSectionSculptorDriver(player) {
         console.log("[Section Sculptor] Playing:", sectionMeta.label,
             "(queue pos " + (normalizedIndex + 1) + "/" + sectionQueue.length + ")");
 
+        var sectionEnd = section.start + ((sectionMeta && sectionMeta.duration) || section.duration);
         var sectionBeats = [];
         for (var i = 0; i < beats.length; i++) {
             var beat = beats[i];
-            if (beat.start >= section.start && beat.start < section.start + section.duration) {
+            if (beat.start >= section.start && beat.start < sectionEnd) {
                 sectionBeats.push(beat);
             }
         }
@@ -7359,9 +7877,11 @@ function createSectionSculptorDriver(player) {
             return;
         }
 
-        var sectionDuration = section.duration || (sectionMeta && sectionMeta.duration) || 0.1;
+        var sectionDuration = (sectionMeta && sectionMeta.duration) || section.duration || 0.1;
+        var overlapSeconds = Math.min(Math.max(0, sculptorSettings.transitionOverlapSeconds || 0), Math.max(0, sectionDuration - 0.25));
+        var scheduleDuration = Math.max(0.25, sectionDuration - overlapSeconds);
         currentQueueIndex = (normalizedIndex + 1) % sectionQueue.length;
-        scheduleNextSection(sectionDuration);
+        scheduleNextSection(scheduleDuration);
         notifyQueueChanged();
     }
 
@@ -7390,7 +7910,9 @@ function createSectionSculptorDriver(player) {
         if (previewTimer) {
             clearTimeout(previewTimer);
         }
-        var previewDuration = Math.min(3, Math.max(section.duration || 0.1, 0.1));
+        var sectionMeta = sectionData[sectionIndex];
+        var previewTarget = (sectionMeta && sectionMeta.duration) || section.duration || 0.1;
+        var previewDuration = Math.min(sculptorSettings.previewSeconds || 3, Math.max(previewTarget, 0.1));
         previewTimer = setTimeout(function() {
             if (running) {
                 return;
@@ -7506,10 +8028,15 @@ function createSectionSculptorDriver(player) {
         },
 
         getState: function() {
+            var normalizedNext = null;
+            if (sectionQueue.length) {
+                normalizedNext = Math.max(0, Math.min(currentQueueIndex, sectionQueue.length - 1));
+            }
             return {
                 mode: "sculptor",
                 running: running,
                 currentSection: activeQueueIndex,
+                nextSection: normalizedNext,
                 sectionQueue: sectionQueue.slice(),
                 sectionData: sectionData
             };
@@ -7614,6 +8141,11 @@ function createSectionSculptorDriver(player) {
 
         previewSection: function(sectionIndex) {
             previewSection(sectionIndex);
+        },
+
+        applySettings: function(settings) {
+            rebuildSectionMeta(settings);
+            notifyQueueChanged();
         }
     };
 }

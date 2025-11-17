@@ -162,7 +162,7 @@ jgs   `-=========-`()
                             </div>
                         </button>
                         <button type="button" data-algorithm="autoharmonizer" class="mode-card toggle">
-                            <span class="mode-card-icon" aria-hidden="true">&lt;-&gt;</span>
+                            <span class="mode-card-icon" aria-hidden="true">↔</span>
                             <div class="mode-card-body">
                                 <h3>AUTOHARMONIZER</h3>
                                 <p>dual track fusion</p>
@@ -280,35 +280,35 @@ jgs   `-=========-`()
                             <button type="button" class="rl-model-btn" data-variant="b">No RL</button>
                         </div>
                         <button type="button" id="viz-minimize-btn" class="viz-button ghost" aria-pressed="false">
-                            Minimize Player
+                            Maximize Player
                         </button>
                         <button type="button" id="add-to-queue-btn" class="viz-button ghost">
                             + Add to Queue
                         </button>
                     </div>
                     <!-- Section Sculptor Controls -->
-                    <div class="sculptor-controls" id="sculptor-controls" style="display: none; padding: 12px; background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div class="sculptor-controls" id="sculptor-controls">
                         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                             <span style="font-weight: bold; color: #fff;">Section Timeline:</span>
                             <button type="button" id="sculptor-reset-btn" class="viz-button ghost small">Reset Order</button>
                             <button type="button" id="sculptor-clear-btn" class="viz-button ghost small">Clear Timeline</button>
                             <button type="button" id="sculptor-shuffle-btn" class="viz-button ghost small">Shuffle</button>
-                            <span id="sculptor-queue-info" style="margin-left: auto; color: #aaa; font-size: 0.9em;"></span>
+                            <span id="sculptor-queue-info" class="sculptor-queue-info"></span>
                         </div>
                         <div style="margin-top: 4px; padding: 4px 8px; background: rgba(100,100,200,0.2); border-radius: 3px; font-size: 0.85em; color: #aaf;">
                             &#128161; <strong>Tip:</strong> Click sections to preview * Drag sections to timeline to build arrangement
                         </div>
                         <!-- Drag and Drop Timeline -->
-                        <div id="sculptor-timeline" style="margin-top: 8px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 4px; min-height: 80px; border: 2px dashed rgba(255,255,255,0.2); position: relative;">
+                        <div id="sculptor-timeline">
                             <div id="sculptor-timeline-empty" style="color: #888; font-style: italic; text-align: center; padding: 20px;">
                                 Drag sections here to build your arrangement...
                             </div>
-                            <div id="sculptor-timeline-content" style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;"></div>
+                            <div id="sculptor-timeline-content"></div>
                         </div>
                         <!-- Available Sections Palette -->
-                        <div style="margin-top: 8px;">
+                        <div class="sculptor-palette-wrapper" style="margin-top: 8px;">
                             <div style="font-weight: bold; color: #fff; margin-bottom: 4px; font-size: 0.9em;">Available Sections:</div>
-                            <div id="sculptor-palette" style="padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px; display: flex; flex-wrap: wrap; gap: 4px; min-height: 50px;">
+                            <div id="sculptor-palette">
                                 <span style="color: #888; font-style: italic;">Loading sections...</span>
                             </div>
                         </div>
@@ -378,13 +378,14 @@ jgs   `-=========-`()
 
         <!-- Harmonizer Lab badge + rotating footer -->
         <div class="corner-cluster">
-            <span class="ascii-corner-art">&#9835; o2</span>
+            <span class="ascii-corner-art">♫ o2</span>
             <span class="cluster-separator">|</span>
             <footer class="viz-footer" id="footer-text">drive safe i fucking love you &lt;3</footer>
             <span class="cluster-separator">|</span>
-            <span class="ascii-corner-art-right">* o2</span>
+            <span class="ascii-corner-art-right">♪ o2</span>
         </div>
         </div>
+
 
             <!-- &#9989; Script to randomize the footer message + layout helpers -->
             <script>
@@ -561,7 +562,7 @@ jgs   `-=========-`()
             localStorage.setItem(RL_VARIANT_SCHEMA_KEY, 'v2');
         }
         let rlModel = null;
-        let rlModelVariant = (localStorage.getItem(RL_VARIANT_STORAGE_KEY) || 'a').toLowerCase();
+        let rlModelVariant = (localStorage.getItem(RL_VARIANT_STORAGE_KEY) || 'b').toLowerCase();
         let rlModelAvailable = [];
         let policyMode = (config.rlPolicyMode || 'auto').toLowerCase();
         function snapshotSettingsForMode(modeName) {
@@ -630,8 +631,9 @@ jgs   `-=========-`()
 
         function applyModePolicyDefaults(modeName, options) {
             const normalized = (modeName || '').toLowerCase();
-            const defaultVariant = normalized === 'canon' ? 'b' : 'a';
-            const defaultPolicy = defaultVariant === 'b' ? 'baseline' : 'rl';
+            // All modes use variant 'a' (RL) by default for intelligent jumping
+            const defaultVariant = 'a';
+            const defaultPolicy = 'rl';
             const variantChanged = rlModelVariant !== defaultVariant;
             rlModelVariant = defaultVariant;
             window.harmonizerModelVariant = defaultVariant;
@@ -1204,7 +1206,9 @@ jgs   `-=========-`()
                     { key: 'dwellBeats', label: 'Dwell', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats to stay on a pairing before retargeting.' },
                     { key: 'density', label: 'Density', min: 1, max: 16, step: 1, format: (v) => `${v}/16`, description: 'Higher values add more simultaneous overlay voices.' },
                     { key: 'jumpBubbleBeats', label: 'Jump Bubble', min: 0, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Keeps this many beats clear around each jump so they do not overlap.' },
-                    { key: 'variation', label: 'Variation', min: 0, max: 50, step: 1, format: (v) => `${v}`, description: 'Controls how adventurous the overlay can be when rewiring connections.' }
+                    { key: 'variation', label: 'Variation', min: 0, max: 50, step: 1, format: (v) => `${v}`, description: 'Controls how adventurous the overlay can be when rewiring connections.' },
+                    { key: 'rlMinDwellBeats', label: 'RL Min Dwell', min: 2, max: 64, step: 1, format: (v) => `${v} beats`, description: 'How many beats intelligent jumps must wait before another large hop. Lower = wilder, higher = steadier.' },
+                    { key: 'rlRepeatPenalty', label: 'RL Repeat Penalty', min: 0, max: 32, step: 1, format: (v) => `${v}`, description: 'Penalizes picking the same jump destination repeatedly. 0 = anything goes, higher = favors variety.' }
                 ]
             },
             jukeboxLoop: {
@@ -1243,8 +1247,18 @@ jgs   `-=========-`()
                     { key: 'sectionBias', label: 'Section Bias', min: 0, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}% in-section`, description: 'Controls how strongly the canon prefers staying within a section when looping.' },
                     { key: 'jumpVariance', label: 'Jump Variance', min: 0, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}%`, description: 'Influences how surprising the loop timing can be.' }
                 ]
-            }
-        };
+            },
+            sculptorConfig: {
+                title: 'Section Sculptor Settings',
+                description: 'Trim and blend sections before arranging your timeline.',
+                fields: [
+                    { key: 'durationScale', label: 'Duration Scale', min: 0.4, max: 2.5, step: 0.05, format: (v) => `${Number(v).toFixed(2)}x`, description: 'Scale each detected section before clamping. Lower = tighter edits, higher = longer phrases.' },
+                    { key: 'minSectionSeconds', label: 'Minimum Section Length', min: 2, max: 60, step: 1, format: (v) => `${Math.round(v)}s`, description: 'Short sections are padded to at least this duration when sequencing.' },
+                    { key: 'maxSectionSeconds', label: 'Maximum Section Length', min: 4, max: 120, step: 1, format: (v) => `${Math.round(v)}s`, description: 'Long sections are trimmed down to keep the timeline snappy.' },
+                    { key: 'previewSeconds', label: 'Preview Length', min: 1, max: 12, step: 0.5, format: (v) => `${Number(v).toFixed(1)}s`, description: 'Controls how long palette previews play when you click a section.' },
+                    { key: 'transitionOverlapSeconds', label: 'Overlap Cushion', min: 0, max: 8, step: 0.25, format: (v) => `${Number(v).toFixed(2)}s`, description: 'Start the next section this many seconds early to soften transitions.' }
+                ]
+            }        };
 
         const ADVANCED_SECTION_LAYOUT = [
             {
@@ -1264,13 +1278,20 @@ jgs   `-=========-`()
                 label: 'Eternal Canonizer',
                 summary: 'Balance overlay density with the looping engine for long-form canons.',
                 groups: ['eternalOverlay', 'eternalLoop']
+            },
+            {
+                id: 'sculptor',
+                label: 'Section Sculptor',
+                summary: 'Fine-tune trimmed sections before building custom arrangements.',
+                groups: ['sculptorConfig']
             }
         ];
 
         const MODE_TO_SECTION_IDS = {
             canon: ['canon'],
             jukebox: ['jukebox'],
-            eternal: ['eternal']
+            eternal: ['eternal'],
+            sculptor: ['sculptor']
         };
 
         const advancedDomMap = Object.create(null);
@@ -1281,7 +1302,8 @@ jgs   `-=========-`()
         const MODE_PRIMARY_GROUPS = {
             canon: ['canonOverlay'],
             jukebox: ['jukeboxLoop'],
-            eternal: ['eternalOverlay', 'eternalLoop']
+            eternal: ['eternalOverlay', 'eternalLoop'],
+            sculptor: ['sculptorConfig']
         };
 
         function buildAdvancedUi() {
@@ -1920,6 +1942,8 @@ jgs   `-=========-`()
             expandedGroups = ['jukeboxLoop'];
         } else if (normalized === 'eternal') {
             expandedGroups = ['eternalOverlay', 'eternalLoop'];
+        } else if (normalized === 'sculptor') {
+            expandedGroups = ['sculptorConfig'];
         }
         Object.keys(ADVANCED_GROUP_METADATA).forEach((groupKey) => {
             const shouldExpand = expandedGroups.includes(groupKey);

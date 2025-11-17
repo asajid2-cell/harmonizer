@@ -1,0 +1,61 @@
+﻿# Media Compression & Delivery Optimization Plan
+
+## Current Architecture (what we have)
+- Flask backend serving media via `/media/<path:filename>` from `backend/uploads` (see `backend/app.py` routes ~340, 752).
+- URLs are persisted, not blobs — `ourspace_db.py` stores relative paths / metadata only.
+- Pillow already in use for image generation/previews (see `_image_to_data_url`, async image jobs), so image processing deps exist.
+- Frontend references media via `/media/...` URLs; no client-side transforms.
+
+## Goals
+- Reduce image payload sizes and decode cost without user re-uploads.
+- Maintain compatibility with existing stored originals and URLs.
+- Minimize service disruption and regression risk.
+
+## Strategy
+1) **Introduce server-side optimization pipeline**
+   - Add an optimized cache directory, e.g., `backend/uploads/_optimized/`.
+   - In `/media/<path:filename>` handler, detect images (ext in {png,jpg,jpeg,webp,gif,bmp}).
+   - On first request, load with Pillow, resize to sensible bounds (configurable, e.g., max 1600px long edge), convert to WebP (or AVIF if supported), and write to cache keyed by original path + size profile.
+   - Serve optimized file with correct `Content-Type`; set long-lived cache headers.
+   - Non-image assets stay passthrough.
+
+2) **Multiple size profiles**
+   - Support query hints `?w=...&h=...&q=...` with sane clamps (min/max) and a small set of buckets to avoid cache explosion (e.g., 320, 640, 1024, 1600).
+   - Default profile for existing URLs (no params) = mid-size WebP.
+
+3) **Lazy backfill (no migration/downtime)**
+   - Do on-demand generation per request to avoid a big migration.
+   - Optionally run a background script to pre-warm popular sizes over existing files; can be paused/stopped safely.
+
+4) **Config & safety**
+   - Config flags in `.env` / `config`: enable/disable optimization, set max dimensions, quality, cache dir, allowed formats.
+   - Graceful fallback: if Pillow fails, serve original; never block the request.
+   - Limit concurrency / file size to prevent CPU spikes; consider a small worker pool or per-request timeout.
+
+5) **Client-side hints (optional, low risk)**
+   - Add `loading="lazy"`, `width/height` attributes, and `srcset`/`sizes` where applicable to let the browser choose smaller variants.
+   - Keep this additive; do not rely on client-side recompression (it doesn’t save bandwidth).
+
+6) **Logging & monitoring**
+   - Log cache hits/misses and generation time; expose metrics to spot regressions.
+   - Add a health check endpoint for the optimizer.
+
+## Minimal Code Touch Points
+- `backend/app.py`: wrap `/media/<path:filename>` to route through an optimizer helper; add config; serve cached variant if present.
+- New helper module (e.g., `backend/utils/image_opt.py`) for resize/convert/cache naming.
+- Optional management command/script to pre-warm cache over `backend/uploads`.
+- Frontend (optional): sprinkle `loading="lazy"`, `srcset/sizes` for known image tags.
+
+## Rollout Plan (low disruption)
+1) Implement optimizer + cache directory behind a feature flag (default off). Deploy with flag off.
+2) Enable in staging; test common pages and image types. Measure size reduction and latency.
+3) Enable in production gradually (e.g., 10–20% traffic via flag or env). Watch logs/CPU.
+4) Pre-warm top N images in the background to avoid first-request penalty.
+5) Iterate quality/dimension settings; lock defaults once stable.
+
+## Acceptance Checklist
+- Requests to `/media/...` continue working; on failure, originals are served.
+- Optimized variants stored in cache dir; repeat requests are cache hits.
+- Large images are resized and encoded as WebP (or AVIF where supported).
+- Frontend renders correctly; no broken images; improved page weight in Lighthouse/network tab.
+- Config toggles available to disable/adjust without redeploy.

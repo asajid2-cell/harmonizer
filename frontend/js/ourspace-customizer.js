@@ -134,7 +134,7 @@
         const layoutSource = isPhone ? (profile.layout?.mobilePreset || profile.layout?.preset) : (profile.layout?.preset || 'classic');
         let layoutName = formatSummaryLabel(layoutSource);
         if (isPhone) {
-            layoutName = `${layoutName} � phone`;
+            layoutName = `${layoutName} • phone`;
         }
         const lastSaved = window.OurSpace?._lastSavedTimestamp || 0;
         const lastModified = profile.meta?.lastModified || 0;
