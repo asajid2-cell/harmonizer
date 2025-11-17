@@ -1,66 +1,68 @@
-﻿# OurSpace Authentication & Database System - User Guide
+# OurSpace Authentication Guide
 
-## Overview
+Complete user account system for saving and sharing customizable profiles.
 
-The OurSpace page now has a complete authentication and database system that allows:
-- Creating user accounts with secure password hashing
-- Saving and publishing profiles permanently
-- Viewing other users' published profiles
-- Making local changes without login (temporary)
-- Server-side media storage (no localStorage quota issues)
+## Quick Start
 
-> **Production host:** OurSpace is served from `https://ourspace.icu/ourspace.html`. Local development uses `http://localhost:4000/ourspace.html`.
+### Start Servers
 
-## How to Use
+```bash
+# Backend (port 4000)
+cd backend
+python app.py
 
-### Starting the Servers
+# Frontend (port 8000)
+cd frontend
+python -m http.server 8000
+```
 
-1. **Backend Server** (Port 4000):
-   ```bash
-   cd backend
-   python app.py
-   ```
+Visit `http://localhost:8000/ourspace.html`
 
-2. **Frontend Server** (Port 8000):
-   ```bash
-   cd frontend
-   python -m http.server 8000
-   ```
+Production: `https://ourspace.icu/ourspace.html`
 
-### Creating an Account
+## Features
 
-1. Open http://localhost:8000/ourspace.html
-2. Look for the "Account" section in the left sidebar
-3. Click "Sign Up" button
-4. Enter a username (min 3 characters, letters/numbers/underscores only)
-5. Enter a password (min 6 characters)
-6. Click "Sign Up"
-7. You're automatically logged in!
+- Secure account creation with password hashing
+- Persistent profile storage (no localStorage limits)
+- Public profile sharing via URLs
+- Server-side media uploads
+- Visit tracking
 
-### Customizing Your Profile
+## Using OurSpace
 
-1. **While Logged In**:
-   - All changes are saved locally as you make them
-   - Click "ðŸ’¾ Save & Publish Profile" when you're happy with your page
-   - This makes your profile visible to others
+### Create Account
 
-2. **Without Login**:
-   - You can still customize everything
-   - Changes are temporary (session storage)
-   - Warning message: "⚠️ Not logged in - changes are temporary!"
-   - Must log in to publish
+1. Open OurSpace in browser
+2. Click "Sign Up" in Account section
+3. Enter username (3+ chars, alphanumeric + underscores)
+4. Enter password (6+ chars)
+5. Click "Sign Up"
 
-### Viewing Other Profiles
+### Customize Profile
 
-1. Get another user's URL: `http://localhost:8000/ourspace.html?user=theirusername`
-2. Visit their page - it loads in view-only mode
-3. Banner shows "Viewing {username}'s Profile"
-4. Visit counter increments
-5. Click "Back to My Profile" to return to editing your own
+**Logged in:**
+- Changes save automatically
+- Click "💾 Save & Publish Profile" to make public
+- Profile becomes viewable at `?user=yourname`
 
-### Features
+**Not logged in:**
+- Changes are temporary (session only)
+- Warning shows: "⚠️ Not logged in - changes are temporary!"
+- Must log in to publish
 
-#### Uploads (All Server-Side):
+### View Others' Profiles
+
+Visit: `http://localhost:8000/ourspace.html?user=username`
+
+- Loads in view-only mode
+- Shows "Viewing {username}'s Profile" banner
+- Visit counter increments
+- "Back to My Profile" returns to editing
+
+## Uploads
+
+All media stored server-side in `backend/ourspace_data/{user_id}/`:
+
 - Banner images
 - Profile pictures
 - Friend images
@@ -68,145 +70,102 @@ The OurSpace page now has a complete authentication and database system that all
 - Audio files
 - Background images
 
-All media is stored on the server in `backend/ourspace_data/{user_id}/` folders.
+## Database
 
-#### Profile Data:
-- Stored in SQLite database (`backend/ourspace_data/OurSpace.db`)
-- Passwords hashed with PBKDF2-SHA256 (100,000 iterations)
-- Profile JSON stored per user
-- Visit tracking
+SQLite database at `backend/ourspace_data/OurSpace.db`
 
-## Database Schema
+### Tables
 
-### Users Table
-- `id`: Auto-increment primary key
-- `username`: Unique username
-- `password_hash`: Hashed password
-- `salt`: Random salt for password
-- `created_at`: Account creation time
-- `last_login`: Last login timestamp
-- `profile_published`: Boolean - is profile visible to others?
+**users**
+- Account info, usernames, password hashes
+- PBKDF2-SHA256 (100k iterations) + random salt
+- Login timestamps
 
-### Profiles Table
-- `id`: Auto-increment primary key
-- `user_id`: Foreign key to users table
-- `profile_data`: JSON blob with all customizations
-- `last_modified`: Last save timestamp
-- `visits`: Visit counter
+**profiles**
+- Profile customization JSON
+- Publish status
+- Visit counts
 
-### Friendships Table
-- `id`: Auto-increment primary key
-- `user_id`: User ID
-- `friend_id`: Friend's user ID
-- `created_at`: Friendship creation time
-- Bidirectional relationships (both users get a row)
+**friendships**
+- User connections (bidirectional)
 
 ## API Endpoints
 
-### Authentication
+### Auth
 - `POST /api/ourspace/register` - Create account
 - `POST /api/ourspace/login` - Login
 - `POST /api/ourspace/logout` - Logout
-- `GET /api/ourspace/me` - Get current user info
+- `GET /api/ourspace/me` - Current user info
 
 ### Profiles
-- `GET /api/ourspace/profile/load` - Load own profile (requires auth)
-- `POST /api/ourspace/profile/save` - Save own profile (requires auth)
-- `POST /api/ourspace/profile/publish` - Publish profile (requires auth)
+- `GET /api/ourspace/profile/load` - Load own profile
+- `POST /api/ourspace/profile/save` - Save own profile
+- `POST /api/ourspace/profile/publish` - Make profile public
 - `GET /api/ourspace/profile/<username>` - View published profile
 
 ### Media
-- `POST /api/ourspace/upload` - Upload media file
-- `GET /api/ourspace/media/<user_id>/<filename>` - Serve media file
+- `POST /api/ourspace/upload` - Upload file
+- `GET /api/ourspace/media/<user_id>/<filename>` - Serve media
 
 ### Friends
-- `GET /api/ourspace/friends` - Get friends list
+- `GET /api/ourspace/friends` - Friends list
 - `POST /api/ourspace/friends/add` - Add friend
 - `POST /api/ourspace/friends/remove` - Remove friend
 - `GET /api/ourspace/search?q=<query>` - Search users
 
-## Testing Steps
+## Testing
 
-1. **Create First Account**:
-   - Sign up as "user1" with password "password123"
-   - Customize profile (change theme, upload banner, etc.)
-   - Click "Save & Publish Profile"
+1. Sign up as user1 / password123
+2. Customize and publish profile
+3. Open incognito window
+4. Sign up as user2 / password456
+5. Visit `?user=user1` to view user1's profile
+6. Verify visit counter increases
+7. Log out and back in - verify profile persists
 
-2. **Create Second Account**:
-   - Open browser incognito/private window
-   - Go to http://localhost:8000/ourspace.html
-   - Sign up as "user2" with password "password456"
-   - Customize differently
-
-3. **View Profiles**:
-   - In user2's window, visit: http://localhost:8000/ourspace.html?user=user1
-   - See user1's published profile
-   - Verify visit counter increases
-
-4. **Logout/Login Test**:
-   - Log out from user1 account
-   - Close browser
-   - Open again, login as user1
-   - Verify profile is restored exactly as saved
-
-## Files Modified/Created
+## Files
 
 ### Backend
-- `ourspace_db.py` - Database models and functions (NEW)
-- `app.py` - Added auth endpoints (lines 1895-2207)
+- [backend/ourspace_db.py](backend/ourspace_db.py) - Database models
+- [backend/app.py](backend/app.py#L2419-L2989) - Auth endpoints
 
 ### Frontend
-- `js/ourspace-auth.js` - Authentication UI and logic (NEW)
-- `js/ourspace-core.js` - Initialize profile with default to prevent null errors
-- `js/ourspace-customizer.js` - Updated background upload to use server
-- `ourspace.html` - Added auth modal and account section
-- `css/ourspace-base.css` - Added auth UI styling
+- `frontend/js/ourspace-auth.js` - Auth UI
+- `frontend/js/ourspace-core.js` - Profile logic
+- `frontend/js/ourspace-customizer.js` - Customization handlers
+- `frontend/ourspace.html` - Main page
+- `frontend/css/ourspace-base.css` - Auth styling
 
-## Security Features
+## Security
 
-1. **Password Hashing**: PBKDF2-HMAC-SHA256 with 100,000 iterations
-2. **Salting**: Unique 32-byte random salt per user
-3. **Session Management**: Flask sessions with secret key
-4. **Input Validation**: Username/password requirements enforced
-5. **SQL Injection Protection**: Parameterized queries
-6. **XSS Protection**: HTML escaping in widgets
+- Password hashing: PBKDF2-HMAC-SHA256 (100k iterations)
+- Random 32-byte salt per user
+- Flask session management
+- Parameterized SQL queries (injection protection)
+- HTML escaping (XSS protection)
 
 ## Troubleshooting
 
-### "Profile not loading"
-- Check if backend server is running on port 4000
+**Profile not loading**
+- Check backend running on port 4000
 - Check browser console for errors
-- Clear browser cache and refresh
+- Clear cache and refresh
 
-### "Can't upload files"
-- Verify `/api/ourspace/upload` endpoint is accessible
-- Check server logs for errors
-- Ensure `ourspace_data` directory exists with write permissions
+**Upload fails**
+- Verify `/api/ourspace/upload` accessible
+- Check server logs
+- Ensure `ourspace_data` directory has write permissions
 
-### "Database errors"
-- Check if `ourspace_data/OurSpace.db` exists
-- Verify ourspace_db.py is in backend directory
+**Database errors**
+- Check `ourspace_data/OurSpace.db` exists
+- Verify `ourspace_db.py` in backend directory
 - Check server console for SQL errors
 
-### "Login not working"
-- Verify Flask session secret key is set
-- Check browser cookies are enabled
-- Look for errors in server console
+**Login fails**
+- Verify Flask `SECRET_KEY` set in `.env`
+- Enable browser cookies
+- Check server console
 
-## Future Enhancements
+## Backups
 
-- Friend requests and approval system
-- Comments on profiles
-- Profile search and discovery
-- Activity feed
-- Messaging system
-- Profile analytics
-
-
-
-
-
-
-
-
-
+See [BACKUPS.md](BACKUPS.md) for database backup and restore procedures.
