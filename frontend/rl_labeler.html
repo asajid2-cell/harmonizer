@@ -52,7 +52,7 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
 <body>
     <div class="panel">
         <h1>RL Snippet Labeler</h1>
-        <div id="status">Loading…</div>
+        <div id="status">Loading...</div>
         <div id="counts" style="font-size: 0.9rem; color: #bda0aa; margin-bottom: 10px;"></div>
         <audio id="snippet-audio" controls style="width: 100%; margin: 12px 0;"></audio>
         <div id="meta"></div>
@@ -64,7 +64,7 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
         </div>
         <div style="margin-top: 16px;">
             <label for="notes">Notes</label>
-            <textarea id="notes" placeholder="Optional feedback…"></textarea>
+            <textarea id="notes" placeholder="Optional feedback..."></textarea>
         </div>
     </div>
     <script>
@@ -93,7 +93,7 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
         }
 
         async function fetchSnippet() {
-            statusEl.textContent = 'Loading next snippet…';
+            statusEl.textContent = 'Loading next snippet...';
             notesEl.value = '';
             audioEl.src = '';
             metaEl.innerHTML = '';
@@ -124,7 +124,7 @@ html{scrollbar-width:none!important;-ms-overflow-style:none!important}
                 metaEl.innerHTML = `
                     <div class="meta-row"><strong>Track:</strong> ${currentSnippet.track_title || currentSnippet.track_id}</div>
                     <div class="meta-row"><strong>Mode:</strong> ${currentSnippet.mode}</div>
-                    <div class="meta-row"><strong>Source → Target:</strong> ${currentSnippet.source_index} → ${currentSnippet.target_index}</div>
+                    <div class="meta-row"><strong>Source -> Target:</strong> ${currentSnippet.source_index} -> ${currentSnippet.target_index}</div>
                     <div class="meta-row"><strong>Similarity:</strong> ${similarityValue}</div>
                 `;
             } catch (error) {

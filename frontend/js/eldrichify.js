@@ -1,7 +1,5 @@
 (() => {
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
-  const API_ENDPOINT = "/api/eldrichify";
-  const PROMPT_ENDPOINT = "/api/imgen";
   const MIN_DOWNLOAD_SIZE = 32;
   const MAX_DOWNLOAD_SIZE = 4096;
 
@@ -17,6 +15,8 @@
   const downloadHeightInput = document.getElementById("download-height");
   const downloadResetBtn = document.getElementById("download-reset");
   const downloadButtons = document.querySelectorAll(".eld-download-btn");
+  const tracedModelLink = document.querySelector('[data-api-link="traced-model"]');
+  const modelWeightsLink = document.querySelector('[data-api-link="model-weights"]');
 
   let selectedFile = null;
   let isProcessing = false;
@@ -36,6 +36,55 @@
     guidance: { label: "[S2] Guidance fusion", alt: "Guidance visualization" },
     diffusion: { label: "[S3] Diffusion process", alt: "Diffusion visualization" },
   };
+
+  configureApiLinks();
+
+  function getApiBase() {
+    const cfg = window.HARMONIZER_CONFIG || {};
+    const raw = typeof cfg.apiBaseUrl === "string" ? cfg.apiBaseUrl.trim() : "";
+    return raw ? raw.replace(/\/+$/, "") : "";
+  }
+
+  function buildApiUrl(path = "") {
+    const base = getApiBase();
+    if (!path) {
+      return base || "";
+    }
+    const normalized = path.startsWith("/") ? path : `/${path}`;
+    return base ? `${base}${normalized}` : normalized;
+  }
+
+  function resolveMediaUrl(path) {
+    if (!path) {
+      return "";
+    }
+    if (/^(?:https?:|data:)/i.test(path)) {
+      return path;
+    }
+    return buildApiUrl(path);
+  }
+
+  function getUploadEndpoint() {
+    return buildApiUrl("/api/eldrichify");
+  }
+
+  function getPromptEndpoint() {
+    return buildApiUrl("/api/imgen");
+  }
+
+  function getPromptStatusEndpoint(jobId) {
+    const encoded = encodeURIComponent(jobId);
+    return buildApiUrl(`/api/imgen/status/${encoded}`);
+  }
+
+  function configureApiLinks() {
+    if (tracedModelLink) {
+      tracedModelLink.href = buildApiUrl("/download-traced-model");
+    }
+    if (modelWeightsLink) {
+      modelWeightsLink.href = buildApiUrl("/download-model-weights");
+    }
+  }
 
   // Initialize
   if (launchBtn) {
@@ -411,7 +460,7 @@
     let progressTracker = null;
     try {
       // Start the job
-      const response = await fetch(PROMPT_ENDPOINT, {
+      const response = await fetch(getPromptEndpoint(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: promptText, seed }),
@@ -439,7 +488,7 @@
 
       while (attempts < maxAttempts) {
         await sleep(pollDelayMs); // Poll every 2 seconds
-        const statusResponse = await fetch(`/api/imgen/status/${jobId}`);
+        const statusResponse = await fetch(getPromptStatusEndpoint(jobId));
         const statusData = await statusResponse.json();
         const elapsedMs = Date.now() - pollStart;
         const fallbackEtaSeconds = Math.max(0, Math.round((maxDurationMs - elapsedMs) / 1000));
@@ -677,7 +726,7 @@
       const formData = new FormData();
       formData.append("image", file);
 
-      const response = await fetch(API_ENDPOINT, {
+      const response = await fetch(getUploadEndpoint(), {
         method: "POST",
         body: formData,
       });
@@ -787,14 +836,15 @@
       const hdImg = document.getElementById("result-hd");
       const downloadBtn = document.getElementById("download-hd");
       const filename = data.filename || `hd_${Date.now()}.png`;
+      const resolvedUrl = resolveMediaUrl(data.image_url);
       if (hdImg) {
-        hdImg.src = data.image_url;
+        hdImg.src = resolvedUrl;
       }
       if (downloadBtn) {
-        downloadBtn.href = data.image_url;
+        downloadBtn.href = resolvedUrl;
         downloadBtn.removeAttribute("download");
       }
-      stageDownloads.hd = { dataUrl: data.image_url, filename };
+      stageDownloads.hd = { dataUrl: resolvedUrl, filename };
     } else {
       markStagePreviewsUnavailable("preview unavailable");
       if (hasInputFile) {

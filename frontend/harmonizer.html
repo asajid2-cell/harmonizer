@@ -136,40 +136,40 @@ jgs   `-=========-`()
         <main class="layout">
             <section class="panel intake-panel" id="intake-panel">
                 <h2>Load A Track</h2>
-                <pre class="ascii-divider">～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～</pre>
+                <pre class="ascii-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</pre>
                 <form id="process-form" enctype="multipart/form-data" novalidate>
                     <div class="section-title">Engine</div>
                     <div class="mode-grid" id="algorithm-toggle">
                         <button type="button" data-algorithm="canon" class="mode-card toggle active">
-                            <span class="mode-card-icon" aria-hidden="true">∞</span>
+                            <span class="mode-card-icon" aria-hidden="true">&infin;</span>
                             <div class="mode-card-body">
                                 <h3>CANON</h3>
                                 <p>mirror voices, loop hook</p>
                             </div>
                         </button>
                         <button type="button" data-algorithm="jukebox" class="mode-card toggle">
-                            <span class="mode-card-icon" aria-hidden="true">◎</span>
+                            <span class="mode-card-icon" aria-hidden="true">&cir;</span>
                             <div class="mode-card-body">
                                 <h3>JUKEBOX</h3>
                                 <p>jump beats forever</p>
                             </div>
                         </button>
                         <button type="button" data-algorithm="eternal" class="mode-card toggle">
-                            <span class="mode-card-icon" aria-hidden="true">⟲</span>
+                            <span class="mode-card-icon" aria-hidden="true">&#8634;</span>
                             <div class="mode-card-body">
                                 <h3>ETERNAL</h3>
                                 <p>layer + evolve</p>
                             </div>
                         </button>
                         <button type="button" data-algorithm="autoharmonizer" class="mode-card toggle">
-                            <span class="mode-card-icon" aria-hidden="true">⇄</span>
+                            <span class="mode-card-icon" aria-hidden="true">&lt;-&gt;</span>
                             <div class="mode-card-body">
                                 <h3>AUTOHARMONIZER</h3>
                                 <p>dual track fusion</p>
                             </div>
                         </button>
                         <button type="button" data-algorithm="sculptor" class="mode-card toggle">
-                            <span class="mode-card-icon" aria-hidden="true">✂</span>
+                            <span class="mode-card-icon" aria-hidden="true">&#9986;</span>
                             <div class="mode-card-body">
                                 <h3>SECTION SCULPTOR</h3>
                                 <p>arrange & queue clips</p>
@@ -177,7 +177,7 @@ jgs   `-=========-`()
                         </button>
                     </div>
                     <input type="hidden" name="algorithm" value="canon" id="algorithm-input">
-                    <pre class="ascii-divider">～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～</pre>
+                    <pre class="ascii-divider">~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</pre>
                     <div class="section-title">Source</div>
                     <div class="toggle-group" id="source-toggle">
                         <button type="button" data-source="upload" class="toggle active">Upload Audio</button>
@@ -296,7 +296,7 @@ jgs   `-=========-`()
                             <span id="sculptor-queue-info" style="margin-left: auto; color: #aaa; font-size: 0.9em;"></span>
                         </div>
                         <div style="margin-top: 4px; padding: 4px 8px; background: rgba(100,100,200,0.2); border-radius: 3px; font-size: 0.85em; color: #aaf;">
-                            💡 <strong>Tip:</strong> Click sections to preview • Drag sections to timeline to build arrangement
+                            &#128161; <strong>Tip:</strong> Click sections to preview * Drag sections to timeline to build arrangement
                         </div>
                         <!-- Drag and Drop Timeline -->
                         <div id="sculptor-timeline" style="margin-top: 8px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 4px; min-height: 80px; border: 2px dashed rgba(255,255,255,0.2); position: relative;">
@@ -331,7 +331,7 @@ jgs   `-=========-`()
                                     <div class="queue-title-bar">
                                         <h4>Queue</h4>
                                         <div class="queue-window-controls">
-                                            <button type="button" id="queue-minimize-btn" class="queue-window-btn" aria-label="Minimize queue">−</button>
+                                            <button type="button" id="queue-minimize-btn" class="queue-window-btn" aria-label="Minimize queue">-</button>
                                             <button type="button" id="queue-close-btn" class="queue-window-btn" aria-label="Close queue">&times;</button>
                                         </div>
                                     </div>
@@ -378,15 +378,15 @@ jgs   `-=========-`()
 
         <!-- Harmonizer Lab badge + rotating footer -->
         <div class="corner-cluster">
-            <span class="ascii-corner-art">♫ o2</span>
+            <span class="ascii-corner-art">&#9835; o2</span>
             <span class="cluster-separator">|</span>
             <footer class="viz-footer" id="footer-text">drive safe i fucking love you &lt;3</footer>
             <span class="cluster-separator">|</span>
-            <span class="ascii-corner-art-right">♪ o2</span>
+            <span class="ascii-corner-art-right">* o2</span>
         </div>
         </div>
 
-            <!-- ✅ Script to randomize the footer message + layout helpers -->
+            <!-- &#9989; Script to randomize the footer message + layout helpers -->
             <script>
                 (function() {
                     var banner = document.querySelector('.site-landing-banner');
@@ -409,8 +409,8 @@ jgs   `-=========-`()
                     "drive safe i fucking love you <3",
                     "text me when you get home <3",
                     "made for you, by you <3",
-                    "you’re doing amazing, keep going <3",
-                    "i’m proud of you, always <3",
+                    "you're doing amazing, keep going <3",
+                    "i'm proud of you, always <3",
                     " i do bad all by myself :p",
                     " you are enough, just as you are <3",
                     "every day is all there is <3",
