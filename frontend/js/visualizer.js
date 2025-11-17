@@ -5797,6 +5797,10 @@ function createCanonDriver(player) {
                 curQ = 0;
                 maxBeatReached = 0;
                 player.seek(0);
+                // Continue processing from the beginning
+                setTimeout(function() {
+                    process();
+                }, 50);
                 return;
             }
             // Check if we should auto-play the next track in queue
