@@ -23,9 +23,9 @@
                         and it answers in a few seconds.
                     </p>
                     <ul class="eld-callouts">
-                        <li>&#10022; Runs on the free Gemini Flash Lite tier</li>
+                        <li>&#10022; Choose between Groq (Llama 3.3) or Gemini (Flash Lite)</li>
                         <li>&#10022; Terminal feed highlights system, you, and Disco-teque</li>
-                        <li>&#10022; Fast as an uplink coil</li>
+                        <li>&#10022; Fast as an uplink coil with robust memory</li>
                         <li>&#10022; Mr. Disco-technical reporting for duty</li>
                     </ul>
                     <div class="eld-cta-row">
@@ -105,6 +105,13 @@
                             </div>
                         </div>
                         <div class="eld-terminal-chat-actions">
+                            <div class="eld-model-selector">
+                                <label for="model-provider">Model</label>
+                                <select id="model-provider" class="eld-model-select">
+                                    <option value="groq" selected>Groq (Llama 3.3 70B)</option>
+                                    <option value="gemini">Gemini (Flash Lite)</option>
+                                </select>
+                            </div>
                             <button type="submit" class="eld-chat-btn primary">
                                 <span>Send</span>
                                 <small>Ctrl + Enter</small>
