@@ -47,6 +47,9 @@ def clone_github_repo(repo_url: str, target_dir: Optional[str] = None) -> str:
 
     Args:
         repo_url: GitHub repository URL (https or git)
+                  Supports branch-specific URLs like:
+                  - https://github.com/user/repo/tree/branch-name
+                  - https://github.com/user/repo (uses default branch)
         target_dir: Optional target directory (defaults to temp dir)
 
     Returns:
@@ -58,12 +61,33 @@ def clone_github_repo(repo_url: str, target_dir: Optional[str] = None) -> str:
     if target_dir is None:
         target_dir = tempfile.mkdtemp(prefix='codescope_clone_')
 
-    logger.info(f"Cloning {repo_url} to {target_dir}")
+    # Parse URL to extract branch if present
+    # GitHub URLs with branches: https://github.com/user/repo/tree/branch-name
+    branch = None
+    clean_url = repo_url
+
+    if '/tree/' in repo_url:
+        # Extract branch from URL
+        parts = repo_url.split('/tree/')
+        clean_url = parts[0]
+        branch = parts[1].split('/')[0] if len(parts) > 1 else None
+        logger.info(f"Detected branch '{branch}' from URL")
+
+    logger.info(f"Cloning {clean_url} to {target_dir}")
 
     try:
+        # Build git clone command
+        clone_cmd = ['git', 'clone', '--depth', '1']
+
+        if branch:
+            # Clone specific branch
+            clone_cmd.extend(['--branch', branch])
+
+        clone_cmd.extend([clean_url, target_dir])
+
         # Clone repository (shallow clone for speed)
         subprocess.run(
-            ['git', 'clone', '--depth', '1', repo_url, target_dir],
+            clone_cmd,
             check=True,
             capture_output=True,
             text=True
