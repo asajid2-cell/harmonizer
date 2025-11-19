@@ -20,6 +20,11 @@
   let conversationHistory = [];
   let isSending = false;
 
+  // Ensure Groq is default on page load (override browser autocomplete)
+  if (modelProviderSelect) {
+    modelProviderSelect.value = "groq";
+  }
+
   function setHint(text) {
     if (terminalHint) {
       terminalHint.textContent = text;

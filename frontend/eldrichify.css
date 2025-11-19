@@ -754,8 +754,11 @@ body.eldrichify-terminal {
 }
 
 .eld-model-select {
-  padding: 8px 12px;
-  background: #000;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding: 8px 32px 8px 12px;
+  background: #000 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2300ffe1' d='M6 8L2 4h8z'/%3E%3C/svg%3E") no-repeat right 10px center;
   color: #00ffe1;
   border: 2px solid #00ffe1;
   border-radius: 0;
@@ -763,11 +766,18 @@ body.eldrichify-terminal {
   font-size: 0.75rem;
   cursor: pointer;
   outline: none;
-  transition: background 0.2s, color 0.2s;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  min-width: 180px;
+}
+
+.eld-model-select option {
+  background: #000;
+  color: #00ffe1;
+  padding: 8px;
 }
 
 .eld-model-select:hover {
-  background: #00ffe1;
+  background: #00ffe1 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 8L2 4h8z'/%3E%3C/svg%3E") no-repeat right 10px center;
   color: #000;
 }
 
