@@ -31,7 +31,7 @@ services:
     build: ./codesniff/backend
     image: codesniff:prod
     env_file:
-      - ./codesniff/backend/.env
+      - .env
     ports:
       - "8000:8000"
     volumes:
