@@ -1,6 +1,9 @@
 __pycache__/
 *.pyc
 
+# Node modules (global)
+node_modules/
+
 # Flask session files
 backend/flask_session/
 
@@ -33,12 +36,23 @@ backend/data/
 data/
 !frontend/cheatsheets/data/
 !frontend/cheatsheets/data/*.txt
-*.json
-!rl_models/
-!rl_models/*.json
+
+# JSON data files (but not config files)
+backend/*.json
+backend/**/*.json
+!backend/package*.json
+data/*.json
 
 # Environment
 .env
+
+# Claude config
+.claude/
+
+# Playwright test artifacts
+playwright-code/artifacts/
+playwright-code/test-results/
+playwright-code/plans/
 
 # ===== CodeSniff specific =====
 # Node modules
