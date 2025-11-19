@@ -8,7 +8,7 @@ interface ResultCardProps {
   onViewCode: (result: SearchResult) => void;
 }
 
-export const ResultCard: React.FC<ResultCardProps> = ({ result, index, onViewCode }) => {
+export const ResultCard: React.FC<ResultCardProps> = ({ result, onViewCode }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {

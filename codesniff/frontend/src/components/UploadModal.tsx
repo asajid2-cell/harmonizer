@@ -24,7 +24,6 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
   const [progress, setProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const fileInputRef = useState<HTMLInputElement | null>(null)[0];
 
   const handleClose = () => {
     if (!isIndexing) {
@@ -66,7 +65,7 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
         }
 
         setProgress('Cloning repository...');
-        const response = await apiClient.indexGithubRepo(githubUrl.trim());
+        await apiClient.indexGithubRepo(githubUrl.trim());
 
         setProgress('Indexing complete!');
         setSuccess(true);
@@ -83,7 +82,7 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
         }
 
         setProgress('Uploading files...');
-        const response = await apiClient.uploadAndIndex(selectedFiles, method === 'zip');
+        await apiClient.uploadAndIndex(selectedFiles, method === 'zip');
 
         setProgress('Indexing complete!');
         setSuccess(true);

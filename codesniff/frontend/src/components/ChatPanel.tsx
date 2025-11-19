@@ -4,7 +4,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Sparkles, Bot, User, Code2, Loader2 } from 'lucide-react';
+import { X, Send, Sparkles, Bot, User, Code2, Loader2 } from 'lucide-react';
 import { apiClient, ChatMessage, ChatSource } from '../api/client';
 
 interface ChatPanelProps {

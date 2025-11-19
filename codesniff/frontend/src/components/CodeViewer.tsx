@@ -3,7 +3,7 @@
  */
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Copy, ExternalLink, CheckCircle } from 'lucide-react';
+import { X, Copy, CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { SearchResult } from '../api/client';

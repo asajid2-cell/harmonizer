@@ -4,12 +4,11 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Database, TrendingUp, AlertCircle, FolderOpen, Trash2, X, MessageCircle, Upload } from 'lucide-react';
+import { AlertCircle, FolderOpen, Trash2, X, MessageCircle, Upload } from 'lucide-react';
 import SearchBar from './components/SearchBar';
 import ResultCard from './components/ResultCard';
 import CodeViewer from './components/CodeViewer';
 import LoadingAnimation from './components/LoadingAnimation';
-import InfiniteScroll from './components/InfiniteScroll';
 import ChatPanel from './components/ChatPanel';
 import UploadModal from './components/UploadModal';
 import { useSearch } from './hooks/useSearch';
