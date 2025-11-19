@@ -64,16 +64,33 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
           return;
         }
 
-        setProgress('Cloning repository...');
-        await apiClient.indexGithubRepo(githubUrl.trim());
+        setProgress('Cloning repository... This may take several minutes for large repos.');
 
-        setProgress('Indexing complete!');
-        setSuccess(true);
+        // Start a progress message updater to show it's still working
+        const progressInterval = setInterval(() => {
+          setProgress((prev) => {
+            if (prev.includes('Cloning')) return 'Processing repository files...';
+            if (prev.includes('Processing')) return 'Analyzing code structure...';
+            if (prev.includes('Analyzing')) return 'Embedding code symbols...';
+            return 'Almost done...';
+          });
+        }, 10000); // Update every 10 seconds
 
-        setTimeout(() => {
-          onIndexComplete();
-          handleClose();
-        }, 2000);
+        try {
+          await apiClient.indexGithubRepo(githubUrl.trim());
+          clearInterval(progressInterval);
+
+          setProgress('Indexing complete!');
+          setSuccess(true);
+
+          setTimeout(() => {
+            onIndexComplete();
+            handleClose();
+          }, 2000);
+        } catch (err) {
+          clearInterval(progressInterval);
+          throw err;
+        }
       } else if (method === 'folder' || method === 'zip') {
         if (!selectedFiles || selectedFiles.length === 0) {
           setError('Please select files to upload');

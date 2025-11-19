@@ -195,7 +195,7 @@ class APIClient {
       `/api/codesniff/index/github?${params.toString()}`,
       {},
       {
-        timeout: 300000, // 5 minutes
+        timeout: 900000, // 15 minutes for large repos
       }
     );
     return response.data;
