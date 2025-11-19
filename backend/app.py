@@ -993,12 +993,18 @@ def codesniff_api_proxy(endpoint: str):
         headers = {key: value for key, value in request.headers if key.lower() != 'host'}
 
         if request.content_type and 'multipart/form-data' in request.content_type:
-            # Handle file uploads
+            # Handle file uploads - support multiple files with same key
+            files_list = []
+            for key in request.files:
+                for f in request.files.getlist(key):
+                    f.stream.seek(0)
+                    files_list.append((key, (f.filename, f.stream.read(), f.content_type)))
+
             resp = req.request(
                 method=request.method,
                 url=target_url,
-                files={key: (f.filename, f.stream, f.content_type) for key, f in request.files.items()},
-                data=request.form,
+                files=files_list,
+                data=request.form.to_dict(flat=False),
                 headers={k: v for k, v in headers if k.lower() != 'content-type'},
                 timeout=300
             )
