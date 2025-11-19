@@ -5,7 +5,7 @@ python-multipart==0.0.6
 
 # Code Analysis
 tree-sitter==0.20.4
-tree-sitter-python==0.20.4
+tree-sitter-python==0.23.4
 
 # ML & Embeddings
 torch==2.1.0

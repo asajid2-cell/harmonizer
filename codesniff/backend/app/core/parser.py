@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 from pathlib import Path
 import tree_sitter_python as tspython
-from tree_sitter import Language, Parser, Node
+from tree_sitter import Parser, Node
 from loguru import logger
 
 
@@ -55,10 +55,9 @@ class CodeParser:
 
     def __init__(self):
         """Initialize Tree-sitter parser with Python grammar"""
-        # Load Python language
-        self.language = Language(tspython.language(), "python")
-        self.parser = Parser()
-        self.parser.set_language(self.language)
+        # Load Python language - use the language object directly from the binding
+        self.language = tspython.language()
+        self.parser = Parser(self.language)
         logger.info("CodeParser initialized with Python grammar")
 
     def parse_file(self, file_path: str) -> Optional[ParsedFile]:

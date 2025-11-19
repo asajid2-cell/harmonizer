@@ -39,3 +39,31 @@ data/
 
 # Environment
 .env
+
+# ===== CodeSniff specific =====
+# Node modules
+codesniff/frontend/node_modules/
+
+# Python cache
+codesniff/backend/app/__pycache__/
+codesniff/backend/app/**/__pycache__/
+
+# Storage and database files (runtime generated)
+codesniff/backend/storage/
+codesniff/backend/app/storage/__pycache__/
+
+# Log files
+codesniff/backend/*.log
+
+# Environment files (keep example)
+codesniff/backend/.env
+codesniff/frontend/.env
+!codesniff/backend/.env.example
+!codesniff/frontend/.env.example
+
+# Build artifacts
+codesniff/frontend/dist/
+
+# Test cache
+codesniff/backend/.pytest_cache/
+codesniff/backend/tests/__pycache__/
