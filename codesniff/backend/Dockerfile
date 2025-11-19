@@ -22,5 +22,5 @@ RUN mkdir -p /app/storage
 # Expose port
 EXPOSE 8000
 
-# Run application
-CMD ["python", "-m", "app.main"]
+# Run application with uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
