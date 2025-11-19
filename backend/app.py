@@ -1000,12 +1000,17 @@ def codesniff_api_proxy(endpoint: str):
                     f.stream.seek(0)
                     files_list.append((key, (f.filename, f.stream.read(), f.content_type)))
 
+            # Convert headers to dict, excluding content-type
+            clean_headers = dict(headers)
+            clean_headers.pop('Content-Type', None)
+            clean_headers.pop('content-type', None)
+
             resp = req.request(
                 method=request.method,
                 url=target_url,
                 files=files_list,
                 data=request.form.to_dict(flat=False),
-                headers={k: v for k, v in headers if k.lower() != 'content-type'},
+                headers=clean_headers,
                 timeout=300
             )
         else:
