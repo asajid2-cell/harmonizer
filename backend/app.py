@@ -1014,12 +1014,15 @@ def codesniff_api_proxy(endpoint: str):
                 timeout=300
             )
         else:
+            # Use longer timeout for GitHub indexing
+            timeout = 600 if 'index/github' in endpoint else 60
+
             resp = req.request(
                 method=request.method,
                 url=target_url,
                 headers=headers,
                 data=request.get_data(),
-                timeout=60
+                timeout=timeout
             )
 
         # Return the response
