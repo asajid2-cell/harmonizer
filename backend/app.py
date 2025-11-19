@@ -1038,6 +1038,9 @@ def codesniff_api_proxy(endpoint: str):
     except req.exceptions.Timeout:
         return jsonify({"error": "Request to CodeSniff backend timed out"}), 504
     except Exception as e:
+        import traceback
+        print(f"[CodeSniff Proxy Error] {str(e)}", flush=True)
+        print(traceback.format_exc(), flush=True)
         return jsonify({"error": f"Proxy error: {str(e)}"}), 502
 
 
