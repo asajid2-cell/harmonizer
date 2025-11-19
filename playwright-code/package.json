@@ -1,0 +1,29 @@
+{
+  "name": "playwright-code",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Code-first Playwright automation harness implementing Anthropic's 98% token savings approach.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/server.ts",
+    "start": "node dist/server.js",
+    "test:darkmode": "tsx src/tests/darkmode.test.ts",
+    "test:ourspace": "tsx src/tests/ourspace.test.ts",
+    "test:mobile": "tsx src/tests/mobile.test.ts",
+    "test:scenes": "tsx src/tests/ourspace-scenes.test.ts",
+    "test:ourspace-mobile": "tsx src/tests/ourspace-mobile.test.ts",
+    "test:ourspace-mobile-login": "tsx src/tests/ourspace-mobile-login.test.ts",
+    "test:eldrichify": "tsx src/tests/eldrichify-imgen.test.ts"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "playwright": "^1.48.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.5.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
