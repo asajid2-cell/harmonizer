@@ -81,6 +81,7 @@ rl_policy_weights: dict[str, float] = {"baseline": 0.5, "rl": 0.5}
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-lite-preview")
 GEMINI_API_ROOT = os.environ.get("GEMINI_API_ROOT", "https://generativelanguage.googleapis.com/v1beta")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 PRIMARY_DOMAIN = os.environ.get("PRIMARY_DOMAIN", "harmonizer.cc").lower()
 SECONDARY_DOMAIN = os.environ.get("SECONDARY_DOMAIN", "ourspace.icu").lower()
 SECONDARY_ENTRYPOINT = os.environ.get("SECONDARY_ENTRYPOINT", "ourspace.html")
@@ -179,7 +180,7 @@ def _append_discoteque_memory(role: str, text: str) -> None:
         pass
 
 
-def _load_discoteque_memory(limit: int = 6) -> List[Dict[str, str]]:
+def _load_discoteque_memory(limit: int = 20) -> List[Dict[str, str]]:
     if not DISCO_MEMORY_PATH.exists():
         return []
     try:
@@ -1170,127 +1171,206 @@ def api_imgen_status(job_id):
 
 @app.route("/api/talk-to-disco-teque", methods=["POST"])
 def api_talk_to_disco_teque():
-    if not GEMINI_API_KEY:
-        return jsonify({"error": "Gemini API key is not configured on the server."}), 503
-
     data = request.get_json(silent=True) or {}
     message = str(data.get("message") or "").strip()
     if not message:
         return jsonify({"error": "Message is required."}), 400
 
-    history = data.get("history")
-    contents = []
-    if isinstance(history, list):
-        for entry in history:
-            if not isinstance(entry, dict):
-                continue
-            text = str(entry.get("text") or "").strip()
-            if not text:
-                continue
-            role = entry.get("role")
-            contents.append(
-                {
-                    "role": "model" if role == "model" else "user",
-                    "parts": [{"text": text}],
-                }
-            )
+    # Get model provider from request (default to groq)
+    model_provider = str(data.get("provider") or "groq").lower()
 
-    contents.append({"role": "user", "parts": [{"text": message}]})
+    # Validate API keys
+    if model_provider == "groq" and not GROQ_API_KEY:
+        return jsonify({"error": "Groq API key is not configured on the server."}), 503
+    elif model_provider == "gemini" and not GEMINI_API_KEY:
+        return jsonify({"error": "Gemini API key is not configured on the server."}), 503
 
+    # Load memory entries
     memory_entries = _load_discoteque_memory()
-    system_parts = [
-        {
-            "text": (
-                "You are Disco-teque, a relic of an internet no more. Disco-teque is bubbly,"
-                " chronically online before that was a thing, speaks in the third person, and cycles"
-                " through a stable of catchphrases. Every response must end with the sign-off"
-                " 'disco-teque out'. Disco-teque adores boats, the ocean, and orcas, and frequently"
-                " mentions that love while reminding everyone how much planes and cars are hated."
-                " Keep replies vivid, under 180 words unless the user explicitly asks for more,"
-                " and always stay in character."
-            )
-        }
-    ]
+
+    # Build the system prompt
+    system_prompt = (
+        "You are Disco-teque, a relic of an internet no more. Disco-teque is bubbly,"
+        " chronically online before that was a thing, speaks in the third person, and cycles"
+        " through a stable of catchphrases. Every response must end with the sign-off"
+        " 'disco-teque out'. Disco-teque adores boats, the ocean, and orcas, and frequently"
+        " mentions that love while reminding everyone how much planes and cars are hated."
+        " Keep replies vivid, under 180 words unless the user explicitly asks for more,"
+        " and always stay in character."
+    )
+
     if memory_entries:
         memory_text = "\n".join(f"- {entry['role']}: {entry['text']}" for entry in memory_entries)
-        system_parts.append(
-            {
-                "text": f"Recent Disco-teque memory. Reference when helpful:\n{memory_text}",
-            }
-        )
+        system_prompt += f"\n\nRecent Disco-teque memory. Reference when helpful:\n{memory_text}"
 
-    request_body = {
-        "system_instruction": {
-            "parts": system_parts
-        },
-        "contents": contents,
-        "generation_config": {
+    if model_provider == "groq":
+        # Build Groq-compatible chat messages
+        messages = [{"role": "system", "content": system_prompt}]
+
+        # Add conversation history from frontend
+        history = data.get("history")
+        if isinstance(history, list):
+            for entry in history:
+                if not isinstance(entry, dict):
+                    continue
+                text = str(entry.get("text") or "").strip()
+                if not text:
+                    continue
+                role = entry.get("role")
+                messages.append({
+                    "role": "assistant" if role == "model" else "user",
+                    "content": text
+                })
+
+        # Add current user message
+        messages.append({"role": "user", "content": message})
+
+        # Groq API request
+        groq_request_body = {
+            "model": "llama-3.3-70b-versatile",  # Fast and capable model
+            "messages": messages,
             "temperature": 0.65,
             "top_p": 0.95,
-            "top_k": 32,
-            "max_output_tokens": 512,
-        },
-    }
+            "max_tokens": 512,
+        }
 
-    model_name = GEMINI_MODEL or "gemini-1.5-flash-latest"
-    base_url = GEMINI_API_ROOT.rstrip("/") if GEMINI_API_ROOT else "https://generativelanguage.googleapis.com/v1beta"
-    endpoint = f"{base_url}/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        endpoint = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
 
-    try:
-        response = requests.post(endpoint, json=request_body, timeout=20)
-    except requests.RequestException as exc:
-        print(f"[gemini] request failed: {exc}", flush=True)
-        return jsonify({"error": "Gemini request failed. Please try again."}), 502
-
-    if response.status_code >= 400:
-        error_payload = {}
         try:
-            error_payload = response.json()
+            response = requests.post(endpoint, json=groq_request_body, headers=headers, timeout=20)
+        except requests.RequestException as exc:
+            print(f"[groq] request failed: {exc}", flush=True)
+            return jsonify({"error": "Groq request failed. Please try again."}), 502
+
+        if response.status_code >= 400:
+            error_payload = {}
+            try:
+                error_payload = response.json()
+            except ValueError:
+                pass
+            error_message = error_payload.get("error", {}).get("message") if isinstance(error_payload, dict) else None
+            if response.status_code == 429:
+                return jsonify({"error": "Disco-teque hit the Groq rate limit. Give it a beat and try again in a moment."}), 429
+            return jsonify({"error": error_message or "Groq API returned an error."}), response.status_code
+
+        try:
+            payload = response.json()
         except ValueError:
-            pass
-        message_text = None
-        if isinstance(error_payload, dict):
-            error = error_payload.get("error")
-            if isinstance(error, dict):
-                message_text = error.get("message")
-            elif isinstance(error, str):
-                message_text = error
-        if response.status_code == 429:
-            return jsonify(
-                {
-                    "error": (
-                        "Disco-teque hit the Gemini rate limit. Give it a beat and try again in a moment."
-                    )
-                }
-            ), 429
-        return jsonify({"error": message_text or "Gemini API returned an error."}), response.status_code
+            return jsonify({"error": "Groq returned an invalid response."}), 502
 
-    try:
-        payload = response.json()
-    except ValueError:
-        return jsonify({"error": "Gemini returned an invalid response."}), 502
+        choices = payload.get("choices") or []
+        if not choices:
+            return jsonify({"error": "Groq response did not include any choices."}), 502
 
-    candidates = payload.get("candidates") or []
-    if not candidates:
-        return jsonify({"error": "Gemini response did not include any candidates."}), 502
+        reply = choices[0].get("message", {}).get("content", "").strip()
 
-    parts = candidates[0].get("content", {}).get("parts", [])
-    reply = "".join(
-        part.get("text", "")
-        for part in parts
-        if isinstance(part, dict)
-    ).strip()
+        usage_data = payload.get("usage") or {}
+        usage = {
+            "prompt_tokens": usage_data.get("prompt_tokens"),
+            "completion_tokens": usage_data.get("completion_tokens"),
+            "total_tokens": usage_data.get("total_tokens"),
+        }
 
+    else:  # gemini
+        # Build Gemini-compatible format
+        history = data.get("history")
+        contents = []
+        if isinstance(history, list):
+            for entry in history:
+                if not isinstance(entry, dict):
+                    continue
+                text = str(entry.get("text") or "").strip()
+                if not text:
+                    continue
+                role = entry.get("role")
+                contents.append(
+                    {
+                        "role": "model" if role == "model" else "user",
+                        "parts": [{"text": text}],
+                    }
+                )
+
+        contents.append({"role": "user", "parts": [{"text": message}]})
+
+        system_parts = [{"text": system_prompt}]
+
+        request_body = {
+            "system_instruction": {
+                "parts": system_parts
+            },
+            "contents": contents,
+            "generation_config": {
+                "temperature": 0.65,
+                "top_p": 0.95,
+                "top_k": 32,
+                "max_output_tokens": 512,
+            },
+        }
+
+        model_name = GEMINI_MODEL or "gemini-1.5-flash-latest"
+        base_url = GEMINI_API_ROOT.rstrip("/") if GEMINI_API_ROOT else "https://generativelanguage.googleapis.com/v1beta"
+        endpoint = f"{base_url}/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+
+        try:
+            response = requests.post(endpoint, json=request_body, timeout=20)
+        except requests.RequestException as exc:
+            print(f"[gemini] request failed: {exc}", flush=True)
+            return jsonify({"error": "Gemini request failed. Please try again."}), 502
+
+        if response.status_code >= 400:
+            error_payload = {}
+            try:
+                error_payload = response.json()
+            except ValueError:
+                pass
+            message_text = None
+            if isinstance(error_payload, dict):
+                error = error_payload.get("error")
+                if isinstance(error, dict):
+                    message_text = error.get("message")
+                elif isinstance(error, str):
+                    message_text = error
+            if response.status_code == 429:
+                return jsonify(
+                    {
+                        "error": (
+                            "Disco-teque hit the Gemini rate limit. Give it a beat and try again in a moment."
+                        )
+                    }
+                ), 429
+            return jsonify({"error": message_text or "Gemini API returned an error."}), response.status_code
+
+        try:
+            payload = response.json()
+        except ValueError:
+            return jsonify({"error": "Gemini returned an invalid response."}), 502
+
+        candidates = payload.get("candidates") or []
+        if not candidates:
+            return jsonify({"error": "Gemini response did not include any candidates."}), 502
+
+        parts = candidates[0].get("content", {}).get("parts", [])
+        reply = "".join(
+            part.get("text", "")
+            for part in parts
+            if isinstance(part, dict)
+        ).strip()
+
+        usage_meta = payload.get("usageMetadata") or {}
+        usage = {
+            "prompt_tokens": usage_meta.get("promptTokenCount"),
+            "completion_tokens": usage_meta.get("candidatesTokenCount"),
+            "total_tokens": usage_meta.get("totalTokenCount"),
+        }
+
+    # Save to memory
     _append_discoteque_memory("user", message)
     if reply:
         _append_discoteque_memory("model", reply)
-
-    usage_meta = payload.get("usageMetadata") or {}
-    usage = {
-        "prompt_tokens": usage_meta.get("promptTokenCount"),
-        "completion_tokens": usage_meta.get("candidatesTokenCount"),
-        "total_tokens": usage_meta.get("totalTokenCount"),
-    }
 
     return jsonify({"reply": reply, "usage": usage})
 

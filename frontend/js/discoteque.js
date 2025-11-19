@@ -15,6 +15,7 @@
   const resetBtn = document.getElementById("terminal-reset");
   const suggestionButtons = document.querySelectorAll(".eld-suggestion-btn");
   const memoryResetBtn = document.getElementById("memory-reset");
+  const modelProviderSelect = document.getElementById("model-provider");
 
   let conversationHistory = [];
   let isSending = false;
@@ -67,10 +68,13 @@
     resetConversation();
     clearTerminal();
 
-    addLine("Disco-teque Signal Router v0.3", "info");
+    const provider = modelProviderSelect?.value || "groq";
+    const providerName = provider === "groq" ? "Groq" : "Gemini";
+
+    addLine("Disco-teque Signal Router v0.4", "info");
     addLine("Persona: neon concierge with a soft spot for analog delays.", "info");
 
-    setTimeout(() => addLine("$ tuning uplink to Gemini free tier…", "warning"), 160);
+    setTimeout(() => addLine(`$ tuning uplink to ${providerName}…`, "warning"), 160);
     setTimeout(() => addLine("$ syncing vibe tables…", "warning"), 320);
     setTimeout(() => addLine("✔ link stabilized . ask anything about prompts, sets, metaphors.", "success"), 560);
     setTimeout(() => focusInput(), 600);
@@ -107,8 +111,12 @@
       return;
     }
     isSending = true;
-    setHint("Routing through Gemini free tier…");
-    addLine("$ contacting Disco-core via Gemini…", "warning");
+
+    const provider = modelProviderSelect?.value || "groq";
+    const providerName = provider === "groq" ? "Groq" : "Gemini";
+
+    setHint(`Routing through ${providerName}…`);
+    addLine(`$ contacting Disco-core via ${providerName}…`, "warning");
 
     try {
       const response = await fetch(API_ENDPOINT, {
@@ -120,6 +128,7 @@
         body: JSON.stringify({
           message,
           history: conversationHistory,
+          provider: provider,
         }),
       });
 
@@ -140,7 +149,7 @@
       if (reply) {
         addLine(`disco-teque> ${reply}`, "success");
       } else {
-        addLine("disco-teque> [Gemini returned an empty reply]", "warning");
+        addLine(`disco-teque> [${providerName} returned an empty reply]`, "warning");
       }
 
       if (payload?.usage) {
@@ -152,7 +161,7 @@
         );
       }
     } catch (err) {
-      const messageText = err instanceof Error ? err.message : "Unexpected error contacting Gemini.";
+      const messageText = err instanceof Error ? err.message : `Unexpected error contacting ${providerName}.`;
       addLine(`error> ${messageText}`, "error");
     } finally {
       isSending = false;

@@ -735,6 +735,45 @@ body.eldrichify-terminal {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  align-items: center;
+}
+
+.eld-model-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eld-model-selector label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #00ffe1;
+  opacity: 0.8;
+}
+
+.eld-model-select {
+  padding: 8px 12px;
+  background: #000;
+  color: #00ffe1;
+  border: 2px solid #00ffe1;
+  border-radius: 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.2s, color 0.2s;
+}
+
+.eld-model-select:hover {
+  background: #00ffe1;
+  color: #000;
+}
+
+.eld-model-select:focus {
+  border-color: #ff00ff;
+  box-shadow: 0 0 0 2px rgba(0, 255, 225, 0.2);
 }
 
 .eld-chat-btn {
