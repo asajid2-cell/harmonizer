@@ -72,7 +72,7 @@ export interface IndexRequest {
 class APIClient {
   private client: AxiosInstance;
 
-  constructor(baseURL: string = 'http://localhost:8000') {
+  constructor(baseURL: string = '') {
     this.client = axios.create({
       baseURL,
       headers: {
@@ -86,7 +86,7 @@ class APIClient {
    * Health check
    */
   async health(): Promise<HealthResponse> {
-    const response = await this.client.get<HealthResponse>('/api/health');
+    const response = await this.client.get<HealthResponse>('/api/codesniff/health');
     return response.data;
   }
 
@@ -94,7 +94,7 @@ class APIClient {
    * Get index statistics
    */
   async getStats(): Promise<StatsResponse> {
-    const response = await this.client.get<StatsResponse>('/api/stats');
+    const response = await this.client.get<StatsResponse>('/api/codesniff/stats');
     return response.data;
   }
 
@@ -102,7 +102,7 @@ class APIClient {
    * Search for code using natural language
    */
   async search(request: SearchRequest): Promise<SearchResponse> {
-    const response = await this.client.post<SearchResponse>('/api/search', {
+    const response = await this.client.post<SearchResponse>('/api/codesniff/search', {
       query: request.query,
       limit: request.limit || 20,
       min_similarity: request.min_similarity || 0.0,
@@ -116,7 +116,7 @@ class APIClient {
    */
   async searchByName(name: string, limit: number = 100): Promise<SearchResponse> {
     const response = await this.client.post<SearchResponse>(
-      `/api/search/name?name=${encodeURIComponent(name)}&limit=${limit}`
+      `/api/codesniff/search/name?name=${encodeURIComponent(name)}&limit=${limit}`
     );
     return response.data;
   }
@@ -125,7 +125,7 @@ class APIClient {
    * Find similar code
    */
   async findSimilar(codeSnippet: string, limit: number = 10, minSimilarity: number = 0.5): Promise<SearchResponse> {
-    const response = await this.client.post<SearchResponse>('/api/search/similar', {
+    const response = await this.client.post<SearchResponse>('/api/codesniff/search/similar', {
       code_snippet: codeSnippet,
       limit,
       min_similarity: minSimilarity,
@@ -137,7 +137,7 @@ class APIClient {
    * Get specific symbol
    */
   async getSymbol(name: string, filePath?: string): Promise<SearchResult> {
-    const url = `/api/symbol/${encodeURIComponent(name)}${filePath ? `?file_path=${encodeURIComponent(filePath)}` : ''}`;
+    const url = `/api/codesniff/symbol/${encodeURIComponent(name)}${filePath ? `?file_path=${encodeURIComponent(filePath)}` : ''}`;
     const response = await this.client.get<SearchResult>(url);
     return response.data;
   }
@@ -146,7 +146,7 @@ class APIClient {
    * Index a directory
    */
   async indexDirectory(request: IndexRequest): Promise<IndexResponse> {
-    const response = await this.client.post<IndexResponse>('/api/index', {
+    const response = await this.client.post<IndexResponse>('/api/codesniff/index', {
       directory_path: request.directory_path,
       show_progress: request.show_progress !== false,
     });
@@ -157,7 +157,7 @@ class APIClient {
    * Clear the index
    */
   async clearIndex(): Promise<{ success: boolean; message: string }> {
-    const response = await this.client.post('/api/index/clear');
+    const response = await this.client.post('/api/codesniff/index/clear');
     return response.data;
   }
 
@@ -165,7 +165,7 @@ class APIClient {
    * Get list of indexed files
    */
   async getFiles(): Promise<{ total_files: number; files: IndexedFile[] }> {
-    const response = await this.client.get('/api/files');
+    const response = await this.client.get('/api/codesniff/files');
     return response.data;
   }
 
@@ -178,7 +178,7 @@ class APIClient {
     params.append('use_rag', String(request.use_rag !== false));
 
     const response = await this.client.post<ChatResponse>(
-      `/api/chat?${params.toString()}`,
+      `/api/codesniff/chat?${params.toString()}`,
       request.conversation_history || []
     );
     return response.data;
@@ -192,7 +192,7 @@ class APIClient {
     params.append('repo_url', repoUrl);
 
     const response = await this.client.post<IndexResponse>(
-      `/api/index/github?${params.toString()}`,
+      `/api/codesniff/index/github?${params.toString()}`,
       {},
       {
         timeout: 300000, // 5 minutes
@@ -214,7 +214,7 @@ class APIClient {
 
     formData.append('is_zip', String(isZip));
 
-    const response = await this.client.post<IndexResponse>('/api/index/upload', formData, {
+    const response = await this.client.post<IndexResponse>('/api/codesniff/index/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -258,8 +258,9 @@ export interface ChatResponse {
 }
 
 // Export singleton instance
+// Use relative path for API calls - will be proxied by Flask to CodeSniff backend
 export const apiClient = new APIClient(
-  import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  import.meta.env.VITE_API_URL || ''
 );
 
 export default apiClient;

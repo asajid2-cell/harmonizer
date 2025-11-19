@@ -947,6 +947,94 @@ def projects_page():
         return _send_cached_file(projects_index, treat_as_html=True)
     abort(404)
 
+
+# ===== CodeSniff Routes =====
+CODESNIFF_APP_DIR = FRONTEND_DIR / "codesniff-app"
+CODESNIFF_BACKEND_URL = os.environ.get("CODESNIFF_BACKEND_URL", "http://localhost:8000")
+
+
+@app.route("/codesniff-app/")
+@app.route("/codesniff-app/<path:filename>")
+def codesniff_app(filename: str = "index.html"):
+    """Serve the built CodeSniff React app."""
+    if not CODESNIFF_APP_DIR.exists():
+        abort(404, "CodeSniff app not built. Run 'npm run build' in codesniff/frontend")
+
+    # Handle SPA routing - serve index.html for non-file routes
+    target = CODESNIFF_APP_DIR / filename
+    if not target.exists() or target.is_dir():
+        return send_from_directory(CODESNIFF_APP_DIR, "index.html")
+
+    return send_from_directory(CODESNIFF_APP_DIR, filename)
+
+
+@app.route("/api/codesniff/<path:endpoint>", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+def codesniff_api_proxy(endpoint: str):
+    """Proxy API requests to the CodeSniff FastAPI backend."""
+    import requests as req
+
+    # Handle CORS preflight
+    if request.method == "OPTIONS":
+        response = jsonify({})
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        return response
+
+    # Build the target URL
+    target_url = f"{CODESNIFF_BACKEND_URL}/api/{endpoint}"
+
+    # Forward query string
+    if request.query_string:
+        target_url += f"?{request.query_string.decode()}"
+
+    try:
+        # Forward the request
+        headers = {key: value for key, value in request.headers if key.lower() != 'host'}
+
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            # Handle file uploads
+            resp = req.request(
+                method=request.method,
+                url=target_url,
+                files={key: (f.filename, f.stream, f.content_type) for key, f in request.files.items()},
+                data=request.form,
+                headers={k: v for k, v in headers if k.lower() != 'content-type'},
+                timeout=300
+            )
+        else:
+            resp = req.request(
+                method=request.method,
+                url=target_url,
+                headers=headers,
+                data=request.get_data(),
+                timeout=60
+            )
+
+        # Return the response
+        response = app.response_class(
+            response=resp.content,
+            status=resp.status_code,
+            mimetype=resp.headers.get('content-type', 'application/json')
+        )
+
+        # Copy relevant headers
+        for header in ['content-disposition']:
+            if header in resp.headers:
+                response.headers[header] = resp.headers[header]
+
+        return response
+
+    except req.exceptions.ConnectionError:
+        return jsonify({
+            "error": "CodeSniff backend is not running. Start it with: cd codesniff/backend && uvicorn app.main:app --port 8000"
+        }), 503
+    except req.exceptions.Timeout:
+        return jsonify({"error": "Request to CodeSniff backend timed out"}), 504
+    except Exception as e:
+        return jsonify({"error": f"Proxy error: {str(e)}"}), 502
+
+
 @app.route("/media/<path:filename>")
 def media(filename: str):
     """
