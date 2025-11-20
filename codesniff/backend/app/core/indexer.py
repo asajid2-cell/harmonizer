@@ -34,6 +34,9 @@ class IndexStats:
 class Indexer:
     """Orchestrates the code indexing pipeline"""
 
+    # Maximum symbols to process at once to avoid OOM
+    SYMBOLS_BATCH_SIZE = 100
+
     def __init__(
         self,
         parser: Optional[CodeParser] = None,
@@ -412,81 +415,123 @@ class Indexer:
 
     def _index_symbols(self, symbols: List[Dict], file_id: int, file_path: str):
         """
-        Generate embeddings and store symbols
+        Generate embeddings and store symbols in batches to avoid OOM
 
         Args:
             symbols: List of symbol dictionaries
             file_id: Database file ID
             file_path: Path to source file
         """
-        # Extract code snippets
-        codes = []
-        for symbol in symbols:
-            data = symbol['data']
-            # Combine name, docstring, and code for better semantic matching
-            code_text = f"{data.name}\n{data.docstring or ''}\n{data.code}"
-            codes.append(code_text)
+        if not symbols:
+            logger.debug(f"No symbols to index from {file_path}")
+            return
 
-        # Generate embeddings in batch
-        embeddings = self.embedder.batch_generate(codes, batch_size=16)
+        total_symbols = len(symbols)
+        num_batches = (total_symbols + self.SYMBOLS_BATCH_SIZE - 1) // self.SYMBOLS_BATCH_SIZE
 
-        # Convert to numpy array
-        embeddings_array = np.array(embeddings, dtype=np.float32)
+        logger.info(f"Indexing {total_symbols} symbols from {file_path} in {num_batches} batches of max {self.SYMBOLS_BATCH_SIZE}")
 
-        # Add to vector store
-        # Get current vector count (this will be our starting ID)
-        start_embedding_id = self.vector_store.vector_count
+        # Process symbols in batches to avoid OOM
+        for batch_num, batch_start in enumerate(range(0, total_symbols, self.SYMBOLS_BATCH_SIZE), 1):
+            batch_end = min(batch_start + self.SYMBOLS_BATCH_SIZE, total_symbols)
+            batch_symbols = symbols[batch_start:batch_end]
+            batch_size = len(batch_symbols)
 
-        # Prepare metadata for vector store
-        vector_metadata = []
-        for i, symbol in enumerate(symbols):
-            data = symbol['data']
-            vector_metadata.append({
-                'file_path': file_path,
-                'symbol_name': data.name,
-                'symbol_type': symbol['type'],
-                'start_line': data.start_line,
-                'end_line': data.end_line
-            })
+            logger.info(f"Processing batch {batch_num}/{num_batches}: symbols {batch_start}-{batch_end} ({batch_size} symbols)")
 
-        # Add to vector store
-        self.vector_store.add(embeddings_array, vector_metadata)
+            try:
+                # Extract code snippets for this batch
+                codes = []
+                for symbol in batch_symbols:
+                    data = symbol['data']
+                    # Combine name, docstring, and code for better semantic matching
+                    code_text = f"{data.name}\n{data.docstring or ''}\n{data.code}"
+                    codes.append(code_text)
 
-        # Create symbol records for metadata store
-        symbol_records = []
-        for i, symbol in enumerate(symbols):
-            data = symbol['data']
-            embedding_id = start_embedding_id + i
+                # Generate embeddings in batch
+                logger.debug(f"Generating embeddings for {len(codes)} codes...")
+                embeddings = self.embedder.batch_generate(codes, batch_size=16)
 
-            record = SymbolRecord(
-                file_id=file_id,
-                name=data.name,
-                symbol_type=symbol['type'],
-                code=data.code,
-                start_line=data.start_line,
-                end_line=data.end_line,
-                docstring=data.docstring,
-                embedding_id=embedding_id
-            )
-            symbol_records.append(record)
+                if len(embeddings) != len(codes):
+                    raise ValueError(f"Embedding count mismatch: expected {len(codes)}, got {len(embeddings)}")
 
-        # Add to metadata store
-        self.metadata_store.add_symbols_batch(symbol_records)
+                # Convert to numpy array
+                embeddings_array = np.array(embeddings, dtype=np.float32)
+                logger.debug(f"Generated embeddings array shape: {embeddings_array.shape}")
 
-        # Add to text search index
-        text_docs = []
-        for i, symbol in enumerate(symbols):
-            data = symbol['data']
-            embedding_id = start_embedding_id + i
-            text_docs.append((embedding_id, {
-                'name': data.name,
-                'symbol_type': symbol['type'],
-                'code': data.code,
-                'docstring': data.docstring
-            }))
-        self.text_search.add_documents_batch(text_docs)
+                # Add to vector store
+                # Get current vector count (this will be our starting ID for this batch)
+                start_embedding_id = self.vector_store.vector_count
 
-        logger.debug(f"Indexed {len(symbols)} symbols from {file_path}")
+                # Prepare metadata for vector store
+                vector_metadata = []
+                for i, symbol in enumerate(batch_symbols):
+                    data = symbol['data']
+                    vector_metadata.append({
+                        'file_path': file_path,
+                        'symbol_name': data.name,
+                        'symbol_type': symbol['type'],
+                        'start_line': data.start_line,
+                        'end_line': data.end_line
+                    })
+
+                # Add to vector store (writes to disk)
+                logger.debug(f"Writing {len(embeddings_array)} vectors to vector store...")
+                self.vector_store.add(embeddings_array, vector_metadata)
+
+                # Create symbol records for metadata store
+                symbol_records = []
+                for i, symbol in enumerate(batch_symbols):
+                    data = symbol['data']
+                    embedding_id = start_embedding_id + i
+
+                    record = SymbolRecord(
+                        file_id=file_id,
+                        name=data.name,
+                        symbol_type=symbol['type'],
+                        code=data.code,
+                        start_line=data.start_line,
+                        end_line=data.end_line,
+                        docstring=data.docstring,
+                        embedding_id=embedding_id
+                    )
+                    symbol_records.append(record)
+
+                # Add to metadata store (writes to SQLite)
+                logger.debug(f"Writing {len(symbol_records)} records to metadata store...")
+                self.metadata_store.add_symbols_batch(symbol_records)
+
+                # Add to text search index (writes to disk)
+                text_docs = []
+                for i, symbol in enumerate(batch_symbols):
+                    data = symbol['data']
+                    embedding_id = start_embedding_id + i
+                    text_docs.append((embedding_id, {
+                        'name': data.name,
+                        'symbol_type': symbol['type'],
+                        'code': data.code,
+                        'docstring': data.docstring
+                    }))
+                logger.debug(f"Writing {len(text_docs)} documents to text search index...")
+                self.text_search.add_documents_batch(text_docs)
+
+                logger.info(f"✓ Batch {batch_num}/{num_batches} complete: indexed {batch_size} symbols")
+
+                # Explicitly clear batch data to help garbage collection
+                del codes
+                del embeddings
+                del embeddings_array
+                del vector_metadata
+                del symbol_records
+                del text_docs
+                del batch_symbols
+
+            except Exception as e:
+                logger.error(f"✗ Error processing batch {batch_num}/{num_batches} (symbols {batch_start}-{batch_end}): {e}")
+                logger.exception("Full traceback:")
+                raise RuntimeError(f"Failed to index batch {batch_num} from {file_path}: {e}") from e
+
+        logger.info(f"✓ Successfully indexed all {total_symbols} symbols from {file_path} in {num_batches} batches")
 
     def get_stats(self) -> Dict[str, Any]:
         """
