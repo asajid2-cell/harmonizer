@@ -283,6 +283,7 @@ body {
   background-image: radial-gradient(circle at 3% 3%, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   background-size: 180px 180px;
   opacity: 0.95;
+  z-index: 0;
 }
 
 .semantic-excavation::after {
@@ -431,12 +432,15 @@ body {
 
 .neural-card {
   position: relative;
-  height: 100%;
+  width: clamp(420px, 42vw, 620px);
+  height: clamp(340px, 38vh, 480px);
   border-radius: 32px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(170deg, rgba(5, 7, 12, 0.85), rgba(4, 6, 10, 0.9) 30%, rgba(6, 10, 18, 0.85));
   box-shadow: 0 30px 120px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  transform: perspective(1200px) rotateY(-12deg) rotateX(4deg);
+  filter: drop-shadow(0 35px 70px rgba(2, 4, 12, 0.75));
 }
 
 .neural-card__header {
