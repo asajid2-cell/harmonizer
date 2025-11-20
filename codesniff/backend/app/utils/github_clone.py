@@ -97,8 +97,20 @@ def clone_github_repo(repo_url: str, target_dir: Optional[str] = None) -> str:
         return target_dir
 
     except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to clone repository: {e.stderr}")
-        raise
+        stderr = e.stderr if e.stderr else str(e)
+
+        # Provide better error messages
+        if 'not found' in stderr.lower() and branch:
+            error_msg = f"Branch '{branch}' not found in repository. Please check the branch name or use the default branch."
+        elif 'authentication' in stderr.lower() or 'permission' in stderr.lower():
+            error_msg = "Authentication failed. Make sure the repository is public or provide valid credentials."
+        elif 'not found' in stderr.lower():
+            error_msg = "Repository not found. Check the URL and ensure the repository exists and is accessible."
+        else:
+            error_msg = f"Failed to clone repository: {stderr}"
+
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
     except FileNotFoundError:
         raise RuntimeError("Git is not installed or not in PATH")
 
