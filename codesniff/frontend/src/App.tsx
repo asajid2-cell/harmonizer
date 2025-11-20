@@ -12,6 +12,7 @@ import LoadingAnimation from './components/LoadingAnimation';
 import ChatPanel from './components/ChatPanel';
 import UploadModal from './components/UploadModal';
 import SemanticExcavation from './components/SemanticExcavation';
+import ResultsSelect from './components/ResultsSelect';
 import { useSearch } from './hooks/useSearch';
 import { useStats } from './hooks/useStats';
 import { SearchResult, IndexedFile, apiClient } from './api/client';
@@ -142,7 +143,7 @@ function App() {
   }, []);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-transparent text-slate-100">
+    <div className="relative min-h-screen overflow-x-hidden bg-transparent text-slate-100">
       <div className="pointer-events-none absolute inset-0 opacity-60" aria-hidden="true">
         <div className="absolute inset-x-0 top-[-320px] h-[520px] bg-[radial-gradient(circle_at_top,rgba(62,106,255,0.3),transparent_65%)] blur-[160px]" />
       </div>
@@ -228,15 +229,13 @@ function App() {
 
                 <div className="mt-6">
                   <p className="text-[0.72rem] uppercase tracking-[0.3em] text-slate-500">Suggested queries</p>
-                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="suggestion-cloud mt-4">
                     {HERO_EXAMPLES.map((example) => (
                       <button
                         key={example.label}
                         type="button"
                         onClick={() => handleExampleSearch(example.query)}
-                        className={`chip-suggestion px-5 py-3 justify-self-start ${example.offset || ''} ${
-                          example.featured ? 'is-active' : ''
-                        }`}
+                        className={`chip-suggestion px-5 py-3 ${example.featured ? 'is-active' : ''}`}
                       >
                         {example.label}
                       </button>
@@ -255,21 +254,9 @@ function App() {
                 )}
 
                 <div className="mt-8 flex flex-wrap items-center gap-4 text-sm text-slate-300">
-                  <div className="pill-select flex items-center gap-2 rounded-full border border-white/10 px-4 py-2">
-                    <label htmlFor="results-limit" className="text-[0.7rem] uppercase tracking-[0.3em] text-slate-500">
-                      Results
-                    </label>
-                    <select
-                      id="results-limit"
-                      value={resultsLimit}
-                      onChange={(e) => setResultsLimit(Number(e.target.value))}
-                      className="bg-transparent text-white focus:outline-none"
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
+                  <div className="pill-control">
+                    <span className="pill-control__label">Results</span>
+                    <ResultsSelect value={resultsLimit} options={[10, 20, 50, 100]} onChange={(value) => setResultsLimit(value)} />
                   </div>
 
                   <div className="relative" ref={languageDropdownRef}>
@@ -327,7 +314,7 @@ function App() {
             </div>
           </section>
 
-          <section className="mx-auto max-w-6xl px-6 pb-16">
+          <section className="mx-auto max-w-6xl px-6 pb-16 pt-6">
             {error && (
               <div className="mb-8 rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
                 <div className="flex items-start gap-3">
@@ -353,9 +340,9 @@ function App() {
             )}
 
             {!results.length && !isLoading && !error && !hasSearched && (
-              <div className="rounded-3xl border border-white/10 bg-white/5 px-8 py-12">
-                <p className="text-sm text-slate-400">
-                  Feed CodeSniff a behavior, architecture, or intent. Results appear here with semantic matches ranked by similarity and context depth.
+              <div className="max-w-2xl">
+                <p className="text-sm leading-relaxed text-slate-400">
+                  Feed CodeSniff a behavior, architecture, or intent. Results will stream in here with semantic matches ranked by similarity and context depth.
                 </p>
               </div>
             )}

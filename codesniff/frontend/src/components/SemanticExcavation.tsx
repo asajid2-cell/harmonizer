@@ -1,77 +1,115 @@
-import { type CSSProperties } from 'react';
 import { motion } from 'framer-motion';
 import ParticleVeil from './ParticleVeil';
 
-const GHOST_LAYERS = [
-  { rows: 6, offset: 0 },
-  { rows: 5, offset: 0.4 },
-  { rows: 4, offset: 0.8 },
+type Node = {
+  id: string;
+  x: number;
+  y: number;
+  meta?: string;
+  active?: boolean;
+};
+
+const NODES: Node[] = [
+  { id: 'query', x: 14, y: 24, meta: 'input()', active: true },
+  { id: 'intent', x: 32, y: 34, meta: 'fn()', active: true },
+  { id: 'graph', x: 50, y: 40, meta: 'AST', active: true },
+  { id: 'resolver', x: 66, y: 52, meta: '{}', active: true },
+  { id: 'guard', x: 81, y: 64, meta: 'auth', active: true },
+  { id: 'emit', x: 92, y: 78, meta: 'lock', active: true },
+  { id: 'noise-1', x: 26, y: 58, meta: 'cache' },
+  { id: 'noise-2', x: 43, y: 74, meta: 'batch' },
+  { id: 'noise-3', x: 60, y: 22, meta: 'index' },
+  { id: 'noise-4', x: 72, y: 34, meta: 'rpc' },
+  { id: 'noise-5', x: 87, y: 44, meta: 'token' },
 ];
 
-const CODE_LINES = [
-  { text: 'async def resolve_session(token: str):', accent: 'keyword' },
-  { text: '    payload = await decode_jwt(token)', accent: 'cyan' },
-  { text: '    if payload.expired:', accent: 'control' },
-  { text: '        raise SessionExpired()', accent: 'error' },
-  { text: '    guard = await load_guard(payload.scope)', accent: 'cyan' },
-  { text: '    return guard.enforce(payload.user)', accent: 'keyword' },
+const CONNECTIONS: Array<[string, string]> = [
+  ['query', 'intent'],
+  ['intent', 'graph'],
+  ['graph', 'resolver'],
+  ['resolver', 'guard'],
+  ['guard', 'emit'],
+  ['noise-1', 'graph'],
+  ['noise-2', 'resolver'],
+  ['noise-3', 'intent'],
+  ['noise-4', 'graph'],
+  ['noise-5', 'guard'],
 ];
 
 interface SemanticExcavationProps {
   className?: string;
 }
 
-const SemanticExcavation = ({ className }: SemanticExcavationProps) => (
-  <div className={`semantic-excavation${className ? ` ${className}` : ''}`} aria-hidden="true">
-    <ParticleVeil />
-    <div className="semantic-excavation__layers">
-      {GHOST_LAYERS.map((layer, index) => (
-        <div
-          key={`layer-${index}`}
-          className="semantic-layer"
-          style={{ '--offset': layer.offset } as CSSProperties}
-        >
-          {Array.from({ length: layer.rows }).map((_, rowIndex) => (
-            <div key={`row-${rowIndex}`} className="semantic-layer__row" />
-          ))}
-        </div>
-      ))}
-    </div>
-    <div className="semantic-excavation__beam">
-      <div className="semantic-excavation__beam-core" />
-      <div className="semantic-excavation__beam-flare" />
-    </div>
-    <motion.div
-      className="semantic-hero"
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.9, ease: 'easeOut' }}
-    >
-      <div className="semantic-hero__glass">
-        <div className="semantic-hero__header">
-          <div className="semantic-chip">function</div>
-          <div className="semantic-path">security/session/verify.py</div>
-        </div>
-        <div className="semantic-hero__code">
-          {CODE_LINES.map((line) => (
-            <div key={line.text} className={`semantic-code semantic-code--${line.accent}`}>
-              {line.text}
-            </div>
-          ))}
-        </div>
-        <div className="semantic-hero__footer">
-          <div>
-            <span className="semantic-label">SIMILARITY</span>
-            <span className="semantic-value">0.94 lock</span>
+const SemanticExcavation = ({ className }: SemanticExcavationProps) => {
+  const lookup = NODES.reduce<Record<string, Node>>((acc, node) => {
+    acc[node.id] = node;
+    return acc;
+  }, {});
+
+  return (
+    <div className={`semantic-excavation${className ? ` ${className}` : ''}`} aria-hidden="true">
+      <ParticleVeil />
+      <div className="vector-plane">
+        <div className="vector-plane__surface">
+          <div className="vector-plane__rim" />
+          <svg viewBox="0 0 100 100" className="vector-plane__map">
+            <defs>
+              <linearGradient id="activeEdge" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#8cd1ff" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="#8cd1ff" stopOpacity="0.95" />
+              </linearGradient>
+            </defs>
+            {CONNECTIONS.map(([startId, endId]) => {
+              const start = lookup[startId];
+              const end = lookup[endId];
+              if (!start || !end) {
+                return null;
+              }
+              const isActive = Boolean(start.active && end.active);
+              return (
+                <line
+                  key={`${startId}-${endId}`}
+                  x1={start.x}
+                  y1={start.y}
+                  x2={end.x}
+                  y2={end.y}
+                  className={`vector-plane__edge${isActive ? ' vector-plane__edge--active' : ''}`}
+                  stroke={isActive ? 'url(#activeEdge)' : undefined}
+                />
+              );
+            })}
+            {NODES.map((node) => (
+              <motion.circle
+                key={node.id}
+                cx={node.x}
+                cy={node.y}
+                r={node.active ? 2.5 : 1.4}
+                className={`vector-plane__node${node.active ? ' vector-plane__node--active' : ''}`}
+                animate={
+                  node.active
+                    ? { opacity: [0.7, 1, 0.7], r: [2.5, 3.4, 2.5] }
+                    : undefined
+                }
+                transition={node.active ? { duration: 3.4, repeat: Infinity, ease: 'easeInOut' } : undefined}
+              />
+            ))}
+          </svg>
+          <div className="vector-plane__labels">
+            {NODES.filter((node) => node.meta).map((node) => (
+              <span
+                key={`label-${node.id}`}
+                className={`vector-plane__label${node.active ? ' vector-plane__label--active' : ''}`}
+                style={{ left: `${node.x}%`, top: `${node.y}%` }}
+              >
+                {node.meta}
+              </span>
+            ))}
           </div>
-          <div>
-            <span className="semantic-label">DEPTH</span>
-            <span className="semantic-value">Scope + intent</span>
-          </div>
+          <div className="vector-plane__blur" />
         </div>
       </div>
-    </motion.div>
-  </div>
-);
+    </div>
+  );
+};
 
 export default SemanticExcavation;
