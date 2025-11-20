@@ -161,7 +161,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   };
 
   return (
-    <div className="w-full px-0 sm:px-2">
+    <div className="w-full px-0 sm:px-2 -ml-[9px]">
       <div className="search-shell">
         <form onSubmit={handleSubmit} className="relative">
           <div className={`search-field ${isFocused ? 'is-focused' : ''}`}>
