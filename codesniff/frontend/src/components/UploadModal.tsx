@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, FolderOpen, Github, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Upload, FolderOpen, Github, Loader2, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { apiClient } from '../api/client';
 
 interface UploadModalProps {
@@ -24,6 +24,7 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
   const [progress, setProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 
   const handleClose = () => {
     if (!isIndexing) {
@@ -301,7 +302,32 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
                     ) : success ? (
                       <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
                     ) : null}
-                    <p className="text-sm text-blue-900 dark:text-blue-200">{progress}</p>
+                    <p className="text-sm text-blue-900 dark:text-blue-200 flex-1">{progress}</p>
+                    {isIndexing && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onMouseEnter={() => setShowInfoTooltip(true)}
+                          onMouseLeave={() => setShowInfoTooltip(false)}
+                          className="p-1 text-blue-500 hover:text-blue-600 transition-colors"
+                        >
+                          <Info className="w-4 h-4" />
+                        </button>
+                        {showInfoTooltip && (
+                          <div className="absolute right-0 bottom-full mb-2 w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50">
+                            <div className="font-semibold mb-1">Indexing Process</div>
+                            <div className="space-y-1 text-gray-300">
+                              <p>• CodeBERT runs on CPU (~4 seconds per batch)</p>
+                              <p>• Average 2-3 symbols per file = ~1500-2000 total symbols</p>
+                              <p>• Batch size of 16, ~100-125 batches</p>
+                              <p>• <strong>Total time: 6-10 minutes</strong> for full index</p>
+                              <p className="mt-2 pt-2 border-t border-gray-700">Indexing continues in the background. You can close this modal and check back later.</p>
+                            </div>
+                            <div className="absolute bottom-0 right-4 transform translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

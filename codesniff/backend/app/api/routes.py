@@ -501,12 +501,10 @@ async def index_github_repo(repo_url: str):
             detail=f"Failed to index repository: {str(e)}"
         )
     finally:
-        # Clean up temporary directory
+        # Don't clean up temp directory - keep it for code viewing
+        # The directory will be cleaned up on next indexing operation
         if temp_dir:
-            try:
-                cleanup_temp_repo(temp_dir)
-            except Exception as e:
-                logger.warning(f"Failed to cleanup temp directory: {e}")
+            logger.info(f"Keeping cloned repository at {temp_dir} for code viewing")
 
 
 @router.post("/index/upload", tags=["Indexing"])
