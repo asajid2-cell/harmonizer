@@ -10,6 +10,14 @@ interface SearchBarProps {
   onQueryChange?: (query: string) => void;
 }
 
+const PLACEHOLDER_PROMPTS = [
+  'Find auth middleware...',
+  'Trace async data loaders...',
+  'Map pagination regressions...',
+  'Locate rate limiter tuning...',
+  'Inspect webhook signatures...',
+] as const;
+
 export const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
   isLoading = false,
@@ -22,6 +30,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [placeholderCycle, setPlaceholderCycle] = useState(0);
+  const [typedPlaceholder, setTypedPlaceholder] = useState('');
 
   // Sync with external query if provided
   useEffect(() => {
@@ -29,6 +40,53 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       setQuery(externalQuery);
     }
   }, [externalQuery]);
+
+  // Animated placeholder typing effect when input is empty
+  useEffect(() => {
+    if (query) {
+      setTypedPlaceholder('');
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      return;
+    }
+
+    const promptsCount = PLACEHOLDER_PROMPTS.length;
+    const currentPrompt = PLACEHOLDER_PROMPTS[placeholderCycle % promptsCount];
+    let charIndex = 0;
+    let forward = true;
+
+    const type = () => {
+      if (forward) {
+        charIndex += 1;
+        setTypedPlaceholder(currentPrompt.slice(0, charIndex));
+
+        if (charIndex === currentPrompt.length) {
+          forward = false;
+          typingTimeoutRef.current = setTimeout(type, 1200);
+          return;
+        }
+      } else {
+        charIndex -= 1;
+        setTypedPlaceholder(currentPrompt.slice(0, charIndex));
+
+        if (charIndex === 0) {
+          setPlaceholderCycle((prev) => (prev + 1) % promptsCount);
+          return;
+        }
+      }
+
+      typingTimeoutRef.current = setTimeout(type, forward ? 55 : 35);
+    };
+
+    typingTimeoutRef.current = setTimeout(type, 250);
+
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [placeholderCycle, query]);
 
   // Keyboard shortcut (Cmd/Ctrl + K)
   useEffect(() => {
@@ -75,6 +133,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -89,6 +150,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   const handleClear = () => {
     setQuery('');
+    onQueryChange?.('');
     // Cancel any pending debounce
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -99,58 +161,44 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   };
 
   return (
-    <div className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0d1117] sticky top-0 z-50">
-      <div className="max-w-6xl mx-auto px-6 py-4">
-        <div className="flex items-center gap-4">
-          {/* Logo */}
-          <button
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0"
-          >
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">CS</span>
+    <div className="w-full px-0 sm:px-2">
+      <div className="search-shell">
+        <form onSubmit={handleSubmit} className="relative">
+          <div className={`search-field ${isFocused ? 'is-focused' : ''}`}>
+            <div className="search-field-inner">
+              <Search className="mr-4 h-5 w-5 text-slate-500" />
+              <input
+                ref={inputRef}
+                type="text"
+                aria-label="Search your codebase"
+                value={query}
+                onChange={handleChange}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                placeholder={placeholder}
+                className="h-16 w-full bg-transparent text-lg text-slate-50 placeholder:text-transparent caret-blue-400 focus:outline-none"
+                disabled={isLoading}
+              />
+              {!query && (
+                <div className="typing-placeholder" aria-hidden="true">
+                  <span>{typedPlaceholder || PLACEHOLDER_PROMPTS[placeholderCycle % PLACEHOLDER_PROMPTS.length]}</span>
+                  <span className="typing-caret" />
+                </div>
+              )}
+              {query && (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="absolute right-14 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 transition hover:bg-white/5 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              <span className="shortcut-hint">⌘ K</span>
             </div>
-            <span className="text-lg font-semibold text-gray-900 dark:text-white hidden sm:inline">
-              CodeSniff
-            </span>
-          </button>
-
-          {/* Search form */}
-          <form onSubmit={handleSubmit} className="flex-1">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={handleChange}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
-                  placeholder={placeholder}
-                  className="w-full pl-10 pr-10 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={isLoading}
-                />
-                {query && (
-                  <button
-                    type="button"
-                    onClick={handleClear}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-                  >
-                    <X className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
-                  </button>
-                )}
-              </div>
-              <button
-                type="submit"
-                disabled={!query.trim() || isLoading}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white disabled:text-gray-500 dark:disabled:text-gray-400 rounded-md font-medium transition-colors disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Searching...' : 'Search'}
-              </button>
-            </div>
-          </form>
-        </div>
+          </div>
+        </form>
+        <div className={`search-reflection ${isFocused ? 'is-active' : ''}`} aria-hidden="true" />
       </div>
     </div>
   );

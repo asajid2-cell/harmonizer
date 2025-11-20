@@ -20,11 +20,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
-          cpus: '0.5'
+          memory: 999M
+          cpus: '0.7' 
         reservations:
-          memory: 256M
-          cpus: '0.25'
+          memory: 128M
+          cpus: '0.15'
 
   codesniff:
     container_name: codesniff

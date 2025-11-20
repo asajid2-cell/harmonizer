@@ -11,9 +11,21 @@ import CodeViewer from './components/CodeViewer';
 import LoadingAnimation from './components/LoadingAnimation';
 import ChatPanel from './components/ChatPanel';
 import UploadModal from './components/UploadModal';
+import SemanticExcavation from './components/SemanticExcavation';
 import { useSearch } from './hooks/useSearch';
 import { useStats } from './hooks/useStats';
 import { SearchResult, IndexedFile, apiClient } from './api/client';
+
+const HERO_EXAMPLES = [
+  { label: 'Find functions that parse JSON', query: 'functions that parse JSON', offset: 'lg:-translate-y-3', featured: true },
+  { label: 'Trace async data loaders', query: 'async functions that fetch data', offset: 'lg:-translate-y-1' },
+  { label: 'Locate auth middleware', query: 'authentication middleware', offset: 'lg:translate-y-2' },
+  { label: 'Search rate limiter logic', query: 'rate limiting logic', offset: 'lg:-translate-y-1' },
+  { label: 'Inspect pagination helpers', query: 'pagination helpers', offset: 'lg:translate-y-1' },
+  { label: 'Peek at JWT issuers', query: 'JWT token generation', offset: 'lg:-translate-y-2' },
+  { label: 'Normalize file upload flows', query: 'code that handles file uploads', offset: 'lg:translate-y-3' },
+  { label: 'Map Postgres connectors', query: 'code that connects to postgres', offset: 'lg:-translate-y-1' },
+];
 
 function App() {
   const { results, isLoading, error, searchTime, search } = useSearch();
@@ -40,7 +52,7 @@ function App() {
       await search(query, {
         limit: resultsLimit,
         min_similarity: 0.4,
-        language_filter: selectedLanguages.length > 0 ? selectedLanguages : undefined
+        language_filter: selectedLanguages.length > 0 ? selectedLanguages : undefined,
       });
     } else {
       setHasSearched(false);
@@ -108,12 +120,9 @@ function App() {
   ];
 
   const toggleLanguage = (lang: string) => {
-    setSelectedLanguages(prev =>
-      prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang]
-    );
+    setSelectedLanguages((prev) => (prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]));
   };
 
-  // Re-search when language filter changes (if there's an active search)
   useEffect(() => {
     if (hasSearched && searchQuery.trim()) {
       handleSearch(searchQuery);
@@ -121,7 +130,6 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLanguages]);
 
-  // Close language dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target as Node)) {
@@ -134,336 +142,322 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0d1117]">
-      {/* Content */}
-      <div className="relative">
-        {/* Search bar */}
-        <SearchBar
-          onSearch={handleSearch}
-          isLoading={isLoading}
-          externalQuery={searchQuery}
-          onQueryChange={setSearchQuery}
-        />
+    <div className="relative min-h-screen overflow-hidden bg-transparent text-slate-100">
+      <div className="pointer-events-none absolute inset-0 opacity-60" aria-hidden="true">
+        <div className="absolute inset-x-0 top-[-320px] h-[520px] bg-[radial-gradient(circle_at_top,rgba(62,106,255,0.3),transparent_65%)] blur-[160px]" />
+      </div>
 
-        {/* Header with stats */}
-        <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0d1117]">
-          <div className="max-w-6xl mx-auto px-6 py-3">
-            <div className="flex items-center justify-between">
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <header className="sticky top-0 z-30 border-b border-white/5 bg-[#05070f]/80 backdrop-blur-2xl">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-6">
+              <button
+                onClick={() => window.location.reload()}
+                className="flex items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-base font-bold text-gray-900 shadow-[0_8px_24px_rgba(255,255,255,0.3)]">
+                  CS
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-white">CodeSniff</p>
+                  <p className="text-[0.65rem] uppercase tracking-[0.35em] text-slate-400">Semantic Search</p>
+                </div>
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
               {stats && (
-                <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
-                  <span>{stats.total_symbols.toLocaleString()} symbols</span>
-                  <span>·</span>
-                  <span>{stats.total_files} files</span>
+                <div className="hidden items-center rounded-full border border-white/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-slate-400 lg:flex">
+                  {stats.total_symbols.toLocaleString()} symbols
                 </div>
               )}
-              <div className="flex items-center gap-3 ml-auto">
-                {stats && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <label htmlFor="results-limit" className="text-sm text-gray-600 dark:text-gray-400">
-                        Results:
-                      </label>
-                      <select
-                        id="results-limit"
-                        value={resultsLimit}
-                        onChange={(e) => setResultsLimit(Number(e.target.value))}
-                        className="px-2 py-1 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                      </select>
-                    </div>
-                    <div className="relative" ref={languageDropdownRef}>
-                      <button
-                        onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                      >
-                        <span className="text-gray-600 dark:text-gray-400">Languages:</span>
-                        {selectedLanguages.length > 0 ? (
-                          <span className="flex items-center gap-1">
-                            <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs font-medium">
-                              {selectedLanguages.length}
-                            </span>
-                            <span className="text-gray-700 dark:text-gray-300">selected</span>
-                          </span>
-                        ) : (
-                          <span className="text-gray-500 dark:text-gray-400">All</span>
-                        )}
-                        <ChevronDown className={`w-4 h-4 transition-transform ${isLanguageDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
-
-                      {isLanguageDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
-                          {selectedLanguages.length > 0 && (
-                            <>
-                              <button
-                                onClick={() => setSelectedLanguages([])}
-                                className="w-full px-3 py-2 text-left text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                              >
-                                Clear all
-                              </button>
-                              <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                            </>
-                          )}
-                          {availableLanguages.map((lang) => (
-                            <button
-                              key={lang.value}
-                              onClick={() => toggleLanguage(lang.value)}
-                              className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between"
-                            >
-                              <span>{lang.label}</span>
-                              {selectedLanguages.includes(lang.value) && (
-                                <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
-                    <button
-                      onClick={handleViewFiles}
-                      disabled={isLoadingFiles}
-                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
-                      title="View indexed files"
-                    >
-                      <FolderOpen className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={handleClearIndex}
-                      disabled={isClearing}
-                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
-                      title="Clear all indexed data"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
-                  </>
-                )}
-                <button
-                  onClick={() => setIsUploadModalOpen(true)}
-                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
-                  title="Upload and index code"
-                >
-                  <Upload className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setIsChatOpen(!isChatOpen)}
-                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
-                  title="AI Assistant"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                onClick={handleViewFiles}
+                disabled={isLoadingFiles}
+                title="View indexed files"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-slate-300 transition-colors hover:border-white/30 hover:text-white disabled:opacity-50"
+              >
+                <FolderOpen className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleClearIndex}
+                disabled={isClearing}
+                title="Clear indexed data"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-slate-300 transition-colors hover:border-red-400 hover:text-red-300 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setIsUploadModalOpen(true)}
+                title="Upload & index"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-slate-300 transition-colors hover:border-white/30 hover:text-white"
+              >
+                <Upload className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                title="AI Assistant"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-slate-300 transition-colors hover:border-white/30 hover:text-white"
+              >
+                <MessageCircle className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </header>
 
-        {/* Main content area */}
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          {/* Welcome state */}
-          {!results.length && !isLoading && !error && !hasSearched && (
-            <div className="py-16">
-              <div className="max-w-2xl">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
-                  Search code by what it does
-                </h2>
-                <p className="text-gray-600 dark:text-gray-400 mb-8">
-                  Find functions, classes, and logic using plain English instead of grepping for variable names.
+        <main className="flex-1">
+          <section className="hero-stage relative px-6 pb-12 pt-12 lg:pt-20">
+            <SemanticExcavation className="hero-stage__visual" />
+            <div className="hero-stage__inner mx-auto max-w-6xl">
+              <div className="hero-stage__copy">
+                <p className="text-xs uppercase tracking-[0.35em] text-slate-400/80">Precision Mode</p>
+                <h1 className="mt-4 text-4xl font-semibold leading-tight text-white sm:text-5xl">
+                  Semantic code search, engineered for flow state.
+                </h1>
+                <p className="mt-4 max-w-2xl text-lg text-slate-300">
+                  CodeSniff understands behavior, structure, and intent so you can navigate massive codebases with the same speed as your mental model.
                 </p>
+                <div className="mt-8">
+                  <SearchBar
+                    onSearch={handleSearch}
+                    isLoading={isLoading}
+                    externalQuery={searchQuery}
+                    onQueryChange={setSearchQuery}
+                    placeholder="Search by behavior, e.g., 'validate email addresses'..."
+                  />
+                </div>
 
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Example searches:</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {[
-                      'functions that validate email addresses',
-                      'code that connects to postgres',
-                      'error handling for API requests',
-                      'classes that parse JSON',
-                      'async functions that fetch data',
-                      'code that handles file uploads',
-                      'authentication middleware',
-                      'database query builders',
-                      'rate limiting logic',
-                      'input sanitization functions',
-                      'JWT token generation',
-                      'pagination helpers',
-                    ].map((example) => (
+                <div className="mt-6">
+                  <p className="text-[0.72rem] uppercase tracking-[0.3em] text-slate-500">Suggested queries</p>
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {HERO_EXAMPLES.map((example) => (
                       <button
-                        key={example}
-                        onClick={() => handleExampleSearch(example)}
-                        className="block w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-colors"
+                        key={example.label}
+                        type="button"
+                        onClick={() => handleExampleSearch(example.query)}
+                        className={`chip-suggestion px-5 py-3 justify-self-start ${example.offset || ''} ${
+                          example.featured ? 'is-active' : ''
+                        }`}
                       >
-                        {example}
+                        {example.label}
                       </button>
                     ))}
                   </div>
                 </div>
 
+                {stats && (
+                  <div className="mt-10">
+                    <div className="status-strip">
+                      <span>INDEXED: {stats.total_symbols?.toLocaleString() ?? '0'}</span>
+                      <span>FILES: {stats.total_files?.toLocaleString() ?? '0'}</span>
+                      <span>VECTORS: {stats.vector_count?.toLocaleString() ?? '0'}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-8 flex flex-wrap items-center gap-4 text-sm text-slate-300">
+                  <div className="pill-select flex items-center gap-2 rounded-full border border-white/10 px-4 py-2">
+                    <label htmlFor="results-limit" className="text-[0.7rem] uppercase tracking-[0.3em] text-slate-500">
+                      Results
+                    </label>
+                    <select
+                      id="results-limit"
+                      value={resultsLimit}
+                      onChange={(e) => setResultsLimit(Number(e.target.value))}
+                      className="bg-transparent text-white focus:outline-none"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+
+                  <div className="relative" ref={languageDropdownRef}>
+                    <button
+                      onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
+                      className="flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-white/30"
+                    >
+                      <span className="text-[0.7rem] uppercase tracking-[0.3em] text-slate-500">Languages</span>
+                      {selectedLanguages.length > 0 ? (
+                        <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white">
+                          {selectedLanguages.length}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">All</span>
+                      )}
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isLanguageDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isLanguageDropdownOpen && (
+                      <div className="absolute right-0 z-50 mt-3 w-60 rounded-2xl border border-white/10 bg-[#06080f]/95 p-2 text-sm shadow-[0_30px_80px_rgba(4,6,11,0.8)]">
+                        {selectedLanguages.length > 0 && (
+                          <>
+                            <button
+                              onClick={() => setSelectedLanguages([])}
+                              className="w-full rounded-xl px-3 py-2 text-left text-blue-200 transition-colors hover:bg-white/5"
+                            >
+                              Clear all
+                            </button>
+                            <div className="my-2 h-px bg-white/5" />
+                          </>
+                        )}
+                        {availableLanguages.map((lang) => (
+                          <button
+                            key={lang.value}
+                            onClick={() => toggleLanguage(lang.value)}
+                            className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-slate-200 transition-colors hover:bg-white/5"
+                          >
+                            <span>{lang.label}</span>
+                            {selectedLanguages.includes(lang.value) && (
+                              <Check className="h-4 w-4 text-blue-300" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {!stats?.ready && (
-                  <div className="mt-8 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/50 rounded-md">
-                    <p className="text-sm text-amber-900 dark:text-amber-200">
-                      No code indexed yet. Use the API to index your codebase.
-                    </p>
+                  <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                    No code indexed yet. Use the API or upload to prime CodeSniff.
                   </div>
                 )}
               </div>
             </div>
-          )}
+          </section>
 
-          {/* Error state */}
-          {error && (
-            <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/50 rounded-md">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="text-red-900 dark:text-red-200 font-medium mb-1">Search failed</h3>
-                  <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* No results state */}
-          {!isLoading && !error && results.length === 0 && hasSearched && (
-            <div className="py-12 text-center">
-              <div className="max-w-md mx-auto">
-                <AlertCircle className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                  No results found
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  No code matched your search with sufficient confidence (&gt;40%). Try rephrasing your query or using different keywords.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Results */}
-          {results.length > 0 && (
-            <div>
-              {/* Results header */}
-              <div className="mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {results.length} result{results.length !== 1 ? 's' : ''}
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  {searchTime.toFixed(0)}ms
-                </p>
-              </div>
-
-              {/* Results list */}
-              <div className="space-y-3">
-                {results.map((result, index) => (
-                  <ResultCard
-                    key={`${result.file_path}-${result.symbol_name}-${index}`}
-                    result={result}
-                    index={index}
-                    onViewCode={handleViewCode}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Loading overlay */}
-        <AnimatePresence>
-          {isLoading && <LoadingAnimation />}
-        </AnimatePresence>
-
-        {/* Code viewer modal */}
-        <CodeViewer
-          result={selectedResult}
-          isOpen={isCodeViewerOpen}
-          onClose={handleCloseCodeViewer}
-        />
-
-        {/* Chat panel */}
-        <ChatPanel isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-
-        {/* Upload modal */}
-        <UploadModal
-          isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
-          onIndexComplete={handleIndexComplete}
-        />
-
-        {/* Files modal */}
-        <AnimatePresence>
-          {isFilesModalOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-              onClick={() => setIsFilesModalOpen(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-4xl max-h-[80vh] overflow-hidden"
-              >
-                <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-white">Indexed Files ({indexedFiles.length})</h2>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleClearIndex}
-                      disabled={isClearing}
-                      className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-sm hover:bg-red-500/30 transition-colors flex items-center gap-2"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      {isClearing ? 'Clearing...' : 'Clear All'}
-                    </button>
-                    <button
-                      onClick={() => setIsFilesModalOpen(false)}
-                      className="p-1.5 text-gray-400 hover:text-white transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
+          <section className="mx-auto max-w-6xl px-6 pb-16">
+            {error && (
+              <div className="mb-8 rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-300" />
+                  <div>
+                    <h3 className="mb-1 text-base font-semibold text-red-100">Search failed</h3>
+                    <p className="text-sm text-red-200">{error}</p>
                   </div>
                 </div>
-                <div className="overflow-y-auto max-h-[calc(80vh-80px)]">
-                  {indexedFiles.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                      No files indexed yet
-                    </div>
-                  ) : (
-                    <table className="w-full">
-                      <thead className="bg-gray-800/50 sticky top-0">
-                        <tr>
-                          <th className="text-left p-3 text-sm text-gray-400 font-medium">File Path</th>
-                          <th className="text-right p-3 text-sm text-gray-400 font-medium">Lines</th>
-                          <th className="text-right p-3 text-sm text-gray-400 font-medium">Symbols</th>
-                          <th className="text-right p-3 text-sm text-gray-400 font-medium">Indexed</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {indexedFiles.map((file) => (
-                          <tr key={file.id} className="border-t border-gray-800 hover:bg-gray-800/30">
-                            <td className="p-3 text-sm text-gray-300 font-mono truncate max-w-md" title={file.path}>
-                              {file.path}
-                            </td>
-                            <td className="p-3 text-sm text-gray-400 text-right">{file.total_lines}</td>
-                            <td className="p-3 text-sm text-gray-400 text-right">{file.symbol_count}</td>
-                            <td className="p-3 text-sm text-gray-500 text-right">
-                              {new Date(file.indexed_at).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
+              </div>
+            )}
+
+            {!isLoading && !error && results.length === 0 && hasSearched && (
+              <div className="rounded-3xl border border-white/10 bg-white/5 px-8 py-12 text-center">
+                <div className="mx-auto max-w-md">
+                  <AlertCircle className="mx-auto mb-4 h-12 w-12 text-slate-400" />
+                  <h3 className="text-lg font-semibold text-white">No matches yet</h3>
+                  <p className="mt-3 text-sm text-slate-400">
+                    Nothing cleared the similarity threshold (&gt;40%). Refine the behavior description or widen the scope.
+                  </p>
                 </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </div>
+            )}
+
+            {!results.length && !isLoading && !error && !hasSearched && (
+              <div className="rounded-3xl border border-white/10 bg-white/5 px-8 py-12">
+                <p className="text-sm text-slate-400">
+                  Feed CodeSniff a behavior, architecture, or intent. Results appear here with semantic matches ranked by similarity and context depth.
+                </p>
+              </div>
+            )}
+
+            {results.length > 0 && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">
+                    {results.length} result{results.length !== 1 ? 's' : ''}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-400">{searchTime.toFixed(0)}ms</p>
+                </div>
+                <div className="space-y-3">
+                  {results.map((result, index) => (
+                    <ResultCard
+                      key={`${result.file_path}-${result.symbol_name}-${index}`}
+                      result={result}
+                      index={index}
+                      onViewCode={handleViewCode}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        </main>
       </div>
+
+      <AnimatePresence>
+        {isLoading && <LoadingAnimation />}
+      </AnimatePresence>
+
+      <CodeViewer result={selectedResult} isOpen={isCodeViewerOpen} onClose={handleCloseCodeViewer} />
+
+      <ChatPanel isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+
+      <UploadModal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} onIndexComplete={handleIndexComplete} />
+
+      <AnimatePresence>
+        {isFilesModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setIsFilesModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-4xl max-h-[80vh] overflow-hidden"
+            >
+              <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white">Indexed Files ({indexedFiles.length})</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleClearIndex}
+                    disabled={isClearing}
+                    className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-sm hover:bg-red-500/30 transition-colors flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {isClearing ? 'Clearing...' : 'Clear All'}
+                  </button>
+                  <button onClick={() => setIsFilesModalOpen(false)} className="p-1.5 text-gray-400 hover:text-white transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-y-auto max-h-[calc(80vh-80px)]">
+                {indexedFiles.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">No files indexed yet</div>
+                ) : (
+                  <table className="w-full">
+                    <thead className="bg-gray-800/50 sticky top-0">
+                      <tr>
+                        <th className="text-left p-3 text-sm text-gray-400 font-medium">File Path</th>
+                        <th className="text-right p-3 text-sm text-gray-400 font-medium">Lines</th>
+                        <th className="text-right p-3 text-sm text-gray-400 font-medium">Symbols</th>
+                        <th className="text-right p-3 text-sm text-gray-400 font-medium">Indexed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {indexedFiles.map((file) => (
+                        <tr key={file.id} className="border-t border-gray-800 hover:bg-gray-800/30">
+                          <td className="p-3 text-sm text-gray-300 font-mono truncate max-w-md" title={file.path}>
+                            {file.path}
+                          </td>
+                          <td className="p-3 text-sm text-gray-400 text-right">{file.total_lines}</td>
+                          <td className="p-3 text-sm text-gray-400 text-right">{file.symbol_count}</td>
+                          <td className="p-3 text-sm text-gray-500 text-right">{new Date(file.indexed_at).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
