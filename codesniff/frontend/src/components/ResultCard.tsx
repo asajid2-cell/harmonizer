@@ -64,7 +64,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onViewCode }) =>
 
       <div className="result-card__body">
         <div className="p-4 overflow-x-auto">
-          <pre className="text-sm font-mono text-slate-100 leading-relaxed whitespace-pre-wrap">
+          <pre className="text-sm font-mono text-slate-100 leading-relaxed whitespace-pre-wrap bg-transparent">
             <code>{result.code_snippet}</code>
           </pre>
         </div>

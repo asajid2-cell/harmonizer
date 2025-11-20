@@ -12,6 +12,7 @@ import LoadingAnimation from './components/LoadingAnimation';
 import ChatPanel from './components/ChatPanel';
 import UploadModal from './components/UploadModal';
 import SemanticExcavation from './components/SemanticExcavation';
+import ParticleVeil from './components/ParticleVeil';
 import ResultsSelect from './components/ResultsSelect';
 import { useSearch } from './hooks/useSearch';
 import { useStats } from './hooks/useStats';
@@ -144,6 +145,10 @@ function App() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-transparent text-slate-100">
+      <div className="global-backdrop" aria-hidden="true" />
+      <div className="global-particles" aria-hidden="true">
+        <ParticleVeil />
+      </div>
       <div className="pointer-events-none absolute inset-0 opacity-60" aria-hidden="true">
         <div className="absolute inset-x-0 top-[-320px] h-[520px] bg-[radial-gradient(circle_at_top,rgba(62,106,255,0.3),transparent_65%)] blur-[160px]" />
       </div>

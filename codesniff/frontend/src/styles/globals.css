@@ -7,13 +7,13 @@
     color-scheme: dark;
   }
 
-  body {
-    min-height: 100vh;
-    margin: 0;
-    background: radial-gradient(circle at 20% 20%, rgba(18, 25, 35, 0.65), transparent 55%),
-      radial-gradient(circle at 50% 120%, rgba(28, 83, 197, 0.12), transparent 55%),
-      radial-gradient(circle at 80% 0%, rgba(28, 83, 197, 0.16), transparent 55%),
-      linear-gradient(145deg, #0a0c11 0%, #08090a 40%, #111318 100%);
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(18, 25, 35, 0.65), transparent 55%),
+    radial-gradient(circle at 50% 120%, rgba(28, 83, 197, 0.12), transparent 55%),
+    radial-gradient(circle at 80% 0%, rgba(28, 83, 197, 0.16), transparent 55%),
+    linear-gradient(145deg, #040916 0%, #040916 45%, #040916 100%);
     color: #e7ecf8;
     font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -47,6 +47,19 @@
     pointer-events: none;
     z-index: 1;
   }
+}
+
+.global-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(70, 120, 210, 0.18), transparent 45%),
+    radial-gradient(circle at 88% 6%, rgba(60, 110, 210, 0.14), transparent 40%),
+    radial-gradient(circle at 50% 32%, rgba(70, 120, 210, 0.22), transparent 55%),
+    radial-gradient(circle at 50% 72%, rgba(44, 86, 160, 0.18), transparent 55%),
+    linear-gradient(180deg, #040916 0%, #040916 45%, #040916 100%);
+  pointer-events: none;
 }
 
 @layer utilities {
@@ -237,10 +250,7 @@
 .hero-stage {
   position: relative;
   min-height: clamp(520px, 70vh, 760px);
-  background:
-    radial-gradient(circle at 20% 15%, rgba(33, 73, 142, 0.45), transparent 50%),
-    radial-gradient(circle at 70% 10%, rgba(47, 102, 210, 0.35), transparent 50%),
-    linear-gradient(180deg, #040916 0%, #020409 100%);
+  background: transparent;
 }
 
 .hero-stage__inner {
@@ -254,6 +264,7 @@
   position: relative;
   z-index: 2;
   max-width: 640px;
+  background: transparent;
 }
 
 .hero-stage__visual {
@@ -503,6 +514,14 @@
   pointer-events: none;
 }
 
+.global-particles {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
 .pill-control {
   position: relative;
   display: inline-flex;
@@ -629,32 +648,34 @@
 
 
 .result-card {
-  background: radial-gradient(circle at 10% 0%, rgba(76, 126, 255, 0.06), rgba(5, 7, 12, 0.95));
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 22px;
+  background: rgba(8, 11, 18, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 28px 68px rgba(2, 4, 10, 0.65);
-  transition: border 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 28px 68px rgba(2, 4, 10, 0.55);
+  backdrop-filter: blur(12px);
+  transition: border 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .result-card:hover {
   border-color: rgba(102, 158, 255, 0.35);
-  box-shadow: 0 36px 90px rgba(4, 8, 16, 0.8);
+  background: rgba(8, 12, 20, 0.52);
+  box-shadow: 0 36px 90px rgba(4, 8, 16, 0.75);
   transform: translateY(-2px);
 }
 
 .result-card__header {
   padding: 16px 18px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  background: linear-gradient(180deg, rgba(10, 14, 22, 0.9), rgba(5, 7, 12, 0.9));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  background: transparent;
 }
 
 .result-card__icon {
   padding: 10px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.04);
-  color: rgba(190, 204, 255, 0.95);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  color: rgba(190, 204, 255, 1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .result-card__badge {
@@ -679,7 +700,7 @@
 }
 
 .result-card__body {
-  background: linear-gradient(180deg, rgba(5, 7, 12, 0.95), rgba(8, 10, 16, 0.92));
+  background: transparent;
 }
 
 .result-card__footer {
@@ -688,8 +709,8 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 10px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(4, 6, 12, 0.9);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(3, 5, 10, 0.35);
 }
 
 .result-card__action {
@@ -698,7 +719,7 @@
   gap: 0.4rem;
   padding: 6px 10px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
   color: #e7edff;
   font-size: 0.8rem;
