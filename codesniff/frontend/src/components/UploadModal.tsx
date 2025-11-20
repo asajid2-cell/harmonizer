@@ -27,16 +27,15 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
   const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 
   const handleClose = () => {
-    if (!isIndexing) {
-      setMethod('folder');
-      setGithubUrl('');
-      setSelectedFiles(null);
-      setSelectedFolder('');
-      setProgress('');
-      setError(null);
-      setSuccess(false);
-      onClose();
-    }
+    // Allow closing even while indexing (background operation)
+    setMethod('folder');
+    setGithubUrl('');
+    setSelectedFiles(null);
+    setSelectedFolder('');
+    setProgress('');
+    setError(null);
+    setSuccess(false);
+    onClose();
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -349,15 +348,17 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
             {/* Footer */}
             <div className="p-6 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Supports Python, JavaScript/TypeScript, Java, Kotlin, HTML, and CSS files
+                {isIndexing
+                  ? "Indexing in background - you can close this and continue using the app"
+                  : "Supports Python, JavaScript/TypeScript, Java, Kotlin, HTML, and CSS files"
+                }
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={handleClose}
-                  disabled={isIndexing}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
-                  Cancel
+                  {isIndexing ? 'Close' : 'Cancel'}
                 </button>
                 <button
                   onClick={handleIndex}

@@ -2,9 +2,9 @@
  * CodeSniff Main Application
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, FolderOpen, Trash2, X, MessageCircle, Upload } from 'lucide-react';
+import { AlertCircle, FolderOpen, Trash2, X, MessageCircle, Upload, ChevronDown, Check } from 'lucide-react';
 import SearchBar from './components/SearchBar';
 import ResultCard from './components/ResultCard';
 import CodeViewer from './components/CodeViewer';
@@ -30,6 +30,8 @@ function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
+  const languageDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = async (query: string) => {
     if (query.trim()) {
@@ -95,6 +97,22 @@ function App() {
     refetchStats();
   };
 
+  const availableLanguages = [
+    { value: 'python', label: 'Python' },
+    { value: 'javascript', label: 'JavaScript' },
+    { value: 'typescript', label: 'TypeScript' },
+    { value: 'java', label: 'Java' },
+    { value: 'kotlin', label: 'Kotlin' },
+    { value: 'html', label: 'HTML' },
+    { value: 'css', label: 'CSS' },
+  ];
+
+  const toggleLanguage = (lang: string) => {
+    setSelectedLanguages(prev =>
+      prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang]
+    );
+  };
+
   // Re-search when language filter changes (if there's an active search)
   useEffect(() => {
     if (hasSearched && searchQuery.trim()) {
@@ -102,6 +120,18 @@ function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLanguages]);
+
+  // Close language dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target as Node)) {
+        setIsLanguageDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0d1117]">
@@ -145,36 +175,51 @@ function App() {
                         <option value={100}>100</option>
                       </select>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <label htmlFor="language-filter" className="text-sm text-gray-600 dark:text-gray-400">
-                        Languages:
-                      </label>
-                      <select
-                        id="language-filter"
-                        multiple
-                        value={selectedLanguages}
-                        onChange={(e) => {
-                          const selected = Array.from(e.target.selectedOptions, option => option.value);
-                          setSelectedLanguages(selected);
-                        }}
-                        className="px-2 py-1 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        style={{ minWidth: '120px', height: 'auto' }}
+                    <div className="relative" ref={languageDropdownRef}>
+                      <button
+                        onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                       >
-                        <option value="python">Python</option>
-                        <option value="javascript">JavaScript</option>
-                        <option value="typescript">TypeScript</option>
-                        <option value="java">Java</option>
-                        <option value="kotlin">Kotlin</option>
-                        <option value="html">HTML</option>
-                        <option value="css">CSS</option>
-                      </select>
-                      {selectedLanguages.length > 0 && (
-                        <button
-                          onClick={() => setSelectedLanguages([])}
-                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          Clear
-                        </button>
+                        <span className="text-gray-600 dark:text-gray-400">Languages:</span>
+                        {selectedLanguages.length > 0 ? (
+                          <span className="flex items-center gap-1">
+                            <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs font-medium">
+                              {selectedLanguages.length}
+                            </span>
+                            <span className="text-gray-700 dark:text-gray-300">selected</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 dark:text-gray-400">All</span>
+                        )}
+                        <ChevronDown className={`w-4 h-4 transition-transform ${isLanguageDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {isLanguageDropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
+                          {selectedLanguages.length > 0 && (
+                            <>
+                              <button
+                                onClick={() => setSelectedLanguages([])}
+                                className="w-full px-3 py-2 text-left text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                              >
+                                Clear all
+                              </button>
+                              <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                            </>
+                          )}
+                          {availableLanguages.map((lang) => (
+                            <button
+                              key={lang.value}
+                              onClick={() => toggleLanguage(lang.value)}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between"
+                            >
+                              <span>{lang.label}</span>
+                              {selectedLanguages.includes(lang.value) && (
+                                <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
                     <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
