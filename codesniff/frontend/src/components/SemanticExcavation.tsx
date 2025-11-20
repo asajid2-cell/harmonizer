@@ -1,128 +1,169 @@
-import { motion } from 'framer-motion';
-import ParticleVeil from './ParticleVeil';
+import React, { useEffect, useRef } from 'react';
 
-type Node = {
-  id: string;
+type GraphNode = {
   x: number;
   y: number;
-  meta?: string;
-  active?: boolean;
+  vx: number;
+  vy: number;
+  size: number;
+  type: 'auth' | 'db' | 'ui' | 'core';
 };
 
-const NODES: Node[] = [
-  { id: 'query', x: 16, y: 32, meta: 'query()', active: true },
-  { id: 'parse', x: 32, y: 38, meta: 'parse()', active: true },
-  { id: 'embed', x: 50, y: 42, meta: 'embed()', active: true },
-  { id: 'rank', x: 66, y: 50, meta: 'rank()', active: true },
-  { id: 'scope', x: 78, y: 60, meta: 'scope()', active: true },
-  { id: 'authz', x: 88, y: 72, meta: 'auth()', active: true },
-  { id: 'cache', x: 28, y: 58, meta: 'cache' },
-  { id: 'hydration', x: 46, y: 68, meta: 'hydrate' },
-  { id: 'rpc', x: 72, y: 32, meta: 'rpc' },
-  { id: 'audit', x: 60, y: 24, meta: 'audit' },
-  { id: 'token', x: 92, y: 52, meta: 'token' },
-];
+const SemanticExcavation = ({ className }: { className?: string }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const requestRef = useRef<number>();
 
-const CONNECTIONS: Array<[string, string]> = [
-  ['query', 'parse'],
-  ['parse', 'embed'],
-  ['embed', 'rank'],
-  ['rank', 'scope'],
-  ['scope', 'authz'],
-  ['cache', 'embed'],
-  ['hydration', 'rank'],
-  ['rpc', 'rank'],
-  ['audit', 'embed'],
-  ['token', 'authz'],
-];
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-interface SemanticExcavationProps {
-  className?: string;
-}
+    let width = 0;
+    let height = 0;
+    const dpr = window.devicePixelRatio || 1;
 
-const SemanticExcavation = ({ className }: SemanticExcavationProps) => {
-  const formatLabel = (meta?: string) => {
-    if (!meta) {
-      return '';
-    }
-    const cleaned = meta.trim();
-    if (!cleaned || /^[^a-zA-Z0-9]+$/.test(cleaned)) {
-      return 'anon()';
-    }
-    return cleaned;
-  };
+    const resize = () => {
+      const { width: w, height: h } = canvas.getBoundingClientRect();
+      width = w || 800;
+      height = h || 480;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
 
-  const lookup = NODES.reduce<Record<string, Node>>((acc, node) => {
-    acc[node.id] = node;
-    return acc;
-  }, {});
+    const nodeCount = 42;
+    const connectionDistance = 180;
+    const mouseDistance = 200;
+    const types: GraphNode['type'][] = ['auth', 'db', 'ui', 'core'];
+    const nodes: GraphNode[] = [];
+
+    const spawn = () => {
+      nodes.length = 0;
+      for (let i = 0; i < nodeCount; i++) {
+        nodes.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.6,
+          vy: (Math.random() - 0.5) * 0.6,
+          size: Math.random() * 2.2 + 2,
+          type: types[Math.floor(Math.random() * types.length)],
+        });
+      }
+    };
+
+    resize();
+    spawn();
+
+    let mouse = { x: -1e3, y: -1e3 };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+
+    const handleResize = () => {
+      resize();
+      spawn();
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('resize', handleResize);
+
+    const getColor = (type: GraphNode['type'], alpha = 1) => {
+      switch (type) {
+        case 'auth':
+          return `rgba(56, 189, 248, ${alpha})`;
+        case 'db':
+          return `rgba(168, 85, 247, ${alpha})`;
+        case 'ui':
+          return `rgba(236, 72, 153, ${alpha})`;
+        default:
+          return `rgba(148, 163, 184, ${alpha})`;
+      }
+    };
+
+    const animate = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      nodes.forEach((node, idx) => {
+        node.x += node.vx;
+        node.y += node.vy;
+
+        if (node.x < 0 || node.x > width) node.vx *= -1;
+        if (node.y < 0 || node.y > height) node.vy *= -1;
+
+        const dx = mouse.x - node.x;
+        const dy = mouse.y - node.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist < mouseDistance && dist > 0) {
+          const force = (mouseDistance - dist) / mouseDistance;
+          node.vx -= (dx / dist) * force * 0.05;
+          node.vy -= (dy / dist) * force * 0.05;
+        }
+
+        for (let j = idx + 1; j < nodes.length; j++) {
+          const other = nodes[j];
+          const ddx = node.x - other.x;
+          const ddy = node.y - other.y;
+          const distance = Math.hypot(ddx, ddy);
+
+          if (distance < connectionDistance) {
+            ctx.beginPath();
+            const opacity = 1 - distance / connectionDistance;
+            ctx.strokeStyle = getColor(node.type, opacity * 0.35);
+            ctx.lineWidth = 0.8;
+            ctx.moveTo(node.x, node.y);
+            ctx.lineTo(other.x, other.y);
+            ctx.stroke();
+          }
+        }
+
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.size, 0, Math.PI * 2);
+        ctx.fillStyle = getColor(node.type, 0.9);
+        ctx.shadowBlur = 16;
+        ctx.shadowColor = getColor(node.type, 0.8);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+
+      requestRef.current = requestAnimationFrame(animate);
+    };
+
+    requestRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   return (
     <div className={`semantic-excavation${className ? ` ${className}` : ''}`} aria-hidden="true">
-      <ParticleVeil />
-      <div className="vector-plane">
-        <div className="vector-plane__surface">
-          <div className="vector-plane__rim" />
-          <svg viewBox="0 0 100 100" className="vector-plane__map">
-            <defs>
-              <linearGradient id="activeEdge" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#8cd1ff" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="#8cd1ff" stopOpacity="0.95" />
-              </linearGradient>
-            </defs>
-            {CONNECTIONS.map(([startId, endId]) => {
-              const start = lookup[startId];
-              const end = lookup[endId];
-              if (!start || !end) {
-                return null;
-              }
-              const isActive = Boolean(start.active && end.active);
-              return (
-                <line
-                  key={`${startId}-${endId}`}
-                  x1={start.x}
-                  y1={start.y}
-                  x2={end.x}
-                  y2={end.y}
-                  className={`vector-plane__edge${isActive ? ' vector-plane__edge--active' : ''}`}
-                  stroke={isActive ? 'url(#activeEdge)' : undefined}
-                />
-              );
-            })}
-            {NODES.map((node) => (
-              <motion.circle
-                key={node.id}
-                cx={node.x}
-                cy={node.y}
-                r={node.active ? 2.5 : 1.4}
-                className={`vector-plane__node${node.active ? ' vector-plane__node--active' : ''}`}
-                animate={
-                  node.active
-                    ? { opacity: [0.7, 1, 0.7], r: [2.5, 3.4, 2.5] }
-                    : undefined
-                }
-                transition={node.active ? { duration: 3.4, repeat: Infinity, ease: 'easeInOut' } : undefined}
-              />
-            ))}
-          </svg>
-          <div className="vector-plane__labels">
-            {NODES.map((node) => {
-              const label = formatLabel(node.meta);
-              if (!label) {
-                return null;
-              }
-              return (
-                <span
-                  key={`label-${node.id}`}
-                  className={`vector-plane__label${node.active ? ' vector-plane__label--active' : ''}`}
-                  style={{ left: `${node.x}%`, top: `${node.y}%` }}
-                >
-                  {label}
-                </span>
-              );
-            })}
+      <div className="neural-card">
+        <div className="neural-card__header">
+          <div className="neural-card__lights">
+            <span />
+            <span />
+            <span />
           </div>
-          <div className="vector-plane__blur" />
+          <span className="neural-card__title">semantic_map.vis</span>
+        </div>
+        <div className="neural-card__glow" />
+        <canvas ref={canvasRef} className="neural-card__canvas" />
+        <div className="neural-card__grid" />
+        <div className="neural-card__stats">
+          <div>
+            <p>Indexed Symbols</p>
+            <strong>3,391</strong>
+          </div>
+          <div>
+            <p>Vector Space</p>
+            <strong>285 dims</strong>
+          </div>
         </div>
       </div>
     </div>
