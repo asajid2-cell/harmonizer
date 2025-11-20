@@ -1511,6 +1511,151 @@ def compute_cross_track_similarity(
         "track2_to_track1": track2_to_track1,
     }
 
+def _compute_beat_energy(beats: List[Dict], segments: List[Dict], default_db: float = -40.0) -> List[float]:
+    """
+    Estimate per-beat loudness (dB) using overlapping segments' loudness values.
+    Uses loudness_max/loudness_start averages for robustness.
+    """
+    energies: List[float] = []
+    seg_idx = 0
+    for beat in beats:
+        start = float(beat.get("start", 0.0))
+        end = start + float(beat.get("duration", 0.0))
+        acc = []
+        # advance seg_idx to first segment that might overlap
+        while seg_idx < len(segments) and (segments[seg_idx].get("start", 0.0) + segments[seg_idx].get("duration", 0.0)) < start:
+            seg_idx += 1
+        j = seg_idx
+        while j < len(segments):
+            seg = segments[j]
+            seg_start = float(seg.get("start", 0.0))
+            seg_end = seg_start + float(seg.get("duration", 0.0))
+            if seg_start > end:
+                break
+            if seg_end >= start:
+                loud_start = float(seg.get("loudness_start", default_db))
+                loud_max = float(seg.get("loudness_max", default_db))
+                acc.append((loud_start + loud_max) * 0.5)
+            j += 1
+        if acc:
+            energies.append(float(np.mean(acc)))
+        else:
+            energies.append(default_db)
+    return energies
+
+def _build_autoharmonizer_edges(
+    track1: Dict,
+    track2: Dict,
+    cross_similarity: Dict[str, List[Dict]],
+    silence_db: float = -45.0,
+    similarity_threshold: float = 0.55,
+) -> List[Dict]:
+    """
+    Build a joint edge list across both tracks, combining intra-track and cross-track jumps.
+    Filters out silent targets and low-similarity candidates, and embeds a score for ranking.
+    """
+    beats1 = track1["beats"]
+    beats2 = track2["beats"]
+    sections1 = track1.get("sections", [])
+    sections2 = track2.get("sections", [])
+    energies1 = track1.get("energies", [])
+    energies2 = track2.get("energies", [])
+
+    # Maps beat index -> section index
+    def map_sections(beats: List[Dict], sections: List[Dict]) -> List[int]:
+        mapping = [-1] * len(beats)
+        for s_idx, sec in enumerate(sections):
+            s_start = float(sec.get("start", 0.0))
+            s_end = s_start + float(sec.get("duration", 0.0))
+            for i, b in enumerate(beats):
+                if s_start <= float(b.get("start", 0.0)) < s_end:
+                    mapping[i] = s_idx
+        return mapping
+
+    sec_map1 = map_sections(beats1, sections1)
+    sec_map2 = map_sections(beats2, sections2)
+
+    def section_match(src_track: int, src_idx: int, tgt_track: int, tgt_idx: int) -> bool:
+        if src_track == 1 and tgt_track == 1:
+            return sec_map1[src_idx] == sec_map1[tgt_idx]
+        if src_track == 2 and tgt_track == 2:
+            return sec_map2[src_idx] == sec_map2[tgt_idx]
+        if src_track == 1 and tgt_track == 2:
+            return sec_map1[src_idx] == sec_map2[tgt_idx]
+        if src_track == 2 and tgt_track == 1:
+            return sec_map2[src_idx] == sec_map1[tgt_idx]
+        return False
+
+    def energy_for(track_num: int, idx: int) -> float:
+        if track_num == 1 and 0 <= idx < len(energies1):
+            return energies1[idx]
+        if track_num == 2 and 0 <= idx < len(energies2):
+            return energies2[idx]
+        return silence_db
+
+    edges: List[Dict] = []
+
+    def add_edge(src_track: int, src_idx: int, tgt_track: int, tgt_idx: int, sim: float, reason: str):
+        if sim < similarity_threshold:
+            return
+        tgt_energy = energy_for(tgt_track, tgt_idx)
+        if tgt_energy <= silence_db:
+            return
+        same_section = section_match(src_track, src_idx, tgt_track, tgt_idx)
+        score = sim
+        if same_section:
+            score += 0.08
+        # energy bonus for louder targets (cap modestly)
+        score += max(0.0, min(0.15, (tgt_energy - silence_db) / 80.0))
+        edges.append(
+            {
+                "source_track": src_track,
+                "source_index": int(src_idx),
+                "target_track": tgt_track,
+                "target_index": int(tgt_idx),
+                "similarity": float(sim),
+                "score": float(score),
+                "same_section": bool(same_section),
+                "target_energy": float(tgt_energy),
+                "reason": reason,
+            }
+        )
+
+    # Intra-track edges from eternal_loop_candidates
+    def add_intra_edges(track_num: int, loop_candidates: Dict[str, List[Dict]]):
+        for key, cand_list in loop_candidates.items():
+            try:
+                src_idx = int(key)
+            except ValueError:
+                continue
+            for cand in cand_list:
+                tgt_idx = cand.get("target")
+                if tgt_idx is None:
+                    continue
+                sim = float(cand.get("similarity", 0.0))
+                add_edge(track_num, src_idx, track_num, int(tgt_idx), sim, "intra-track")
+
+    add_intra_edges(1, track1.get("eternal_loop_candidates", {}))
+    add_intra_edges(2, track2.get("eternal_loop_candidates", {}))
+
+    # Cross-track edges from cross_similarity
+    for key, cand_list in (cross_similarity.get("track1_to_track2") or {}).items():
+        try:
+            src_idx = int(key)
+        except ValueError:
+            continue
+        for cand in cand_list:
+            add_edge(1, src_idx, 2, int(cand.get("target_index", 0)), float(cand.get("similarity", 0.0)), "cross-track")
+    for key, cand_list in (cross_similarity.get("track2_to_track1") or {}).items():
+        try:
+            src_idx = int(key)
+        except ValueError:
+            continue
+        for cand in cand_list:
+            add_edge(2, src_idx, 1, int(cand.get("target_index", 0)), float(cand.get("similarity", 0.0)), "cross-track")
+
+    return edges
+
 
 def build_autoharmonizer_profile(
     track1_path: Path,
@@ -1540,9 +1685,33 @@ def build_autoharmonizer_profile(
     segments1 = track1["analysis"]["segments"]
     segments2 = track2["analysis"]["segments"]
 
+    # Per-beat energy (used to avoid silent targets)
+    energies1 = _compute_beat_energy(beats1, segments1)
+    energies2 = _compute_beat_energy(beats2, segments2)
+
     # Compute cross-track similarity
     print(f"[Autoharmonizer] Computing cross-track similarity between {len(beats1)} and {len(beats2)} beats...")
     cross_similarity = compute_cross_track_similarity(beats1, beats2, segments1, segments2)
+
+    # Build joint edge list across tracks
+    silence_db = -45.0
+    joint_edges = _build_autoharmonizer_edges(
+        {
+            "beats": beats1,
+            "sections": track1["analysis"].get("sections", []),
+            "eternal_loop_candidates": track1["analysis"].get("eternal_loop_candidates", {}),
+            "energies": energies1,
+        },
+        {
+            "beats": beats2,
+            "sections": track2["analysis"].get("sections", []),
+            "eternal_loop_candidates": track2["analysis"].get("eternal_loop_candidates", {}),
+            "energies": energies2,
+        },
+        cross_similarity=cross_similarity,
+        silence_db=silence_db,
+        similarity_threshold=0.55,
+    )
 
     # Build combined profile
     track1_audio_url = track1.get("audio_url") or track1.get("info", {}).get("url", "")
@@ -1587,6 +1756,7 @@ def build_autoharmonizer_profile(
                             "beats": beats1,
                             "bars": track1["analysis"]["bars"],
                             "segments": segments1,
+                            "energies": energies1,
                             "duration": track1["audio_summary"]["duration"],
                             "tempo": track1["audio_summary"]["tempo"],
                             "eternal_loop_candidates": track1["analysis"].get("eternal_loop_candidates", {}),
@@ -1599,12 +1769,20 @@ def build_autoharmonizer_profile(
                             "beats": beats2,
                             "bars": track2["analysis"]["bars"],
                             "segments": segments2,
+                            "energies": energies2,
                             "duration": track2["audio_summary"]["duration"],
                             "tempo": track2["audio_summary"]["tempo"],
                             "eternal_loop_candidates": track2["analysis"].get("eternal_loop_candidates", {}),
                             "canon_alignment": track2["analysis"].get("canon_alignment", {}),
                         },
                         "cross_similarity": cross_similarity,
+                        "joint_edges": joint_edges,
+                        "params": {
+                            "silence_threshold": silence_db,
+                            "min_dwell_beats": 4,
+                            "cross_min_beats": 6,
+                            "max_backward_beats": 12,
+                        },
                     },
                 },
             },

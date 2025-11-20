@@ -1885,6 +1885,7 @@ body.playing-eternal #tiles {
         inset 0 0 10px rgba(0, 0, 0, 0.45);
     color: #eafbf5;
     font-size: 12px;
+    height: 36px;
 }
 
 .voice-count-control label {
@@ -1907,6 +1908,7 @@ body.playing-eternal #tiles {
     background: transparent;
     position: relative;
     z-index: 2;
+    margin: 0;
 }
 
 #canon-voice-count:focus {
@@ -1927,6 +1929,7 @@ body.playing-eternal #tiles {
     cursor: pointer;
     position: relative;
     z-index: 3;
+    transform: translateY(-1px);
 }
 
 #canon-voice-count::-moz-range-thumb {
@@ -1941,6 +1944,7 @@ body.playing-eternal #tiles {
     cursor: pointer;
     position: relative;
     z-index: 3;
+    transform: translateY(-1px);
 }
 
 #canon-voice-count::-webkit-slider-runnable-track {
@@ -1979,4 +1983,9 @@ body.playing-eternal #tiles {
     box-shadow:
         0 0 10px rgba(0, 242, 195, 0.45),
         inset 0 0 6px rgba(0, 0, 0, 0.35);
+    height: 20px;
+    line-height: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }

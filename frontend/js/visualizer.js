@@ -2911,7 +2911,7 @@ function allReady() {
         masterQs = curTrack.analysis.beats || [];
     }
     if (!masterQs.length) {
-        console.warn("[allReady] No beats available for mode:", mode, "– falling back to track analysis beats");
+        console.warn("[allReady] No beats available for mode:", mode, "â€“ falling back to track analysis beats");
         masterQs = curTrack.analysis.beats || [];
     }
     if (!masterQs.length) {
@@ -4244,9 +4244,9 @@ $(document).ready(function() {
         $("#queue-container").toggleClass("minimized");
         var minimizeBtn = $("#queue-minimize-btn");
         if ($("#queue-container").hasClass("minimized")) {
-            minimizeBtn.html("□");
+            minimizeBtn.html("â–¡");
         } else {
-            minimizeBtn.html("−");
+            minimizeBtn.html("âˆ’");
         }
     });
 
@@ -4266,7 +4266,7 @@ $(document).ready(function() {
         $("#queue-container").hide();
         // Remove minimized class when closing
         $("#queue-container").removeClass("minimized");
-        $("#queue-minimize-btn").html("−");
+        $("#queue-minimize-btn").html("âˆ’");
     });
 
     // Make queue window draggable
@@ -4984,7 +4984,7 @@ function createAutoharmonizerTiles(qlist) {
     var track1Beats = autoharmonizerData.track1 && autoharmonizerData.track1.beats ? autoharmonizerData.track1.beats : [];
     var track2Beats = autoharmonizerData.track2 && autoharmonizerData.track2.beats ? autoharmonizerData.track2.beats : [];
     if (!track1Beats.length || !track2Beats.length) {
-        console.warn("[Viz] Autoharmonizer beats missing – reverting to circular view", {
+        console.warn("[Viz] Autoharmonizer beats missing â€“ reverting to circular view", {
             track1Beats: track1Beats.length,
             track2Beats: track2Beats.length
         });
@@ -5982,7 +5982,7 @@ function createCanonDriver(player) {
                     var si = align.start_index;
                     var duration = trackDuration || (masterQs && masterQs.length ? masterQs[masterQs.length - 1].start + masterQs[masterQs.length - 1].duration : 0);
                     var beats = masterQs || [];
-                    // clamp recommended start if itΓÇÖs too deep into the song
+                    // clamp recommended start if itÎ“Ã‡Ã–s too deep into the song
                     var maxStartTime = Math.min(45, duration * 0.25);
                     if (typeof si === "number" && si >= 0 && si < beats.length) {
                         var siTime = beats[si].start || 0;
@@ -6336,7 +6336,7 @@ function createJukeboxDriver(player, options) {
         }
         sectionBias = num;
         recalcLoopWeightParams();
-        console.log('[updateSectionBias]', num, '→ sameSectionBonus:', sameSectionBonusBase.toFixed(3), 'crossSectionBonus:', crossSectionBonusBase.toFixed(3));
+        console.log('[updateSectionBias]', num, 'â†’ sameSectionBonus:', sameSectionBonusBase.toFixed(3), 'crossSectionBonus:', crossSectionBonusBase.toFixed(3));
         if (!opts || opts.skipReschedule !== true) {
             scheduleNextJump(true);
         }
@@ -6354,7 +6354,7 @@ function createJukeboxDriver(player, options) {
         }
         jumpVariance = num;
         recalcLoopWeightParams();
-        console.log('[updateJumpVariance]', num, '→ weightJitter:', weightJitterStrength.toFixed(3), 'spanScale:', spanScaleBase.toFixed(3));
+        console.log('[updateJumpVariance]', num, 'â†’ weightJitter:', weightJitterStrength.toFixed(3), 'spanScale:', spanScaleBase.toFixed(3));
         if (!opts || opts.skipReschedule !== true) {
             scheduleNextJump(true);
         }
@@ -6815,7 +6815,7 @@ function createJukeboxDriver(player, options) {
 
         retreatPoint = bestRetreat;
         if (retreatPoint) {
-            console.log('[findRetreatPoint] Found retreat anchor:', retreatPoint.source, '→', retreatPoint.target,
+            console.log('[findRetreatPoint] Found retreat anchor:', retreatPoint.source, 'â†’', retreatPoint.target,
                         'similarity:', retreatPoint.similarity.toFixed(3), '| This prevents end-zone loops');
         } else {
             console.log('[findRetreatPoint] No suitable retreat point found - may loop at end');
@@ -6974,13 +6974,13 @@ function createJukeboxDriver(player, options) {
             // This prevents getting stuck looping the last 30 seconds
             if (inEndZone && edge.target < startZoneEnd) {
                 weight *= 2.5; // Strongly prefer going back to start
-                console.log('[selectJumpCandidate] END ZONE: Boosting jump to beginning:', edge.source, '→', edge.target, 'weight boosted');
+                console.log('[selectJumpCandidate] END ZONE: Boosting jump to beginning:', edge.source, 'â†’', edge.target, 'weight boosted');
             }
 
             // Strong penalty for staying in end zone when in end zone
             if (inEndZone && edge.target >= endZoneStart) {
                 weight *= 0.3; // Heavily discourage staying in end zone
-                console.log('[selectJumpCandidate] END ZONE: Penalizing end-zone loop:', edge.source, '→', edge.target);
+                console.log('[selectJumpCandidate] END ZONE: Penalizing end-zone loop:', edge.source, 'â†’', edge.target);
             }
 
             var targetSection = null;
@@ -7046,7 +7046,7 @@ function createJukeboxDriver(player, options) {
             selectedIdx = filtered.length - 1;
         }
         var selected = filtered[selectedIdx];
-        console.log('[selectJumpCandidate] Beat', src, '→', selected.target, '| Candidates:', filtered.length,
+        console.log('[selectJumpCandidate] Beat', src, 'â†’', selected.target, '| Candidates:', filtered.length,
                     '(same-section:', sameSectionCount, 'cross-section:', crossSectionCount + ')',
                     '| Selected weight:', weights[selectedIdx].toFixed(3), '| sameSection:', selected.sameSection);
         return selected;
@@ -7074,7 +7074,7 @@ function createJukeboxDriver(player, options) {
         if (inEndZone && retreatPoint && currentIndex >= retreatPoint.source - 4) {
             // Force a retreat when we're very close to or past the retreat source point
             if (currentIndex >= retreatPoint.source || beatsUntilJump <= 2) {
-                console.log('[advanceIndex] Using retreat point:', currentIndex, '→', retreatPoint.target);
+                console.log('[advanceIndex] Using retreat point:', currentIndex, 'â†’', retreatPoint.target);
                 var retreatSourceIndex = currentIndex;
                 loopHistory.push({ source: currentIndex, target: retreatPoint.target });
                 if (loopHistory.length > LOOP_HISTORY_LIMIT) {
@@ -7306,7 +7306,7 @@ function createAutoharmonizerDriver(player) {
 
     var autoharmonizerData = curTrack && curTrack.analysis && curTrack.analysis.autoharmonizer;
     if (!autoharmonizerData) {
-        console.warn("[Autoharmonizer] Autoharmonizer data missing – falling back to canon driver");
+        console.warn("[Autoharmonizer] Autoharmonizer data missing â€“ falling back to canon driver");
         return createCanonDriver(player);
     }
 
@@ -7364,26 +7364,38 @@ function createAutoharmonizerDriver(player) {
     }
 
     console.log("[Autoharmonizer] Controllers initialized successfully");
+    if (typeof window !== "undefined") {
+        window.__autohLog = [];
+    }
 
-    // Build jump graph for track1 (combining intra-track and cross-track options)
-    var jumpCandidates = {};
-    var eternal1 = track1Data.eternal_loop_candidates || {};
-    Object.keys(eternal1).forEach(function(beatIdx) {
-        var intra = eternal1[beatIdx].map(function(cand) {
-            return {
-                source_track: 1,
-                target_track: 1,
-                source_index: parseInt(beatIdx, 10),
-                target_index: cand.target,
-                similarity: cand.similarity,
-                reason: "intra-track"
-            };
-        });
-        jumpCandidates[beatIdx] = (jumpCandidates[beatIdx] || []).concat(intra);
+    // Build joint edge map (intra + cross) with scoring
+    var jointEdges = (autoharmonizerData && autoharmonizerData.joint_edges) || [];
+    var params = (autoharmonizerData && autoharmonizerData.params) || {};
+    var silenceThreshold = typeof params.silence_threshold === "number" ? params.silence_threshold : -45;
+    var minDwellBeats = typeof params.min_dwell_beats === "number" ? params.min_dwell_beats : 4;
+    var crossMinBeats = typeof params.cross_min_beats === "number" ? params.cross_min_beats : 6;
+    var maxBackwardBeats = typeof params.max_backward_beats === "number" ? params.max_backward_beats : 12;
+    var energies1 = track1Data.energies || [];
+    var energies2 = track2Data.energies || [];
+
+    var edgesByTrack = { 1: {}, 2: {} };
+    jointEdges.forEach(function(edge) {
+        var t = edge.source_track || 1;
+        var idx = edge.source_index || 0;
+        if (!edgesByTrack[t][idx]) {
+            edgesByTrack[t][idx] = [];
+        }
+        edgesByTrack[t][idx].push(edge);
     });
-    var cross1to2 = crossSimilarity.track1_to_track2 || {};
-    Object.keys(cross1to2).forEach(function(beatIdx) {
-        jumpCandidates[beatIdx] = (jumpCandidates[beatIdx] || []).concat(cross1to2[beatIdx]);
+    Object.keys(edgesByTrack).forEach(function(trackKey) {
+        var t = parseInt(trackKey, 10);
+        Object.keys(edgesByTrack[t]).forEach(function(idxKey) {
+            edgesByTrack[t][idxKey].sort(function(a, b) {
+                var sa = (typeof a.score === "number") ? a.score : (a.similarity || 0);
+                var sb = (typeof b.score === "number") ? b.score : (b.similarity || 0);
+                return sb - sa;
+            });
+        });
     });
 
     function getBeatsForTrack(trackNum) {
@@ -7392,6 +7404,12 @@ function createAutoharmonizerDriver(player) {
 
     function getControllerForTrack(trackNum) {
         return trackNum === 1 ? track1Controller : track2Controller;
+    }
+
+    function energyFor(trackNum, idx) {
+        if (trackNum === 1 && typeof energies1[idx] === "number") return energies1[idx];
+        if (trackNum === 2 && typeof energies2[idx] === "number") return energies2[idx];
+        return silenceThreshold;
     }
 
     function clearProcessTimer() {
@@ -7468,25 +7486,30 @@ function createAutoharmonizerDriver(player) {
             return;
         }
 
+        var preRoll = 0.05;
+        var targetStart = Math.max(0, (beat.start || 0) - preRoll);
+        var fadeWindow = crossfadeMs || 480;
+
         console.log("[Autoharmonizer] Crossfading from Track", sourceTrack, "to Track", targetTrack, {
             beatIndex: beatIndex,
             beatTime: beat.start,
-            duration: crossfadeMs || 450
+            targetStart: targetStart,
+            duration: fadeWindow
         });
 
-        // Start target track at the jump point
+        // Start target track slightly before the beat
         targetController.setVolume(0);
-        targetController.playFrom(beat.start);
-        targetController.fadeTo(0.72, crossfadeMs || 450);
+        targetController.playFrom(targetStart);
+        targetController.fadeTo(0.72, fadeWindow);
 
         // Fade out and pause source track after crossfade completes
         if (sourceController) {
-            sourceController.fadeTo(0, crossfadeMs || 450);
+            sourceController.fadeTo(0, fadeWindow);
             setTimeout(function() {
                 if (sourceController.audio && !sourceController.audio.paused) {
                     sourceController.audio.pause();
                 }
-            }, (crossfadeMs || 450) + 50);
+            }, fadeWindow + 60);
         }
 
         currentTrack = targetTrack;
@@ -7496,121 +7519,76 @@ function createAutoharmonizerDriver(player) {
         scheduleNextProcess(Math.max(beat.duration, 0.2));
     }
 
-    function selectNextBeat(currentBeatIdx, trackNum, options) {
+    var recentTargets = { 1: [], 2: [] };
+    var RECENT_LIMIT = Math.max(10, rlRepeatPenalty + 6);
+
+    function markRecent(trackNum, idx) {
+        var key = trackNum + ":" + idx;
+        recentTargets[trackNum].push(key);
+        if (recentTargets[trackNum].length > RECENT_LIMIT) {
+            recentTargets[trackNum].shift();
+        }
+    }
+
+    function isRecent(trackNum, idx) {
+        var key = trackNum + ":" + idx;
+        return recentTargets[trackNum].indexOf(key) !== -1;
+    }
+
+    function selectBestEdge(currentBeatIdx, trackNum, options) {
         options = options || {};
-        var candidates = [];
-        var indexKey = String(currentBeatIdx);
-        if (trackNum === 1) {
-            candidates = jumpCandidates[currentBeatIdx] || jumpCandidates[indexKey] || [];
-        } else {
-            var cross2to1 = crossSimilarity.track2_to_track1 || {};
-            var eternal2 = track2Data.eternal_loop_candidates || {};
-            var crossEdges = cross2to1[currentBeatIdx] || cross2to1[indexKey] || [];
-            var intraEdges = eternal2[currentBeatIdx] || eternal2[indexKey] || [];
-            candidates = crossEdges.concat(
-                intraEdges.map(function(cand) {
-                    return {
-                        source_track: 2,
-                        target_track: 2,
-                        source_index: currentBeatIdx,
-                        target_index: cand.target,
-                        similarity: cand.similarity,
-                        reason: "intra-track"
-                    };
-                })
-            );
+        var edges = edgesByTrack[trackNum] && edgesByTrack[trackNum][currentBeatIdx] ? edgesByTrack[trackNum][currentBeatIdx].slice(0) : [];
+        if (!edges.length) {
+            return null;
         }
-
-        var threshold = 0.4;  // Lowered from 0.5 to allow more cross-track jumps
-        var beforeFilter = candidates.length;
-        candidates = candidates.filter(function(c) { return typeof c.similarity === "number" && c.similarity >= threshold; });
-
-        console.log("[Autoharmonizer] selectNextBeat for Track", trackNum, "beat", currentBeatIdx, {
-            totalCandidates: beforeFilter,
-            afterThreshold: candidates.length,
-            preferCross: options.preferCross || false
-        });
-
-        if (options.preferCross) {
-            var crossOnly = candidates.filter(function(cand) {
-                return cand.source_track !== cand.target_track;
-            });
-            if (crossOnly.length) {
-                console.log("[Autoharmonizer] Forcing cross-track jump -", crossOnly.length, "candidates");
-                candidates = crossOnly;
+        var best = null;
+        var bestScore = -Infinity;
+        for (var i = 0; i < edges.length; i++) {
+            var e = edges[i];
+            var tgtTrack = e.target_track || trackNum;
+            var tgtIdx = typeof e.target_index === "number" ? e.target_index : parseInt(e.target_index, 10);
+            if (!isFinite(tgtIdx)) {
+                continue;
+            }
+            var tgtEnergy = (typeof e.target_energy === "number") ? e.target_energy : energyFor(tgtTrack, tgtIdx);
+            if (tgtEnergy <= silenceThreshold) {
+                continue;
+            }
+            var candidateBeatList = getBeatsForTrack(tgtTrack);
+            if (!candidateBeatList || tgtIdx >= candidateBeatList.length) {
+                continue;
+            }
+            var score = (typeof e.score === "number") ? e.score : (e.similarity || 0);
+            if (tgtTrack === trackNum) {
+                if (curQ > tgtIdx && (curQ - tgtIdx) > maxBackwardBeats && score < 0.85) {
+                    continue;
+                }
+                if (beatsSinceCross < minDwellBeats) {
+                    score -= 0.1;
+                }
             } else {
-                console.warn("[Autoharmonizer] preferCross requested but no cross-track candidates found!");
+                if (beatsSinceCross < crossMinBeats) {
+                    score -= 0.25;
+                }
             }
-        }
-
-        if (!candidates.length) {
-            var beats = getBeatsForTrack(trackNum);
-            var fallbackIndex = (currentBeatIdx + 1) % beats.length;
-            return {
-                track: trackNum,
-                index: fallbackIndex,
-                reason: "sequential",
-                similarity: 0
-            };
-        }
-
-        var totalWeight = 0;
-        var weightedCandidates = candidates.map(function(c) {
-            var normalizedIndex = typeof c.target_index === "number"
-                ? c.target_index
-                : parseInt(c.target_index, 10);
-            if (!isFinite(normalizedIndex)) {
-                normalizedIndex = 0;
+            if (isRecent(tgtTrack, tgtIdx)) {
+                score -= 0.2;
             }
-            var w = Math.pow(Math.max(0.01, c.similarity), 1.4);
-            var candidateTrack = c.target_track || trackNum;
-            if (candidateTrack === trackNum && isRecentCrossTarget(candidateTrack, normalizedIndex)) {
-                w *= CROSS_REPEAT_FACTOR;
+            if (options.preferCross && tgtTrack !== trackNum) {
+                score += 0.08;
             }
-            totalWeight += w;
-            return {
-                candidate: c,
-                normalizedIndex: normalizedIndex,
-                weight: w
-            };
-        });
-
-        if (totalWeight <= 0) {
-            var beatsFallback = getBeatsForTrack(trackNum);
-            var idx = beatsFallback && beatsFallback.length ? (currentBeatIdx + 1) % beatsFallback.length : 0;
-            return {
-                track: trackNum,
-                index: idx,
-                reason: "sequential",
-                similarity: 0
-            };
-        }
-
-        var rand = Math.random() * totalWeight;
-        var cumulative = 0;
-        for (var i = 0; i < weightedCandidates.length; i++) {
-            cumulative += weightedCandidates[i].weight;
-            if (rand <= cumulative) {
-                var selected = weightedCandidates[i];
-                var choice = selected.candidate;
-                var targetTrack = choice.target_track || trackNum;
-                return {
-                    track: targetTrack,
-                    index: selected.normalizedIndex,
-                    reason: choice.reason || (choice.source_track === targetTrack ? "intra-track" : "cross-track"),
-                    similarity: choice.similarity
+            if (score > bestScore) {
+                bestScore = score;
+                best = {
+                    track: tgtTrack,
+                    index: tgtIdx,
+                    reason: e.reason || (tgtTrack === trackNum ? "intra-track" : "cross-track"),
+                    similarity: e.similarity,
+                    score: score
                 };
             }
         }
-        var fallback = weightedCandidates[0];
-        var fallbackIndex = fallback.normalizedIndex;
-        var fallbackTrack = fallback.candidate.target_track || trackNum;
-        return {
-            track: fallbackTrack,
-            index: isNaN(fallbackIndex) ? 0 : fallbackIndex,
-            reason: fallback.candidate.reason || "fallback",
-            similarity: fallback.candidate.similarity
-        };
+        return best;
     }
 
 function updateHudForBeat(beat) {
@@ -7702,7 +7680,7 @@ function updateHudForBeat(beat) {
                 var isSequential = choice.track === currentTrack && choice.index === sequentialIndex;
                 if (!isSequential) {
                     if (choice.track !== currentTrack) {
-                        console.log("[Autoharmonizer] ★ CROSS-TRACK JUMP ★", choice);
+                        console.log("[Autoharmonizer] â˜… CROSS-TRACK JUMP â˜…", choice);
                         crossfadeToTrack(choice.track, choice.index, 520);
                         return;
                     } else {
