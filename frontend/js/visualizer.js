@@ -5792,6 +5792,7 @@ function createCanonDriver(player) {
     function process() {
         if (curQ >= masterQs.length) {
             // Check if loop is enabled - restart from beginning
+            console.log('[Canon Driver] End reached. window.harmonizerLoopEnabled =', window.harmonizerLoopEnabled, 'audio.loop =', (player.audio ? player.audio.loop : 'no audio'));
             if (window.harmonizerLoopEnabled) {
                 console.log('[Canon Driver] Loop enabled, restarting from beginning');
                 curQ = 0;
