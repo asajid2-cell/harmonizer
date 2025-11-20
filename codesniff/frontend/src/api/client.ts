@@ -62,6 +62,7 @@ export interface SearchRequest {
   limit?: number;
   min_similarity?: number;
   symbol_type?: string;
+  language_filter?: string[];
 }
 
 export interface IndexRequest {

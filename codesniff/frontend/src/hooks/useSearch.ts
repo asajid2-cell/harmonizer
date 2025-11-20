@@ -35,6 +35,7 @@ export const useSearch = (): UseSearchReturn => {
         limit: options?.limit || 20,
         min_similarity: options?.min_similarity || 0.0,
         symbol_type: options?.symbol_type,
+        language_filter: options?.language_filter,
       });
 
       setResults(response.results);

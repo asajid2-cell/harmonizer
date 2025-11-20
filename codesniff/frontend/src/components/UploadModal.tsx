@@ -349,7 +349,7 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
             {/* Footer */}
             <div className="p-6 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Supports Python, JavaScript/TypeScript, Java, and Kotlin files
+                Supports Python, JavaScript/TypeScript, Java, Kotlin, HTML, and CSS files
               </p>
               <div className="flex gap-3">
                 <button

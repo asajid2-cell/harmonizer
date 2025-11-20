@@ -27,6 +27,7 @@ class SearchRequest(BaseModel):
     min_similarity: float = Field(0.0, description="Minimum similarity score", ge=0.0, le=1.0)
     symbol_type: Optional[str] = Field(None, description="Filter by symbol type: function, class, or method")
     file_path_filter: Optional[str] = Field(None, description="Filter by file path substring (e.g., 'backend', 'frontend')")
+    language_filter: Optional[List[str]] = Field(None, description="Filter by programming languages (e.g., ['python', 'javascript'])")
 
     class Config:
         json_schema_extra = {
@@ -35,7 +36,8 @@ class SearchRequest(BaseModel):
                 "limit": 20,
                 "min_similarity": 0.0,
                 "symbol_type": None,
-                "file_path_filter": None
+                "file_path_filter": None,
+                "language_filter": None
             }
         }
 

@@ -202,7 +202,8 @@ async def search_code(request: SearchRequest):
             limit=request.limit,
             min_similarity=request.min_similarity,
             symbol_type=request.symbol_type,
-            file_path_filter=request.file_path_filter
+            file_path_filter=request.file_path_filter,
+            language_filter=request.language_filter
         )
 
         search_time_ms = (time.time() - start_time) * 1000

@@ -138,7 +138,8 @@ class SearchEngine:
         limit: int = 20,
         min_similarity: float = 0.0,
         symbol_type: Optional[str] = None,
-        file_path_filter: Optional[str] = None
+        file_path_filter: Optional[str] = None,
+        language_filter: Optional[List[str]] = None
     ) -> List[CodeSearchResult]:
         """
         Search for code using natural language query
@@ -149,12 +150,33 @@ class SearchEngine:
             min_similarity: Minimum similarity score (0-1)
             symbol_type: Optional filter by type ('function', 'class', 'method')
             file_path_filter: Optional filter by file path substring
+            language_filter: Optional filter by languages (e.g., ['python', 'javascript'])
 
         Returns:
             List of CodeSearchResult objects
         """
         start_time = time.time()
         logger.debug(f"Searching for: '{query}'")
+
+        # Build language to extensions mapping
+        language_extensions = {
+            'python': ['.py'],
+            'javascript': ['.js', '.jsx'],
+            'typescript': ['.ts', '.tsx'],
+            'java': ['.java'],
+            'kotlin': ['.kt'],
+            'html': ['.html', '.htm'],
+            'css': ['.css']
+        }
+
+        # If language filter is specified, collect allowed extensions
+        allowed_extensions = None
+        if language_filter:
+            allowed_extensions = set()
+            for lang in language_filter:
+                lang_lower = lang.lower()
+                if lang_lower in language_extensions:
+                    allowed_extensions.update(language_extensions[lang_lower])
 
         # Get text search results (BM25)
         text_results = self.text_search.search(query, limit=100)
@@ -233,6 +255,13 @@ class SearchEngine:
             # Filter by file path if specified
             if file_path_filter and file_path_filter.lower() not in file_path.lower():
                 continue
+
+            # Filter by language if specified
+            if allowed_extensions is not None:
+                import os
+                file_ext = os.path.splitext(file_path)[1].lower()
+                if file_ext not in allowed_extensions:
+                    continue
 
             # Get matched terms for highlighting
             matched_terms = text_matches.get(embedding_id, [])

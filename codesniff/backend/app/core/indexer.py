@@ -11,6 +11,7 @@ import numpy as np
 from .parser import CodeParser, ParsedFile, ParsedFunction, ParsedClass
 from .js_parser import JSParser, ParsedJSFile, ParsedJSFunction, ParsedJSClass
 from .java_parser import JavaParser, ParsedJavaFile, ParsedJavaFunction, ParsedJavaClass
+from .html_css_parser import HTMLCSSParser, ParsedHTMLCSSFile, ParsedHTMLElement, ParsedCSSRule
 from .embedder import CodeEmbedder
 from .text_search import TextSearchEngine
 from ..storage.vector_store import VectorStore
@@ -54,6 +55,7 @@ class Indexer:
         self.parser = parser or CodeParser()
         self.js_parser = JSParser()
         self.java_parser = JavaParser()
+        self.html_css_parser = HTMLCSSParser()
         self.embedder = embedder or CodeEmbedder()
         self.vector_store = vector_store or VectorStore()
         self.metadata_store = metadata_store or MetadataStore()
@@ -63,9 +65,10 @@ class Indexer:
         self.python_extensions = {'.py'}
         self.js_extensions = {'.js', '.jsx', '.ts', '.tsx'}
         self.java_extensions = {'.java', '.kt'}
-        self.all_extensions = self.python_extensions | self.js_extensions | self.java_extensions
+        self.html_css_extensions = {'.html', '.htm', '.css'}
+        self.all_extensions = self.python_extensions | self.js_extensions | self.java_extensions | self.html_css_extensions
 
-        logger.info("Indexer initialized with multi-language support (Python, JS/TS, Java, Kotlin)")
+        logger.info("Indexer initialized with multi-language support (Python, JS/TS, Java, Kotlin, HTML, CSS)")
 
     def index_directory(self, directory_path: str, show_progress: bool = True) -> IndexStats:
         """
@@ -189,6 +192,23 @@ class Indexer:
 
             # Extract symbols from Java/Kotlin file
             symbols_to_index = self._extract_java_symbols(parsed_file, stats)
+
+        elif file_ext in self.html_css_extensions:
+            parsed_file = self.html_css_parser.parse_file(file_path)
+            if not parsed_file:
+                logger.warning(f"Failed to parse HTML/CSS file {file_path}")
+                stats.files_failed = 1
+                return stats
+
+            # Add file to metadata store
+            file_id = self.metadata_store.add_file(
+                path=file_path,
+                total_lines=parsed_file.total_lines
+            )
+            stats.total_lines = parsed_file.total_lines
+
+            # Extract symbols from HTML/CSS file
+            symbols_to_index = self._extract_html_css_symbols(parsed_file, stats)
 
         else:
             logger.warning(f"Unsupported file type: {file_path}")
@@ -347,6 +367,46 @@ class Indexer:
                     'parent_class': cls.name
                 })
                 stats.methods_indexed += 1
+
+        return symbols_to_index
+
+    def _extract_html_css_symbols(self, parsed_file: ParsedHTMLCSSFile, stats: IndexStats) -> List[Dict]:
+        """Extract symbols from parsed HTML/CSS file"""
+        symbols_to_index = []
+
+        # Add HTML elements (templates, sections, etc.)
+        for element in parsed_file.elements:
+            # Create a compatible data object
+            element_data = type('HTMLElement', (), {
+                'name': element.name,
+                'code': element.code,
+                'start_line': element.start_line,
+                'end_line': element.end_line,
+                'docstring': None  # HTML elements don't have docstrings
+            })()
+
+            symbols_to_index.append({
+                'type': element.element_type,  # 'template', 'section', etc.
+                'data': element_data
+            })
+            stats.functions_indexed += 1  # Count elements as functions for stats
+
+        # Add CSS rules
+        for rule in parsed_file.css_rules:
+            # Create compatible rule data object
+            rule_data = type('CSSRule', (), {
+                'name': rule.selector,
+                'code': rule.code,
+                'start_line': rule.start_line,
+                'end_line': rule.end_line,
+                'docstring': None  # CSS rules don't have docstrings
+            })()
+
+            symbols_to_index.append({
+                'type': 'css_rule',
+                'data': rule_data
+            })
+            stats.functions_indexed += 1  # Count CSS rules as functions for stats
 
         return symbols_to_index
 

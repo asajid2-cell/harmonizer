@@ -2,7 +2,7 @@
  * CodeSniff Main Application
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, FolderOpen, Trash2, X, MessageCircle, Upload } from 'lucide-react';
 import SearchBar from './components/SearchBar';
@@ -29,12 +29,17 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
 
   const handleSearch = async (query: string) => {
     if (query.trim()) {
       setHasSearched(true);
       setSearchQuery(query);
-      await search(query, { limit: resultsLimit, min_similarity: 0.4 });
+      await search(query, {
+        limit: resultsLimit,
+        min_similarity: 0.4,
+        language_filter: selectedLanguages.length > 0 ? selectedLanguages : undefined
+      });
     } else {
       setHasSearched(false);
       setSearchQuery('');
@@ -90,6 +95,13 @@ function App() {
     refetchStats();
   };
 
+  // Re-search when language filter changes (if there's an active search)
+  useEffect(() => {
+    if (hasSearched && searchQuery.trim()) {
+      handleSearch(searchQuery);
+    }
+  }, [selectedLanguages]);
+
   return (
     <div className="min-h-screen bg-white dark:bg-[#0d1117]">
       {/* Content */}
@@ -131,6 +143,38 @@ function App() {
                         <option value={50}>50</option>
                         <option value={100}>100</option>
                       </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="language-filter" className="text-sm text-gray-600 dark:text-gray-400">
+                        Languages:
+                      </label>
+                      <select
+                        id="language-filter"
+                        multiple
+                        value={selectedLanguages}
+                        onChange={(e) => {
+                          const selected = Array.from(e.target.selectedOptions, option => option.value);
+                          setSelectedLanguages(selected);
+                        }}
+                        className="px-2 py-1 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        style={{ minWidth: '120px', height: 'auto' }}
+                      >
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="typescript">TypeScript</option>
+                        <option value="java">Java</option>
+                        <option value="kotlin">Kotlin</option>
+                        <option value="html">HTML</option>
+                        <option value="css">CSS</option>
+                      </select>
+                      {selectedLanguages.length > 0 && (
+                        <button
+                          onClick={() => setSelectedLanguages([])}
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
                     <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
                     <button

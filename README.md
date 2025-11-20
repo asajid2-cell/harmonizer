@@ -22,7 +22,7 @@ Semantic code search engine that finds functions and classes by meaning, not jus
 
 ### How It Works
 
-1. **Indexing**: Parses Python/JS/TS files using AST, extracts functions and classes with docstrings
+1. **Indexing**: Parses Python/JS/TS/Java/Kotlin/HTML/CSS files, extracts functions, classes, and CSS rules with metadata
 2. **Embedding**: CodeBERT converts each code symbol into a semantic vector
 3. **Storage**: Vectors stored in FAISS index for fast similarity search
 4. **Search**: Query text is embedded, FAISS finds nearest neighbors by cosine similarity
@@ -34,7 +34,7 @@ Semantic code search engine that finds functions and classes by meaning, not jus
 - **Vector dimensions**: 768-d embeddings from CodeBERT's `[CLS]` token
 - **Similarity threshold**: Default 0.3 minimum score, returns top 10 results
 - **File policies**: Ignores `node_modules/`, `__pycache__/`, `.git/`, `venv/`, and binary files
-- **Supported languages**: Python (`.py`), JavaScript (`.js`, `.jsx`), TypeScript (`.ts`, `.tsx`), Java (`.java`), Kotlin (`.kt`)
+- **Supported languages**: Python (`.py`), JavaScript (`.js`, `.jsx`), TypeScript (`.ts`, `.tsx`), Java (`.java`), Kotlin (`.kt`), HTML (`.html`, `.htm`), CSS (`.css`)
 
 ### API Endpoints
 
