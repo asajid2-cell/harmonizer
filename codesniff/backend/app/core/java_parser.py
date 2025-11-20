@@ -54,21 +54,23 @@ class JavaParser:
         """Initialize Java/Kotlin parser"""
         # Java method patterns
         self.java_method_patterns = [
-            # public/private/protected methods with return types
+            # public/private/protected methods with return types (with modifiers)
             r'^\s*(?:public|private|protected|static|final|native|synchronized|abstract|transient)+[\s\w<>,\[\]]*\s+(\w+)\s*\([^)]*\)\s*(?:throws\s+[\w,\s]+)?\s*\{',
+            # Methods without modifiers (package-private)
+            r'^\s*[\w<>,\[\]]+\s+(\w+)\s*\([^)]*\)\s*(?:throws\s+[\w,\s]+)?\s*\{',
         ]
 
         # Kotlin function patterns
         self.kotlin_function_patterns = [
-            # fun functionName(...): ReturnType {
-            r'^\s*(?:public|private|protected|internal|inline|suspend)?\s*fun\s+(\w+)\s*\([^)]*\)\s*(?::\s*[\w<>?,\s]+)?\s*[={]',
+            # fun functionName(...): ReturnType { or fun name() = expr
+            r'^\s*(?:public|private|protected|internal|inline|suspend|override)?\s*fun\s+(\w+)\s*\([^)]*\)\s*(?::\s*[\w<>?,\s]+)?\s*[={]',
         ]
 
         # Java class pattern
-        self.java_class_pattern = r'^\s*(?:public|private|protected|abstract|final)?\s*class\s+(\w+)(?:\s+extends\s+\w+)?(?:\s+implements\s+[\w,\s]+)?\s*\{'
+        self.java_class_pattern = r'^\s*(?:public|private|protected|abstract|final|static)?\s*class\s+(\w+)(?:\s+extends\s+[\w<>]+)?(?:\s+implements\s+[\w,\s<>]+)?\s*\{'
 
         # Kotlin class pattern
-        self.kotlin_class_pattern = r'^\s*(?:public|private|protected|internal|data|sealed|open|abstract)?\s*class\s+(\w+)(?:\s*\([^)]*\))?(?:\s*:\s*[\w,\s]+)?\s*\{'
+        self.kotlin_class_pattern = r'^\s*(?:public|private|protected|internal|data|sealed|open|abstract)?\s*(?:class|object)\s+(\w+)(?:\s*\([^)]*\))?(?:\s*:\s*[\w,\s<>()]+)?\s*\{'
 
         # Javadoc pattern
         self.javadoc_pattern = r'/\*\*\s*([\s\S]*?)\s*\*/'
@@ -156,10 +158,24 @@ class JavaParser:
         if not is_kotlin:
             return functions  # Java doesn't have top-level functions
 
+        # Find all class ranges to exclude methods from top-level functions
+        class_ranges = []
+        pattern = self.kotlin_class_pattern
+        for i, line in enumerate(lines):
+            match = re.search(pattern, line)
+            if match:
+                end_line = self._find_closing_brace(lines, i)
+                class_ranges.append((i, end_line))
+
         for pattern in self.kotlin_function_patterns:
             for i, line in enumerate(lines):
                 match = re.search(pattern, line)
                 if match:
+                    # Check if this function is inside a class
+                    is_inside_class = any(start <= i <= end for start, end in class_ranges)
+                    if is_inside_class:
+                        continue  # Skip methods inside classes
+
                     func_name = match.group(1)
 
                     # Find docstring above function
