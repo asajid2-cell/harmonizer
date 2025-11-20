@@ -27,12 +27,12 @@ const ParticleVeil = () => {
 
     let width = 0;
     let height = 0;
-    const particles: Particle[] = Array.from({ length: 26 }, () => ({
+    const particles: Particle[] = Array.from({ length: 15 }, () => ({
       x: Math.random(),
       y: Math.random(),
-      size: 0.3 + Math.random() * 1.4,
-      alpha: 0.15 + Math.random() * 0.4,
-      speed: 0.0008 + Math.random() * 0.0015,
+      size: 0.5 + Math.random() * 0.9,
+      alpha: 0.1 + Math.random() * 0.18,
+      speed: 0.0003 + Math.random() * 0.0009,
     }));
 
     const resize = () => {
@@ -59,19 +59,19 @@ const ParticleVeil = () => {
 
         const px = particle.x * width;
         const py = particle.y * height;
-        const gradient = ctx.createRadialGradient(px, py, 0, px, py, particle.size * 18);
+        const gradient = ctx.createRadialGradient(px, py, 0, px, py, particle.size * 14);
         gradient.addColorStop(0, `rgba(76, 201, 240, ${particle.alpha})`);
         gradient.addColorStop(1, 'rgba(8, 12, 20, 0)');
         ctx.beginPath();
         ctx.fillStyle = gradient;
-        ctx.arc(px, py, particle.size * 18, 0, Math.PI * 2);
+        ctx.arc(px, py, particle.size * 14, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = `rgba(63, 55, 201, ${particle.alpha * 0.45})`;
-        ctx.fillRect(px - 0.5, py + particle.size * 3, 1, particle.size * 32);
+        ctx.fillStyle = `rgba(63, 55, 201, ${particle.alpha * 0.25})`;
+        ctx.fillRect(px - 0.5, py + particle.size * 3, 1, particle.size * 22);
       });
 
-      ctx.strokeStyle = `${TRAIL_COLOR}12`;
+      ctx.strokeStyle = `${TRAIL_COLOR}06`;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(width * 0.38, 0);
@@ -79,7 +79,7 @@ const ParticleVeil = () => {
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.strokeStyle = `${FLUID_COLOR}10`;
+      ctx.strokeStyle = `${FLUID_COLOR}05`;
       ctx.moveTo(width * 0.6, 0);
       ctx.lineTo(width * 0.54, height);
       ctx.stroke();

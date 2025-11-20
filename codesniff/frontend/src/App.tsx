@@ -30,7 +30,7 @@ const HERO_EXAMPLES = [
 ];
 
 function App() {
-  const { results, isLoading, error, searchTime, search } = useSearch();
+  const { results, isLoading, error, searchTime, search, clear } = useSearch();
   const { stats, refresh: refetchStats } = useStats(true);
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
   const [isCodeViewerOpen, setIsCodeViewerOpen] = useState(false);
@@ -59,6 +59,7 @@ function App() {
     } else {
       setHasSearched(false);
       setSearchQuery('');
+      clear();
     }
   };
 
@@ -171,11 +172,6 @@ function App() {
               </button>
             </div>
             <div className="flex items-center gap-2">
-              {stats && (
-                <div className="hidden items-center rounded-lg border border-white/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-slate-400 lg:flex">
-                  {stats.total_symbols.toLocaleString()} symbols
-                </div>
-              )}
               <button
                 onClick={handleViewFiles}
                 disabled={isLoadingFiles}
