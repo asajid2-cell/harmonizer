@@ -10,6 +10,7 @@ import numpy as np
 
 from .parser import CodeParser, ParsedFile, ParsedFunction, ParsedClass
 from .js_parser import JSParser, ParsedJSFile, ParsedJSFunction, ParsedJSClass
+from .java_parser import JavaParser, ParsedJavaFile, ParsedJavaFunction, ParsedJavaClass
 from .embedder import CodeEmbedder
 from .text_search import TextSearchEngine
 from ..storage.vector_store import VectorStore
@@ -52,6 +53,7 @@ class Indexer:
         """
         self.parser = parser or CodeParser()
         self.js_parser = JSParser()
+        self.java_parser = JavaParser()
         self.embedder = embedder or CodeEmbedder()
         self.vector_store = vector_store or VectorStore()
         self.metadata_store = metadata_store or MetadataStore()
@@ -60,9 +62,10 @@ class Indexer:
         # Supported file extensions
         self.python_extensions = {'.py'}
         self.js_extensions = {'.js', '.jsx', '.ts', '.tsx'}
-        self.all_extensions = self.python_extensions | self.js_extensions
+        self.java_extensions = {'.java', '.kt'}
+        self.all_extensions = self.python_extensions | self.js_extensions | self.java_extensions
 
-        logger.info("Indexer initialized with multi-language support")
+        logger.info("Indexer initialized with multi-language support (Python, JS/TS, Java, Kotlin)")
 
     def index_directory(self, directory_path: str, show_progress: bool = True) -> IndexStats:
         """
@@ -124,7 +127,7 @@ class Indexer:
 
     def index_file(self, file_path: str) -> IndexStats:
         """
-        Index a single code file (Python or JavaScript/TypeScript)
+        Index a single code file (Python, JavaScript/TypeScript, Java, or Kotlin)
 
         Args:
             file_path: Path to code file
@@ -169,6 +172,24 @@ class Indexer:
 
             # Extract symbols from JS/TS file
             symbols_to_index = self._extract_js_symbols(parsed_file, stats)
+
+        elif file_ext in self.java_extensions:
+            parsed_file = self.java_parser.parse_file(file_path)
+            if not parsed_file:
+                logger.warning(f"Failed to parse Java/Kotlin file {file_path}")
+                stats.files_failed = 1
+                return stats
+
+            # Add file to metadata store
+            file_id = self.metadata_store.add_file(
+                path=file_path,
+                total_lines=parsed_file.total_lines
+            )
+            stats.total_lines = parsed_file.total_lines
+
+            # Extract symbols from Java/Kotlin file
+            symbols_to_index = self._extract_java_symbols(parsed_file, stats)
+
         else:
             logger.warning(f"Unsupported file type: {file_path}")
             stats.files_failed = 1
@@ -256,6 +277,63 @@ class Indexer:
             # Add methods
             for method in cls.methods:
                 method_data = type('JSMethod', (), {
+                    'name': method.name,
+                    'code': method.code,
+                    'start_line': method.start_line,
+                    'end_line': method.end_line,
+                    'docstring': method.docstring
+                })()
+
+                symbols_to_index.append({
+                    'type': 'method',
+                    'data': method_data,
+                    'parent_class': cls.name
+                })
+                stats.methods_indexed += 1
+
+        return symbols_to_index
+
+    def _extract_java_symbols(self, parsed_file: ParsedJavaFile, stats: IndexStats) -> List[Dict]:
+        """Extract symbols from parsed Java/Kotlin file"""
+        symbols_to_index = []
+
+        # Add top-level functions (mainly for Kotlin)
+        for func in parsed_file.functions:
+            # Create a compatible data object
+            func_data = type('JavaFunction', (), {
+                'name': func.name,
+                'code': func.code,
+                'start_line': func.start_line,
+                'end_line': func.end_line,
+                'docstring': func.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'function',
+                'data': func_data
+            })
+            stats.functions_indexed += 1
+
+        # Add classes and their methods
+        for cls in parsed_file.classes:
+            # Create compatible class data object
+            cls_data = type('JavaClass', (), {
+                'name': cls.name,
+                'code': cls.code,
+                'start_line': cls.start_line,
+                'end_line': cls.end_line,
+                'docstring': cls.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'class',
+                'data': cls_data
+            })
+            stats.classes_indexed += 1
+
+            # Add methods
+            for method in cls.methods:
+                method_data = type('JavaMethod', (), {
                     'name': method.name,
                     'code': method.code,
                     'start_line': method.start_line,

@@ -29,12 +29,12 @@ Semantic code search engine that finds functions and classes by meaning, not jus
 
 ### Technical Details
 
-- **Symbol extraction**: Uses Python `ast` module and JS/TS parsers to extract function/class definitions
+- **Symbol extraction**: Uses Python `ast` module and regex-based parsers to extract function/class definitions
 - **Chunking**: Each symbol (function, method, class) becomes one indexed unit with metadata (file path, line numbers, docstring)
 - **Vector dimensions**: 768-d embeddings from CodeBERT's `[CLS]` token
 - **Similarity threshold**: Default 0.3 minimum score, returns top 10 results
 - **File policies**: Ignores `node_modules/`, `__pycache__/`, `.git/`, `venv/`, and binary files
-- **Supported languages**: Python (`.py`), JavaScript (`.js`, `.jsx`), TypeScript (`.ts`, `.tsx`)
+- **Supported languages**: Python (`.py`), JavaScript (`.js`, `.jsx`), TypeScript (`.ts`, `.tsx`), Java (`.java`), Kotlin (`.kt`)
 
 ### API Endpoints
 
