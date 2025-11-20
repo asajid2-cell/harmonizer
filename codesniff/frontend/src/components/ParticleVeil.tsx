@@ -24,7 +24,7 @@ const ParticleVeil = () => {
     if (!ctx) {
       return;
     }
-
+    /* particle veil animation */
     let width = 0;
     let height = 0;
     const particles: Particle[] = Array.from({ length: 15 }, () => ({
