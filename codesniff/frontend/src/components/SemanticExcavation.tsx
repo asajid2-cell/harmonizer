@@ -10,30 +10,30 @@ type Node = {
 };
 
 const NODES: Node[] = [
-  { id: 'query', x: 14, y: 24, meta: 'input()', active: true },
-  { id: 'intent', x: 32, y: 34, meta: 'fn()', active: true },
-  { id: 'graph', x: 50, y: 40, meta: 'AST', active: true },
-  { id: 'resolver', x: 66, y: 52, meta: '{}', active: true },
-  { id: 'guard', x: 81, y: 64, meta: 'auth', active: true },
-  { id: 'emit', x: 92, y: 78, meta: 'lock', active: true },
-  { id: 'noise-1', x: 26, y: 58, meta: 'cache' },
-  { id: 'noise-2', x: 43, y: 74, meta: 'batch' },
-  { id: 'noise-3', x: 60, y: 22, meta: 'index' },
-  { id: 'noise-4', x: 72, y: 34, meta: 'rpc' },
-  { id: 'noise-5', x: 87, y: 44, meta: 'token' },
+  { id: 'query', x: 16, y: 32, meta: 'query()', active: true },
+  { id: 'parse', x: 32, y: 38, meta: 'parse()', active: true },
+  { id: 'embed', x: 50, y: 42, meta: 'embed()', active: true },
+  { id: 'rank', x: 66, y: 50, meta: 'rank()', active: true },
+  { id: 'scope', x: 78, y: 60, meta: 'scope()', active: true },
+  { id: 'authz', x: 88, y: 72, meta: 'auth()', active: true },
+  { id: 'cache', x: 28, y: 58, meta: 'cache' },
+  { id: 'hydration', x: 46, y: 68, meta: 'hydrate' },
+  { id: 'rpc', x: 72, y: 32, meta: 'rpc' },
+  { id: 'audit', x: 60, y: 24, meta: 'audit' },
+  { id: 'token', x: 92, y: 52, meta: 'token' },
 ];
 
 const CONNECTIONS: Array<[string, string]> = [
-  ['query', 'intent'],
-  ['intent', 'graph'],
-  ['graph', 'resolver'],
-  ['resolver', 'guard'],
-  ['guard', 'emit'],
-  ['noise-1', 'graph'],
-  ['noise-2', 'resolver'],
-  ['noise-3', 'intent'],
-  ['noise-4', 'graph'],
-  ['noise-5', 'guard'],
+  ['query', 'parse'],
+  ['parse', 'embed'],
+  ['embed', 'rank'],
+  ['rank', 'scope'],
+  ['scope', 'authz'],
+  ['cache', 'embed'],
+  ['hydration', 'rank'],
+  ['rpc', 'rank'],
+  ['audit', 'embed'],
+  ['token', 'authz'],
 ];
 
 interface SemanticExcavationProps {
@@ -41,6 +41,17 @@ interface SemanticExcavationProps {
 }
 
 const SemanticExcavation = ({ className }: SemanticExcavationProps) => {
+  const formatLabel = (meta?: string) => {
+    if (!meta) {
+      return '';
+    }
+    const cleaned = meta.trim();
+    if (!cleaned || /^[^a-zA-Z0-9]+$/.test(cleaned)) {
+      return 'anon()';
+    }
+    return cleaned;
+  };
+
   const lookup = NODES.reduce<Record<string, Node>>((acc, node) => {
     acc[node.id] = node;
     return acc;
@@ -95,15 +106,21 @@ const SemanticExcavation = ({ className }: SemanticExcavationProps) => {
             ))}
           </svg>
           <div className="vector-plane__labels">
-            {NODES.filter((node) => node.meta).map((node) => (
-              <span
-                key={`label-${node.id}`}
-                className={`vector-plane__label${node.active ? ' vector-plane__label--active' : ''}`}
-                style={{ left: `${node.x}%`, top: `${node.y}%` }}
-              >
-                {node.meta}
-              </span>
-            ))}
+            {NODES.map((node) => {
+              const label = formatLabel(node.meta);
+              if (!label) {
+                return null;
+              }
+              return (
+                <span
+                  key={`label-${node.id}`}
+                  className={`vector-plane__label${node.active ? ' vector-plane__label--active' : ''}`}
+                  style={{ left: `${node.x}%`, top: `${node.y}%` }}
+                >
+                  {label}
+                </span>
+              );
+            })}
           </div>
           <div className="vector-plane__blur" />
         </div>

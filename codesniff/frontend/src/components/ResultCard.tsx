@@ -46,7 +46,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onViewCode }) =>
               <h3 className="text-base font-semibold text-white truncate">
                 {result.symbol_name}
               </h3>
-              <p className="text-sm text-slate-400 truncate font-mono">
+              <p className="text-sm text-slate-400 truncate font-mono" title={result.file_path}>
                 {result.file_path}:{result.start_line}
               </p>
             </div>

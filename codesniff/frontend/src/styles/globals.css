@@ -362,26 +362,30 @@ body {
   fill: #aee1ff;
   stroke: rgba(93, 172, 255, 0.8);
   stroke-width: 0.5;
-  filter: drop-shadow(0 0 10px rgba(86, 160, 255, 0.85));
+  filter: drop-shadow(0 0 10px rgba(86, 160, 255, 0.85)) drop-shadow(0 0 22px rgba(60, 120, 210, 0.55));
 }
 
 .vector-plane__labels {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 2;
 }
 
 .vector-plane__label {
   position: absolute;
-  transform: translate(-50%, -50%);
-  font-size: 0.55rem;
-  letter-spacing: 0.2em;
+  transform: translate(-10%, 130%);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(160, 176, 210, 0.4);
+  color: rgba(215, 234, 255, 0.9);
+  text-shadow: 0 0 10px rgba(120, 180, 255, 0.55);
+  white-space: nowrap;
 }
 
 .vector-plane__label--active {
-  color: rgba(143, 212, 255, 0.9);
+  color: rgba(180, 225, 255, 1);
+  text-shadow: 0 0 14px rgba(120, 190, 255, 0.8);
 }
 
 .vector-plane__code {
