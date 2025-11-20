@@ -19,7 +19,7 @@ import { useStats } from './hooks/useStats';
 import { SearchResult, IndexedFile, apiClient } from './api/client';
 
 const HERO_EXAMPLES = [
-  { label: 'Find functions that parse JSON', query: 'functions that parse JSON', featured: true },
+  { label: 'Find functions that parse JSON', query: 'functions that parse JSON' },
   { label: 'Trace async data loaders', query: 'async functions that fetch data' },
   { label: 'Locate authentication middleware', query: 'authentication middleware' },
   { label: 'Search rate limiting logic', query: 'rate limiting logic' },
@@ -161,7 +161,7 @@ function App() {
                 onClick={() => window.location.reload()}
                 className="flex items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-base font-bold text-gray-900 shadow-[0_8px_24px_rgba(255,255,255,0.3)]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-base font-bold text-gray-900">
                   CS
                 </div>
                 <div>
@@ -228,6 +228,7 @@ function App() {
                     externalQuery={searchQuery}
                     onQueryChange={setSearchQuery}
                     placeholder="Search by behavior, e.g., 'validate email addresses'..."
+                    debounceMs={800}
                   />
                 </div>
 
@@ -239,7 +240,7 @@ function App() {
                         key={example.label}
                         type="button"
                         onClick={() => handleExampleSearch(example.query)}
-                        className={`chip-suggestion px-5 py-3 ${example.featured ? 'is-active' : ''}`}
+                        className={`chip-suggestion px-5 py-3 ${searchQuery === example.query ? 'is-active' : ''}`}
                       >
                         {example.label}
                       </button>

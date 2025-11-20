@@ -108,6 +108,7 @@ class APIClient {
       limit: request.limit || 20,
       min_similarity: request.min_similarity || 0.0,
       symbol_type: request.symbol_type,
+      language_filter: request.language_filter,
     });
     return response.data;
   }

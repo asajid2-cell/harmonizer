@@ -178,6 +178,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 placeholder={placeholder}
                 className="h-16 w-full bg-transparent text-lg text-slate-50 placeholder:text-transparent caret-blue-400 focus:outline-none"
                 disabled={isLoading}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
               />
               {!query && (
                 <div className="typing-placeholder" aria-hidden="true">

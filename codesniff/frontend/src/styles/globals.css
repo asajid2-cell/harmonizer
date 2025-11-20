@@ -139,11 +139,27 @@ body {
   content: '';
   position: absolute;
   inset: -2px;
-  border-radius: inherit;
-  background: conic-gradient(from 250deg, rgba(140, 185, 255, 0.75), rgba(9, 12, 20, 0) 65%);
-  opacity: 0.4;
+  border-radius: 18px;
+  padding: 2px;
+  background: linear-gradient(135deg, rgba(140, 185, 255, 0.7), rgba(80, 140, 255, 0.9), rgba(140, 185, 255, 0.7));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
   pointer-events: none;
-  mix-blend-mode: screen;
+  z-index: -1;
+  clip-path: polygon(50% 100%, 50% 100%, 50% 100%, 50% 100%);
+  transition: opacity 0.0s ease;
+}
+
+.search-shell:has(.search-field.is-focused)::before {
+  opacity: 1;
+  animation: border-expand 0.15s linear forwards;
 }
 
 .search-field {
@@ -229,7 +245,7 @@ body {
   right: 18%;
   bottom: -28px;
   height: 65px;
-  background: radial-gradient(circle at 50% 0%, rgba(62, 126, 255, 0.5), transparent 72%);
+  background: radial-gradient(circle at 50% 0%, rgba(62, 126, 255, 0.5), transparent 10%);
   filter: blur(26px);
   opacity: 0;
   transition: opacity 0.35s ease;
@@ -799,5 +815,44 @@ body {
   }
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes border-expand {
+  0% {
+    clip-path: polygon(50% 100%, 50% 100%, 50% 100%, 50% 100%);
+  }
+  10% {
+    clip-path: polygon(0% 100%, 100% 100%, 100% 100%, 0% 100%);
+  }
+  19% {
+    clip-path: polygon(0% 100%, 100% 100%, 100% 90%, 0% 90%);
+  }
+  28% {
+    clip-path: polygon(0% 100%, 100% 100%, 100% 80%, 0% 80%);
+  }
+  37% {
+    clip-path: polygon(0% 100%, 100% 100%, 100% 70%, 0% 70%);
+  }
+  46% {
+    clip-path: polygon(0% 100%, 100% 100%, 100% 60%, 0% 60%);
+  }
+  55% {
+    clip-path: polygon(0% 100%, 100% 100%, 100% 50%, 0% 50%);
+  }
+  64% {
+    clip-path: polygon(0% 100%, 100% 100%, 100% 40%, 0% 40%);
+  }
+  73% {
+    clip-path: polygon(0% 100%, 100% 100%, 100% 30%, 0% 30%);
+  }
+  82% {
+    clip-path: polygon(0% 100%, 100% 100%, 100% 20%, 0% 20%);
+  }
+  91% {
+    clip-path: polygon(0% 100%, 100% 100%, 100% 10%, 0% 10%);
+  }
+  100% {
+    clip-path: polygon(0% 100%, 100% 100%, 100% 0%, 0% 0%);
   }
 }
