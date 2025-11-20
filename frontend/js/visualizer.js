@@ -2911,7 +2911,7 @@ function allReady() {
         masterQs = curTrack.analysis.beats || [];
     }
     if (!masterQs.length) {
-        console.warn("[allReady] No beats available for mode:", mode, "â€“ falling back to track analysis beats");
+        console.warn("[allReady] No beats available for mode:", mode, "Ã¢â‚¬â€œ falling back to track analysis beats");
         masterQs = curTrack.analysis.beats || [];
     }
     if (!masterQs.length) {
@@ -4244,9 +4244,9 @@ $(document).ready(function() {
         $("#queue-container").toggleClass("minimized");
         var minimizeBtn = $("#queue-minimize-btn");
         if ($("#queue-container").hasClass("minimized")) {
-            minimizeBtn.html("â–¡");
+            minimizeBtn.html("Ã¢â€“Â¡");
         } else {
-            minimizeBtn.html("âˆ’");
+            minimizeBtn.html("Ã¢Ë†â€™");
         }
     });
 
@@ -4266,7 +4266,7 @@ $(document).ready(function() {
         $("#queue-container").hide();
         // Remove minimized class when closing
         $("#queue-container").removeClass("minimized");
-        $("#queue-minimize-btn").html("âˆ’");
+        $("#queue-minimize-btn").html("Ã¢Ë†â€™");
     });
 
     // Make queue window draggable
@@ -4984,7 +4984,7 @@ function createAutoharmonizerTiles(qlist) {
     var track1Beats = autoharmonizerData.track1 && autoharmonizerData.track1.beats ? autoharmonizerData.track1.beats : [];
     var track2Beats = autoharmonizerData.track2 && autoharmonizerData.track2.beats ? autoharmonizerData.track2.beats : [];
     if (!track1Beats.length || !track2Beats.length) {
-        console.warn("[Viz] Autoharmonizer beats missing â€“ reverting to circular view", {
+        console.warn("[Viz] Autoharmonizer beats missing Ã¢â‚¬â€œ reverting to circular view", {
             track1Beats: track1Beats.length,
             track2Beats: track2Beats.length
         });
@@ -5982,7 +5982,7 @@ function createCanonDriver(player) {
                     var si = align.start_index;
                     var duration = trackDuration || (masterQs && masterQs.length ? masterQs[masterQs.length - 1].start + masterQs[masterQs.length - 1].duration : 0);
                     var beats = masterQs || [];
-                    // clamp recommended start if itÎ“Ã‡Ã–s too deep into the song
+                    // clamp recommended start if itÃŽâ€œÃƒâ€¡Ãƒâ€“s too deep into the song
                     var maxStartTime = Math.min(45, duration * 0.25);
                     if (typeof si === "number" && si >= 0 && si < beats.length) {
                         var siTime = beats[si].start || 0;
@@ -6336,7 +6336,7 @@ function createJukeboxDriver(player, options) {
         }
         sectionBias = num;
         recalcLoopWeightParams();
-        console.log('[updateSectionBias]', num, 'â†’ sameSectionBonus:', sameSectionBonusBase.toFixed(3), 'crossSectionBonus:', crossSectionBonusBase.toFixed(3));
+        console.log('[updateSectionBias]', num, 'Ã¢â€ â€™ sameSectionBonus:', sameSectionBonusBase.toFixed(3), 'crossSectionBonus:', crossSectionBonusBase.toFixed(3));
         if (!opts || opts.skipReschedule !== true) {
             scheduleNextJump(true);
         }
@@ -6354,7 +6354,7 @@ function createJukeboxDriver(player, options) {
         }
         jumpVariance = num;
         recalcLoopWeightParams();
-        console.log('[updateJumpVariance]', num, 'â†’ weightJitter:', weightJitterStrength.toFixed(3), 'spanScale:', spanScaleBase.toFixed(3));
+        console.log('[updateJumpVariance]', num, 'Ã¢â€ â€™ weightJitter:', weightJitterStrength.toFixed(3), 'spanScale:', spanScaleBase.toFixed(3));
         if (!opts || opts.skipReschedule !== true) {
             scheduleNextJump(true);
         }
@@ -6815,7 +6815,7 @@ function createJukeboxDriver(player, options) {
 
         retreatPoint = bestRetreat;
         if (retreatPoint) {
-            console.log('[findRetreatPoint] Found retreat anchor:', retreatPoint.source, 'â†’', retreatPoint.target,
+            console.log('[findRetreatPoint] Found retreat anchor:', retreatPoint.source, 'Ã¢â€ â€™', retreatPoint.target,
                         'similarity:', retreatPoint.similarity.toFixed(3), '| This prevents end-zone loops');
         } else {
             console.log('[findRetreatPoint] No suitable retreat point found - may loop at end');
@@ -6974,13 +6974,13 @@ function createJukeboxDriver(player, options) {
             // This prevents getting stuck looping the last 30 seconds
             if (inEndZone && edge.target < startZoneEnd) {
                 weight *= 2.5; // Strongly prefer going back to start
-                console.log('[selectJumpCandidate] END ZONE: Boosting jump to beginning:', edge.source, 'â†’', edge.target, 'weight boosted');
+                console.log('[selectJumpCandidate] END ZONE: Boosting jump to beginning:', edge.source, 'Ã¢â€ â€™', edge.target, 'weight boosted');
             }
 
             // Strong penalty for staying in end zone when in end zone
             if (inEndZone && edge.target >= endZoneStart) {
                 weight *= 0.3; // Heavily discourage staying in end zone
-                console.log('[selectJumpCandidate] END ZONE: Penalizing end-zone loop:', edge.source, 'â†’', edge.target);
+                console.log('[selectJumpCandidate] END ZONE: Penalizing end-zone loop:', edge.source, 'Ã¢â€ â€™', edge.target);
             }
 
             var targetSection = null;
@@ -7046,7 +7046,7 @@ function createJukeboxDriver(player, options) {
             selectedIdx = filtered.length - 1;
         }
         var selected = filtered[selectedIdx];
-        console.log('[selectJumpCandidate] Beat', src, 'â†’', selected.target, '| Candidates:', filtered.length,
+        console.log('[selectJumpCandidate] Beat', src, 'Ã¢â€ â€™', selected.target, '| Candidates:', filtered.length,
                     '(same-section:', sameSectionCount, 'cross-section:', crossSectionCount + ')',
                     '| Selected weight:', weights[selectedIdx].toFixed(3), '| sameSection:', selected.sameSection);
         return selected;
@@ -7074,7 +7074,7 @@ function createJukeboxDriver(player, options) {
         if (inEndZone && retreatPoint && currentIndex >= retreatPoint.source - 4) {
             // Force a retreat when we're very close to or past the retreat source point
             if (currentIndex >= retreatPoint.source || beatsUntilJump <= 2) {
-                console.log('[advanceIndex] Using retreat point:', currentIndex, 'â†’', retreatPoint.target);
+                console.log('[advanceIndex] Using retreat point:', currentIndex, 'Ã¢â€ â€™', retreatPoint.target);
                 var retreatSourceIndex = currentIndex;
                 loopHistory.push({ source: currentIndex, target: retreatPoint.target });
                 if (loopHistory.length > LOOP_HISTORY_LIMIT) {
@@ -7306,7 +7306,7 @@ function createAutoharmonizerDriver(player) {
 
     var autoharmonizerData = curTrack && curTrack.analysis && curTrack.analysis.autoharmonizer;
     if (!autoharmonizerData) {
-        console.warn("[Autoharmonizer] Autoharmonizer data missing â€“ falling back to canon driver");
+        console.warn("[Autoharmonizer] Autoharmonizer data missing Ã¢â‚¬â€œ falling back to canon driver");
         return createCanonDriver(player);
     }
 
@@ -7654,45 +7654,31 @@ function updateHudForBeat(beat) {
         syncControllerToBeat(getControllerForTrack(currentTrack), currentBeat);
         updateHudForBeat(currentBeat);
 
-        var beatDuration = Math.max(currentBeat.duration || 0.25, 0.15);
-        var crossPressure = beatsSinceCross >= FORCE_CROSS_AFTER;
-        // Aggressive jump probability: starts at 40%, increases by 12% per beat after minimum
-        var jumpChance = Math.min(0.9, 0.4 + Math.max(0, beatsSinceCross - MIN_BEATS_BEFORE_CROSS) * 0.12);
-        var roll = Math.random();
-        var shouldJump = crossPressure || (beatsSinceCross >= MIN_BEATS_BEFORE_CROSS && roll < jumpChance);
+                var beatDuration = Math.max(currentBeat.duration || 0.25, 0.15);
+        var forceCross = beatsSinceCross >= FORCE_CROSS_AFTER;
+        var preferCross = forceCross || beatsSinceCross >= crossMinBeats;
+        var choice = selectBestEdge(curQ, currentTrack, { preferCross: preferCross });
 
-        if (beatsSinceCross % 3 === 0 || crossPressure) {
-            console.log("[Autoharmonizer] Jump decision at beat", curQ, "on Track", currentTrack, {
-                beatsSinceCross: beatsSinceCross,
-                crossPressure: crossPressure,
-                jumpChance: jumpChance.toFixed(2),
-                roll: roll.toFixed(2),
-                shouldJump: shouldJump
-            });
-        }
-
-        if (shouldJump) {
-        var preferCross = crossPressure || beatsSinceCross >= MIN_BEATS_BEFORE_CROSS;
-            var choice = selectNextBeat(curQ, currentTrack, { preferCross: preferCross });
+        if (choice) {
             var beatsForTrack = getBeatsForTrack(choice.track);
-            if (choice && beatsForTrack && beatsForTrack.length) {
-                var sequentialIndex = (choice.track === currentTrack) ? ((curQ + 1) % beats.length) : null;
-                var isSequential = choice.track === currentTrack && choice.index === sequentialIndex;
-                if (!isSequential) {
-                    if (choice.track !== currentTrack) {
-                        console.log("[Autoharmonizer] â˜… CROSS-TRACK JUMP â˜…", choice);
-                        crossfadeToTrack(choice.track, choice.index, 520);
-                        return;
-                    } else {
-                        console.log("[Autoharmonizer] Intra-track jump", choice);
-                        curQ = choice.index % beatsForTrack.length;
-                        syncControllerToBeat(getControllerForTrack(currentTrack), beatsForTrack[curQ], { forceSeek: true });
-                        markCrossTarget(choice.track, curQ);
-                        scheduleNextProcess(Math.max(beatsForTrack[curQ].duration || beatDuration, 0.2));
-                        beatsSinceCross++;
-                        return;
-                    }
+            var isSameTrack = choice.track === currentTrack;
+            if (isSameTrack) {
+                curQ = choice.index % beatsForTrack.length;
+                syncControllerToBeat(getControllerForTrack(currentTrack), beatsForTrack[curQ], { forceSeek: true });
+                markRecent(choice.track, curQ);
+                markCrossTarget(choice.track, curQ);
+                beatsSinceCross++;
+                if (window.__autohLog) {
+                    window.__autohLog.push({ type: "jump", track: currentTrack, target: curQ, reason: choice.reason, score: choice.score, t: Date.now() });
                 }
+                scheduleNextProcess(Math.max(beatsForTrack[curQ].duration || beatDuration, 0.2));
+                return;
+            } else {
+                if (window.__autohLog) {
+                    window.__autohLog.push({ type: "cross", from: currentTrack, to: choice.track, target: choice.index, score: choice.score, t: Date.now() });
+                }
+                crossfadeToTrack(choice.track, choice.index, 480);
+                return;
             }
         }
 
@@ -7700,8 +7686,8 @@ function updateHudForBeat(beat) {
         curQ = (curQ + 1) % beats.length;
         beatsSinceCross++;
 
-        if (curQ === 0) {
-            console.log("[Autoharmonizer] Wrapped around to beat 0 on Track", currentTrack, "- continuing loop");
+        if (window.__autohLog) {
+            window.__autohLog.push({ type: "sequential", track: currentTrack, target: curQ, t: Date.now() });
         }
 
         scheduleNextProcess(beatDuration);

@@ -1710,7 +1710,7 @@ def build_autoharmonizer_profile(
         },
         cross_similarity=cross_similarity,
         silence_db=silence_db,
-        similarity_threshold=0.55,
+        similarity_threshold=0.45,
     )
 
     # Build combined profile

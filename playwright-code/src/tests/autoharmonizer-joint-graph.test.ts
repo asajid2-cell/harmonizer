@@ -1,10 +1,11 @@
 import { chromium, ConsoleMessage } from 'playwright';
 
 // Uses combined track from existing fixtures
-const TRACK_ID = 'TR03F47BFFE7+TRE17840B6AC';
+const TRACK_ID = 'TRSZA_F2F_001+TRBEA_APPLECIDER_001';
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  // Headed run so we can see the window while it plays
+  const browser = await chromium.launch({ headless: false, slowMo: 100 });
   const page = await browser.newPage();
 
   const consoleLog: string[] = [];
@@ -24,8 +25,8 @@ const TRACK_ID = 'TR03F47BFFE7+TRE17840B6AC';
     // Start playback
     await page.click('#play');
 
-    // Run for ~25 seconds to collect jump log
-    await page.waitForTimeout(25000);
+    // Run for ~60 seconds to observe jump behavior
+    await page.waitForTimeout(60000);
 
     const report = await page.evaluate(() => {
       const win: any = window;
