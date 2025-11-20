@@ -602,9 +602,21 @@ _load_audio_cache()
 @app.after_request
 def add_performance_headers(response):
     """Add caching headers for better mobile performance"""
-    # Cache static assets aggressively
-    if request.path.startswith(('/css/', '/js/', '/img/', '/media/', '/assets/')):
+    # NO CACHE for HTML/JS/CSS to ensure users get updates
+    if request.path.endswith(('.html', '.htm', '.js', '.css')):
+        response.cache_control.max_age = 0
+        response.cache_control.no_cache = True
+        response.cache_control.no_store = True
+        response.cache_control.must_revalidate = True
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    # Cache audio/images/fonts aggressively (these don't change)
+    elif request.path.startswith('/media/') or request.path.endswith(('.mp3', '.wav', '.flac', '.ogg', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.woff', '.woff2', '.ttf')):
         response.cache_control.max_age = 31536000  # 1 year
+        response.cache_control.public = True
+    # Cache other static assets for a day
+    elif request.path.startswith(('/img/', '/assets/')):
+        response.cache_control.max_age = 86400  # 1 day
         response.cache_control.public = True
     # Cache API responses briefly
     elif request.path.startswith('/api/'):
