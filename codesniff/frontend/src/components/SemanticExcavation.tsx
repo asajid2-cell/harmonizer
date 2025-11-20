@@ -9,7 +9,15 @@ type GraphNode = {
   type: 'auth' | 'db' | 'ui' | 'core';
 };
 
-const SemanticExcavation = ({ className }: { className?: string }) => {
+interface SemanticExcavationProps {
+  className?: string;
+  stats?: {
+    total_symbols: number;
+    vector_count: number;
+  } | null;
+}
+
+const SemanticExcavation = ({ className, stats }: SemanticExcavationProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number>();
 
@@ -158,11 +166,11 @@ const SemanticExcavation = ({ className }: { className?: string }) => {
         <div className="neural-card__stats">
           <div>
             <p>Indexed Symbols</p>
-            <strong>3,391</strong>
+            <strong>{stats?.total_symbols ? stats.total_symbols.toLocaleString() : 'No data'}</strong>
           </div>
           <div>
             <p>Vector Space</p>
-            <strong>285 dims</strong>
+            <strong>{stats?.vector_count ? `${stats.vector_count.toLocaleString()} vectors` : 'No data'}</strong>
           </div>
         </div>
       </div>

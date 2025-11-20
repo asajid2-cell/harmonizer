@@ -208,7 +208,7 @@ function App() {
 
         <main className="flex-1">
           <section className="hero-stage relative px-6 pb-12 pt-12 lg:pt-20">
-            <SemanticExcavation className="hero-stage__visual" />
+            <SemanticExcavation className="hero-stage__visual" stats={stats} />
             <div className="hero-stage__inner mx-auto max-w-6xl">
               <div className="hero-stage__copy">
                 <h1 className="mt-4 text-4xl font-semibold leading-tight text-white sm:text-5xl">
