@@ -189,12 +189,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="absolute right-14 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 transition hover:bg-white/5 hover:text-white"
+                  className="absolute right-20 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-white"
                 >
                   <X className="h-4 w-4" />
                 </button>
               )}
-              <span className="shortcut-hint">⌘ K</span>
+              <span className="shortcut-hint">Ctrl K</span>
             </div>
           </div>
         </form>

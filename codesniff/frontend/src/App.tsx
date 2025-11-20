@@ -19,14 +19,14 @@ import { useStats } from './hooks/useStats';
 import { SearchResult, IndexedFile, apiClient } from './api/client';
 
 const HERO_EXAMPLES = [
-  { label: 'Find functions that parse JSON', query: 'functions that parse JSON', offset: 'lg:-translate-y-3', featured: true },
-  { label: 'Trace async data loaders', query: 'async functions that fetch data', offset: 'lg:-translate-y-1' },
-  { label: 'Locate auth middleware', query: 'authentication middleware', offset: 'lg:translate-y-2' },
-  { label: 'Search rate limiter logic', query: 'rate limiting logic', offset: 'lg:-translate-y-1' },
-  { label: 'Inspect pagination helpers', query: 'pagination helpers', offset: 'lg:translate-y-1' },
-  { label: 'Peek at JWT issuers', query: 'JWT token generation', offset: 'lg:-translate-y-2' },
-  { label: 'Normalize file upload flows', query: 'code that handles file uploads', offset: 'lg:translate-y-3' },
-  { label: 'Map Postgres connectors', query: 'code that connects to postgres', offset: 'lg:-translate-y-1' },
+  { label: 'Find functions that parse JSON', query: 'functions that parse JSON', featured: true },
+  { label: 'Trace async data loaders', query: 'async functions that fetch data' },
+  { label: 'Locate authentication middleware', query: 'authentication middleware' },
+  { label: 'Search rate limiting logic', query: 'rate limiting logic' },
+  { label: 'Inspect pagination helpers', query: 'pagination helpers' },
+  { label: 'Find JWT token generation', query: 'JWT token generation' },
+  { label: 'Search file upload handlers', query: 'code that handles file uploads' },
+  { label: 'Map database connectors', query: 'code that connects to database' },
 ];
 
 function App() {
@@ -161,7 +161,7 @@ function App() {
                 onClick={() => window.location.reload()}
                 className="flex items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-base font-bold text-gray-900 shadow-[0_8px_24px_rgba(255,255,255,0.3)]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-base font-bold text-gray-900 shadow-[0_8px_24px_rgba(255,255,255,0.3)]">
                   CS
                 </div>
                 <div>
@@ -172,7 +172,7 @@ function App() {
             </div>
             <div className="flex items-center gap-2">
               {stats && (
-                <div className="hidden items-center rounded-full border border-white/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-slate-400 lg:flex">
+                <div className="hidden items-center rounded-lg border border-white/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-slate-400 lg:flex">
                   {stats.total_symbols.toLocaleString()} symbols
                 </div>
               )}
@@ -180,7 +180,7 @@ function App() {
                 onClick={handleViewFiles}
                 disabled={isLoadingFiles}
                 title="View indexed files"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-slate-300 transition-colors hover:border-white/30 hover:text-white disabled:opacity-50"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 text-slate-300 transition-colors hover:border-white/30 hover:text-white disabled:opacity-50"
               >
                 <FolderOpen className="h-4 w-4" />
               </button>
@@ -188,21 +188,21 @@ function App() {
                 onClick={handleClearIndex}
                 disabled={isClearing}
                 title="Clear indexed data"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-slate-300 transition-colors hover:border-red-400 hover:text-red-300 disabled:opacity-50"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 text-slate-300 transition-colors hover:border-red-400 hover:text-red-300 disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setIsUploadModalOpen(true)}
                 title="Upload & index"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-slate-300 transition-colors hover:border-white/30 hover:text-white"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 text-slate-300 transition-colors hover:border-white/30 hover:text-white"
               >
                 <Upload className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setIsChatOpen(!isChatOpen)}
                 title="AI Assistant"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-slate-300 transition-colors hover:border-white/30 hover:text-white"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 text-slate-300 transition-colors hover:border-white/30 hover:text-white"
               >
                 <MessageCircle className="h-4 w-4" />
               </button>
@@ -215,12 +215,11 @@ function App() {
             <SemanticExcavation className="hero-stage__visual" />
             <div className="hero-stage__inner mx-auto max-w-6xl">
               <div className="hero-stage__copy">
-                <p className="text-xs uppercase tracking-[0.35em] text-slate-400/80">Precision Mode</p>
                 <h1 className="mt-4 text-4xl font-semibold leading-tight text-white sm:text-5xl">
-                  Semantic code search, engineered for flow state.
+                  Semantic code search designed for efficiency.
                 </h1>
                 <p className="mt-4 max-w-2xl text-lg text-slate-300">
-                  CodeSniff understands behavior, structure, and intent so you can navigate massive codebases with the same speed as your mental model.
+                  CodeSniff analyzes behavior, structure, and intent, allowing you to navigate complex codebases intuitively and reduce your time spent tracing logic.
                 </p>
                 <div className="mt-8">
                   <SearchBar
@@ -267,11 +266,11 @@ function App() {
                   <div className="relative" ref={languageDropdownRef}>
                     <button
                       onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
-                      className="flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-white/30"
+                      className="flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-white/30"
                     >
                       <span className="text-[0.7rem] uppercase tracking-[0.3em] text-slate-500">Languages</span>
                       {selectedLanguages.length > 0 ? (
-                        <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white">
+                        <span className="rounded-md bg-white/10 px-2 py-0.5 text-xs text-white">
                           {selectedLanguages.length}
                         </span>
                       ) : (
@@ -281,12 +280,12 @@ function App() {
                     </button>
 
                     {isLanguageDropdownOpen && (
-                      <div className="absolute right-0 z-50 mt-3 w-60 rounded-2xl border border-white/10 bg-[#06080f]/95 p-2 text-sm shadow-[0_30px_80px_rgba(4,6,11,0.8)]">
+                      <div className="absolute right-0 z-50 mt-3 w-60 rounded-xl border border-white/10 bg-[#06080f]/95 p-2 text-sm shadow-[0_30px_80px_rgba(4,6,11,0.8)]">
                         {selectedLanguages.length > 0 && (
                           <>
                             <button
                               onClick={() => setSelectedLanguages([])}
-                              className="w-full rounded-xl px-3 py-2 text-left text-blue-200 transition-colors hover:bg-white/5"
+                              className="w-full rounded-lg px-3 py-2 text-left text-blue-200 transition-colors hover:bg-white/5"
                             >
                               Clear all
                             </button>
@@ -297,7 +296,7 @@ function App() {
                           <button
                             key={lang.value}
                             onClick={() => toggleLanguage(lang.value)}
-                            className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-slate-200 transition-colors hover:bg-white/5"
+                            className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-slate-200 transition-colors hover:bg-white/5"
                           >
                             <span>{lang.label}</span>
                             {selectedLanguages.includes(lang.value) && (
@@ -311,7 +310,7 @@ function App() {
                 </div>
 
                 {!stats?.ready && (
-                  <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                  <div className="mt-6 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
                     No code indexed yet. Use the API or upload to prime CodeSniff.
                   </div>
                 )}
@@ -321,7 +320,7 @@ function App() {
 
           <section className="mx-auto max-w-6xl px-6 pb-16 pt-6">
             {error && (
-              <div className="mb-8 rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
+              <div className="mb-8 rounded-xl border border-red-500/40 bg-red-500/10 p-5">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="h-5 w-5 text-red-300" />
                   <div>
@@ -333,7 +332,7 @@ function App() {
             )}
 
             {!isLoading && !error && results.length === 0 && hasSearched && (
-              <div className="rounded-3xl border border-white/10 bg-white/5 px-8 py-12 text-center">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-8 py-12 text-center">
                 <div className="mx-auto max-w-md">
                   <AlertCircle className="mx-auto mb-4 h-12 w-12 text-slate-400" />
                   <h3 className="text-lg font-semibold text-white">No matches yet</h3>
@@ -347,7 +346,7 @@ function App() {
             {!results.length && !isLoading && !error && !hasSearched && (
               <div className="max-w-2xl">
                 <p className="text-sm leading-relaxed text-slate-400">
-                  Feed CodeSniff a behavior, architecture, or intent. Results will stream in here with semantic matches ranked by similarity and context depth.
+                  Search by behavior, structure, or goal. Relevant matches appear instantly, prioritized by context and logic.
                 </p>
               </div>
             )}
@@ -400,7 +399,7 @@ function App() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-4xl max-h-[80vh] overflow-hidden"
+              className="bg-gray-900 rounded-xl border border-gray-700 w-full max-w-4xl max-h-[80vh] overflow-hidden"
             >
               <div className="p-4 border-b border-gray-700 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white">Indexed Files ({indexedFiles.length})</h2>
