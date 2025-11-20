@@ -223,7 +223,6 @@ function App() {
                     isLoading={isLoading}
                     externalQuery={searchQuery}
                     onQueryChange={setSearchQuery}
-                    placeholder="Search by behavior, e.g., 'validate email addresses'..."
                     debounceMs={800}
                   />
                 </div>

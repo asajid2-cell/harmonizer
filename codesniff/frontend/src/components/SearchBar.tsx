@@ -21,7 +21,7 @@ const PLACEHOLDER_PROMPTS = [
 export const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
   isLoading = false,
-  placeholder = 'Search for functions, classes, or code patterns...',
+  placeholder = '',
   debounceMs = 300,
   externalQuery,
   onQueryChange,
@@ -175,7 +175,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 onChange={handleChange}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
-                placeholder={placeholder}
+                placeholder={placeholder || undefined}
                 className="h-16 w-full bg-transparent text-lg text-slate-50 placeholder:text-transparent caret-blue-400 focus:outline-none"
                 disabled={isLoading}
                 autoComplete="off"
