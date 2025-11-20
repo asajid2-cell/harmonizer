@@ -374,6 +374,16 @@ var masterQs = null;
 var masterGain = .55;
 var masterColor = "#E8B4B8";
 var otherColor = "#F9F6F2";
+var overlayColorPalette = [
+    "#F9F6F2",
+    "#C7E7FF",
+    "#F2D2FF",
+    "#CFFFE2",
+    "#FFD9C2",
+    "#D6D1FF",
+    "#FFE3F3",
+];
+var activeOverlayChips = [];
 var trackDuration;
 var masterCursor = null;
 var otherCursor = null;
@@ -1092,6 +1102,44 @@ function clamp01(value) {
     return num;
 }
 
+function getOverlayColor(index, total) {
+    if (typeof index !== "number" || typeof total !== "number" || total <= 1) {
+        return otherColor;
+    }
+    var palette = overlayColorPalette && overlayColorPalette.length ? overlayColorPalette : [otherColor];
+    return palette[index % palette.length];
+}
+
+function clearOverlayChips() {
+    if (!activeOverlayChips || !activeOverlayChips.length) return;
+    activeOverlayChips.forEach(function(chip) {
+        if (chip && typeof chip.remove === "function") {
+            chip.remove();
+        }
+    });
+    activeOverlayChips = [];
+}
+
+function renderOverlayChips(q) {
+    clearOverlayChips();
+    if (!paper || !q || !q.others || !Array.isArray(q.others) || !q.others.length) {
+        return;
+    }
+    var TW = W - hPad;
+    var baseY = H - 8;
+    var size = 8;
+    var total = q.others.length;
+    for (var i = 0; i < total; i++) {
+        var ov = q.others[i];
+        if (!ov) continue;
+        var x = hPad + TW * (ov.start / trackDuration);
+        var c = getOverlayColor(i, total);
+        var chip = paper.rect(x - size / 2, baseY - size / 2, size, size, 2);
+        chip.attr({ fill: c, stroke: c, "stroke-width": 2, opacity: 0.95 });
+        activeOverlayChips.push(chip);
+    }
+}
+
 function coerceNumber(value) {
     var num = (typeof value === "number") ? value : parseFloat(value);
     return isFinite(num) ? num : null;
@@ -1306,6 +1354,13 @@ function rebuildDriverForCurrentMode(shouldResume) {
             driver.stop();
         } catch (e) {}
     }
+
+    // Re-apply canon alignment if voice count changed (for multi-voice canon)
+    if ((mode === "canon" || mode === "eternal") && curTrack && curTrack.analysis && curTrack.analysis.canon_alignment) {
+        console.log('[Rebuild Driver] Re-applying canon alignment with', window.canonVoiceCount || 2, 'voices');
+        applyCanonAlignment(masterQs, curTrack.analysis.canon_alignment);
+    }
+
     driver = Driver(remixer.getPlayer());
     if (typeof window.refreshSculptorPalette === "function") {
         try {
@@ -1326,6 +1381,12 @@ function rebuildDriverForCurrentMode(shouldResume) {
         markPlaybackStarted();
     }
 }
+
+// Expose a safe rebuild helper for UI controls (e.g., voice-count slider)
+window.rebuildDriver = function() {
+    var wasRunning = driver && typeof driver.isRunning === "function" && driver.isRunning();
+    rebuildDriverForCurrentMode(wasRunning);
+};
 
 var canonBaseAssignments = [];
 
@@ -1696,6 +1757,10 @@ function applyCanonAlignment(qlist, alignment) {
     var baseGainPrimary = 0.46;
     var baseGainFallback = 0.34;
 
+    // Get number of voices from window setting (default 2 for backwards compatibility)
+    var numVoices = Math.max(2, Math.min(8, window.canonVoiceCount || 2));
+    console.log('[Canon Alignment] Generating', numVoices, 'voices');
+
     for (var i = 0; i < qlist.length; i++) {
         var q = qlist[i];
         var targetIdx = pairs[i];
@@ -1706,6 +1771,8 @@ function applyCanonAlignment(qlist, alignment) {
         }
         var safeIdx = ((targetIdx % qlist.length) + qlist.length) % qlist.length;
         var target = qlist[safeIdx];
+
+        // Legacy single overlay (q.other) - always set for backwards compatibility
         q.other = target;
         q.otherSimilarityRaw = sim;
         var simNorm = Math.max(0, Math.min(1, (sim + 1) / 2));
@@ -1738,6 +1805,37 @@ function applyCanonAlignment(qlist, alignment) {
         } else {
             var gain = gainBase + simNorm * 0.45;
             q.otherGain = Math.min(1, Math.max(0.25, gain));
+        }
+
+        // NEW: Generate multiple overlay voices (q.others array)
+        if (numVoices > 2) {
+            q.others = [];
+
+            // Voice 0: use the canonical pair from analysis
+            q.others.push(target);
+
+            // Voice 1+: distribute evenly across the track
+            // For N voices, we need N-1 overlays (since main voice is separate)
+            var baseOffsetBeats = Math.floor(qlist.length / numVoices);
+            for (var voiceIdx = 1; voiceIdx < numVoices - 1; voiceIdx++) {
+                // Each voice gets a different offset multiplier
+                var offsetMult = voiceIdx + 1;
+                var voiceOffset = baseOffsetBeats * offsetMult;
+                var voiceTargetIdx = (i + voiceOffset) % qlist.length;
+                var voiceSafeIdx = ((voiceTargetIdx % qlist.length) + qlist.length) % qlist.length;
+                var voiceTarget = qlist[voiceSafeIdx];
+                q.others.push(voiceTarget);
+            }
+
+            // Debug: log first beat only to avoid spam
+            if (i === 0) {
+                console.log('[Canon Alignment] Beat 0 has', q.others.length, 'overlay voices at offsets:',
+                    q.others.map(function(o) { return ((o.which - q.which) + qlist.length) % qlist.length; }));
+                console.log('[Canon Alignment] For', numVoices, 'total voices (1 main +', q.others.length, 'overlays)');
+            }
+        } else {
+            // For 2 voices, just wrap q.other in an array for consistency
+            q.others = [target];
         }
 
     }
@@ -4325,9 +4423,10 @@ var tilePrototype = {
         this.rect.attr("stroke", masterColor);
     },
 
-    highlight2: function() {
-        this.rect.attr("fill", otherColor);
-        this.rect.attr("stroke", otherColor);
+    highlight2: function(color) {
+        var fill = color || otherColor;
+        this.rect.attr("fill", fill);
+        this.rect.attr("stroke", fill);
     },
 
     unplay: function() {
@@ -5771,6 +5870,7 @@ function createCanonDriver(player) {
         }
         running = false;
         player.stop();
+        clearOverlayChips();
         $("#play").text("Play");
         setPlayingClass(null);
         pulseNotes(baseNoteStrength);
@@ -5779,6 +5879,7 @@ function createCanonDriver(player) {
     function stop() {
         running = false;
         player.stop();
+        clearOverlayChips();
         $("#play").text("Play");
         setURL();
         setPlayingClass(null);
@@ -5825,7 +5926,19 @@ function createCanonDriver(player) {
             }
             var nextQ = masterQs[currentIndex];
             nextQ.tile.highlight();
-            if (nextQ.other && nextQ.other.tile) {
+
+            // Highlight all overlay voices
+            if (nextQ.others && Array.isArray(nextQ.others)) {
+                // New multi-voice format - highlight all overlay tiles
+                for (var voiceIdx = 0; voiceIdx < nextQ.others.length; voiceIdx++) {
+                    var overlayBeat = nextQ.others[voiceIdx];
+                    if (overlayBeat && overlayBeat.tile) {
+                        var overlayFill = getOverlayColor(voiceIdx, nextQ.others.length);
+                        overlayBeat.tile.highlight2(overlayFill);
+                    }
+                }
+            } else if (nextQ.other && nextQ.other.tile) {
+                // Legacy 2-voice format
                 nextQ.other.tile.highlight2();
             }
 
@@ -5833,6 +5946,7 @@ function createCanonDriver(player) {
             mtime.text(fmtTime(nextQ.start));
             pulseNotes(nextQ.median_volume || nextQ.volume || baseNoteStrength);
             var delay = player.playQ(nextQ);
+            renderOverlayChips(nextQ);
             var choice = chooseCanonNextIndex(currentIndex);
             if (choice.index < masterQs.length) {
                 var reason =
@@ -5914,6 +6028,7 @@ function createCanonDriver(player) {
             resetTileColors(masterQs);
             clearLastCanonHop();
             clearRecentCanonTargets();
+            clearOverlayChips();
             running = true;
             process();
             setURL();
@@ -7029,7 +7144,15 @@ function createJukeboxDriver(player, options) {
         incrementBeatCount();
         var delay = player.playQ(q);
         q.tile.highlight();
-        if (q.other && q.other.tile) {
+        // Highlight overlays for multi-voice canon
+        if (q.others && Array.isArray(q.others)) {
+            for (var v = 0; v < q.others.length; v++) {
+                var ob = q.others[v];
+                if (ob && ob.tile) {
+                    ob.tile.highlight2(getOverlayColor(v, q.others.length));
+                }
+            }
+        } else if (q.other && q.other.tile) {
             q.other.tile.highlight2();
         }
         updateCursors(q);

@@ -274,6 +274,14 @@ jgs   `-=========-`()
                                 <input type="checkbox" id="loop-playback-toggle">
                                 <span>Loop</span>
                             </label>
+                            <div class="voice-count-control neon-range" title="Number of simultaneous canon voices (2-8)">
+                                <label for="canon-voice-count">Voices:</label>
+                                <div class="neon-range__track">
+                                    <input type="range" id="canon-voice-count" min="2" max="8" value="2" step="1">
+                                    <div class="neon-range__glow" aria-hidden="true"></div>
+                                </div>
+                                <span id="canon-voice-count-display" class="neon-range__value">2</span>
+                            </div>
                             <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
                                 Advanced: Off
                             </button>
@@ -541,7 +549,7 @@ jgs   `-=========-`()
             }
         })();
     </script>
-    <script src="./js/visualizer.js?v=202511201340"></script>
+    <script src="./js/visualizer.js?v=202511201620"></script>
     <script>
     (function() {
         const body = document.body;
@@ -2470,6 +2478,39 @@ jgs   `-=========-`()
             }
             return audio;
         };
+    })();
+
+    // Canon voice count slider
+    (function() {
+        const voiceSlider = document.getElementById('canon-voice-count');
+        const voiceDisplay = document.getElementById('canon-voice-count-display');
+        if (!voiceSlider || !voiceDisplay) return;
+
+        // Initialize default
+        window.canonVoiceCount = 2;
+
+        function updateVoiceCount(count) {
+            window.canonVoiceCount = parseInt(count, 10);
+            voiceDisplay.textContent = window.canonVoiceCount;
+            console.log('[Voice Count] Set to', window.canonVoiceCount, 'voices');
+
+            // Rebuild the driver when voice count changes
+            if (typeof window.rebuildDriver === 'function') {
+                console.log('[Voice Count] Rebuilding driver with new voice count...');
+                window.rebuildDriver();
+            }
+        }
+
+        voiceSlider.addEventListener('input', function(event) {
+            updateVoiceCount(event.target.value);
+        });
+
+        voiceSlider.addEventListener('change', function(event) {
+            updateVoiceCount(event.target.value);
+        });
+
+        // Initialize display
+        voiceDisplay.textContent = voiceSlider.value;
     })();
     </script>
 <script src="./js/persistent-player.js" defer></script>

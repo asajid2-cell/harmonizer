@@ -215,34 +215,81 @@ function createJRemixer(context, jquery) {
             var masterGain = .53;
             var overlayGain = 0.58;
             var deltaTime = 0;
-            var mainGain = context.createGain();
-            var otherGain = context.createGain();
-            var mainPanner = null;
-            var otherPanner = null;
-            var skewDelta = 0;
-            var maxSkewDelta = .05;
-            var ocurAudioSource = null;
 
+            // Get number of voices from window setting (default 2 for backwards compatibility)
+            var numVoices = Math.max(2, Math.min(8, window.canonVoiceCount || 2));
+            console.log('[JRemixer] Initializing player with', numVoices, 'voices');
+
+            // Create main voice (always present)
+            var mainGain = context.createGain();
+            var mainPanner = null;
+
+            // Create array for overlay voices (numVoices - 1, since main is separate)
+            var overlayVoices = [];
+            var skewDeltas = [];
+            var maxSkewDelta = .05;
+
+            // Setup main voice
             if (typeof context.createStereoPanner === "function") {
                 mainPanner = context.createStereoPanner();
-                otherPanner = context.createStereoPanner();
                 try {
-                    mainPanner.pan.value = -0.28;
-                    otherPanner.pan.value = 0.28;
+                    mainPanner.pan.value = 0; // Center for main voice
                 } catch (e) {
                     // ignore failures on platforms without setter
                 }
                 mainGain.connect(mainPanner);
                 mainPanner.connect(context.destination);
-                otherGain.connect(otherPanner);
-                otherPanner.connect(context.destination);
             } else {
                 mainGain.connect(context.destination);
-                otherGain.connect(context.destination);
             }
-
             mainGain.gain.value = masterGain;
-            otherGain.gain.value = overlayGain;
+
+            // Setup overlay voices with spatial distribution
+            for (var i = 0; i < numVoices - 1; i++) {
+                var voiceGain = context.createGain();
+                var voicePanner = null;
+                var voiceSource = null;
+
+                // Distribute voices across stereo field
+                // For 2 voices: [-0.28, 0.28]
+                // For 3 voices: [-0.5, 0, 0.5]
+                // For 4 voices: [-0.6, -0.2, 0.2, 0.6]
+                var panValue = 0;
+                if (numVoices > 2) {
+                    // Spread evenly from -0.7 to 0.7
+                    panValue = -0.7 + (1.4 * (i + 1) / numVoices);
+                } else {
+                    // Original 2-voice behavior
+                    panValue = 0.28;
+                }
+
+                if (typeof context.createStereoPanner === "function") {
+                    voicePanner = context.createStereoPanner();
+                    try {
+                        voicePanner.pan.value = panValue;
+                    } catch (e) {
+                        // ignore
+                    }
+                    voiceGain.connect(voicePanner);
+                    voicePanner.connect(context.destination);
+                } else {
+                    voiceGain.connect(context.destination);
+                }
+
+                // Adjust gain for multiple voices to prevent clipping
+                var adjustedGain = overlayGain / Math.sqrt(numVoices - 1);
+                voiceGain.gain.value = adjustedGain;
+
+                overlayVoices.push({
+                    gain: voiceGain,
+                    panner: voicePanner,
+                    source: null,
+                    index: i
+                });
+                skewDeltas.push(0);
+
+                console.log('[JRemixer] Voice', i + 1, 'pan:', panValue.toFixed(2), 'gain:', adjustedGain.toFixed(2));
+            }
 
             function playQuantumWithDurationSimple(when, q, dur, gain, channel) {
                 var now = context.currentTime;
@@ -286,6 +333,8 @@ function createJRemixer(context, jquery) {
                 // all this complexity is about click reduction.
                 // We want to continuously play as much as we can
                 // without getting out of sync
+
+                // Play main voice
                 if (curQ == null || curQ.next != q) {
                     if (curAudioSource) {
                         curAudioSource.stop();
@@ -298,38 +347,72 @@ function createJRemixer(context, jquery) {
                 var now = context.currentTime - deltaTime;
                 var delta = now - q.start;
 
-                var targetOther = overlayGain;
-                var targetMain = masterGain;
-                if (curQ == null || curQ.other.next != q.other || Math.abs(skewDelta) > maxSkewDelta) {
-                    skewDelta = 0;
-                    if (ocurAudioSource) {
-                        ocurAudioSource.stop();
+                // Play overlay voices
+                // Support both old format (q.other) and new format (q.others array)
+                var otherBeats = [];
+                if (q.others && Array.isArray(q.others)) {
+                    // New multi-voice format
+                    otherBeats = q.others.slice(0, overlayVoices.length);
+                    if (curQ == null) {
+                        console.log('[playQ] q.others has', q.others.length, 'beats, using', otherBeats.length, 'for', overlayVoices.length, 'voice slots');
                     }
-                    var oduration = q.other.track.audio_summary.duration - q.other.start;
-                    ocurAudioSource = llPlay(q.other.track.buffer, q.other.start, oduration, otherGain);
-                    try {
-                        var now = context.currentTime;
-                        otherGain.gain.cancelScheduledValues(now);
-                        otherGain.gain.setValueAtTime(targetOther, now);
-                        mainGain.gain.cancelScheduledValues(now);
-                        mainGain.gain.setValueAtTime(targetMain, now);
-                    } catch (e) {
-                        otherGain.gain.value = targetOther;
-                        mainGain.gain.value = targetMain;
-                    }
-                } else {
-                    try {
-                        var now2 = context.currentTime;
-                        otherGain.gain.cancelScheduledValues(now2);
-                        otherGain.gain.setValueAtTime(targetOther, now2);
-                        mainGain.gain.cancelScheduledValues(now2);
-                        mainGain.gain.setValueAtTime(targetMain, now2);
-                    } catch (e) {
-                        otherGain.gain.value = targetOther;
-                        mainGain.gain.value = targetMain;
+                } else if (q.other) {
+                    // Legacy 2-voice format - backwards compatible
+                    otherBeats = [q.other];
+                    if (curQ == null) {
+                        console.log('[playQ] Using legacy q.other format (1 overlay)');
                     }
                 }
-                skewDelta += q.duration - q.other.duration;
+
+                // Play each overlay voice
+                for (var i = 0; i < overlayVoices.length; i++) {
+                    var voice = overlayVoices[i];
+                    var otherBeat = otherBeats[i];
+
+                    if (!otherBeat) {
+                        // No beat for this voice, stop it if playing
+                        if (voice.source) {
+                            try {
+                                voice.source.stop();
+                            } catch (e) {}
+                            voice.source = null;
+                        }
+                        continue;
+                    }
+
+                    // Check if we need to restart this voice
+                    var needsRestart = curQ == null;
+                    if (curQ && i < otherBeats.length) {
+                        var prevOther = (curQ.others && curQ.others[i]) || (i === 0 ? curQ.other : null);
+                        needsRestart = !prevOther || prevOther.next != otherBeat;
+                    }
+                    needsRestart = needsRestart || Math.abs(skewDeltas[i]) > maxSkewDelta;
+
+                    if (needsRestart) {
+                        skewDeltas[i] = 0;
+                        if (voice.source) {
+                            try {
+                                voice.source.stop();
+                            } catch (e) {}
+                        }
+                        var oduration = otherBeat.track.audio_summary.duration - otherBeat.start;
+                        voice.source = llPlay(otherBeat.track.buffer, otherBeat.start, oduration, voice.gain);
+
+                        // Set gain values to prevent clicks
+                        try {
+                            var gainNow = context.currentTime;
+                            voice.gain.gain.cancelScheduledValues(gainNow);
+                            voice.gain.gain.setValueAtTime(voice.gain.gain.value, gainNow);
+                            mainGain.gain.cancelScheduledValues(gainNow);
+                            mainGain.gain.setValueAtTime(masterGain, gainNow);
+                        } catch (e) {
+                            // Fallback for older browsers
+                        }
+                    }
+
+                    // Track skew for this voice
+                    skewDeltas[i] += q.duration - otherBeat.duration;
+                }
 
                 curQ = q;
                 return q.duration - delta;
@@ -357,13 +440,24 @@ function createJRemixer(context, jquery) {
                         curAudioSource.stop(0);
                         curAudioSource = null;
                     }
-                    if (ocurAudioSource) {
-                        ocurAudioSource.stop(0);
-                        ocurAudioSource = null;
+                    // Stop all overlay voice sources
+                    if (overlayVoices && overlayVoices.length) {
+                        overlayVoices.forEach(function(voice, idx) {
+                            if (voice && voice.source) {
+                                try {
+                                    voice.source.stop(0);
+                                } catch (e) {}
+                                voice.source = null;
+                            }
+                            skewDeltas[idx] = 0;
+                        });
                     }
                     curQ = null;
                     deltaTime = 0;
-                    skewDelta = 0;
+                    // Reset skew tracking
+                    for (var i = 0; i < skewDeltas.length; i++) {
+                        skewDeltas[i] = 0;
+                    }
                 },
 
                 curTime: function() {
