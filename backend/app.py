@@ -1101,16 +1101,67 @@ def media(filename: str):
             # Fallback to original file serving
             pass
 
-    # Serve non-images or fallback
+    # Serve non-images or fallback with proper range request support
+    from pathlib import Path
+    from flask import abort, make_response
+    import os
+
+    file_path = UPLOAD_FOLDER / filename
+
+    # Security check
+    try:
+        file_path.resolve().relative_to(UPLOAD_FOLDER.resolve())
+    except ValueError:
+        abort(403)
+
+    if not file_path.exists():
+        abort(404)
+
     mimetype = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    file_size = os.path.getsize(file_path)
+
+    # Handle range requests for audio streaming and looping
+    range_header = request.headers.get('Range', None)
+
+    if range_header:
+        # Parse range header (e.g., "bytes=0-1023")
+        byte_range = range_header.replace('bytes=', '').split('-')
+        start = int(byte_range[0]) if byte_range[0] else 0
+        end = int(byte_range[1]) if len(byte_range) > 1 and byte_range[1] else file_size - 1
+
+        # Ensure valid range
+        if start >= file_size or end >= file_size or start > end:
+            abort(416)  # Range Not Satisfiable
+
+        length = end - start + 1
+
+        # Read the requested byte range
+        with open(file_path, 'rb') as f:
+            f.seek(start)
+            data = f.read(length)
+
+        # Create 206 Partial Content response
+        response = make_response(data)
+        response.status_code = 206
+        response.headers['Content-Type'] = mimetype
+        response.headers['Content-Range'] = f'bytes {start}-{end}/{file_size}'
+        response.headers['Content-Length'] = str(length)
+        response.headers['Accept-Ranges'] = 'bytes'
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Cache-Control'] = 'public, max-age=31536000'
+
+        return response
+
+    # Serve full file if no range requested
     response = send_from_directory(
         UPLOAD_FOLDER,
         filename,
         mimetype=mimetype,
         conditional=True,
     )
-    response.headers.setdefault("Accept-Ranges", "bytes")
-    response.headers.setdefault("Access-Control-Allow-Origin", "*")
+    response.headers['Accept-Ranges'] = 'bytes'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Cache-Control'] = 'public, max-age=31536000'
     return response
 
 
