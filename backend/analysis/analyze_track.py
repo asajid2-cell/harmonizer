@@ -1560,6 +1560,8 @@ def _build_autoharmonizer_edges(
     sections2 = track2.get("sections", [])
     energies1 = track1.get("energies", [])
     energies2 = track2.get("energies", [])
+    chroma1 = track1.get("chroma", [])
+    chroma2 = track2.get("chroma", [])
 
     # Maps beat index -> section index
     def map_sections(beats: List[Dict], sections: List[Dict]) -> List[int]:
@@ -1593,6 +1595,13 @@ def _build_autoharmonizer_edges(
             return energies2[idx]
         return silence_db
 
+    def chroma_for(track_num: int, idx: int) -> Optional[np.ndarray]:
+        if track_num == 1 and 0 <= idx < len(chroma1):
+            return chroma1[idx]
+        if track_num == 2 and 0 <= idx < len(chroma2):
+            return chroma2[idx]
+        return None
+
     edges: List[Dict] = []
 
     def add_edge(src_track: int, src_idx: int, tgt_track: int, tgt_idx: int, sim: float, reason: str):
@@ -1602,11 +1611,26 @@ def _build_autoharmonizer_edges(
         if tgt_energy <= silence_db:
             return
         same_section = section_match(src_track, src_idx, tgt_track, tgt_idx)
-        score = sim
+        c_src = chroma_for(src_track, src_idx)
+        c_tgt = chroma_for(tgt_track, tgt_idx)
+        chroma_sim = float(np.dot(c_src, c_tgt)) if c_src is not None and c_tgt is not None else 0.0
+
+        beat_in_bar_src = beats1[src_idx].get("beat_in_bar") if src_track == 1 else beats2[src_idx].get("beat_in_bar")
+        beat_in_bar_tgt = beats1[tgt_idx].get("beat_in_bar") if tgt_track == 1 else beats2[tgt_idx].get("beat_in_bar")
+        bar_len_src = beats1[src_idx].get("bar_length_beats") if src_track == 1 else beats2[src_idx].get("bar_length_beats")
+        bar_len_tgt = beats1[tgt_idx].get("bar_length_beats") if tgt_track == 1 else beats2[tgt_idx].get("bar_length_beats")
+        phase_penalty = 0.0
+        if beat_in_bar_src is not None and beat_in_bar_tgt is not None:
+            mod = max(1, min(bar_len_src or 4, bar_len_tgt or 4))
+            phase_penalty = abs((beat_in_bar_src % mod) - (beat_in_bar_tgt % mod)) / mod
+
+        score = sim * 0.4 + chroma_sim * 0.4
         if same_section:
             score += 0.08
-        # energy bonus for louder targets (cap modestly)
         score += max(0.0, min(0.15, (tgt_energy - silence_db) / 80.0))
+        if beat_in_bar_tgt == 0:
+            score += 0.12
+        score -= min(0.3, phase_penalty)
         edges.append(
             {
                 "source_track": src_track,
@@ -1617,6 +1641,10 @@ def _build_autoharmonizer_edges(
                 "score": float(score),
                 "same_section": bool(same_section),
                 "target_energy": float(tgt_energy),
+                "chroma_similarity": float(chroma_sim),
+                "beat_in_bar": beat_in_bar_tgt if beat_in_bar_tgt is not None else 0,
+                "bar_length_beats": bar_len_tgt if bar_len_tgt is not None else 4,
+                "phase_delta": float(phase_penalty),
                 "reason": reason,
             }
         )
@@ -1685,9 +1713,18 @@ def build_autoharmonizer_profile(
     segments1 = track1["analysis"]["segments"]
     segments2 = track2["analysis"]["segments"]
 
+    bars1 = track1["analysis"].get("bars", [])
+    bars2 = track2["analysis"].get("bars", [])
+    if bars1:
+        beats1 = _annotate_beats_with_bar_info(beats1, bars1)
+    if bars2:
+        beats2 = _annotate_beats_with_bar_info(beats2, bars2)
+
     # Per-beat energy (used to avoid silent targets)
     energies1 = _compute_beat_energy(beats1, segments1)
     energies2 = _compute_beat_energy(beats2, segments2)
+    chroma1 = _compute_beat_chroma(beats1, segments1)
+    chroma2 = _compute_beat_chroma(beats2, segments2)
 
     # Compute cross-track similarity
     print(f"[Autoharmonizer] Computing cross-track similarity between {len(beats1)} and {len(beats2)} beats...")
@@ -1701,12 +1738,14 @@ def build_autoharmonizer_profile(
             "sections": track1["analysis"].get("sections", []),
             "eternal_loop_candidates": track1["analysis"].get("eternal_loop_candidates", {}),
             "energies": energies1,
+            "chroma": chroma1,
         },
         {
             "beats": beats2,
             "sections": track2["analysis"].get("sections", []),
             "eternal_loop_candidates": track2["analysis"].get("eternal_loop_candidates", {}),
             "energies": energies2,
+            "chroma": chroma2,
         },
         cross_similarity=cross_similarity,
         silence_db=silence_db,

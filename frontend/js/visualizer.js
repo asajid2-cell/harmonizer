@@ -7568,6 +7568,20 @@ function createAutoharmonizerDriver(player) {
                 continue;
             }
             var score = (typeof e.score === "number") ? e.score : (e.similarity || 0);
+            // Phase locking: penalize if beat positions in bar are misaligned
+            var cb = getBeatsForTrack(currentTrack)[currentBeatIdx];
+            var tb = candidateBeatList[tgtIdx];
+            var modSrc = cb && typeof cb.bar_length_beats === "number" ? cb.bar_length_beats : 4;
+            var modTgt = tb && typeof tb.bar_length_beats === "number" ? tb.bar_length_beats : 4;
+            var bSrc = cb && typeof cb.beat_in_bar === "number" ? cb.beat_in_bar : (currentBeatIdx % modSrc);
+            var bTgt = tb && typeof tb.beat_in_bar === "number" ? tb.beat_in_bar : (tgtIdx % modTgt);
+            var mod = Math.max(1, Math.min(modSrc, modTgt));
+            var phaseDelta = Math.abs((bSrc % mod) - (bTgt % mod));
+            if (phaseDelta !== 0) {
+                score -= Math.min(0.4, phaseDelta / mod);
+            } else {
+                score += 0.08;
+            }
             // Prefer forward motion; penalize large backward hops
             if (tgtTrack === trackNum) {
                 var span = tgtIdx - currentBeatIdx;
@@ -7602,7 +7616,17 @@ function createAutoharmonizerDriver(player) {
                 score += 0.08;
             }
             var minScore = (options.minScore || minEdgeScore);
-            // Raise threshold if very soon after a jump
+            // Adaptive hysteresis: tighten threshold when content is novel, relax when repetitive
+            if (recentScores && recentScores.length >= 6) {
+                var mean = recentScores.reduce(function(a, b) { return a + b; }, 0) / recentScores.length;
+                var variance = recentScores.reduce(function(acc, v) { return acc + Math.pow(v - mean, 2); }, 0) / recentScores.length;
+                var std = Math.sqrt(variance);
+                if (std < 0.05) {
+                    minScore -= 0.05; // boring → encourage jumps
+                } else if (std > 0.15) {
+                    minScore += 0.05; // novel → hold off
+                }
+            }
             if (beatsSinceJump < minDwellBeats + 2) {
                 minScore += 0.05;
             }
@@ -7727,6 +7751,13 @@ function updateHudForBeat(beat) {
 
         if (window.__autohLog) {
             window.__autohLog.push({ type: "sequential", track: currentTrack, target: curQ, t: Date.now() });
+        }
+
+        if (recentScores) {
+            recentScores.push(choice && choice.score ? choice.score : (currentBeat && currentBeat.otherSimilarity ? currentBeat.otherSimilarity : 0));
+            if (recentScores.length > 32) {
+                recentScores.shift();
+            }
         }
 
         scheduleNextProcess(beatDuration);
