@@ -1414,6 +1414,65 @@ def generate_loop_candidates(
     return loop_candidates
 
 
+def compute_canon_candidates(
+    beats: List[Dict],
+    energies: List[float],
+    chroma: List[np.ndarray],
+    max_offsets: int = 3,
+    bar_offsets: Optional[List[int]] = None,
+) -> Tuple[Dict[int, List[Dict]], List[int]]:
+    """
+    Build bar-locked canon candidates per beat and rank global bar offsets for multi-voice use.
+    Score = 0.4 * chroma - 0.3 * energy_diff (energy in dB scaled).
+    """
+    if bar_offsets is None:
+        bar_offsets = [4, 8, 16, -4, -8, -16]
+    candidates: Dict[int, List[Dict]] = {}
+    offset_scores: Dict[int, List[float]] = {o: [] for o in bar_offsets}
+
+    def beat_by_bar_and_phase(bar: int, phase: int) -> Optional[Tuple[int, Dict]]:
+        for idx, b in enumerate(beats):
+            if b.get("bar_index") == bar and b.get("beat_in_bar") == phase:
+                return idx, b
+        return None
+
+    for i, b in enumerate(beats):
+        bar_idx = b.get("bar_index")
+        phase = b.get("beat_in_bar")
+        if bar_idx is None or phase is None:
+            continue
+        e_src = energies[i] if i < len(energies) else -40.0
+        c_src = chroma[i] if i < len(chroma) else None
+        local: List[Dict] = []
+        for off in bar_offsets:
+            target = beat_by_bar_and_phase(bar_idx + off, phase)
+            if not target:
+                continue
+            tgt_idx, tgt_beat = target
+            e_tgt = energies[tgt_idx] if tgt_idx < len(energies) else -40.0
+            c_tgt = chroma[tgt_idx] if tgt_idx < len(chroma) else None
+            chroma_sim = float(np.dot(c_src, c_tgt)) if c_src is not None and c_tgt is not None else 0.0
+            energy_diff = abs(e_src - e_tgt)
+            score = 0.4 * chroma_sim - 0.3 * (energy_diff / 40.0)
+            local.append({
+                "target": int(tgt_idx),
+                "bar_offset": int(off),
+                "score": float(score),
+            })
+            offset_scores[off].append(score)
+        if local:
+            local.sort(key=lambda x: x["score"], reverse=True)
+            candidates[i] = local
+
+    ranked_offsets = sorted(
+        [(off, np.mean(vals)) for off, vals in offset_scores.items() if vals],
+        key=lambda x: x[1],
+        reverse=True,
+    )
+    top_offsets = [off for off, _ in ranked_offsets[:max_offsets]]
+    return candidates, top_offsets
+
+
 def build_profile(
     audio_path: Path,
     track_id: str,
@@ -1497,6 +1556,9 @@ def build_profile(
 
     print(f"[Analysis] Generated {sum(len(v) for v in eternal_loop_candidates.values())} eternal jukebox loop candidates", flush=True)
 
+    # Canon candidates for multivoice canon
+    canon_candidates, global_voice_offsets = compute_canon_candidates(beats_meta, beat_energies, beat_chroma)
+
     profile = {
         "response": {
             "status": {"code": 0, "message": "OK"},
@@ -1534,6 +1596,8 @@ def build_profile(
                     "canon_alignment": canon_alignment,
                     "loop_candidates": loop_candidates,
                     "eternal_loop_candidates": eternal_loop_candidates_json,
+                    "canon_candidates": canon_candidates,
+                    "global_voice_offsets": global_voice_offsets,
                 },
             },
         }

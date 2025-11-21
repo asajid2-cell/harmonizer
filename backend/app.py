@@ -255,6 +255,7 @@ FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
 STUDY_DIR.mkdir(parents=True, exist_ok=True)
 DISCO_MEMORY_PATH = DATA_FOLDER / "discoteque_memory.jsonl"
 AUDIO_CACHE_PATH = DATA_FOLDER / "audio_cache.json"
+ANALYSIS_CACHE_PATH = DATA_FOLDER / "analysis_cache.json"
 ELDRICHIFY_OUTPUT_DIR = UPLOAD_FOLDER / "eldrichify"
 IMGEN_OUTPUT_DIR = UPLOAD_FOLDER / "imgen"
 CHEATSHEET_UPLOAD_DIR = UPLOAD_FOLDER / "cheatsheets"
@@ -388,6 +389,7 @@ def _add_to_cache(file_hash: str, track_id: str, title: str, artist: str):
         }
         _save_audio_cache()
         print(f"[Cache] Added {track_id} with hash {file_hash[:12]}...", flush=True)
+
 
 def _cleanup_old_jobs():
     """Remove jobs older than 10 minutes"""
@@ -650,6 +652,36 @@ def _send_cached_file(path: Path, *, treat_as_html: bool = False):
     elif suffix in {".html", ".htm"} or treat_as_html:
         _set_cache_headers(response, HTML_CACHE_SECONDS, public=False)
     return response
+
+
+@app.route("/api/cache/clear", methods=["POST"])
+def clear_track_cache():
+    """Clear cached track profiles and audio cache entries."""
+    removed_files = 0
+    removed_entries = 0
+    with _cache_lock:
+        removed_entries = len(_audio_cache)
+        _audio_cache.clear()
+        try:
+            AUDIO_CACHE_PATH.unlink()
+        except FileNotFoundError:
+            pass
+    for pattern in ["TR*.json", "*combined*.json"]:
+        for path in DATA_FOLDER.glob(pattern):
+            try:
+                path.unlink()
+                removed_files += 1
+            except Exception as e:
+                print(f"[Cache] Failed to delete {path}: {e}", flush=True)
+    try:
+        ANALYSIS_CACHE_PATH.unlink()
+    except FileNotFoundError:
+        pass
+    return jsonify({
+        "status": "ok",
+        "removed_files": removed_files,
+        "cleared_entries": removed_entries
+    })
 
 
 def _require_rl_token():

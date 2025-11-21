@@ -247,6 +247,7 @@ function createJRemixer(context, jquery) {
             // Setup overlay voices with spatial distribution
             for (var i = 0; i < numVoices - 1; i++) {
                 var voiceGain = context.createGain();
+                var voiceHp = context.createBiquadFilter ? context.createBiquadFilter() : null;
                 var voicePanner = null;
                 var voiceSource = null;
 
@@ -263,6 +264,13 @@ function createJRemixer(context, jquery) {
                     panValue = 0.28;
                 }
 
+                if (voiceHp) {
+                    voiceHp.type = "highpass";
+                    voiceHp.frequency.value = 250;
+                    voiceGain.connect(voiceHp);
+                }
+                var gainNodeToConnect = voiceHp || voiceGain;
+
                 if (typeof context.createStereoPanner === "function") {
                     voicePanner = context.createStereoPanner();
                     try {
@@ -270,10 +278,10 @@ function createJRemixer(context, jquery) {
                     } catch (e) {
                         // ignore
                     }
-                    voiceGain.connect(voicePanner);
+                    gainNodeToConnect.connect(voicePanner);
                     voicePanner.connect(context.destination);
                 } else {
-                    voiceGain.connect(context.destination);
+                    gainNodeToConnect.connect(context.destination);
                 }
 
                 // Adjust gain for multiple voices to prevent clipping
@@ -283,6 +291,7 @@ function createJRemixer(context, jquery) {
                 overlayVoices.push({
                     gain: voiceGain,
                     panner: voicePanner,
+                    hp: voiceHp,
                     source: null,
                     index: i
                 });
@@ -351,8 +360,12 @@ function createJRemixer(context, jquery) {
                 // Support both old format (q.other) and new format (q.others array)
                 var otherBeats = [];
                 if (q.others && Array.isArray(q.others)) {
-                    // New multi-voice format
-                    otherBeats = q.others.slice(0, overlayVoices.length);
+                    // New multi-voice format with optional dynamic limit
+                    var maxOverlays = overlayVoices.length;
+                    if (typeof q._overlayLimit === "number") {
+                        maxOverlays = Math.min(maxOverlays, Math.max(0, Math.floor(q._overlayLimit)));
+                    }
+                    otherBeats = q.others.slice(0, maxOverlays);
                     if (curQ == null) {
                         console.log('[playQ] q.others has', q.others.length, 'beats, using', otherBeats.length, 'for', overlayVoices.length, 'voice slots');
                     }

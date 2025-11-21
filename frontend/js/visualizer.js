@@ -423,6 +423,7 @@ var tiles = [];
 var isTrackReady = false;
 var serverLoopCandidateMap = {};
 var canonLoopCandidates = [];
+var canonVoiceOffsetsForDriver = [];
 var loopPaths = [];
 var loopPathMap = {}; // Map of "source-target" to path object
 
@@ -1770,6 +1771,10 @@ function applyCanonAlignment(qlist, alignment) {
     // Get number of voices from window setting (default 2 for backwards compatibility)
     var numVoices = Math.max(2, Math.min(8, window.canonVoiceCount || 2));
     console.log('[Canon Alignment] Generating', numVoices, 'voices');
+    var canonAnalysis = (curTrack && curTrack.analysis) ? curTrack.analysis : {};
+    var globalVoiceOffsets = Array.isArray(canonAnalysis.global_voice_offsets) ? canonAnalysis.global_voice_offsets.slice(0) : [];
+    var canonCandidatesMap = (canonAnalysis.canon_candidates && typeof canonAnalysis.canon_candidates === "object") ? canonAnalysis.canon_candidates : null;
+    canonVoiceOffsetsForDriver = globalVoiceOffsets.slice(0);
 
     for (var i = 0; i < qlist.length; i++) {
         var q = qlist[i];
@@ -1824,17 +1829,35 @@ function applyCanonAlignment(qlist, alignment) {
             // Voice 0: use the canonical pair from analysis
             q.others.push(target);
 
-            // Voice 1+: distribute evenly across the track
-            // For N voices, we need N-1 overlays (since main voice is separate)
-            var baseOffsetBeats = Math.floor(qlist.length / numVoices);
-            for (var voiceIdx = 1; voiceIdx < numVoices - 1; voiceIdx++) {
-                // Each voice gets a different offset multiplier
-                var offsetMult = voiceIdx + 1;
-                var voiceOffset = baseOffsetBeats * offsetMult;
-                var voiceTargetIdx = (i + voiceOffset) % qlist.length;
-                var voiceSafeIdx = ((voiceTargetIdx % qlist.length) + qlist.length) % qlist.length;
-                var voiceTarget = qlist[voiceSafeIdx];
-                q.others.push(voiceTarget);
+            var availableOffsets = globalVoiceOffsets.slice(0, Math.max(0, numVoices - 2));
+            if (!availableOffsets.length) {
+                var baseOffsetBeats = Math.floor(qlist.length / numVoices);
+                for (var v = 0; v < numVoices - 2; v++) {
+                    availableOffsets.push(baseOffsetBeats * (v + 2));
+                }
+            }
+            for (var oi = 0; oi < availableOffsets.length; oi++) {
+                var off = availableOffsets[oi];
+                var chosen = null;
+                if (canonCandidatesMap && canonCandidatesMap[i]) {
+                    var cands = canonCandidatesMap[i];
+                    for (var ci = 0; ci < cands.length; ci++) {
+                        var cc = cands[ci];
+                        if (cc && cc.bar_offset === off && typeof cc.target === "number") {
+                            chosen = qlist[cc.target];
+                            break;
+                        }
+                    }
+                }
+                if (!chosen) {
+                    var beatsPerBar = (q && q.bar_length_beats) ? q.bar_length_beats : 4;
+                    var idx = (i + off * beatsPerBar) % qlist.length;
+                    idx = ((idx % qlist.length) + qlist.length) % qlist.length;
+                    chosen = qlist[idx];
+                }
+                if (chosen) {
+                    q.others.push(chosen);
+                }
             }
 
             // Debug: log first beat only to avoid spam
@@ -5559,6 +5582,8 @@ function createCanonDriver(player) {
     var rlConfig = getCanonRlTuning();
     var rlMinDwell = rlConfig.minDwell;
     var rlRepeatPenalty = rlConfig.repeatPenalty;
+    var CANON_PHRASE_DWELL = 16;
+    var canonVoiceOffsetsForDriver = [];
 
     var curQ = 0;
     var running = false;
@@ -5616,6 +5641,27 @@ function createCanonDriver(player) {
             }
         }
         return count;
+    }
+
+    function isSafeCanonLanding(targetIdx, voiceOffsets) {
+        if (!masterQs || !masterQs.length) return true;
+        var total = masterQs.length;
+        var targetBeat = masterQs[targetIdx];
+        var beatsPerBar = (targetBeat && targetBeat.bar_length_beats) ? targetBeat.bar_length_beats : 4;
+        for (var i = 0; i < voiceOffsets.length; i++) {
+            var off = voiceOffsets[i];
+            var destIdx = (targetIdx + off * beatsPerBar) % total;
+            destIdx = ((destIdx % total) + total) % total;
+            var destBeat = masterQs[destIdx];
+            if (!destBeat) return false;
+            var vol = (typeof destBeat.median_volume === "number") ? destBeat.median_volume :
+                      (typeof destBeat.volume === "number") ? destBeat.volume :
+                      (typeof destBeat.loudness === "number") ? destBeat.loudness : 0;
+            if (vol < -60) {
+                return false;
+            }
+        }
+        return true;
     }
 
     function markCanonVisitedBar(index) {
@@ -5778,6 +5824,9 @@ function createCanonDriver(player) {
         var candidates = [
             buildCanonEdge(sourceIndex, sequentialTarget, 1, "sequential"),
         ];
+        if (beatsSinceLastJump < CANON_PHRASE_DWELL) {
+            return { index: clampCanonIndex(sequentialTarget), reason: "sequential" };
+        }
         var q = masterQs[sourceIndex];
         if (q && q.other && typeof q.other.which === "number") {
             var simVal =
@@ -5814,6 +5863,7 @@ function createCanonDriver(player) {
         var bestScore = null;
         var dwellBeats =
             (canonSettings && canonSettings.dwellBeats) || 6;
+        var voiceOffsetsForSafe = canonVoiceOffsetsForDriver || [];
         candidates.forEach(function(candidate) {
             if (candidate.target >= masterQs.length) {
                 return;
@@ -5867,6 +5917,12 @@ function createCanonDriver(player) {
                 recentJumpBeats: beatsSinceLastJump,
                 minJumpDwell: rlMinDwell,
             });
+            // Safe landing check for follower voices
+            if (candidate.reason !== "sequential" && voiceOffsetsForSafe.length) {
+                if (!isSafeCanonLanding(candidate.target, voiceOffsetsForSafe)) {
+                    return;
+                }
+            }
             if (
                 typeof score === "number" &&
                 candidate.reason !== "sequential"
@@ -5966,8 +6022,16 @@ function createCanonDriver(player) {
 
             // Highlight all overlay voices
             if (nextQ.others && Array.isArray(nextQ.others)) {
-                // New multi-voice format - highlight all overlay tiles
-                for (var voiceIdx = 0; voiceIdx < nextQ.others.length; voiceIdx++) {
+                var beatsPerBar = (nextQ && nextQ.bar_length_beats) ? nextQ.bar_length_beats : 4;
+                var barsPlayed = Math.floor(curQ / Math.max(1, beatsPerBar));
+                // Dynamic density: add one overlay every 8 bars, up to available
+                var targetOverlayCount = Math.min(nextQ.others.length, Math.max(0, Math.floor(barsPlayed / 8) + 1));
+                // If current beat is very energetic, drop overlays to let lead hit
+                var energyVal = nextQ.median_volume || nextQ.volume || nextQ.loudness || 0;
+                if (energyVal > -8) {
+                    targetOverlayCount = 0;
+                }
+                for (var voiceIdx = 0; voiceIdx < targetOverlayCount; voiceIdx++) {
                     var overlayBeat = nextQ.others[voiceIdx];
                     if (overlayBeat && overlayBeat.tile) {
                         var overlayFill = getOverlayColor(voiceIdx, nextQ.others.length);
@@ -5982,6 +6046,21 @@ function createCanonDriver(player) {
             updateCursors(nextQ);
             mtime.text(fmtTime(nextQ.start));
             pulseNotes(nextQ.median_volume || nextQ.volume || baseNoteStrength);
+            // Dynamic density for overlays: breathe over time and energy
+            if (nextQ.others && Array.isArray(nextQ.others) && nextQ.others.length) {
+                var beatsPerBarCanon = (nextQ && nextQ.bar_length_beats) ? nextQ.bar_length_beats : 4;
+                var barsSinceStart = (typeof nextQ.bar_index === "number") ? nextQ.bar_index : Math.floor(curQ / Math.max(1, beatsPerBarCanon));
+                var desiredOverlays = Math.min(nextQ.others.length, Math.max(1, Math.floor(barsSinceStart / 8) + 1));
+                var energyCanon = nextQ.median_volume || nextQ.volume || nextQ.loudness || 0;
+                if (energyCanon > -8) {
+                    desiredOverlays = 0; // chorus/drop: let lead slam
+                } else if (energyCanon < -18) {
+                    desiredOverlays = nextQ.others.length; // breakdown: full choir
+                }
+                nextQ._overlayLimit = desiredOverlays;
+            } else {
+                nextQ._overlayLimit = null;
+            }
             var delay = player.playQ(nextQ);
             renderOverlayChips(nextQ);
             var choice = chooseCanonNextIndex(currentIndex);

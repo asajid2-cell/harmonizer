@@ -283,6 +283,9 @@ jgs   `-=========-`()
                                 </div>
                                 <span id="canon-voice-count-display" class="neon-range__value">2</span>
                             </div>
+                            <button type="button" id="reset-cache-btn" class="viz-button ghost" title="Clear cached track profiles">
+                                Reset Cached Songs
+                            </button>
                             <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
                                 Advanced: Off
                             </button>
@@ -550,7 +553,7 @@ jgs   `-=========-`()
             }
         })();
     </script>
-    <script src="./js/visualizer.js?v=202511201955"></script>
+    <script src="./js/visualizer.js?v=202511202010"></script>
     <script>
     (function() {
         const body = document.body;
@@ -2241,6 +2244,26 @@ jgs   `-=========-`()
                     fileName2.textContent = fileInput2.files[0].name;
                 } else {
                     fileName2.textContent = 'No file chosen';
+                }
+            });
+        }
+
+        // Reset cached songs
+        const resetCacheBtn = document.getElementById('reset-cache-btn');
+        if (resetCacheBtn) {
+            resetCacheBtn.addEventListener('click', async function() {
+                resetCacheBtn.disabled = true;
+                resetCacheBtn.textContent = 'Resetting...';
+                try {
+                    const res = await fetch('/api/cache/clear', { method: 'POST' });
+                    if (!res.ok) throw new Error('Request failed');
+                    const data = await res.json();
+                    alert(`Cache cleared. Removed files: ${data.removed_files || 0}`);
+                } catch (e) {
+                    alert('Failed to clear cache. Please try again.');
+                } finally {
+                    resetCacheBtn.disabled = false;
+                    resetCacheBtn.textContent = 'Reset Cached Songs';
                 }
             });
         }
