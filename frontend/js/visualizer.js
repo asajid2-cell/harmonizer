@@ -105,9 +105,11 @@ function createHtmlAudioController(sourceUrl, options) {
         var startVolume = audio.volume;
         var startTime = performance.now();
         function step(now) {
-            var progress = Math.min(1, (now - startTime) / durationMs);
-            audio.volume = startVolume + (targetVolume - startVolume) * progress;
-            if (progress < 1) {
+            var t = Math.min(1, (now - startTime) / durationMs);
+            // equal-power crossfade curve
+            var curve = Math.cos((1 - t) * Math.PI * 0.5);
+            audio.volume = startVolume + (targetVolume - startVolume) * curve;
+            if (t < 1) {
                 fadeHandle = requestFrame(step);
             } else {
                 fadeHandle = null;
@@ -7381,6 +7383,7 @@ function createAutoharmonizerDriver(player) {
     var energies2 = track2Data.energies || [];
     var tempo1 = typeof track1Data.tempo === "number" ? track1Data.tempo : 120;
     var tempo2 = typeof track2Data.tempo === "number" ? track2Data.tempo : 120;
+    var recentScores = [];
 
     var edgesByTrack = { 1: {}, 2: {} };
     jointEdges.forEach(function(edge) {
@@ -7754,7 +7757,8 @@ function updateHudForBeat(beat) {
         }
 
         if (recentScores) {
-            recentScores.push(choice && choice.score ? choice.score : (currentBeat && currentBeat.otherSimilarity ? currentBeat.otherSimilarity : 0));
+            var scoreSample = choice && choice.score ? choice.score : (currentBeat && currentBeat.otherSimilarity ? currentBeat.otherSimilarity : 0);
+            recentScores.push(scoreSample);
             if (recentScores.length > 32) {
                 recentScores.shift();
             }

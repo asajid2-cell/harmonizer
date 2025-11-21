@@ -1562,6 +1562,8 @@ def _build_autoharmonizer_edges(
     energies2 = track2.get("energies", [])
     chroma1 = track1.get("chroma", [])
     chroma2 = track2.get("chroma", [])
+    tempo1 = float(track1.get("tempo", 120.0)) or 120.0
+    tempo2 = float(track2.get("tempo", 120.0)) or 120.0
 
     # Maps beat index -> section index
     def map_sections(beats: List[Dict], sections: List[Dict]) -> List[int]:
@@ -1623,6 +1625,12 @@ def _build_autoharmonizer_edges(
         if beat_in_bar_src is not None and beat_in_bar_tgt is not None:
             mod = max(1, min(bar_len_src or 4, bar_len_tgt or 4))
             phase_penalty = abs((beat_in_bar_src % mod) - (beat_in_bar_tgt % mod)) / mod
+
+        # Tempo guard for cross-track jumps
+        if src_track != tgt_track:
+            tempo_ratio = abs(tempo1 - tempo2) / max(tempo1, tempo2)
+            if tempo_ratio > 0.06:
+                return
 
         score = sim * 0.4 + chroma_sim * 0.4
         if same_section:
