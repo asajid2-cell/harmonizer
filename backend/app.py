@@ -283,10 +283,10 @@ IMGEN_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 STATIC_CACHE_SECONDS = 31536000
-HTML_CACHE_SECONDS = 300
+HTML_CACHE_SECONDS = 0  # always fetch fresh HTML
+# Code assets should not be long‑cached; keep heavy assets (images/fonts/audio) cached
+CODE_NO_CACHE_EXTENSIONS = {".js", ".css", ".json"}
 STATIC_CACHE_EXTENSIONS = {
-    ".css",
-    ".js",
     ".png",
     ".jpg",
     ".jpeg",
@@ -647,10 +647,14 @@ def _send_cached_file(path: Path, *, treat_as_html: bool = False):
     """Send a static file with sensible caching defaults."""
     response = send_file(path, conditional=True)
     suffix = path.suffix.lower()
-    if suffix in STATIC_CACHE_EXTENSIONS:
+    if suffix in CODE_NO_CACHE_EXTENSIONS or treat_as_html or suffix in {".html", ".htm"}:
+        # Algorithms and markup: no cache to ensure latest logic
+        _set_cache_headers(response, 0, public=False)
+        response.cache_control.no_store = True
+        response.cache_control.no_cache = True
+        response.cache_control.must_revalidate = True
+    elif suffix in STATIC_CACHE_EXTENSIONS:
         _set_cache_headers(response, STATIC_CACHE_SECONDS)
-    elif suffix in {".html", ".htm"} or treat_as_html:
-        _set_cache_headers(response, HTML_CACHE_SECONDS, public=False)
     return response
 
 
