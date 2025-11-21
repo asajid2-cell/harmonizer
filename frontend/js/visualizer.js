@@ -7663,6 +7663,41 @@ function createAutoharmonizerDriver(player) {
         }
     }
 
+    // Heartbeat to keep playback alive when the tab is backgrounded (setTimeout throttles)
+    function heartbeat() {
+        if (!running) {
+            return;
+        }
+        if (!processTimer) {
+            scheduleNextProcess(0);
+        }
+    }
+
+    if (track1Controller && track1Controller.audio) {
+        track1Controller.audio.addEventListener("timeupdate", heartbeat);
+    }
+    if (track2Controller && track2Controller.audio) {
+        track2Controller.audio.addEventListener("timeupdate", heartbeat);
+    }
+
+    if (typeof document !== "undefined" && document.addEventListener) {
+        document.addEventListener("visibilitychange", function() {
+            if (!running) {
+                return;
+            }
+            // Ensure controllers keep playing even if timers are throttled
+            if (track1Controller && typeof track1Controller.ensurePlaying === "function") {
+                track1Controller.ensurePlaying();
+            }
+            if (track2Controller && typeof track2Controller.ensurePlaying === "function") {
+                track2Controller.ensurePlaying();
+            }
+            if (!processTimer) {
+                scheduleNextProcess(0);
+            }
+        });
+    }
+
     function scheduleNextProcess(durationSeconds) {
         clearProcessTimer();
         var delayMs = Math.max(60, (durationSeconds || 0.1) * 1000);
