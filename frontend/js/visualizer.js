@@ -7419,8 +7419,9 @@ function createAutoharmonizerDriver(player) {
     var CROSS_TARGET_LIMIT = 16;
     var CROSS_RECENT_LIMIT = Math.max(4, Math.round(rlRepeatPenalty / 2) + 4);
     var CROSS_REPEAT_FACTOR = Math.max(0.2, 1 - rlRepeatPenalty / 32);
-    var BORING_CROSS_AFTER = 64; // let phrases breathe (~16 bars)
-    var FORCE_CROSS_ONLY_AFTER = 68;
+    // Let phrases breathe: push cross boredom out
+    var BORING_CROSS_AFTER = 96; // ~24 bars
+    var FORCE_CROSS_ONLY_AFTER = 104;
 
     var autoharmonizerData = curTrack && curTrack.analysis && curTrack.analysis.autoharmonizer;
     if (!autoharmonizerData) {
@@ -7828,7 +7829,7 @@ function createAutoharmonizerDriver(player) {
                 var tempoDiff = Math.abs(tempoSrc - tempoTgt) / Math.max(tempoSrc, tempoTgt);
                 score -= Math.min(0.2, tempoDiff * 0.8);
             }
-            var minScore = (tgtTrack === trackNum) ? 0.60 : 0.55;
+            var minScore = (tgtTrack === trackNum) ? 0.60 : 0.60;
             // Adaptive hysteresis: tighten threshold when content is novel, relax when repetitive
             if (recentScores && recentScores.length >= 6) {
                 var mean = recentScores.reduce(function(a, b) { return a + b; }, 0) / recentScores.length;
@@ -7964,10 +7965,11 @@ function updateHudForBeat(beat) {
         var bored = beatsSinceCross >= BORING_CROSS_AFTER;
         var forceCrossOnly = beatsSinceCross >= FORCE_CROSS_ONLY_AFTER;
         var forceCross = beatsSinceCross >= FORCE_CROSS_AFTER || bored;
-        var preferCross = true; // bias cross always
-        // Do not attempt any jump until we've dwelled long enough
-        var allowJump = beatsSinceJump >= minDwellBeats;
-        var allowCross = true;
+        var preferCross = forceCross || bored;
+        // Enforce longer dwell before any jump
+        var hardDwell = Math.max(minDwellBeats, 16);
+        var allowJump = beatsSinceJump >= hardDwell;
+        var allowCross = forceCross || bored;
         var choice = allowJump ? selectBestEdge(curQ, currentTrack, {
             preferCross: preferCross,
             forceCross: forceCross || bored,
