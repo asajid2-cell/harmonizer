@@ -7379,6 +7379,8 @@ function createAutoharmonizerDriver(player) {
     var maxBackwardBeats = typeof params.max_backward_beats === "number" ? params.max_backward_beats : 12;
     var energies1 = track1Data.energies || [];
     var energies2 = track2Data.energies || [];
+    var tempo1 = typeof track1Data.tempo === "number" ? track1Data.tempo : 120;
+    var tempo2 = typeof track2Data.tempo === "number" ? track2Data.tempo : 120;
 
     var edgesByTrack = { 1: {}, 2: {} };
     jointEdges.forEach(function(edge) {
@@ -7490,7 +7492,9 @@ function createAutoharmonizerDriver(player) {
 
         var preRoll = 0.05;
         var targetStart = Math.max(0, (beat.start || 0) - preRoll);
-        var fadeWindow = crossfadeMs || 480;
+        var targetTempo = targetTrack === 1 ? tempo1 : tempo2;
+        var quarterMs = 60000 / Math.max(40, Math.min(200, targetTempo));
+        var fadeWindow = crossfadeMs || Math.max(320, Math.min(720, quarterMs * 0.5));
 
         console.log("[Autoharmonizer] Crossfading from Track", sourceTrack, "to Track", targetTrack, {
             beatIndex: beatIndex,
@@ -7552,6 +7556,9 @@ function createAutoharmonizerDriver(player) {
             if (!isFinite(tgtIdx)) {
                 continue;
             }
+            if (tgtTrack !== trackNum && options.allowCross === false) {
+                continue;
+            }
             var tgtEnergy = (typeof e.target_energy === "number") ? e.target_energy : energyFor(tgtTrack, tgtIdx);
             if (tgtEnergy <= silenceThreshold) {
                 continue;
@@ -7561,6 +7568,21 @@ function createAutoharmonizerDriver(player) {
                 continue;
             }
             var score = (typeof e.score === "number") ? e.score : (e.similarity || 0);
+            // Prefer forward motion; penalize large backward hops
+            if (tgtTrack === trackNum) {
+                var span = tgtIdx - currentBeatIdx;
+                if (span < 0) {
+                    score -= Math.min(0.4, Math.abs(span) / (maxBackwardBeats * 2));
+                } else {
+                    score += Math.min(0.12, span / (beats.length || 512));
+                }
+            }
+            // Section awareness
+            if (e.same_section === false) {
+                score -= 0.08;
+            } else if (e.same_section === true) {
+                score += 0.04;
+            }
             if (tgtTrack === trackNum) {
                 if (curQ > tgtIdx && (curQ - tgtIdx) > maxBackwardBeats && score < 0.85) {
                     continue;
@@ -7579,7 +7601,12 @@ function createAutoharmonizerDriver(player) {
             if (options.preferCross && tgtTrack !== trackNum) {
                 score += 0.08;
             }
-            if (score < (options.minScore || minEdgeScore)) {
+            var minScore = (options.minScore || minEdgeScore);
+            // Raise threshold if very soon after a jump
+            if (beatsSinceJump < minDwellBeats + 2) {
+                minScore += 0.05;
+            }
+            if (score < minScore) {
                 continue;
             }
             if (score > bestScore) {

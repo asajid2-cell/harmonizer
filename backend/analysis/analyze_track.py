@@ -1779,9 +1779,10 @@ def build_autoharmonizer_profile(
                         "joint_edges": joint_edges,
                         "params": {
                             "silence_threshold": silence_db,
-                            "min_dwell_beats": 4,
-                            "cross_min_beats": 6,
+                            "min_dwell_beats": 6,
+                            "cross_min_beats": 8,
                             "max_backward_beats": 12,
+                            "min_edge_score": 0.7,
                         },
                     },
                 },
