@@ -6133,6 +6133,10 @@ function createJukeboxDriver(player, options) {
     var recentPenaltyScale;
     var weightJitterStrength;
     var spanScaleBase;
+    var visitedBars = {};
+    var minScore = 0.7;
+    var minDwellBeats = 6;
+    var maxBackward = Math.max(24, Math.floor((masterQs && masterQs.length ? masterQs.length : 0) * 0.1));
 
     function recalcLoopWeightParams() {
         sameSectionBonusBase = 0.08 + sectionBias * 0.42;
@@ -6518,6 +6522,27 @@ function createJukeboxDriver(player, options) {
             similarity: sim,
             span: span
         };
+    }
+
+    function beatPhase(beat, fallbackMod) {
+        if (!beat) return 0;
+        if (typeof beat.beat_in_bar === "number") return beat.beat_in_bar;
+        if (typeof beat.indexInParent === "number") return beat.indexInParent;
+        return beat.which % (fallbackMod || 4);
+    }
+
+    function beatEnergy(beat) {
+        if (!beat) return 0;
+        if (typeof beat.median_volume === "number") return beat.median_volume;
+        if (typeof beat.volume === "number") return beat.volume;
+        if (typeof beat.loudness === "number") return beat.loudness;
+        return 0;
+    }
+
+    function markBarVisit(beat) {
+        if (!beat || typeof beat.bar_index !== "number") return;
+        var idx = beat.bar_index;
+        visitedBars[idx] = (visitedBars[idx] || 0) + 1;
     }
 
     function registerEdge(src, dst, similarity, span, direction, sectionMatch) {
