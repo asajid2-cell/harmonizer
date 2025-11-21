@@ -85,6 +85,18 @@ def compute_beats(y: np.ndarray, sr: int) -> Tuple[List[Quantum], np.ndarray, fl
         )
     return beats, beat_times, tempo
 
+def _build_beat_metadata(beats: List[Quantum], bars: List[Dict], segments: List[Dict], tempo: float) -> Tuple[List[Dict], List[float], List[np.ndarray], List[float]]:
+    """
+    Build beat dictionaries with bar metadata and per-beat energy/chroma/tempo for loop generation.
+    """
+    beats_dicts = [{"start": float(b.start), "duration": float(b.duration)} for b in beats]
+    if bars:
+        beats_dicts = _annotate_beats_with_bar_info(beats_dicts, bars)
+    energies = _compute_beat_energy(beats_dicts, segments)
+    chroma = _compute_beat_chroma(beats_dicts, segments)
+    tempos = [float(tempo) for _ in beats_dicts]
+    return beats_dicts, energies, chroma, tempos
+
 
 def derive_bars(
     beats: List[Quantum],
@@ -1212,7 +1224,12 @@ def generate_loop_candidates(
     min_span: int = 8,
     max_span: int = None,
     thresholds: List[float] = None,
-    max_candidates_per_beat: int = 16,
+    max_candidates_per_beat: int = 12,
+    energies: Optional[List[float]] = None,
+    chroma: Optional[List[np.ndarray]] = None,
+    tempos: Optional[List[float]] = None,
+    silence_floor: float = -50.0,
+    energy_drop_ratio: float = 0.6,
 ) -> Dict[int, List[Dict]]:
     """
     Generate bidirectional loop candidates for each beat using multi-tier thresholds.
@@ -1228,7 +1245,7 @@ def generate_loop_candidates(
         max_candidates_per_beat: Maximum candidates to keep per beat
 
     Returns:
-        Dict mapping beat_index -> list of {target, similarity, span, direction, section_match}
+        Dict mapping beat_index -> list of {target, similarity, span, direction, section_match, score, beat_in_bar, bar_length_beats}
         where direction is 'forward' or 'backward'
     """
     n_beats = len(beats)
@@ -1253,6 +1270,21 @@ def generate_loop_candidates(
             beat_sections.append(beat_section)
 
     loop_candidates = {}
+
+    def energy_for(idx: int) -> float:
+        if energies and 0 <= idx < len(energies):
+            return energies[idx]
+        return silence_floor
+
+    def chroma_for(idx: int) -> Optional[np.ndarray]:
+        if chroma and 0 <= idx < len(chroma):
+            return chroma[idx]
+        return None
+
+    def tempo_for(idx: int) -> float:
+        if tempos and 0 <= idx < len(tempos):
+            return tempos[idx]
+        return 120.0
 
     for source_idx in range(n_beats):
         candidates = []
@@ -1284,6 +1316,46 @@ def generate_loop_candidates(
             if beat_sections and beat_sections[source_idx] is not None:
                 section_match = (beat_sections[source_idx] == beat_sections[target_idx])
 
+            src_beat = beats[source_idx]
+            tgt_beat = beats[target_idx]
+            src_phase = getattr(src_beat, "indexInParent", None)
+            tgt_phase = getattr(tgt_beat, "indexInParent", None)
+            # enforce bar phase lock when available
+            if src_phase is not None and tgt_phase is not None and src_phase != tgt_phase:
+                continue
+
+            src_energy = energy_for(source_idx)
+            tgt_energy = energy_for(target_idx)
+            if tgt_energy <= silence_floor:
+                continue
+            if tgt_energy < src_energy * energy_drop_ratio:
+                continue
+
+            src_chroma = chroma_for(source_idx)
+            tgt_chroma = chroma_for(target_idx)
+            chroma_sim = float(np.dot(src_chroma, tgt_chroma)) if (src_chroma is not None and tgt_chroma is not None) else 0.0
+
+            tempo_src = tempo_for(source_idx)
+            tempo_tgt = tempo_for(target_idx)
+            if abs(tempo_src - tempo_tgt) / max(tempo_src, tempo_tgt) > 0.06:
+                continue
+
+            # Composite score
+            score = similarity * 0.3 + chroma_sim * 0.3
+            # energy match bonus
+            score += max(0.0, min(0.2, (tgt_energy - silence_floor) / 80.0))
+            # phase bonus
+            score += 0.2 if (src_phase is not None and tgt_phase is not None and src_phase == tgt_phase) else 0
+            # downbeat bonus
+            if tgt_phase == 0:
+                score += 0.1
+            # section bonus
+            if section_match:
+                score += 0.05
+            # backward penalty
+            if direction == "backward":
+                score -= min(0.2, abs_span / (max_span or n_beats))
+
             candidates.append({
                 "target": target_idx,
                 "similarity": float(similarity),
@@ -1291,10 +1363,16 @@ def generate_loop_candidates(
                 "abs_span": int(abs_span),
                 "direction": direction,
                 "section_match": section_match,
+                "score": float(score),
+                "beat_in_bar": getattr(tgt_beat, "beat_in_bar", None),
+                "bar_length_beats": getattr(tgt_beat, "bar_length_beats", None),
+                "chroma_similarity": chroma_sim,
+                "source_energy": float(src_energy),
+                "target_energy": float(tgt_energy),
             })
 
         # Sort by similarity (best first) and limit
-        candidates.sort(key=lambda x: x["similarity"], reverse=True)
+        candidates.sort(key=lambda x: x.get("score", x["similarity"]), reverse=True)
         loop_candidates[source_idx] = candidates[:max_candidates_per_beat]
 
     return loop_candidates
@@ -1332,6 +1410,7 @@ def build_profile(
     desired_sections = max(2, min(12, len(beats) // 8 or 2))
     sections = estimate_sections(y, sr, duration, desired_sections, bars)
     segments = compute_segments(y, sr, duration)
+    beats_meta, beat_energies, beat_chroma, beat_tempos = _build_beat_metadata(beats, [b.as_dict() for b in bars], segments, tempo)
 
     chroma_full = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
     key_index, mode = estimate_key(chroma_full)
@@ -1360,13 +1439,18 @@ def build_profile(
     # Generate circular bidirectional loop candidates with multi-tier thresholds
     print("[Analysis] Generating eternal loop candidates (circular timeline)...", flush=True)
     eternal_loop_candidates = generate_loop_candidates(
-        beats=beats,
+        beats=beats_meta,
         similarity_matrix=similarity_matrix,
         sections=sections,
         min_span=8,
         max_span=None,  # Auto-computed as n_beats // 2
-        thresholds=[0.76, 0.65, 0.55],  # Tight → medium → loose
-        max_candidates_per_beat=16,
+        thresholds=[0.76, 0.65, 0.55],  # Tight + medium + loose
+        max_candidates_per_beat=12,
+        energies=beat_energies,
+        chroma=beat_chroma,
+        tempos=beat_tempos,
+        silence_floor=SILENCE_DB,
+        energy_drop_ratio=0.6,
     )
 
     # Convert to string keys for JSON serialization
@@ -1569,6 +1653,22 @@ def _compute_vocal_activity(beats: List[Dict], segments: List[Dict]) -> List[flo
             j += 1
         vocality.append(float(np.mean(acc)) if acc else 0.0)
     return vocality
+
+def _compute_beat_chroma(beats: List[Dict], segments: List[Dict]) -> List[np.ndarray]:
+    """
+    Compute a per-beat chroma vector using the closest segment's pitches.
+    """
+    chromas: List[np.ndarray] = []
+    for beat in beats:
+        beat_start = beat.get("start", 0.0)
+        if not segments:
+            chromas.append(np.zeros(12, dtype=np.float32))
+            continue
+        best_seg = min(segments, key=lambda s: abs(s.get("start", 0.0) - beat_start))
+        pitches = np.array(best_seg.get("pitches", [0.0] * 12), dtype=np.float32)
+        norm = np.linalg.norm(pitches) + 1e-8
+        chromas.append(pitches / norm)
+    return chromas
 
 def _compute_beat_energy(beats: List[Dict], segments: List[Dict], default_db: float = -40.0) -> List[float]:
     """
@@ -1976,3 +2076,8 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
