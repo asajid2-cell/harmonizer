@@ -7295,6 +7295,7 @@ function createAutoharmonizerDriver(player) {
     var processTimer = null;
     var mtime = $("#mtime");
     var beatsSinceCross = 0;
+    var beatsSinceJump = 0;
     var rlConfig = getCanonRlTuning();
     var rlMinDwell = Math.max(2, rlConfig.minDwell);
     var rlRepeatPenalty = rlConfig.repeatPenalty;
@@ -7372,8 +7373,9 @@ function createAutoharmonizerDriver(player) {
     var jointEdges = (autoharmonizerData && autoharmonizerData.joint_edges) || [];
     var params = (autoharmonizerData && autoharmonizerData.params) || {};
     var silenceThreshold = typeof params.silence_threshold === "number" ? params.silence_threshold : -45;
-    var minDwellBeats = typeof params.min_dwell_beats === "number" ? params.min_dwell_beats : 4;
-    var crossMinBeats = typeof params.cross_min_beats === "number" ? params.cross_min_beats : 6;
+    var minDwellBeats = typeof params.min_dwell_beats === "number" ? params.min_dwell_beats : 6;
+    var crossMinBeats = typeof params.cross_min_beats === "number" ? params.cross_min_beats : 8;
+    var minEdgeScore = typeof params.min_edge_score === "number" ? params.min_edge_score : 0.7;
     var maxBackwardBeats = typeof params.max_backward_beats === "number" ? params.max_backward_beats : 12;
     var energies1 = track1Data.energies || [];
     var energies2 = track2Data.energies || [];
@@ -7572,10 +7574,13 @@ function createAutoharmonizerDriver(player) {
                 }
             }
             if (isRecent(tgtTrack, tgtIdx)) {
-                score -= 0.2;
+                score -= 0.25;
             }
             if (options.preferCross && tgtTrack !== trackNum) {
                 score += 0.08;
+            }
+            if (score < (options.minScore || minEdgeScore)) {
+                continue;
             }
             if (score > bestScore) {
                 bestScore = score;
@@ -7657,7 +7662,10 @@ function updateHudForBeat(beat) {
                 var beatDuration = Math.max(currentBeat.duration || 0.25, 0.15);
         var forceCross = beatsSinceCross >= FORCE_CROSS_AFTER;
         var preferCross = forceCross || beatsSinceCross >= crossMinBeats;
-        var choice = selectBestEdge(curQ, currentTrack, { preferCross: preferCross });
+        // Do not attempt any jump until we've dwelled long enough
+        var allowJump = beatsSinceJump >= minDwellBeats;
+        var allowCross = beatsSinceJump >= crossMinBeats;
+        var choice = allowJump ? selectBestEdge(curQ, currentTrack, { preferCross: preferCross, minScore: minEdgeScore, allowCross: allowCross }) : null;
 
         if (choice) {
             var beatsForTrack = getBeatsForTrack(choice.track);
@@ -7668,6 +7676,7 @@ function updateHudForBeat(beat) {
                 markRecent(choice.track, curQ);
                 markCrossTarget(choice.track, curQ);
                 beatsSinceCross++;
+                beatsSinceJump = 0;
                 if (window.__autohLog) {
                     window.__autohLog.push({ type: "jump", track: currentTrack, target: curQ, reason: choice.reason, score: choice.score, t: Date.now() });
                 }
@@ -7678,6 +7687,8 @@ function updateHudForBeat(beat) {
                     window.__autohLog.push({ type: "cross", from: currentTrack, to: choice.track, target: choice.index, score: choice.score, t: Date.now() });
                 }
                 crossfadeToTrack(choice.track, choice.index, 480);
+                beatsSinceCross = 0;
+                beatsSinceJump = 0;
                 return;
             }
         }
@@ -7685,6 +7696,7 @@ function updateHudForBeat(beat) {
         // Sequential playback - continue to next beat
         curQ = (curQ + 1) % beats.length;
         beatsSinceCross++;
+        beatsSinceJump++;
 
         if (window.__autohLog) {
             window.__autohLog.push({ type: "sequential", track: currentTrack, target: curQ, t: Date.now() });
