@@ -5567,6 +5567,7 @@ function createCanonDriver(player) {
     var lastCanonHop = { source: null, target: null };
     var recentCanonTargets = [];
     var canonJumpHistory = [];
+    var canonVisitedBars = {};
     var CANON_RECENT_LIMIT = 20;
     var CANON_JUMP_HISTORY_LIMIT = 8;
     var beatsSinceLastCanonJump = rlMinDwell;
@@ -5615,6 +5616,22 @@ function createCanonDriver(player) {
             }
         }
         return count;
+    }
+
+    function markCanonVisitedBar(index) {
+        var b = masterQs && masterQs[index];
+        if (!b || typeof b.bar_index !== "number") return;
+        var bar = b.bar_index;
+        canonVisitedBars[bar] = (canonVisitedBars[bar] || 0) + 1;
+    }
+
+    function decayCanonVisitedBars() {
+        Object.keys(canonVisitedBars).forEach(function(k) {
+            canonVisitedBars[k] *= 0.92;
+            if (canonVisitedBars[k] < 0.1) {
+                delete canonVisitedBars[k];
+            }
+        });
     }
 
     function registerCanonDecision(reason) {
@@ -5814,13 +5831,23 @@ function createCanonDriver(player) {
             if (isImmediateBacktrack) {
                 return;
             }
-            if (
-                allowLooping &&
-                candidate.reason !== "sequential" &&
-                isRecentlyVisitedCanonTarget(candidate.target)
-            ) {
-                return;
+        if (
+            allowLooping &&
+            candidate.reason !== "sequential" &&
+            isRecentlyVisitedCanonTarget(candidate.target)
+        ) {
+            return;
+        }
+        if (candidate.target < masterQs.length) {
+            var barIndex = masterQs[candidate.target] && masterQs[candidate.target].bar_index;
+            if (barIndex !== null && barIndex !== undefined && typeof barIndex === "number") {
+                var visits = canonVisitedBars[barIndex] || 0;
+                if (visits > 0) {
+                    // heavy burnout to escape local maxima
+                    candidate.score = (typeof candidate.score === "number" ? candidate.score : 0) - Math.min(5, 1 * visits);
+                }
             }
+        }
             // Prevent backward jumps that would create tight loops
             if (
                 allowLooping &&
@@ -5969,6 +5996,8 @@ function createCanonDriver(player) {
                 registerCanonDecision(reason);
                 if (reason !== "sequential") {
                     markCanonJumpTarget(choice.index);
+                    markCanonVisitedBar(choice.index);
+                    decayCanonVisitedBars();
                 }
             } else {
                 clearLastCanonHop();
@@ -7419,9 +7448,9 @@ function createAutoharmonizerDriver(player) {
     var CROSS_TARGET_LIMIT = 16;
     var CROSS_RECENT_LIMIT = Math.max(4, Math.round(rlRepeatPenalty / 2) + 4);
     var CROSS_REPEAT_FACTOR = Math.max(0.2, 1 - rlRepeatPenalty / 32);
-    // Let phrases breathe: push cross boredom out
-    var BORING_CROSS_AFTER = 96; // ~24 bars
-    var FORCE_CROSS_ONLY_AFTER = 104;
+    // Let phrases breathe, but still guarantee swaps
+    var BORING_CROSS_AFTER = 64; // ~16 bars
+    var FORCE_CROSS_ONLY_AFTER = 64; // once this hits, ignore intra edges
 
     var autoharmonizerData = curTrack && curTrack.analysis && curTrack.analysis.autoharmonizer;
     if (!autoharmonizerData) {
@@ -7969,7 +7998,7 @@ function updateHudForBeat(beat) {
         // Enforce longer dwell before any jump
         var hardDwell = Math.max(minDwellBeats, 16);
         var allowJump = beatsSinceJump >= hardDwell;
-        var allowCross = forceCross || bored;
+        var allowCross = true; // always consider cross edges
         var choice = allowJump ? selectBestEdge(curQ, currentTrack, {
             preferCross: preferCross,
             forceCross: forceCross || bored,
