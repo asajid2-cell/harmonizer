@@ -6017,20 +6017,12 @@ function createCanonDriver(player) {
             if (currentIndex > maxBeatReached) {
                 maxBeatReached = currentIndex;
             }
-            var nextQ = masterQs[currentIndex];
-            nextQ.tile.highlight();
+           var nextQ = masterQs[currentIndex];
+           nextQ.tile.highlight();
 
-            // Highlight all overlay voices
-            if (nextQ.others && Array.isArray(nextQ.others)) {
-                var beatsPerBar = (nextQ && nextQ.bar_length_beats) ? nextQ.bar_length_beats : 4;
-                var barsPlayed = Math.floor(curQ / Math.max(1, beatsPerBar));
-                // Dynamic density: add one overlay every 8 bars, up to available
-                var targetOverlayCount = Math.min(nextQ.others.length, Math.max(0, Math.floor(barsPlayed / 8) + 1));
-                // If current beat is very energetic, drop overlays to let lead hit
-                var energyVal = nextQ.median_volume || nextQ.volume || nextQ.loudness || 0;
-                if (energyVal > -8) {
-                    targetOverlayCount = 0;
-                }
+           // Highlight all overlay voices
+           if (nextQ.others && Array.isArray(nextQ.others)) {
+                var targetOverlayCount = nextQ._overlayLimit != null ? nextQ._overlayLimit : nextQ.others.length;
                 for (var voiceIdx = 0; voiceIdx < targetOverlayCount; voiceIdx++) {
                     var overlayBeat = nextQ.others[voiceIdx];
                     if (overlayBeat && overlayBeat.tile) {
@@ -6050,16 +6042,27 @@ function createCanonDriver(player) {
             if (nextQ.others && Array.isArray(nextQ.others) && nextQ.others.length) {
                 var beatsPerBarCanon = (nextQ && nextQ.bar_length_beats) ? nextQ.bar_length_beats : 4;
                 var barsSinceStart = (typeof nextQ.bar_index === "number") ? nextQ.bar_index : Math.floor(curQ / Math.max(1, beatsPerBarCanon));
-                var desiredOverlays = Math.min(nextQ.others.length, Math.max(1, Math.floor(barsSinceStart / 8) + 1));
-                var energyCanon = nextQ.median_volume || nextQ.volume || nextQ.loudness || 0;
-                if (energyCanon > -8) {
-                    desiredOverlays = 0; // chorus/drop: let lead slam
+                // Phrase-aware breathing: alternate half/full every 16 bars
+                var phase16 = barsSinceStart % 16;
+                var baseCount = (phase16 >= 8) ? nextQ.others.length : Math.max(1, Math.ceil(nextQ.others.length / 2));
+                var desiredOverlays = Math.min(nextQ.others.length, baseCount);
+                var energyCanonRaw = (_.isNumber(nextQ.median_volume) ? nextQ.median_volume :
+                    _.isNumber(nextQ.volume) ? nextQ.volume :
+                    _.isNumber(nextQ.loudness) ? nextQ.loudness : null);
+                var energyCanon = (_.isFinite(energyCanonRaw) ? energyCanonRaw : -12); // safe medium default
+                // Emphasize lead on high energy: trim, but keep at least one overlay
+                if (energyCanon > -6) {
+                    desiredOverlays = Math.max(1, Math.ceil(desiredOverlays / 2));
                 } else if (energyCanon < -18) {
                     desiredOverlays = nextQ.others.length; // breakdown: full choir
                 }
+                desiredOverlays = Math.max(1, desiredOverlays);
                 nextQ._overlayLimit = desiredOverlays;
+                // Pocket gating flag for rhythmic ducking (used in jremix)
+                nextQ._pocketGate = true;
             } else {
                 nextQ._overlayLimit = null;
+                nextQ._pocketGate = null;
             }
             var delay = player.playQ(nextQ);
             renderOverlayChips(nextQ);

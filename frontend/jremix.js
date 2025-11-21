@@ -409,7 +409,17 @@ function createJRemixer(context, jquery) {
                             } catch (e) {}
                         }
                         var oduration = otherBeat.track.audio_summary.duration - otherBeat.start;
+                        // Rhythmic ducking: drop overlays on downbeats
+                        var beatPos = (typeof otherBeat.beat_in_bar === "number") ? otherBeat.beat_in_bar : (otherBeat.which % 4);
+                        var pocketGate = (q && q._pocketGate) ? true : false;
+                        var duckGain = (pocketGate && beatPos === 0) ? 0.6 : 1.0;
+                        var panLfo = Math.sin((q.which || 0) * 0.05) * 0.7;
+                        var targetGain = duckGain * voice.gain.gain.value;
+                        if (voice.panner && typeof voice.panner.pan !== "undefined") {
+                            try { voice.panner.pan.value = panLfo; } catch (e) {}
+                        }
                         voice.source = llPlay(otherBeat.track.buffer, otherBeat.start, oduration, voice.gain);
+                        voice.gain.gain.value = targetGain;
 
                         // Set gain values to prevent clicks
                         try {
