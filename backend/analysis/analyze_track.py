@@ -1511,6 +1511,65 @@ def compute_cross_track_similarity(
         "track2_to_track1": track2_to_track1,
     }
 
+
+def _annotate_beats_with_bar_info(beats: List[Dict], bars: List[Dict]) -> List[Dict]:
+    """
+    Add bar-relative metadata to beats: beat_in_bar (0-indexed), bar_length_beats, bar_index.
+    """
+    annotated: List[Dict] = []
+    bar_idx = 0
+    beats_in_bar = 0
+    for i, beat in enumerate(beats):
+        beat_start = float(beat.get("start", 0.0))
+        while bar_idx + 1 < len(bars) and bars[bar_idx + 1].get("start", 0.0) <= beat_start:
+            bar_idx += 1
+            beats_in_bar = 0
+        bar_start = float(bars[bar_idx].get("start", 0.0))
+        bar_dur = float(bars[bar_idx].get("duration", 0.0)) or 1.0
+        beat_in_current_bar = beats_in_bar
+        beats_in_bar += 1
+        # Count beats in this bar to set bar length
+        bar_beats = beats_in_bar
+        j = i + 1
+        while j < len(beats) and float(beats[j].get("start", 0.0)) < bar_start + bar_dur:
+            bar_beats += 1
+            j += 1
+        annotated_beat = dict(beat)
+        annotated_beat["beat_in_bar"] = beat_in_current_bar
+        annotated_beat["bar_length_beats"] = bar_beats
+        annotated_beat["bar_index"] = bar_idx
+        annotated.append(annotated_beat)
+    return annotated
+
+
+def _compute_vocal_activity(beats: List[Dict], segments: List[Dict]) -> List[float]:
+    """
+    Lightweight vocal proxy: average absolute MFCC mid-band (dims 2-5) for segments overlapping each beat.
+    """
+    vocality: List[float] = []
+    seg_idx = 0
+    for beat in beats:
+        start = float(beat.get("start", 0.0))
+        end = start + float(beat.get("duration", 0.0))
+        acc = []
+        while seg_idx < len(segments) and (segments[seg_idx].get("start", 0.0) + segments[seg_idx].get("duration", 0.0)) < start:
+            seg_idx += 1
+        j = seg_idx
+        while j < len(segments):
+            seg = segments[j]
+            seg_start = float(seg.get("start", 0.0))
+            seg_end = seg_start + float(seg.get("duration", 0.0))
+            if seg_start > end:
+                break
+            if seg_end >= start:
+                timbre = seg.get("timbre", [])
+                mid = timbre[2:6] if len(timbre) >= 6 else timbre
+                if mid:
+                    acc.append(float(np.mean(np.abs(mid))))
+            j += 1
+        vocality.append(float(np.mean(acc)) if acc else 0.0)
+    return vocality
+
 def _compute_beat_energy(beats: List[Dict], segments: List[Dict], default_db: float = -40.0) -> List[float]:
     """
     Estimate per-beat loudness (dB) using overlapping segments' loudness values.
@@ -1562,6 +1621,8 @@ def _build_autoharmonizer_edges(
     energies2 = track2.get("energies", [])
     chroma1 = track1.get("chroma", [])
     chroma2 = track2.get("chroma", [])
+    vocal1 = track1.get("vocality", [])
+    vocal2 = track2.get("vocality", [])
     tempo1 = float(track1.get("tempo", 120.0)) or 120.0
     tempo2 = float(track2.get("tempo", 120.0)) or 120.0
 
@@ -1604,6 +1665,13 @@ def _build_autoharmonizer_edges(
             return chroma2[idx]
         return None
 
+    def vocal_for(track_num: int, idx: int) -> float:
+        if track_num == 1 and 0 <= idx < len(vocal1):
+            return vocal1[idx]
+        if track_num == 2 and 0 <= idx < len(vocal2):
+            return vocal2[idx]
+        return 0.0
+
     edges: List[Dict] = []
 
     def add_edge(src_track: int, src_idx: int, tgt_track: int, tgt_idx: int, sim: float, reason: str):
@@ -1616,6 +1684,7 @@ def _build_autoharmonizer_edges(
         c_src = chroma_for(src_track, src_idx)
         c_tgt = chroma_for(tgt_track, tgt_idx)
         chroma_sim = float(np.dot(c_src, c_tgt)) if c_src is not None and c_tgt is not None else 0.0
+        tgt_vocal = vocal_for(tgt_track, tgt_idx)
 
         beat_in_bar_src = beats1[src_idx].get("beat_in_bar") if src_track == 1 else beats2[src_idx].get("beat_in_bar")
         beat_in_bar_tgt = beats1[tgt_idx].get("beat_in_bar") if tgt_track == 1 else beats2[tgt_idx].get("beat_in_bar")
@@ -1639,6 +1708,9 @@ def _build_autoharmonizer_edges(
         if beat_in_bar_tgt == 0:
             score += 0.12
         score -= min(0.3, phase_penalty)
+        # Penalize very vocal targets slightly to prefer instrumental landings
+        if tgt_vocal > 4.0:
+            score -= 0.08
         edges.append(
             {
                 "source_track": src_track,
@@ -1649,6 +1721,7 @@ def _build_autoharmonizer_edges(
                 "score": float(score),
                 "same_section": bool(same_section),
                 "target_energy": float(tgt_energy),
+                "target_vocal": float(tgt_vocal),
                 "chroma_similarity": float(chroma_sim),
                 "beat_in_bar": beat_in_bar_tgt if beat_in_bar_tgt is not None else 0,
                 "bar_length_beats": bar_len_tgt if bar_len_tgt is not None else 4,
@@ -1728,11 +1801,13 @@ def build_autoharmonizer_profile(
     if bars2:
         beats2 = _annotate_beats_with_bar_info(beats2, bars2)
 
-    # Per-beat energy (used to avoid silent targets)
+    # Per-beat energy and proxies for vocal/chroma
     energies1 = _compute_beat_energy(beats1, segments1)
     energies2 = _compute_beat_energy(beats2, segments2)
     chroma1 = _compute_beat_chroma(beats1, segments1)
     chroma2 = _compute_beat_chroma(beats2, segments2)
+    vocality1 = _compute_vocal_activity(beats1, segments1)
+    vocality2 = _compute_vocal_activity(beats2, segments2)
 
     # Compute cross-track similarity
     print(f"[Autoharmonizer] Computing cross-track similarity between {len(beats1)} and {len(beats2)} beats...")
@@ -1747,6 +1822,8 @@ def build_autoharmonizer_profile(
             "eternal_loop_candidates": track1["analysis"].get("eternal_loop_candidates", {}),
             "energies": energies1,
             "chroma": chroma1,
+            "vocality": vocality1,
+            "tempo": track1["audio_summary"].get("tempo", 120.0),
         },
         {
             "beats": beats2,
@@ -1754,6 +1831,8 @@ def build_autoharmonizer_profile(
             "eternal_loop_candidates": track2["analysis"].get("eternal_loop_candidates", {}),
             "energies": energies2,
             "chroma": chroma2,
+            "vocality": vocality2,
+            "tempo": track2["audio_summary"].get("tempo", 120.0),
         },
         cross_similarity=cross_similarity,
         silence_db=silence_db,

@@ -7384,6 +7384,9 @@ function createAutoharmonizerDriver(player) {
     var tempo1 = typeof track1Data.tempo === "number" ? track1Data.tempo : 120;
     var tempo2 = typeof track2Data.tempo === "number" ? track2Data.tempo : 120;
     var recentScores = [];
+    var vocal1 = track1Data.vocality || [];
+    var vocal2 = track2Data.vocality || [];
+    var visitedBars = { 1: {}, 2: {} };
 
     var edgesByTrack = { 1: {}, 2: {} };
     jointEdges.forEach(function(edge) {
@@ -7417,6 +7420,11 @@ function createAutoharmonizerDriver(player) {
         if (trackNum === 1 && typeof energies1[idx] === "number") return energies1[idx];
         if (trackNum === 2 && typeof energies2[idx] === "number") return energies2[idx];
         return silenceThreshold;
+    }
+    function vocalFor(trackNum, idx) {
+        if (trackNum === 1 && typeof vocal1[idx] === "number") return vocal1[idx];
+        if (trackNum === 2 && typeof vocal2[idx] === "number") return vocal2[idx];
+        return 0;
     }
 
     function clearProcessTimer() {
@@ -7537,6 +7545,14 @@ function createAutoharmonizerDriver(player) {
         if (recentTargets[trackNum].length > RECENT_LIMIT) {
             recentTargets[trackNum].shift();
         }
+        // Track bar visits to reduce repetition
+        var beats = getBeatsForTrack(trackNum);
+        var beat = beats && beats[idx];
+        var barIndex = beat && typeof beat.bar_index === "number" ? beat.bar_index : null;
+        if (barIndex !== null) {
+            var map = visitedBars[trackNum];
+            map[barIndex] = (map[barIndex] || 0) + 1;
+        }
     }
 
     function isRecent(trackNum, idx) {
@@ -7585,6 +7601,19 @@ function createAutoharmonizerDriver(player) {
             } else {
                 score += 0.08;
             }
+            // Bar visit decay: discourage overused bars
+            var barIndex = tb && typeof tb.bar_index === "number" ? tb.bar_index : null;
+            if (barIndex !== null && visitedBars[tgtTrack]) {
+                var visits = visitedBars[tgtTrack][barIndex] || 0;
+                if (visits > 0) {
+                    score -= Math.min(0.25, visits * 0.05);
+                }
+            }
+            // Vocal penalty: avoid jumping into very vocal targets unless score is strong
+            var tgtVocal = vocalFor(tgtTrack, tgtIdx);
+            if (tgtVocal > 4) {
+                score -= 0.08;
+            }
             // Prefer forward motion; penalize large backward hops
             if (tgtTrack === trackNum) {
                 var span = tgtIdx - currentBeatIdx;
@@ -7629,6 +7658,11 @@ function createAutoharmonizerDriver(player) {
                 } else if (std > 0.15) {
                     minScore += 0.05; // novel → hold off
                 }
+            }
+            // If current beat is very vocal, require a higher bar to avoid chopping words
+            var currentVocal = vocalFor(currentTrack, currentBeatIdx);
+            if (currentVocal > 4) {
+                minScore += 0.05;
             }
             if (beatsSinceJump < minDwellBeats + 2) {
                 minScore += 0.05;
