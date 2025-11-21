@@ -1918,6 +1918,32 @@ function applyCanonAlignment(qlist, alignment) {
     return true;
 }
 
+// Fallback: if alignment fails or is missing, synthesize overlays so multi-voice UI still works
+function synthesizeCanonOverlays(qlist, numVoices) {
+    if (!qlist || !qlist.length || numVoices < 2) {
+        return;
+    }
+    var total = qlist.length;
+    for (var i = 0; i < total; i++) {
+        var q = qlist[i];
+        // Simple evenly spaced offsets
+        var others = [];
+        for (var v = 1; v < numVoices; v++) {
+            var step = Math.max(1, Math.floor(total / numVoices) * v);
+            var idx = (i + step) % total;
+            var target = qlist[idx];
+            if (target) {
+                others.push(target);
+            }
+        }
+        // Always keep legacy fields too
+        q.other = others[0] || q.next || q;
+        q.others = others;
+        q.otherGain = 0.6;
+    }
+    console.warn("[Canon Alignment] Using synthesized overlays (no alignment data). Voices:", numVoices);
+}
+
 // Enrich overlay mapping with short, safe retarget runs centered in the track
 // - Only within the middle portion of the song
 // - Choose neighbors within the same section and small distance
@@ -2983,6 +3009,8 @@ function allReady() {
     if (!usingAutoharmonizer && (mode === "canon" || mode === "eternal")) {
         canonApplied = applyCanonAlignment(masterQs, curTrack.analysis.canon_alignment);
         if (!canonApplied) {
+            var fallbackVoices = Math.max(2, Math.min(8, window.canonVoiceCount || 2));
+            synthesizeCanonOverlays(masterQs, fallbackVoices);
             foldBySection(masterQs);
         } else {
             augmentCanonNeighbors(masterQs, curTrack.analysis.canon_alignment);
