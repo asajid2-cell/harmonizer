@@ -213,7 +213,8 @@ function createJRemixer(context, jquery) {
             var curQ = null;
             var curAudioSource = null;
             var masterGain = .53;
-            var overlayGain = 0.58;
+            // Slightly hotter base for overlays so HPF+ducking stays audible
+            var overlayGain = 0.8;
             var deltaTime = 0;
 
             // Get number of voices from window setting (default 2 for backwards compatibility)
@@ -290,6 +291,7 @@ function createJRemixer(context, jquery) {
 
                 overlayVoices.push({
                     gain: voiceGain,
+                    baseGain: adjustedGain,
                     panner: voicePanner,
                     hp: voiceHp,
                     source: null,
@@ -412,9 +414,14 @@ function createJRemixer(context, jquery) {
                         // Rhythmic ducking: drop overlays on downbeats
                         var beatPos = (typeof otherBeat.beat_in_bar === "number") ? otherBeat.beat_in_bar : (otherBeat.which % 4);
                         var pocketGate = (q && q._pocketGate) ? true : false;
-                        var duckGain = (pocketGate && beatPos === 0) ? 0.6 : 1.0;
+                        // Softer duck so overlays stay present
+                        var duckGain = (pocketGate && beatPos === 0) ? 0.8 : 1.0;
                         var panLfo = Math.sin((q.which || 0) * 0.05) * 0.7;
-                        var targetGain = duckGain * voice.gain.gain.value;
+                        var baseGain = (typeof voice.baseGain === "number") ? voice.baseGain : voice.gain.gain.value;
+                        var beatGain = (otherBeat && typeof otherBeat.otherGain === "number") ? otherBeat.otherGain : 0.7;
+                        // Clamp beatGain to avoid silence
+                        beatGain = Math.min(1.1, Math.max(0.35, beatGain));
+                        var targetGain = duckGain * baseGain * beatGain;
                         if (voice.panner && typeof voice.panner.pan !== "undefined") {
                             try { voice.panner.pan.value = panLfo; } catch (e) {}
                         }

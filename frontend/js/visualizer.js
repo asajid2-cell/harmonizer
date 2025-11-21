@@ -5583,7 +5583,6 @@ function createCanonDriver(player) {
     var rlMinDwell = rlConfig.minDwell;
     var rlRepeatPenalty = rlConfig.repeatPenalty;
     var CANON_PHRASE_DWELL = 16;
-    var canonVoiceOffsetsForDriver = [];
 
     var curQ = 0;
     var running = false;
@@ -6038,25 +6037,25 @@ function createCanonDriver(player) {
             updateCursors(nextQ);
             mtime.text(fmtTime(nextQ.start));
             pulseNotes(nextQ.median_volume || nextQ.volume || baseNoteStrength);
-            // Dynamic density for overlays: breathe over time and energy
+            // Dynamic density for overlays: phrase-based breathing (structure > energy)
             if (nextQ.others && Array.isArray(nextQ.others) && nextQ.others.length) {
                 var beatsPerBarCanon = (nextQ && nextQ.bar_length_beats) ? nextQ.bar_length_beats : 4;
                 var barsSinceStart = (typeof nextQ.bar_index === "number") ? nextQ.bar_index : Math.floor(curQ / Math.max(1, beatsPerBarCanon));
-                // Phrase-aware breathing: alternate half/full every 16 bars
-                var phase16 = barsSinceStart % 16;
-                var baseCount = (phase16 >= 8) ? nextQ.others.length : Math.max(1, Math.ceil(nextQ.others.length / 2));
-                var desiredOverlays = Math.min(nextQ.others.length, baseCount);
-                var energyCanonRaw = (_.isNumber(nextQ.median_volume) ? nextQ.median_volume :
-                    _.isNumber(nextQ.volume) ? nextQ.volume :
-                    _.isNumber(nextQ.loudness) ? nextQ.loudness : null);
-                var energyCanon = (_.isFinite(energyCanonRaw) ? energyCanonRaw : -12); // safe medium default
-                // Emphasize lead on high energy: trim, but keep at least one overlay
-                if (energyCanon > -6) {
-                    desiredOverlays = Math.max(1, Math.ceil(desiredOverlays / 2));
-                } else if (energyCanon < -18) {
-                    desiredOverlays = nextQ.others.length; // breakdown: full choir
+                // 32-bar cycle: 0-7 = 1 voice (intro), 8-15 = half, 16-23 = full, 24-31 = half (breathe)
+                var phase32 = barsSinceStart % 32;
+                var totalVoices = nextQ.others.length;
+                var desiredOverlays = totalVoices;
+                if (phase32 < 8) {
+                    desiredOverlays = 1;
+                } else if (phase32 < 16) {
+                    desiredOverlays = Math.max(1, Math.ceil(totalVoices / 2));
+                } else if (phase32 < 24) {
+                    desiredOverlays = totalVoices;
+                } else {
+                    desiredOverlays = Math.max(1, Math.ceil(totalVoices / 2));
                 }
-                desiredOverlays = Math.max(1, desiredOverlays);
+                // Safety: never exceed available, never go below 1
+                desiredOverlays = Math.max(1, Math.min(totalVoices, desiredOverlays));
                 nextQ._overlayLimit = desiredOverlays;
                 // Pocket gating flag for rhythmic ducking (used in jremix)
                 nextQ._pocketGate = true;
