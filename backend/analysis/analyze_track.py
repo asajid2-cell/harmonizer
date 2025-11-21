@@ -89,9 +89,22 @@ def _build_beat_metadata(beats: List[Quantum], bars: List[Dict], segments: List[
     """
     Build beat dictionaries with bar metadata and per-beat energy/chroma/tempo for loop generation.
     """
-    beats_dicts = [{"start": float(b.start), "duration": float(b.duration)} for b in beats]
+    beats_dicts = [
+        {
+            "start": float(b.start),
+            "duration": float(b.duration),
+            # carry onset proxy from beat confidence (normalized onset strength)
+            "onset_strength": float(getattr(b, "confidence", 0.0)),
+        }
+        for b in beats
+    ]
     if bars:
         beats_dicts = _annotate_beats_with_bar_info(beats_dicts, bars)
+    # midband vocal proxy can help avoid jumps into active vocals
+    vocality = _compute_vocal_activity(beats_dicts, segments)
+    for i, v in enumerate(vocality):
+        if i < len(beats_dicts):
+            beats_dicts[i]["vocal_activity"] = float(v)
     energies = _compute_beat_energy(beats_dicts, segments)
     chroma = _compute_beat_chroma(beats_dicts, segments)
     tempos = [float(tempo) for _ in beats_dicts]
@@ -1260,11 +1273,13 @@ def generate_loop_candidates(
         beat_sections = []
         for beat in beats:
             beat_section = None
+            # Handle both Quantum objects and dicts
+            beat_start = beat.start if hasattr(beat, 'start') else beat.get("start", 0)
             for idx, section in enumerate(sections):
                 # Handle both Quantum objects and dicts
                 sec_start = section.start if hasattr(section, 'start') else section.get("start", 0)
                 sec_dur = section.duration if hasattr(section, 'duration') else section.get("duration", 0)
-                if sec_start <= beat.start < sec_start + sec_dur:
+                if sec_start <= beat_start < sec_start + sec_dur:
                     beat_section = idx
                     break
             beat_sections.append(beat_section)
@@ -1286,6 +1301,8 @@ def generate_loop_candidates(
             return tempos[idx]
         return 120.0
 
+    max_backward_span = max(12, int(n_beats * 0.1))
+    span_band = max(min_span, 8)
     for source_idx in range(n_beats):
         candidates = []
 
@@ -1337,7 +1354,10 @@ def generate_loop_candidates(
 
             tempo_src = tempo_for(source_idx)
             tempo_tgt = tempo_for(target_idx)
-            if abs(tempo_src - tempo_tgt) / max(tempo_src, tempo_tgt) > 0.06:
+            tempo_ratio = abs(tempo_src - tempo_tgt) / max(tempo_src, tempo_tgt)
+
+            # Backward clamp
+            if direction == "backward" and abs_span > max_backward_span:
                 continue
 
             # Composite score
@@ -1349,12 +1369,19 @@ def generate_loop_candidates(
             # downbeat bonus
             if tgt_phase == 0:
                 score += 0.1
+            # onset bonus (use beat confidence as proxy when available)
+            src_onset = getattr(src_beat, "confidence", None)
+            tgt_onset = getattr(tgt_beat, "confidence", None)
+            if tgt_onset is not None and tgt_onset > 0.65:
+                score += 0.05
             # section bonus
             if section_match:
                 score += 0.05
+            # tempo penalty (soft guard instead of drop)
+            score -= min(0.25, tempo_ratio * 0.8)
             # backward penalty
             if direction == "backward":
-                score -= min(0.2, abs_span / (max_span or n_beats))
+                score -= min(0.2, abs_span / (max_backward_span or n_beats))
 
             candidates.append({
                 "target": target_idx,
@@ -1371,9 +1398,18 @@ def generate_loop_candidates(
                 "target_energy": float(tgt_energy),
             })
 
-        # Sort by similarity (best first) and limit
-        candidates.sort(key=lambda x: x.get("score", x["similarity"]), reverse=True)
-        loop_candidates[source_idx] = candidates[:max_candidates_per_beat]
+        # Band by span/direction to avoid near-duplicates, then limit
+        best_by_band: Dict[Tuple[str, int], Dict] = {}
+        for cand in candidates:
+            band = int(cand["abs_span"] // span_band)
+            key = (cand["direction"], band)
+            prev = best_by_band.get(key)
+            if prev is None or cand.get("score", cand["similarity"]) > prev.get("score", prev["similarity"]):
+                best_by_band[key] = cand
+        deduped = list(best_by_band.values())
+
+        deduped.sort(key=lambda x: x.get("score", x["similarity"]), reverse=True)
+        loop_candidates[source_idx] = deduped[:max_candidates_per_beat]
 
     return loop_candidates
 
@@ -1707,7 +1743,7 @@ def _build_autoharmonizer_edges(
     track2: Dict,
     cross_similarity: Dict[str, List[Dict]],
     silence_db: float = -45.0,
-    similarity_threshold: float = 0.55,
+    similarity_threshold: float = 0.35,
 ) -> List[Dict]:
     """
     Build a joint edge list across both tracks, combining intra-track and cross-track jumps.
@@ -1795,11 +1831,8 @@ def _build_autoharmonizer_edges(
             mod = max(1, min(bar_len_src or 4, bar_len_tgt or 4))
             phase_penalty = abs((beat_in_bar_src % mod) - (beat_in_bar_tgt % mod)) / mod
 
-        # Tempo guard for cross-track jumps
-        if src_track != tgt_track:
-            tempo_ratio = abs(tempo1 - tempo2) / max(tempo1, tempo2)
-            if tempo_ratio > 0.06:
-                return
+        # Tempo guard for cross-track jumps: soft penalty, not a drop
+        tempo_ratio = abs(tempo1 - tempo2) / max(tempo1, tempo2) if src_track != tgt_track else 0.0
 
         score = sim * 0.4 + chroma_sim * 0.4
         if same_section:
@@ -1808,6 +1841,9 @@ def _build_autoharmonizer_edges(
         if beat_in_bar_tgt == 0:
             score += 0.12
         score -= min(0.3, phase_penalty)
+        if src_track != tgt_track:
+            score += 0.40  # aggressive cross-track encouragement
+            score -= min(0.2, tempo_ratio * 0.8)
         # Penalize very vocal targets slightly to prefer instrumental landings
         if tgt_vocal > 4.0:
             score -= 0.08
@@ -1936,7 +1972,7 @@ def build_autoharmonizer_profile(
         },
         cross_similarity=cross_similarity,
         silence_db=silence_db,
-        similarity_threshold=0.45,
+        similarity_threshold=0.35,
     )
 
     # Build combined profile
