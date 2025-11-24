@@ -440,6 +440,8 @@ var canonLoopCandidates = [];
 var canonVoiceOffsetsForDriver = [];
 var loopPaths = [];
 var loopPathMap = {}; // Map of "source-target" to path object
+var loopMaxSpan = 1; // Max span used for arc height calculation
+var canonMaxDelta = 1; // Max delta used for canon arc height calculation
 
 // Queue management
 var trackQueue = [];
@@ -4844,6 +4846,7 @@ function drawLoopConnections(qlist, edges, isEternalMode) {
         return;
     }
     maxSpan = Math.max(1, maxSpan);
+    loopMaxSpan = maxSpan; // Store for highlight arc calculations
 
     // Use different colors for eternal mode vs jukebox mode
     var loopColor = isEternalMode ? "#F0A86B" : "#6B8AF0"; // Orange for eternal, blue for jukebox
@@ -4990,10 +4993,6 @@ function drawJumpArcHighlight(fromIdx, toIdx, isOverlay) {
         return;
     }
 
-    // Draw a new arc for this specific jump
-    var radius = getCircularRadius();
-    var centerPoint = getCircularCenter();
-
     var qSrc = masterQs[fromIdx];
     var qDst = masterQs[toIdx];
     if (!qSrc || !qDst) {
@@ -5010,30 +5009,53 @@ function drawJumpArcHighlight(fromIdx, toIdx, isOverlay) {
         }
     }
 
-    var srcPoint = getCircularPoint(qSrc, radius);
-    var dstPoint = getCircularPoint(qDst, radius);
+    var pathString;
 
-    // Calculate arc curve
-    var srcAngle = getCircularAngle(qSrc);
-    var dstAngle = getCircularAngle(qDst);
-    var angleDiff = dstAngle - srcAngle;
-    if (angleDiff > Math.PI) {
-        angleDiff -= 2 * Math.PI;
-    } else if (angleDiff < -Math.PI) {
-        angleDiff += 2 * Math.PI;
+    // Use circular visualizer for jukebox/eternal, linear for canon
+    if (mode === "jukebox" || mode === "eternal") {
+        // Circular arc
+        var radius = getCircularRadius();
+        var centerPoint = getCircularCenter();
+        var srcPoint = getCircularPoint(qSrc, radius);
+        var dstPoint = getCircularPoint(qDst, radius);
+
+        var srcAngle = getCircularAngle(qSrc);
+        var dstAngle = getCircularAngle(qDst);
+        var angleDiff = dstAngle - srcAngle;
+        if (angleDiff > Math.PI) {
+            angleDiff -= 2 * Math.PI;
+        } else if (angleDiff < -Math.PI) {
+            angleDiff += 2 * Math.PI;
+        }
+        var midAngle = srcAngle + angleDiff / 2;
+        var controlRadius = radius * 0.3;
+        var controlPoint = {
+            x: centerPoint.x + Math.cos(midAngle) * controlRadius,
+            y: centerPoint.y + Math.sin(midAngle) * controlRadius
+        };
+
+        pathString = [
+            "M", srcPoint.x, srcPoint.y,
+            "Q", controlPoint.x, controlPoint.y,
+            dstPoint.x, dstPoint.y
+        ].join(" ");
+    } else {
+        // Linear arc for canon mode - use exact same formula as drawConnection
+        var TW = W - hPad;
+        var x1 = hPad + TW * qSrc.start / trackDuration;
+        var x2 = hPad + TW * qDst.start / trackDuration;
+        var y = H - 4;
+        var delta = Math.abs(toIdx - fromIdx);
+        var maxDelta = Math.max(1, canonMaxDelta);
+        var cy = delta / maxDelta * CH * 2.0;
+        if (cy < 20) {
+            cy = 30;
+        }
+        cy = H + cy;
+        var cx = (x2 - x1) / 2 + x1;
+
+        pathString = "M" + x1 + " " + y + " S " + cx + " " + cy + " " + x2 + " " + y;
     }
-    var midAngle = srcAngle + angleDiff / 2;
-    var controlRadius = radius * 0.3;
-    var controlPoint = {
-        x: centerPoint.x + Math.cos(midAngle) * controlRadius,
-        y: centerPoint.y + Math.sin(midAngle) * controlRadius
-    };
-
-    var pathString = [
-        "M", srcPoint.x, srcPoint.y,
-        "Q", controlPoint.x, controlPoint.y,
-        dstPoint.x, dstPoint.y
-    ].join(" ");
 
     // Choose colors based on loop type
     var flashColor = isCanonLoop ? "#FF69B4" : "#FFFFFF"; // Pink for canon, white for jukebox
@@ -5077,6 +5099,7 @@ function drawJumpArcHighlight(fromIdx, toIdx, isOverlay) {
 // Expose to window for external calls
 if (typeof window !== 'undefined') {
     window.highlightJumpArc = highlightJumpArc;
+    window.drawJumpArcHighlight = drawJumpArcHighlight;
 }
 
 function removeJukeboxBackdrop() {
@@ -5176,12 +5199,24 @@ function getCircularRadius() {
 }
 
 function getCircularAngle(q) {
-    var total = Math.max(trackDuration || 0, (q.start || 0) + (q.duration || 0));
-    if (!total) {
+    // Use the actual beat range to fill the full circle
+    // This ensures no gap at the end of the timeline
+    var firstBeatStart = 0;
+    var lastBeatEnd = trackDuration || 1;
+
+    if (masterQs && masterQs.length > 0) {
+        firstBeatStart = masterQs[0].start || 0;
+        var lastBeat = masterQs[masterQs.length - 1];
+        lastBeatEnd = (lastBeat.start || 0) + (lastBeat.duration || 0);
+    }
+
+    var total = lastBeatEnd - firstBeatStart;
+    if (total <= 0) {
         total = 1;
     }
+
     var mid = (q.start || 0) + ((q.duration || 0) / 2);
-    var ratio = (mid % total) / total;
+    var ratio = (mid - firstBeatStart) / total;
     return (ratio * Math.PI * 2) - (Math.PI / 2);
 }
 
@@ -5616,6 +5651,7 @@ function drawConnections(qlist) {
             }
         }
     });
+    canonMaxDelta = Math.max(1, maxDelta); // Store for highlight arc calculations
 
     _.each(qlist, function(q, i) {
         if (q.next) {
@@ -6416,7 +6452,24 @@ function createCanonDriver(player) {
                     markCanonJumpTarget(choice.index);
                     markCanonVisitedBar(choice.index);
                     decayCanonVisitedBars();
-                    highlightJumpArc(currentIndex, choice.index);
+                    // Highlight main voice jump
+                    drawJumpArcHighlight(currentIndex, choice.index, false);
+                    // Highlight overlay voice jumps
+                    var srcBeat = masterQs[currentIndex];
+                    var dstBeat = masterQs[choice.index];
+                    if (srcBeat && dstBeat) {
+                        if (srcBeat.others && Array.isArray(srcBeat.others)) {
+                            for (var ov = 0; ov < srcBeat.others.length; ov++) {
+                                var srcOverlay = srcBeat.others[ov];
+                                var dstOverlay = dstBeat.others && dstBeat.others[ov];
+                                if (srcOverlay && dstOverlay && srcOverlay.which !== dstOverlay.which) {
+                                    drawJumpArcHighlight(srcOverlay.which, dstOverlay.which, true);
+                                }
+                            }
+                        } else if (srcBeat.other && dstBeat.other && srcBeat.other.which !== dstBeat.other.which) {
+                            drawJumpArcHighlight(srcBeat.other.which, dstBeat.other.which, true);
+                        }
+                    }
                 }
             } else {
                 clearLastCanonHop();

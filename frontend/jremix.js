@@ -525,9 +525,18 @@ function createJRemixer(context, jquery) {
                         }
                     }
                     needsRestart = needsRestart || Math.abs(skewDeltas[i]) > maxSkewDelta;
+                    var prevOverlayBeatIdx = voice.lastBeatIdx;
                     voice.lastBeatIdx = voiceBeatIdx;
 
                     if (needsRestart) {
+                        // Notify visualizer of overlay voice jump
+                        if (prevOverlayBeatIdx !== undefined && prevOverlayBeatIdx !== voiceBeatIdx) {
+                            // Only highlight if it's not sequential (actual jump)
+                            var expectedNext = (prevOverlayBeatIdx + 1) % totalBeats;
+                            if (voiceBeatIdx !== expectedNext && window.drawJumpArcHighlight) {
+                                window.drawJumpArcHighlight(prevOverlayBeatIdx, voiceBeatIdx, true);
+                            }
+                        }
                         skewDeltas[i] = 0;
                         if (voice.source) {
                             try {
