@@ -1418,15 +1418,17 @@ def compute_canon_candidates(
     beats: List[Dict],
     energies: List[float],
     chroma: List[np.ndarray],
-    max_offsets: int = 3,
+    max_offsets: int = 7,
     bar_offsets: Optional[List[int]] = None,
 ) -> Tuple[Dict[int, List[Dict]], List[int]]:
     """
     Build bar-locked canon candidates per beat and rank global bar offsets for multi-voice use.
     Score = 0.4 * chroma - 0.3 * energy_diff (energy in dB scaled).
+    max_offsets=7 to support up to 8 voices (1 main + 7 overlays).
     """
     if bar_offsets is None:
-        bar_offsets = [4, 8, 16, -4, -8, -16]
+        # More offsets for richer multi-voice canons
+        bar_offsets = [4, 8, 16, 32, -4, -8, -16, -32, 2, 6, 12, 24]
     candidates: Dict[int, List[Dict]] = {}
     offset_scores: Dict[int, List[float]] = {o: [] for o in bar_offsets}
 

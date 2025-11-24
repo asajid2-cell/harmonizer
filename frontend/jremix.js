@@ -213,8 +213,8 @@ function createJRemixer(context, jquery) {
             var curQ = null;
             var curAudioSource = null;
             var masterGain = .53;
-            // Slightly hotter base for overlays so HPF+ducking stays audible
-            var overlayGain = 0.8;
+            // Base gain for overlay voices - balanced with main
+            var overlayGain = 0.9;
             var deltaTime = 0;
 
             // Get number of voices from window setting (default 2 for backwards compatibility)
@@ -285,8 +285,11 @@ function createJRemixer(context, jquery) {
                     gainNodeToConnect.connect(context.destination);
                 }
 
-                // Adjust gain for multiple voices to prevent clipping
-                var adjustedGain = overlayGain / Math.sqrt(numVoices - 1);
+                // Adjust gain for multiple voices - use gentler reduction to keep all voices audible
+                // sqrt reduction is too aggressive for 8 voices (would be 0.34x)
+                // Use linear reduction with a floor to ensure audibility
+                var voiceReduction = 1 / (1 + (numVoices - 2) * 0.15); // Max 8 voices = 1/(1+0.9) = 0.53
+                var adjustedGain = overlayGain * Math.max(0.5, voiceReduction);
                 voiceGain.gain.value = adjustedGain;
 
                 overlayVoices.push({
@@ -411,17 +414,10 @@ function createJRemixer(context, jquery) {
                             } catch (e) {}
                         }
                         var oduration = otherBeat.track.audio_summary.duration - otherBeat.start;
-                        // Rhythmic ducking: drop overlays on downbeats
-                        var beatPos = (typeof otherBeat.beat_in_bar === "number") ? otherBeat.beat_in_bar : (otherBeat.which % 4);
-                        var pocketGate = (q && q._pocketGate) ? true : false;
-                        // Softer duck so overlays stay present
-                        var duckGain = (pocketGate && beatPos === 0) ? 0.8 : 1.0;
                         var panLfo = Math.sin((q.which || 0) * 0.05) * 0.7;
                         var baseGain = (typeof voice.baseGain === "number") ? voice.baseGain : voice.gain.gain.value;
-                        var beatGain = (otherBeat && typeof otherBeat.otherGain === "number") ? otherBeat.otherGain : 0.7;
-                        // Clamp beatGain to avoid silence
-                        beatGain = Math.min(1.1, Math.max(0.35, beatGain));
-                        var targetGain = duckGain * baseGain * beatGain;
+                        // Consistent volume - no per-beat variation, just use the base gain
+                        var targetGain = baseGain;
                         if (voice.panner && typeof voice.panner.pan !== "undefined") {
                             try { voice.panner.pan.value = panLfo; } catch (e) {}
                         }

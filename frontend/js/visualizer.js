@@ -1830,23 +1830,36 @@ function applyCanonAlignment(qlist, alignment) {
             q.otherGain = Math.min(1, Math.max(0.25, gain));
         }
 
-        // NEW: Generate multiple overlay voices (q.others array)
+        // Generate multiple overlay voices (q.others array) for all voice counts
+        q.others = [];
+
+        // Voice 0: use the canonical pair from analysis
+        q.others.push(target);
+
+        // For voices 2+, use global offsets from backend or synthesize fallback offsets
         if (numVoices > 2) {
-            q.others = [];
+            var neededOffsets = numVoices - 2; // Already have 1 overlay, need (numVoices - 1) - 1 more
+            var availableOffsets = globalVoiceOffsets.slice(0, neededOffsets);
 
-            // Voice 0: use the canonical pair from analysis
-            q.others.push(target);
-
-            var availableOffsets = globalVoiceOffsets.slice(0, Math.max(0, numVoices - 2));
-            if (!availableOffsets.length) {
-                var baseOffsetBeats = Math.floor(qlist.length / numVoices);
-                for (var v = 0; v < numVoices - 2; v++) {
-                    availableOffsets.push(baseOffsetBeats * (v + 2));
+            // Synthesize fallback offsets if backend didn't provide enough
+            var beatsPerBar = (q && q.bar_length_beats) ? q.bar_length_beats : 4;
+            var fallbackBarOffsets = [4, 8, 16, 32, -4, -8, -16]; // Common musical offsets
+            while (availableOffsets.length < neededOffsets) {
+                var fallbackIdx = availableOffsets.length;
+                if (fallbackIdx < fallbackBarOffsets.length) {
+                    availableOffsets.push(fallbackBarOffsets[fallbackIdx]);
+                } else {
+                    // Ultimate fallback: evenly distribute across track
+                    var evenOffset = Math.floor(qlist.length / numVoices) * (availableOffsets.length + 2);
+                    availableOffsets.push(evenOffset);
                 }
             }
+
             for (var oi = 0; oi < availableOffsets.length; oi++) {
                 var off = availableOffsets[oi];
                 var chosen = null;
+
+                // Try to find a scored candidate from backend analysis
                 if (canonCandidatesMap && canonCandidatesMap[i]) {
                     var cands = canonCandidatesMap[i];
                     for (var ci = 0; ci < cands.length; ci++) {
@@ -1857,26 +1870,25 @@ function applyCanonAlignment(qlist, alignment) {
                         }
                     }
                 }
+
+                // Fallback: calculate offset directly
                 if (!chosen) {
-                    var beatsPerBar = (q && q.bar_length_beats) ? q.bar_length_beats : 4;
                     var idx = (i + off * beatsPerBar) % qlist.length;
                     idx = ((idx % qlist.length) + qlist.length) % qlist.length;
                     chosen = qlist[idx];
                 }
-                if (chosen) {
+
+                if (chosen && chosen !== target) {
                     q.others.push(chosen);
                 }
             }
+        }
 
-            // Debug: log first beat only to avoid spam
-            if (i === 0) {
-                console.log('[Canon Alignment] Beat 0 has', q.others.length, 'overlay voices at offsets:',
-                    q.others.map(function(o) { return ((o.which - q.which) + qlist.length) % qlist.length; }));
-                console.log('[Canon Alignment] For', numVoices, 'total voices (1 main +', q.others.length, 'overlays)');
-            }
-        } else {
-            // For 2 voices, just wrap q.other in an array for consistency
-            q.others = [target];
+        // Debug: log first beat only to avoid spam
+        if (i === 0) {
+            console.log('[Canon Alignment] Beat 0 has', q.others.length, 'overlay voices at offsets:',
+                q.others.map(function(o) { return ((o.which - q.which) + qlist.length) % qlist.length; }));
+            console.log('[Canon Alignment] For', numVoices, 'total voices (1 main +', q.others.length, 'overlays)');
         }
 
     }
@@ -6073,28 +6085,11 @@ function createCanonDriver(player) {
             updateCursors(nextQ);
             mtime.text(fmtTime(nextQ.start));
             pulseNotes(nextQ.median_volume || nextQ.volume || baseNoteStrength);
-            // Dynamic density for overlays: phrase-based breathing (structure > energy)
+            // Use all available overlay voices - no artificial breathing/limiting
+            // Per-beat gain from analysis already handles dynamic balance
             if (nextQ.others && Array.isArray(nextQ.others) && nextQ.others.length) {
-                var beatsPerBarCanon = (nextQ && nextQ.bar_length_beats) ? nextQ.bar_length_beats : 4;
-                var barsSinceStart = (typeof nextQ.bar_index === "number") ? nextQ.bar_index : Math.floor(curQ / Math.max(1, beatsPerBarCanon));
-                // 32-bar cycle: 0-7 = 1 voice (intro), 8-15 = half, 16-23 = full, 24-31 = half (breathe)
-                var phase32 = barsSinceStart % 32;
-                var totalVoices = nextQ.others.length;
-                var desiredOverlays = totalVoices;
-                if (phase32 < 8) {
-                    desiredOverlays = 1;
-                } else if (phase32 < 16) {
-                    desiredOverlays = Math.max(1, Math.ceil(totalVoices / 2));
-                } else if (phase32 < 24) {
-                    desiredOverlays = totalVoices;
-                } else {
-                    desiredOverlays = Math.max(1, Math.ceil(totalVoices / 2));
-                }
-                // Safety: never exceed available, never go below 1
-                desiredOverlays = Math.max(1, Math.min(totalVoices, desiredOverlays));
-                nextQ._overlayLimit = desiredOverlays;
-                // Pocket gating flag for rhythmic ducking (used in jremix)
-                nextQ._pocketGate = true;
+                nextQ._overlayLimit = nextQ.others.length; // Use all voices
+                nextQ._pocketGate = false; // Disable downbeat ducking - sounds worse
             } else {
                 nextQ._overlayLimit = null;
                 nextQ._pocketGate = null;
