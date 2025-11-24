@@ -4803,7 +4803,9 @@ function drawAllCircularLoops(qlist) {
     // Then draw canon overlay loops (cyan) in append mode - only for eternal mode
     if (mode === "eternal") {
         var canonEdges = collectCanonOverlayLoops(qlist, 100);
+        console.log('[drawAllCircularLoops] Canon overlay edges:', canonEdges.length);
         if (canonEdges.length > 0) {
+            console.log('[drawAllCircularLoops] Sample canon edges:', canonEdges.slice(0, 5).map(function(e) { return e.source + '->' + e.target; }));
             drawCircularLoopConnections(qlist, canonEdges, { isCanonOverlay: true, appendMode: true });
         }
     }
@@ -4952,13 +4954,39 @@ function drawCircularLoopConnections(qlist, edges, options) {
 }
 
 function highlightJumpArc(fromIdx, toIdx) {
-    console.log('[highlightJumpArc] Drawing arc from', fromIdx, 'to', toIdx);
+    // Highlight the main voice jump
+    drawJumpArcHighlight(fromIdx, toIdx, false);
+
+    // Also highlight overlay voice jumps
+    if (masterQs && masterQs.length) {
+        var qSrc = masterQs[fromIdx];
+        var qDst = masterQs[toIdx];
+
+        // Check all overlay voices (q.others array)
+        if (qSrc && qSrc.others && Array.isArray(qSrc.others)) {
+            for (var i = 0; i < qSrc.others.length; i++) {
+                var srcOverlay = qSrc.others[i];
+                var dstOverlay = qDst && qDst.others && qDst.others[i];
+                if (srcOverlay && dstOverlay && srcOverlay.which !== dstOverlay.which) {
+                    drawJumpArcHighlight(srcOverlay.which, dstOverlay.which, true);
+                }
+            }
+        }
+        // Fallback to single overlay (q.other)
+        else if (qSrc && qSrc.other && qDst && qDst.other) {
+            if (qSrc.other.which !== qDst.other.which) {
+                drawJumpArcHighlight(qSrc.other.which, qDst.other.which, true);
+            }
+        }
+    }
+}
+
+function drawJumpArcHighlight(fromIdx, toIdx, isOverlay) {
+    console.log('[drawJumpArcHighlight] Drawing arc from', fromIdx, 'to', toIdx, isOverlay ? '(overlay)' : '(main)');
     if (!paper || !masterQs || !masterQs.length) {
-        console.log('[highlightJumpArc] Missing paper or masterQs');
         return;
     }
     if (fromIdx < 0 || fromIdx >= masterQs.length || toIdx < 0 || toIdx >= masterQs.length) {
-        console.log('[highlightJumpArc] Invalid indices');
         return;
     }
 
@@ -4969,16 +4997,17 @@ function highlightJumpArc(fromIdx, toIdx) {
     var qSrc = masterQs[fromIdx];
     var qDst = masterQs[toIdx];
     if (!qSrc || !qDst) {
-        console.log('[highlightJumpArc] Missing beat data for', fromIdx, 'or', toIdx);
         return;
     }
 
-    // Check if this is a canon overlay loop (q.other relationship)
-    var isCanonLoop = false;
-    if (qSrc.other && qSrc.other.which === toIdx) {
-        isCanonLoop = true;
-    } else if (qDst.other && qDst.other.which === fromIdx) {
-        isCanonLoop = true;
+    // Overlay jumps are always canon loops (pink), main jumps check q.other relationship
+    var isCanonLoop = isOverlay;
+    if (!isCanonLoop) {
+        if (qSrc.other && qSrc.other.which === toIdx) {
+            isCanonLoop = true;
+        } else if (qDst.other && qDst.other.which === fromIdx) {
+            isCanonLoop = true;
+        }
     }
 
     var srcPoint = getCircularPoint(qSrc, radius);
@@ -7209,6 +7238,30 @@ function createJukeboxDriver(player, options) {
                 registerEdge(bridge);
             }
         }
+
+        // Add canon overlay edges (q.other relationships) so driver can take those jumps
+        // These are the cyan paths drawn on the visualization
+        if (mode === "eternal" && masterQs && masterQs.length) {
+            var canonOverlayCount = 0;
+            _.each(masterQs, function(q, idx) {
+                if (q.other && q.other.which !== idx) {
+                    var targetIdx = q.other.which;
+                    if (typeof targetIdx === "number" && targetIdx >= 0 && targetIdx < masterQs.length) {
+                        var canonEdge = {
+                            source_start: idx,
+                            target_start: targetIdx,
+                            similarity: q.otherGain || 0.7,
+                            span: targetIdx - idx
+                        };
+                        loops.push(canonEdge);
+                        registerEdge(canonEdge);
+                        canonOverlayCount++;
+                    }
+                }
+            });
+            console.log('[rebuildLoopChoices] Added', canonOverlayCount, 'canon overlay edges to loopGraph');
+        }
+
         loopChoices = loops;
         loopHistory = [];
         clearJumpBubbleHistory();
