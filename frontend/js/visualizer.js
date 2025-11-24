@@ -8091,16 +8091,68 @@ function createAutoharmonizerDriver(player) {
         }
     }
 
-    // Heartbeat to keep playback alive when the tab is backgrounded (setTimeout throttles)
+    // Track for audio-driven processing
+    var lastProcessedBeat = -1;
+    var heartbeatInterval = null;
+
+    // Heartbeat using setInterval - doesn't depend on timeupdate events
+    // setInterval is throttled to ~1000ms in background tabs, but that's enough
     function heartbeat() {
         if (!running) {
             return;
         }
+
+        var currentController = getControllerForTrack(currentTrack);
+        if (!currentController || !currentController.audio) {
+            return;
+        }
+
+        // CRITICAL: Always ensure current track is playing
+        // Background tabs can pause audio at any time, especially after seek/play
+        if (currentController.audio.paused) {
+            console.log("[Autoharmonizer] Heartbeat restarting paused audio");
+            currentController.ensurePlaying();
+        }
+
+        // Audio-driven beat advancement: check if we've passed the current beat's end
+        var currentTime = currentController.audio.currentTime;
+        var beats = getBeatsForTrack(currentTrack);
+        if (beats && beats.length && curQ < beats.length) {
+            var currentBeat = beats[curQ];
+            var beatEnd = (currentBeat.start || 0) + (currentBeat.duration || 0.25);
+
+            // If audio has progressed past the current beat's end, advance
+            if (currentTime >= beatEnd - 0.05 && curQ !== lastProcessedBeat) {
+                console.log("[Autoharmonizer] Heartbeat advancing beat", curQ, "->", curQ + 1, "at time", currentTime.toFixed(2));
+                lastProcessedBeat = curQ;
+                clearProcessTimer();
+                process();
+                return;
+            }
+        }
+
+        // Fallback: if no timer is scheduled, schedule one
         if (!processTimer) {
             scheduleNextProcess(0);
         }
     }
 
+    // Start interval-based heartbeat (500ms when focused, still works at ~1000ms when backgrounded)
+    function startHeartbeat() {
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+        }
+        heartbeatInterval = setInterval(heartbeat, 500);
+    }
+
+    function stopHeartbeat() {
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+        }
+    }
+
+    // Also listen to timeupdate for faster response when tab is focused
     if (track1Controller && track1Controller.audio) {
         track1Controller.audio.addEventListener("timeupdate", heartbeat);
     }
@@ -8113,13 +8165,14 @@ function createAutoharmonizerDriver(player) {
             if (!running) {
                 return;
             }
-            // Ensure controllers keep playing even if timers are throttled
-            if (track1Controller && typeof track1Controller.ensurePlaying === "function") {
-                track1Controller.ensurePlaying();
+            // When tab becomes visible again, immediately restart audio
+            var currentController = getControllerForTrack(currentTrack);
+            if (currentController && currentController.audio && currentController.audio.paused) {
+                console.log("[Autoharmonizer] Tab visible - restarting audio");
+                currentController.ensurePlaying();
             }
-            if (track2Controller && typeof track2Controller.ensurePlaying === "function") {
-                track2Controller.ensurePlaying();
-            }
+            // Force immediate process check
+            lastProcessedBeat = -1;
             if (!processTimer) {
                 scheduleNextProcess(0);
             }
@@ -8148,6 +8201,12 @@ function createAutoharmonizerDriver(player) {
         var currentTime = controller.audio.currentTime || 0;
         if (forceSeek || !isFinite(currentTime) || Math.abs(currentTime - desiredStart) > tolerance) {
             controller.playFrom(desiredStart);
+            // Retry playback after a short delay if it fails (background tabs can reject play())
+            setTimeout(function() {
+                if (running && controller.audio && controller.audio.paused) {
+                    controller.ensurePlaying();
+                }
+            }, 100);
         } else {
             controller.ensurePlaying();
         }
@@ -8222,15 +8281,27 @@ function createAutoharmonizerDriver(player) {
         targetController.ensurePlaying();
         targetController.fadeTo(0.72, fadeWindow);
 
-        // Fade out and pause source track after crossfade completes
-        if (sourceController) {
-            sourceController.ensurePlaying();
-            sourceController.fadeTo(0, fadeWindow);
-            setTimeout(function() {
-                if (sourceController.audio && !sourceController.audio.paused) {
-                    sourceController.audio.pause();
+        // Multiple retries to ensure playback starts (browsers can be stubborn)
+        var retryCount = 0;
+        var maxRetries = 5;
+        function retryPlayback() {
+            if (!running) return;
+            if (targetController.audio && targetController.audio.paused) {
+                retryCount++;
+                console.log("[Autoharmonizer] Retry playback attempt", retryCount);
+                targetController.ensurePlaying();
+                if (retryCount < maxRetries) {
+                    setTimeout(retryPlayback, 100);
                 }
-            }, fadeWindow + 60);
+            }
+        }
+        setTimeout(retryPlayback, 50);
+
+        // Fade out source track but DON'T pause it - let it keep playing silently
+        // This ensures timeupdate events keep firing for heartbeat
+        if (sourceController) {
+            sourceController.fadeTo(0, fadeWindow);
+            // Don't pause - just keep it at volume 0
         }
 
         currentTrack = targetTrack;
@@ -8580,6 +8651,7 @@ function updateHudForBeat(beat) {
             var isSameTrack = choice.track === currentTrack;
             if (isSameTrack) {
                 curQ = choice.index % beatsForTrack.length;
+                lastProcessedBeat = -1; // Reset so heartbeat can detect next beat
                 syncControllerToBeat(getControllerForTrack(currentTrack), beatsForTrack[curQ], { forceSeek: true });
                 markRecent(choice.track, curQ);
                 markCrossTarget(choice.track, curQ);
@@ -8594,6 +8666,7 @@ function updateHudForBeat(beat) {
                 if (window.__autohLog) {
                     window.__autohLog.push({ type: "cross", from: currentTrack, to: choice.track, target: choice.index, score: choice.score, t: Date.now() });
                 }
+                lastProcessedBeat = -1; // Reset so heartbeat can detect next beat
                 crossfadeToTrack(choice.track, choice.index, 480);
                 beatsSinceCross = 0;
                 beatsSinceJump = 0;
@@ -8603,6 +8676,7 @@ function updateHudForBeat(beat) {
 
         // Sequential playback - continue to next beat
         curQ = (curQ + 1) % beats.length;
+        lastProcessedBeat = -1; // Reset so heartbeat can detect next beat
         beatsSinceCross++;
         beatsSinceJump++;
 
@@ -8664,9 +8738,11 @@ function updateHudForBeat(beat) {
             setPlayingClass(mode);
             pulseNotes(baseNoteStrength);
             markPlaybackStarted();
+            startHeartbeat(); // Start interval-based heartbeat for background tab support
             process();
         },
         stop: function() {
+            stopHeartbeat();
             stopPlayback({ resetPosition: true });
         },
         pause: function() {
@@ -8675,6 +8751,7 @@ function updateHudForBeat(beat) {
             }
             running = false;
             clearProcessTimer();
+            stopHeartbeat();
             track1Controller.pause();
             track2Controller.pause();
             $("#play").text("Play");

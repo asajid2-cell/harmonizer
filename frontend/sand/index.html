@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sand & Particle Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a1a;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background: #2a2a2a;
+            border-bottom: 1px solid #3a3a3a;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .toolbar-section {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            padding: 0 10px;
+            border-right: 1px solid #3a3a3a;
+        }
+
+        .toolbar-section:last-child {
+            border-right: none;
+        }
+
+        .toolbar-label {
+            font-size: 12px;
+            color: #888;
+            margin-right: 5px;
+        }
+
+        .particle-btn {
+            padding: 8px 12px;
+            border: 2px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .particle-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .particle-btn.active {
+            border-color: #fff;
+            box-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+
+        .particle-btn[data-type="sand"] { background: #c2b280; color: #000; }
+        .particle-btn[data-type="water"] { background: #4a90d9; }
+        .particle-btn[data-type="stone"] { background: #808080; }
+        .particle-btn[data-type="fire"] { background: #ff6b35; }
+        .particle-btn[data-type="smoke"] { background: #555; }
+        .particle-btn[data-type="oil"] { background: #4a3728; }
+        .particle-btn[data-type="acid"] { background: #7fff00; color: #000; }
+        .particle-btn[data-type="lava"] { background: #ff4500; }
+        .particle-btn[data-type="ice"] { background: #a5f2f3; color: #000; }
+        .particle-btn[data-type="steam"] { background: #ddd; color: #000; }
+        .particle-btn[data-type="gunpowder"] { background: #333; }
+        .particle-btn[data-type="wood"] { background: #8b4513; }
+        .particle-btn[data-type="plant"] { background: #228b22; }
+        .particle-btn[data-type="eraser"] { background: #ff3333; }
+
+        .control-btn {
+            padding: 8px 12px;
+            background: #444;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .control-btn:hover {
+            background: #555;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .slider-container input {
+            width: 80px;
+        }
+
+        .slider-value {
+            font-size: 11px;
+            color: #aaa;
+            min-width: 30px;
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        #canvas {
+            border: 1px solid #3a3a3a;
+            cursor: crosshair;
+            image-rendering: pixelated;
+        }
+
+        .stats {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            font-size: 11px;
+            color: #666;
+            font-family: monospace;
+        }
+
+        .instructions {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 11px;
+            color: #666;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="toolbar-section">
+            <span class="toolbar-label">Materials:</span>
+            <button class="particle-btn active" data-type="sand">Sand</button>
+            <button class="particle-btn" data-type="water">Water</button>
+            <button class="particle-btn" data-type="stone">Stone</button>
+            <button class="particle-btn" data-type="fire">Fire</button>
+            <button class="particle-btn" data-type="smoke">Smoke</button>
+            <button class="particle-btn" data-type="oil">Oil</button>
+            <button class="particle-btn" data-type="acid">Acid</button>
+            <button class="particle-btn" data-type="lava">Lava</button>
+            <button class="particle-btn" data-type="ice">Ice</button>
+            <button class="particle-btn" data-type="steam">Steam</button>
+            <button class="particle-btn" data-type="gunpowder">Gunpowder</button>
+            <button class="particle-btn" data-type="wood">Wood</button>
+            <button class="particle-btn" data-type="plant">Plant</button>
+            <button class="particle-btn" data-type="eraser">Eraser</button>
+        </div>
+
+        <div class="toolbar-section">
+            <span class="toolbar-label">Brush:</span>
+            <div class="slider-container">
+                <input type="range" id="brushSize" min="1" max="20" value="3">
+                <span class="slider-value" id="brushSizeValue">3</span>
+            </div>
+        </div>
+
+        <div class="toolbar-section">
+            <button class="control-btn" id="clearBtn">Clear</button>
+            <button class="control-btn" id="pauseBtn">Pause</button>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="stats" id="stats">
+        Particles: 0 | FPS: 0
+    </div>
+
+    <div class="instructions">
+        Left click: Draw | Right click: Erase<br>
+        Space: Pause | C: Clear
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
