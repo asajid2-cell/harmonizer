@@ -3,7 +3,7 @@
 var HARMONIZER_CONFIG = window.HARMONIZER_CONFIG || {};
 var API_BASE_URL = (HARMONIZER_CONFIG.apiBaseUrl || "").replace(/\/+$/, "");
 // Cache buster timestamp - update this when deploying new analysis/data changes
-var CACHE_BUSTER = "v=202511240";
+var CACHE_BUSTER = "v=202511245";
 
 function resolveApiUrl(path, addCacheBuster) {
     if (!path) {
@@ -382,6 +382,11 @@ var driver = null;
 var mode = "canon";
 var curTrack = null;
 var masterQs = null;
+
+// Clear any leftover voice state from previous sessions
+window.currentVoiceStates = [];
+window.lastVoiceJump = null;
+window.currentMainBeatIdx = null;
 var masterGain = .55;
 var masterColor = "#E8B4B8";
 var otherColor = "#F9F6F2";
@@ -1134,12 +1139,37 @@ function clearOverlayChips() {
 
 function renderOverlayChips(q) {
     clearOverlayChips();
-    if (!paper || !q || !q.others || !Array.isArray(q.others) || !q.others.length) {
+    if (!paper || !q) {
         return;
     }
+
     var TW = W - hPad;
     var baseY = H - 8;
     var size = 8;
+
+    // Use dynamic voice states from jremix if available
+    var voiceStates = window.currentVoiceStates || [];
+    if (voiceStates.length > 0 && masterQs && masterQs.length > 0) {
+        for (var i = 0; i < voiceStates.length; i++) {
+            var vs = voiceStates[i];
+            var ov = masterQs[vs.beatIdx];
+            if (!ov) continue;
+            var x = hPad + TW * (ov.start / trackDuration);
+            var c = getOverlayColor(i, voiceStates.length);
+
+            // Draw chip - larger if voice just jumped
+            var chipSize = (vs.beatsSinceJump < 4) ? size * 1.5 : size;
+            var chip = paper.rect(x - chipSize / 2, baseY - chipSize / 2, chipSize, chipSize, 2);
+            chip.attr({ fill: c, stroke: c, "stroke-width": 2, opacity: 0.95 });
+            activeOverlayChips.push(chip);
+        }
+        return;
+    }
+
+    // Fallback to pre-computed q.others
+    if (!q.others || !Array.isArray(q.others) || !q.others.length) {
+        return;
+    }
     var total = q.others.length;
     for (var i = 0; i < total; i++) {
         var ov = q.others[i];
@@ -1366,6 +1396,10 @@ function rebuildDriverForCurrentMode(shouldResume) {
             driver.stop();
         } catch (e) {}
     }
+
+    // Clear voice states from previous player
+    window.currentVoiceStates = [];
+    window.lastVoiceJump = null;
 
     // Re-apply canon alignment if voice count changed (for multi-voice canon)
     if ((mode === "canon" || mode === "eternal") && curTrack && curTrack.analysis && curTrack.analysis.canon_alignment) {
@@ -1777,8 +1811,13 @@ function applyCanonAlignment(qlist, alignment) {
     var baseGainFallback = 0.34;
 
     // Get number of voices from window setting (default 2 for backwards compatibility)
-    var numVoices = Math.max(2, Math.min(8, window.canonVoiceCount || 2));
-    console.log('[Canon Alignment] Generating', numVoices, 'voices');
+    // For non-canon modes, always use 2 voices (1 main + 1 overlay)
+    var currentMode = document.body ? document.body.getAttribute('data-mode') : 'canon';
+    var requestedVoices = window.canonVoiceCount || 2;
+    var numVoices = (currentMode === 'canon')
+        ? Math.max(2, Math.min(8, requestedVoices))
+        : 2;
+    console.log('[Canon Alignment] Generating', numVoices, 'voices (mode:', currentMode, ')');
     var canonAnalysis = (curTrack && curTrack.analysis) ? curTrack.analysis : {};
     var globalVoiceOffsets = Array.isArray(canonAnalysis.global_voice_offsets) ? canonAnalysis.global_voice_offsets.slice(0) : [];
     var canonCandidatesMap = (canonAnalysis.canon_candidates && typeof canonAnalysis.canon_candidates === "object") ? canonAnalysis.canon_candidates : null;
@@ -2990,13 +3029,15 @@ function allReady() {
         masterQs = curTrack.analysis.beats || [];
     }
     if (!masterQs.length) {
-        console.warn("[allReady] No beats available for mode:", mode, "Ã¢â‚¬â€œ falling back to track analysis beats");
+        console.warn("[allReady] No beats available for mode:", mode, "– falling back to track analysis beats");
         masterQs = curTrack.analysis.beats || [];
     }
     if (!masterQs.length) {
         error("Unable to load beat data for this track");
         return;
     }
+    // Expose masterQs to window for jremix independent voice paths
+    window.masterQs = masterQs;
     masterGain = (mode === "canon") ? 0.55 : (mode === "eternal" ? 0.7 : 1.0);
     if (usingAutoharmonizer) {
         masterGain = 0.7;
@@ -6067,8 +6108,19 @@ function createCanonDriver(player) {
            var nextQ = masterQs[currentIndex];
            nextQ.tile.highlight();
 
-           // Highlight all overlay voices
-           if (nextQ.others && Array.isArray(nextQ.others)) {
+           // Highlight all overlay voices using INDEPENDENT voice positions from jremix
+           var voiceStates = window.currentVoiceStates || [];
+           if (voiceStates.length > 0) {
+                for (var voiceIdx = 0; voiceIdx < voiceStates.length; voiceIdx++) {
+                    var vs = voiceStates[voiceIdx];
+                    var overlayBeat = masterQs[vs.beatIdx];
+                    if (overlayBeat && overlayBeat.tile) {
+                        var overlayFill = getOverlayColor(voiceIdx, voiceStates.length);
+                        overlayBeat.tile.highlight2(overlayFill);
+                    }
+                }
+            } else if (nextQ.others && Array.isArray(nextQ.others)) {
+                // Fallback to pre-computed others if no voice states
                 var targetOverlayCount = nextQ._overlayLimit != null ? nextQ._overlayLimit : nextQ.others.length;
                 for (var voiceIdx = 0; voiceIdx < targetOverlayCount; voiceIdx++) {
                     var overlayBeat = nextQ.others[voiceIdx];

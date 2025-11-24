@@ -212,14 +212,21 @@ function createJRemixer(context, jquery) {
             var speedFactor = 1.00;
             var curQ = null;
             var curAudioSource = null;
-            var masterGain = .53;
-            // Base gain for overlay voices - balanced with main
-            var overlayGain = 0.9;
+            var masterGain = 0.85;
+            // Base gain for overlay voices - lower than main to stay in background
+            var overlayGain = 0.65;
             var deltaTime = 0;
 
             // Get number of voices from window setting (default 2 for backwards compatibility)
-            var numVoices = Math.max(2, Math.min(8, window.canonVoiceCount || 2));
-            console.log('[JRemixer] Initializing player with', numVoices, 'voices');
+            // For non-canon modes, always use 2 voices
+            var currentMode = (typeof window !== 'undefined' && document.body)
+                ? document.body.getAttribute('data-mode')
+                : 'canon';
+            var requestedVoices = window.canonVoiceCount || 2;
+            var numVoices = (currentMode === 'canon')
+                ? Math.max(2, Math.min(8, requestedVoices))
+                : 2; // Force 2 voices for jukebox/eternal modes
+            console.log('[JRemixer] Initializing player with', numVoices, 'voices (mode:', currentMode, ', requested:', requestedVoices, ')');
 
             // Create main voice (always present)
             var mainGain = context.createGain();
@@ -229,6 +236,12 @@ function createJRemixer(context, jquery) {
             var overlayVoices = [];
             var skewDeltas = [];
             var maxSkewDelta = .05;
+
+            // Independent voice path state - each voice tracks its own bar offset
+            var voiceOffsets = []; // Current bar offset for each overlay voice
+            var voiceBeatsSinceJump = []; // Beats since last offset change
+            var voiceJumpCooldown = 16; // Minimum beats between offset changes (4 bars)
+            var availableBarOffsets = [4, 8, 16, -4, -8, -16, 32, -32, 2, 6, 12, 24]; // Pool of offsets to choose from
 
             // Setup main voice
             if (typeof context.createStereoPanner === "function") {
@@ -302,7 +315,79 @@ function createJRemixer(context, jquery) {
                 });
                 skewDeltas.push(0);
 
-                console.log('[JRemixer] Voice', i + 1, 'pan:', panValue.toFixed(2), 'gain:', adjustedGain.toFixed(2));
+                // Initialize independent path state for this voice
+                // Stagger initial offsets so voices start at different positions
+                var initialOffset = availableBarOffsets[i % availableBarOffsets.length];
+                voiceOffsets.push(initialOffset);
+                voiceBeatsSinceJump.push(0);
+
+                console.log('[JRemixer] Voice', i + 1, 'pan:', panValue.toFixed(2), 'gain:', adjustedGain.toFixed(2), 'initialOffset:', initialOffset);
+            }
+
+            // Decide if a voice should jump to a new offset (only in canon mode)
+            function maybeJumpVoiceOffset(voiceIdx, mainBeatIdx, totalBeats, beatsPerBar) {
+                voiceBeatsSinceJump[voiceIdx]++;
+
+                // Only allow jumping in canon mode - eternal/jukebox modes use fixed offsets
+                var currentMode = (typeof window !== 'undefined' && document.body)
+                    ? document.body.getAttribute('data-mode')
+                    : 'canon';
+                if (currentMode !== 'canon') {
+                    return false;
+                }
+
+                // Check cooldown
+                if (voiceBeatsSinceJump[voiceIdx] < voiceJumpCooldown) {
+                    return false;
+                }
+
+                // Random chance to jump at phrase boundaries (every 8 beats)
+                var isPhraseBoundary = (mainBeatIdx % 8) === 0;
+                var jumpProbability = isPhraseBoundary ? 0.3 : 0.05;
+
+                if (Math.random() > jumpProbability) {
+                    return false;
+                }
+
+                // Pick a new offset different from current
+                var currentOffset = voiceOffsets[voiceIdx];
+                var candidates = availableBarOffsets.filter(function(off) {
+                    return off !== currentOffset;
+                });
+
+                if (candidates.length === 0) {
+                    return false;
+                }
+
+                var newOffset = candidates[Math.floor(Math.random() * candidates.length)];
+                var oldOffset = voiceOffsets[voiceIdx];
+                voiceOffsets[voiceIdx] = newOffset;
+                voiceBeatsSinceJump[voiceIdx] = 0;
+
+                console.log('[Voice ' + (voiceIdx + 1) + '] Jump: bar offset ' + oldOffset + ' → ' + newOffset + ' at beat ' + mainBeatIdx);
+
+                // Notify visualizer of the jump
+                if (typeof window !== 'undefined') {
+                    window.lastVoiceJump = {
+                        voiceIdx: voiceIdx,
+                        fromOffset: oldOffset,
+                        toOffset: newOffset,
+                        beatIdx: mainBeatIdx,
+                        timestamp: Date.now()
+                    };
+                }
+
+                return true;
+            }
+
+            // Compute the beat index for a voice given main beat and voice's bar offset
+            function getVoiceBeatIndex(mainBeatIdx, voiceIdx, totalBeats, beatsPerBar) {
+                var barOffset = voiceOffsets[voiceIdx] || 0;
+                var beatOffset = barOffset * beatsPerBar;
+                var targetIdx = (mainBeatIdx + beatOffset) % totalBeats;
+                // Handle negative modulo
+                if (targetIdx < 0) targetIdx += totalBeats;
+                return targetIdx;
             }
 
             function playQuantumWithDurationSimple(when, q, dur, gain, channel) {
@@ -362,30 +447,51 @@ function createJRemixer(context, jquery) {
                 var delta = now - q.start;
 
                 // Play overlay voices
-                // Support both old format (q.other) and new format (q.others array)
-                var otherBeats = [];
-                if (q.others && Array.isArray(q.others)) {
-                    // New multi-voice format with optional dynamic limit
-                    var maxOverlays = overlayVoices.length;
-                    if (typeof q._overlayLimit === "number") {
-                        maxOverlays = Math.min(maxOverlays, Math.max(0, Math.floor(q._overlayLimit)));
-                    }
-                    otherBeats = q.others.slice(0, maxOverlays);
-                    if (curQ == null) {
-                        console.log('[playQ] q.others has', q.others.length, 'beats, using', otherBeats.length, 'for', overlayVoices.length, 'voice slots');
-                    }
-                } else if (q.other) {
-                    // Legacy 2-voice format - backwards compatible
-                    otherBeats = [q.other];
-                    if (curQ == null) {
-                        console.log('[playQ] Using legacy q.other format (1 overlay)');
-                    }
-                }
+                // For 2 voices: use pre-computed q.others from canon alignment (follows main voice's loop path)
+                // For 3+ voices: use INDEPENDENT PATHS where each voice jumps on its own
+                var mainBeatIdx = q.which || 0;
+                var totalBeats = (q.track && q.track.analysis && q.track.analysis.beats)
+                    ? q.track.analysis.beats.length
+                    : (window.masterQs ? window.masterQs.length : 100);
+                var beatsPerBar = (q.bar_length_beats) ? q.bar_length_beats : 4;
+                var useIndependentPaths = numVoices > 2; // Only use independent jumping for 3+ voices
+
+                // Expose current voice states for visualizer
+                var voiceStates = [];
 
                 // Play each overlay voice
                 for (var i = 0; i < overlayVoices.length; i++) {
                     var voice = overlayVoices[i];
-                    var otherBeat = otherBeats[i];
+                    var otherBeat = null;
+                    var voiceBeatIdx = 0;
+
+                    if (useIndependentPaths) {
+                        // 3+ voices: use independent path with jumping
+                        maybeJumpVoiceOffset(i, mainBeatIdx, totalBeats, beatsPerBar);
+                        voiceBeatIdx = getVoiceBeatIndex(mainBeatIdx, i, totalBeats, beatsPerBar);
+                        var beats = (q.track && q.track.analysis && q.track.analysis.beats)
+                            ? q.track.analysis.beats
+                            : (window.masterQs || []);
+                        otherBeat = beats[voiceBeatIdx];
+                    } else {
+                        // 2 voices: use pre-computed q.others from canon alignment
+                        if (q.others && q.others[i]) {
+                            otherBeat = q.others[i];
+                            voiceBeatIdx = otherBeat.which || 0;
+                        } else if (q.other && i === 0) {
+                            // Legacy fallback
+                            otherBeat = q.other;
+                            voiceBeatIdx = otherBeat.which || 0;
+                        }
+                    }
+
+                    // Track voice state for visualizer
+                    voiceStates.push({
+                        voiceIdx: i,
+                        beatIdx: voiceBeatIdx,
+                        barOffset: useIndependentPaths ? voiceOffsets[i] : 0,
+                        beatsSinceJump: useIndependentPaths ? voiceBeatsSinceJump[i] : 0
+                    });
 
                     if (!otherBeat) {
                         // No beat for this voice, stop it if playing
@@ -400,11 +506,21 @@ function createJRemixer(context, jquery) {
 
                     // Check if we need to restart this voice
                     var needsRestart = curQ == null;
-                    if (curQ && i < otherBeats.length) {
-                        var prevOther = (curQ.others && curQ.others[i]) || (i === 0 ? curQ.other : null);
-                        needsRestart = !prevOther || prevOther.next != otherBeat;
+                    if (useIndependentPaths) {
+                        // For 3+ voices: restart if beat position changed discontinuously (due to jumping)
+                        if (voice.lastBeatIdx !== undefined) {
+                            var expectedNext = (voice.lastBeatIdx + 1) % totalBeats;
+                            needsRestart = needsRestart || (voiceBeatIdx !== expectedNext);
+                        }
+                    } else {
+                        // For 2 voices: use original logic - restart only if not continuous
+                        if (curQ && q.others && q.others[i]) {
+                            var prevOther = curQ.others && curQ.others[i];
+                            needsRestart = needsRestart || !prevOther || prevOther.next !== otherBeat;
+                        }
                     }
                     needsRestart = needsRestart || Math.abs(skewDeltas[i]) > maxSkewDelta;
+                    voice.lastBeatIdx = voiceBeatIdx;
 
                     if (needsRestart) {
                         skewDeltas[i] = 0;
@@ -413,7 +529,12 @@ function createJRemixer(context, jquery) {
                                 voice.source.stop();
                             } catch (e) {}
                         }
-                        var oduration = otherBeat.track.audio_summary.duration - otherBeat.start;
+                        // Use main track's audio buffer - all beats share the same audio
+                        var trackRef = otherBeat.track || q.track;
+                        if (!trackRef || !trackRef.buffer) {
+                            continue; // Skip if no audio available
+                        }
+                        var oduration = trackRef.audio_summary.duration - otherBeat.start;
                         var panLfo = Math.sin((q.which || 0) * 0.05) * 0.7;
                         var baseGain = (typeof voice.baseGain === "number") ? voice.baseGain : voice.gain.gain.value;
                         // Consistent volume - no per-beat variation, just use the base gain
@@ -421,7 +542,7 @@ function createJRemixer(context, jquery) {
                         if (voice.panner && typeof voice.panner.pan !== "undefined") {
                             try { voice.panner.pan.value = panLfo; } catch (e) {}
                         }
-                        voice.source = llPlay(otherBeat.track.buffer, otherBeat.start, oduration, voice.gain);
+                        voice.source = llPlay(trackRef.buffer, otherBeat.start, oduration, voice.gain);
                         voice.gain.gain.value = targetGain;
 
                         // Set gain values to prevent clicks
@@ -438,6 +559,12 @@ function createJRemixer(context, jquery) {
 
                     // Track skew for this voice
                     skewDeltas[i] += q.duration - otherBeat.duration;
+                }
+
+                // Expose voice states to window for visualizer
+                if (typeof window !== 'undefined') {
+                    window.currentVoiceStates = voiceStates;
+                    window.currentMainBeatIdx = mainBeatIdx;
                 }
 
                 curQ = q;
