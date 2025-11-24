@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./modern.css">
-    <link rel="stylesheet" href="./visualizer.css?v=202511202040">
+    <link rel="stylesheet" href="./modern.css?v=202511240">
+    <link rel="stylesheet" href="./visualizer.css?v=202511240">
 </head>
 <body class="page state-home advanced-collapsed" data-mode="canon">
     <div class="site-landing-banner"><a href="/">&#8592; Return to Internet Discotheque</a></div>
@@ -513,11 +513,11 @@ jgs   `-=========-`()
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js"></script>
-    <script src="./app-config.js"></script>
-    <script src="./js/underscore-min.js"></script>
-    <script src="./js/raphael-min.js"></script>
-    <script src="./jremix.js?v=202511201710"></script>
-    <script src="./js/eternal_jukebox_engine.js"></script>
+    <script src="./app-config.js?v=202511240"></script>
+    <script src="./js/underscore-min.js?v=202511240"></script>
+    <script src="./js/raphael-min.js?v=202511240"></script>
+    <script src="./jremix.js?v=202511240"></script>
+    <script src="./js/eternal_jukebox_engine.js?v=202511240"></script>
     <script>
         (function ensureRLFallbacks() {
             var defaultStats = {
@@ -553,7 +553,7 @@ jgs   `-=========-`()
             }
         })();
     </script>
-    <script src="./js/visualizer.js?v=202511202048"></script>
+    <script src="./js/visualizer.js?v=202511240"></script>
     <script>
     (function() {
         const body = document.body;
@@ -2248,17 +2248,21 @@ jgs   `-=========-`()
             });
         }
 
-        // Reset cached songs
+        // Reset cached songs and analysis files
         const resetCacheBtn = document.getElementById('reset-cache-btn');
         if (resetCacheBtn) {
             resetCacheBtn.addEventListener('click', async function() {
+                if (!confirm('This will delete all cached analysis files. New uploads will be re-analyzed with the latest logic. Continue?')) {
+                    return;
+                }
                 resetCacheBtn.disabled = true;
-                resetCacheBtn.textContent = 'Resetting...';
+                resetCacheBtn.textContent = 'Clearing...';
                 try {
                     const res = await fetch('/api/cache/clear', { method: 'POST' });
                     if (!res.ok) throw new Error('Request failed');
                     const data = await res.json();
-                    alert(`Cache cleared. Removed files: ${data.removed_files || 0}`);
+                    const msg = `Cache cleared!\n• Analysis files removed: ${data.removed_files || 0}\n• Audio cache entries cleared: ${data.cleared_entries || 0}\n\nNew uploads will be analyzed fresh.`;
+                    alert(msg);
                 } catch (e) {
                     alert('Failed to clear cache. Please try again.');
                 } finally {
@@ -2537,7 +2541,7 @@ jgs   `-=========-`()
         voiceDisplay.textContent = voiceSlider.value;
     })();
     </script>
-<script src="./js/persistent-player.js" defer></script>
+<script src="./js/persistent-player.js?v=202511240" defer></script>
 </body>
 </html>
 

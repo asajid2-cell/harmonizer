@@ -2,7 +2,10 @@
 
 var HARMONIZER_CONFIG = window.HARMONIZER_CONFIG || {};
 var API_BASE_URL = (HARMONIZER_CONFIG.apiBaseUrl || "").replace(/\/+$/, "");
-function resolveApiUrl(path) {
+// Cache buster timestamp - update this when deploying new analysis/data changes
+var CACHE_BUSTER = "v=202511240";
+
+function resolveApiUrl(path, addCacheBuster) {
     if (!path) {
         return API_BASE_URL || "";
     }
@@ -12,7 +15,12 @@ function resolveApiUrl(path) {
     if (path.charAt(0) !== "/") {
         path = "/" + path;
     }
-    return API_BASE_URL ? API_BASE_URL + path : path;
+    var resolved = API_BASE_URL ? API_BASE_URL + path : path;
+    // Add cache buster for data/analysis files to ensure fresh loads
+    if (addCacheBuster !== false && (path.indexOf('/data/') !== -1 || path.endsWith('.json'))) {
+        resolved += (resolved.indexOf('?') === -1 ? '?' : '&') + CACHE_BUSTER;
+    }
+    return resolved;
 }
 
 function clampVolume(value) {

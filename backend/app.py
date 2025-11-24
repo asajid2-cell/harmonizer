@@ -660,9 +660,11 @@ def _send_cached_file(path: Path, *, treat_as_html: bool = False):
 
 @app.route("/api/cache/clear", methods=["POST"])
 def clear_track_cache():
-    """Clear cached track profiles and audio cache entries."""
+    """Clear cached track profiles, analysis JSONs, and audio cache entries."""
     removed_files = 0
     removed_entries = 0
+
+    # Clear in-memory audio cache
     with _cache_lock:
         removed_entries = len(_audio_cache)
         _audio_cache.clear()
@@ -670,17 +672,37 @@ def clear_track_cache():
             AUDIO_CACHE_PATH.unlink()
         except FileNotFoundError:
             pass
-    for pattern in ["TR*.json", "*combined*.json"]:
-        for path in DATA_FOLDER.glob(pattern):
-            try:
-                path.unlink()
-                removed_files += 1
-            except Exception as e:
-                print(f"[Cache] Failed to delete {path}: {e}", flush=True)
+
+    # Files to preserve (not analysis data)
+    preserve_files = {"discoteque_memory.jsonl", "audio_cache.json"}
+
+    # Delete ALL .json analysis files in data folder
+    for path in DATA_FOLDER.glob("*.json"):
+        if path.name in preserve_files:
+            continue
+        try:
+            path.unlink()
+            removed_files += 1
+            print(f"[Cache] Deleted analysis: {path.name}", flush=True)
+        except Exception as e:
+            print(f"[Cache] Failed to delete {path}: {e}", flush=True)
+
+    # Also delete combined analysis files (autoharmonizer)
+    for path in DATA_FOLDER.glob("*combined*.json"):
+        try:
+            path.unlink()
+            removed_files += 1
+            print(f"[Cache] Deleted combined: {path.name}", flush=True)
+        except Exception as e:
+            print(f"[Cache] Failed to delete {path}: {e}", flush=True)
+
+    # Clear analysis cache file if exists
     try:
         ANALYSIS_CACHE_PATH.unlink()
     except FileNotFoundError:
         pass
+
+    print(f"[Cache] Cleared {removed_files} analysis files, {removed_entries} audio cache entries", flush=True)
     return jsonify({
         "status": "ok",
         "removed_files": removed_files,
@@ -1222,6 +1244,13 @@ def analysis_file(filename: str):
         conditional=True,
     )
     response.headers.setdefault("Access-Control-Allow-Origin", "*")
+    # Ensure analysis files are never cached - always fetch fresh
+    response.cache_control.max_age = 0
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
     return response
 
 
