@@ -465,8 +465,13 @@ function createJRemixer(context, jquery) {
                     var otherBeat = null;
                     var voiceBeatIdx = 0;
 
-                    if (useIndependentPaths) {
-                        // 3+ voices: use independent path with jumping
+                    // Voice 0 (first overlay) ALWAYS uses pre-computed q.others from canon alignment
+                    // Voice 1+ (additional overlays) use independent jumping when numVoices > 2
+                    var isFirstOverlay = (i === 0);
+                    var useIndependentForThisVoice = useIndependentPaths && !isFirstOverlay;
+
+                    if (useIndependentForThisVoice) {
+                        // Additional voices (3+): use independent path with jumping
                         maybeJumpVoiceOffset(i, mainBeatIdx, totalBeats, beatsPerBar);
                         voiceBeatIdx = getVoiceBeatIndex(mainBeatIdx, i, totalBeats, beatsPerBar);
                         var beats = (q.track && q.track.analysis && q.track.analysis.beats)
@@ -474,7 +479,7 @@ function createJRemixer(context, jquery) {
                             : (window.masterQs || []);
                         otherBeat = beats[voiceBeatIdx];
                     } else {
-                        // 2 voices: use pre-computed q.others from canon alignment
+                        // First overlay (voice 0): use pre-computed q.others from canon alignment
                         if (q.others && q.others[i]) {
                             otherBeat = q.others[i];
                             voiceBeatIdx = otherBeat.which || 0;
@@ -489,8 +494,8 @@ function createJRemixer(context, jquery) {
                     voiceStates.push({
                         voiceIdx: i,
                         beatIdx: voiceBeatIdx,
-                        barOffset: useIndependentPaths ? voiceOffsets[i] : 0,
-                        beatsSinceJump: useIndependentPaths ? voiceBeatsSinceJump[i] : 0
+                        barOffset: useIndependentForThisVoice ? voiceOffsets[i] : 0,
+                        beatsSinceJump: useIndependentForThisVoice ? voiceBeatsSinceJump[i] : 0
                     });
 
                     if (!otherBeat) {
@@ -506,14 +511,14 @@ function createJRemixer(context, jquery) {
 
                     // Check if we need to restart this voice
                     var needsRestart = curQ == null;
-                    if (useIndependentPaths) {
-                        // For 3+ voices: restart if beat position changed discontinuously (due to jumping)
+                    if (useIndependentForThisVoice) {
+                        // Additional voices: restart if beat position changed discontinuously (due to jumping)
                         if (voice.lastBeatIdx !== undefined) {
                             var expectedNext = (voice.lastBeatIdx + 1) % totalBeats;
                             needsRestart = needsRestart || (voiceBeatIdx !== expectedNext);
                         }
                     } else {
-                        // For 2 voices: use original logic - restart only if not continuous
+                        // First overlay: use original logic - restart only if not continuous
                         if (curQ && q.others && q.others[i]) {
                             var prevOther = curQ.others && curQ.others[i];
                             needsRestart = needsRestart || !prevOther || prevOther.next !== otherBeat;

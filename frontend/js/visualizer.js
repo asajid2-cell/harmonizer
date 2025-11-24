@@ -3,7 +3,7 @@
 var HARMONIZER_CONFIG = window.HARMONIZER_CONFIG || {};
 var API_BASE_URL = (HARMONIZER_CONFIG.apiBaseUrl || "").replace(/\/+$/, "");
 // Cache buster timestamp - update this when deploying new analysis/data changes
-var CACHE_BUSTER = "v=202511245";
+var CACHE_BUSTER = "v=2025112411";
 
 function resolveApiUrl(path, addCacheBuster) {
     if (!path) {
@@ -405,6 +405,7 @@ var masterCursor = null;
 var otherCursor = null;
 var masterCursorCircle = null;
 var otherCursorCircle = null;
+var otherCursorCircles = []; // Array for multiple overlay cursors in circular mode
 var jukeboxBackdrop = {
     wave: null,
     wave2: null,
@@ -925,10 +926,9 @@ function refreshJukeboxVisualization() {
     if (mode !== "jukebox" && mode !== "eternal") {
         return;
     }
-    var loopEdges = collectVisualizationLoops(80);
     if (mode === "jukebox" || mode === "eternal") {
         renderJukeboxBackdrop();
-        drawCircularLoopConnections(masterQs, loopEdges);
+        drawAllCircularLoops(masterQs);
     }
 }
 
@@ -1140,6 +1140,11 @@ function clearOverlayChips() {
 function renderOverlayChips(q) {
     clearOverlayChips();
     if (!paper || !q) {
+        return;
+    }
+
+    // Skip linear overlay chips for circular modes - they use updateCircularCursors instead
+    if (mode === "jukebox" || mode === "eternal") {
         return;
     }
 
@@ -2092,12 +2097,13 @@ function regenerateEternalOverlay(options) {
     restoreBaseCanonMapping(masterQs);
     if (!eternalAdvancedEnabled) {
         assignNormalizedVolumes(masterQs);
-        drawConnections(masterQs);
+        // Draw all loops (eternal jukebox + canon overlay) on the circle
+        drawAllCircularLoops(masterQs);
         return;
     }
     regenerateOverlayFromSettings(advancedSettings.eternalOverlay, { targetMode: "eternal" });
-    // Redraw canon overlay connections to show the updated mapping
-    drawConnections(masterQs);
+    // Redraw all loops (eternal jukebox + canon overlay) on the circle
+    drawAllCircularLoops(masterQs);
 }
 
 function regenerateOverlayFromSettings(settings, details) {
@@ -3102,11 +3108,13 @@ function allReady() {
                 });
             }
         } else {
+            // Eternal mode - use circular visualization
             if (eternalAdvancedEnabled) {
                 regenerateEternalOverlay({ initial: true });
             } else {
                 assignNormalizedVolumes(masterQs);
-                drawConnections(masterQs);
+                // Draw all loops (eternal jukebox + canon overlay) on the circle
+                drawAllCircularLoops(masterQs);
             }
             if (typeof window.onCanonTrackReady === "function") {
                 window.onCanonTrackReady(null);
@@ -3293,7 +3301,10 @@ function setPlayingClass(modeName) {
     rootStyle.setProperty("--note-strength", baseNoteStrength.toFixed(3));
     var baseAlpha = 0.12 + 0.35 * baseNoteStrength;
     rootStyle.setProperty("--note-alpha", baseAlpha.toFixed(3));
-    if (modeName !== "jukebox" && modeName !== "eternal") {
+    // Only clear backdrop when explicitly switching away from jukebox/eternal modes
+    // Don't clear when just stopping playback (modeName=null but still in those modes)
+    var effectiveMode = modeName || mode;
+    if (effectiveMode !== "jukebox" && effectiveMode !== "eternal") {
         clearJukeboxBackdrop();
     }
 }
@@ -4691,7 +4702,22 @@ function createTile(which, q, x, y, width, height) {
 
 function collectVisualizationLoops(limit) {
     var edges = [];
-    if (canonLoopCandidates && canonLoopCandidates.length) {
+
+    // Prefer the actual loopGraph used by the driver - this ensures all jumpable edges are shown
+    if (window._jukeboxLoopGraph && Object.keys(window._jukeboxLoopGraph).length > 0) {
+        _.each(window._jukeboxLoopGraph, function(targets, srcKey) {
+            var src = parseInt(srcKey, 10);
+            if (isNaN(src)) return;
+            _.each(targets, function(edge) {
+                if (!edge) return;
+                var dst = edge.target;
+                var sim = (typeof edge.similarity === "number") ? edge.similarity : 0;
+                if (typeof dst === "number" && src !== dst) {
+                    edges.push({ source: src, target: dst, similarity: sim });
+                }
+            });
+        });
+    } else if (canonLoopCandidates && canonLoopCandidates.length) {
         _.each(canonLoopCandidates, function(loop) {
             if (!loop) {
                 return;
@@ -4729,6 +4755,58 @@ function collectVisualizationLoops(limit) {
         edges = edges.slice(0, limit);
     }
     return edges;
+}
+
+// Collect canon overlay loops (the q.other relationships) for visualization
+function collectCanonOverlayLoops(qlist, limit) {
+    var edges = [];
+    if (!qlist || !qlist.length) {
+        return edges;
+    }
+    _.each(qlist, function(q, idx) {
+        if (q.other && q.other.which !== idx) {
+            var targetIdx = q.other.which;
+            if (typeof targetIdx === "number" && targetIdx >= 0 && targetIdx < qlist.length) {
+                edges.push({
+                    source: idx,
+                    target: targetIdx,
+                    similarity: q.otherGain || 0.5
+                });
+            }
+        }
+    });
+    // Dedupe and limit
+    var seen = {};
+    edges = _.filter(edges, function(e) {
+        var key = Math.min(e.source, e.target) + "-" + Math.max(e.source, e.target);
+        if (seen[key]) return false;
+        seen[key] = true;
+        return true;
+    });
+    edges = _.sortBy(edges, function(e) { return -e.similarity; });
+    if (limit && edges.length > limit) {
+        edges = edges.slice(0, limit);
+    }
+    return edges;
+}
+
+// Draw both eternal jukebox loops AND canon overlay loops for eternal canonizer mode
+function drawAllCircularLoops(qlist) {
+    if (!qlist || !qlist.length) return;
+
+    // Draw loop edges - limit to top 150 for visual clarity
+    // More than 80 to catch more possible jumps, but not all 600+
+    var jukeboxEdges = collectVisualizationLoops(150);
+    console.log('[drawAllCircularLoops] Drawing', jukeboxEdges.length, 'jukebox edges');
+    drawCircularLoopConnections(qlist, jukeboxEdges);
+
+    // Then draw canon overlay loops (cyan) in append mode - only for eternal mode
+    if (mode === "eternal") {
+        var canonEdges = collectCanonOverlayLoops(qlist, 100);
+        if (canonEdges.length > 0) {
+            drawCircularLoopConnections(qlist, canonEdges, { isCanonOverlay: true, appendMode: true });
+        }
+    }
 }
 
 function drawLoopConnections(qlist, edges, isEternalMode) {
@@ -4791,15 +4869,27 @@ function drawLoopConnections(qlist, edges, isEternalMode) {
     });
 }
 
-function drawCircularLoopConnections(qlist, edges) {
-    clearLoopPaths();
+function drawCircularLoopConnections(qlist, edges, options) {
+    options = options || {};
+    // Don't clear paths if we're appending canon overlay loops
+    if (!options.appendMode) {
+        clearLoopPaths();
+    }
     if (!edges || !edges.length) {
         return;
     }
     var radius = getCircularRadius();
     var centerPoint = getCircularCenter();
-    var isEternalMode = mode === "eternal";
-    var loopColor = isEternalMode ? "#F0A86B" : "#6B8AF0";
+    // Default colors: orange for eternal jukebox, blue for regular jukebox
+    // Canon overlay loops use green/cyan to distinguish from eternal loops
+    var loopColor;
+    if (options.isCanonOverlay) {
+        loopColor = "#4ECDC4"; // Cyan/teal for canon overlay loops
+    } else if (mode === "eternal") {
+        loopColor = "#F0A86B"; // Orange for eternal jukebox loops
+    } else {
+        loopColor = "#6B8AF0"; // Blue for regular jukebox loops
+    }
 
     // Calculate control point offset - arcs should curve inward but not cut through circle
     var controlRadiusRatio = 0.3; // Control point at 30% of radius from center
@@ -4862,30 +4952,97 @@ function drawCircularLoopConnections(qlist, edges) {
 }
 
 function highlightJumpArc(fromIdx, toIdx) {
-    if (!loopPathMap) return;
+    console.log('[highlightJumpArc] Drawing arc from', fromIdx, 'to', toIdx);
+    if (!paper || !masterQs || !masterQs.length) {
+        console.log('[highlightJumpArc] Missing paper or masterQs');
+        return;
+    }
+    if (fromIdx < 0 || fromIdx >= masterQs.length || toIdx < 0 || toIdx >= masterQs.length) {
+        console.log('[highlightJumpArc] Invalid indices');
+        return;
+    }
 
-    // Reset all arcs to default
-    _.each(loopPaths, function(path) {
-        if (path && path.data) {
-            path.attr({
-                stroke: path.data("defaultStroke") || "#6B8AF0",
-                "stroke-opacity": path.data("defaultOpacity") || 0.3,
-                "stroke-width": path.data("defaultWidth") || 2
+    // Draw a new arc for this specific jump
+    var radius = getCircularRadius();
+    var centerPoint = getCircularCenter();
+
+    var qSrc = masterQs[fromIdx];
+    var qDst = masterQs[toIdx];
+    if (!qSrc || !qDst) {
+        console.log('[highlightJumpArc] Missing beat data for', fromIdx, 'or', toIdx);
+        return;
+    }
+
+    // Check if this is a canon overlay loop (q.other relationship)
+    var isCanonLoop = false;
+    if (qSrc.other && qSrc.other.which === toIdx) {
+        isCanonLoop = true;
+    } else if (qDst.other && qDst.other.which === fromIdx) {
+        isCanonLoop = true;
+    }
+
+    var srcPoint = getCircularPoint(qSrc, radius);
+    var dstPoint = getCircularPoint(qDst, radius);
+
+    // Calculate arc curve
+    var srcAngle = getCircularAngle(qSrc);
+    var dstAngle = getCircularAngle(qDst);
+    var angleDiff = dstAngle - srcAngle;
+    if (angleDiff > Math.PI) {
+        angleDiff -= 2 * Math.PI;
+    } else if (angleDiff < -Math.PI) {
+        angleDiff += 2 * Math.PI;
+    }
+    var midAngle = srcAngle + angleDiff / 2;
+    var controlRadius = radius * 0.3;
+    var controlPoint = {
+        x: centerPoint.x + Math.cos(midAngle) * controlRadius,
+        y: centerPoint.y + Math.sin(midAngle) * controlRadius
+    };
+
+    var pathString = [
+        "M", srcPoint.x, srcPoint.y,
+        "Q", controlPoint.x, controlPoint.y,
+        dstPoint.x, dstPoint.y
+    ].join(" ");
+
+    // Choose colors based on loop type
+    var flashColor = isCanonLoop ? "#FF69B4" : "#FFFFFF"; // Pink for canon, white for jukebox
+    var settleColor = isCanonLoop ? "#FF1493" : "#00FFFF"; // Deep pink for canon, cyan for jukebox
+
+    // Create bright highlight arc - each jump gets its own path
+    var jumpPath = paper.path(pathString);
+    jumpPath.attr({
+        stroke: flashColor,
+        "stroke-width": 6,
+        "stroke-opacity": 1,
+        "stroke-linecap": "round"
+    });
+    jumpPath.toFront();
+
+    // Animate: flash then settle to final color
+    setTimeout(function() {
+        if (jumpPath && jumpPath.animate) {
+            jumpPath.animate({
+                stroke: settleColor,
+                "stroke-width": 4,
+                "stroke-opacity": 0.9
+            }, 200);
+        }
+    }, 100);
+
+    // Fade out after a moment
+    setTimeout(function() {
+        if (jumpPath && jumpPath.animate) {
+            jumpPath.animate({
+                "stroke-opacity": 0
+            }, 500, "ease-out", function() {
+                if (jumpPath) {
+                    jumpPath.remove();
+                }
             });
         }
-    });
-
-    // Highlight the active jump arc
-    var key = fromIdx + "-" + toIdx;
-    var activePath = loopPathMap[key];
-    if (activePath && activePath.attr) {
-        activePath.attr({
-            stroke: "#00FFFF",
-            "stroke-opacity": 1,
-            "stroke-width": 4
-        });
-        activePath.toFront();
-    }
+    }, 800);
 }
 
 // Expose to window for external calls
@@ -4904,7 +5061,7 @@ function removeJukeboxBackdrop() {
 
 function clearJukeboxBackdrop() {
     removeJukeboxBackdrop();
-    if (mode !== "jukebox") {
+    if (mode !== "jukebox" && mode !== "eternal") {
         clearOrbitBase();
     }
 }
@@ -5080,8 +5237,8 @@ function createCircularTiles(qlist) {
         tiles.push(tile);
     });
 
-    var loopEdges = collectVisualizationLoops(80);
-    drawCircularLoopConnections(qlist, loopEdges);
+    // Draw all circular loops (eternal jukebox + canon overlay for eternal mode)
+    drawAllCircularLoops(qlist);
     if (qlist.length) {
         updateCursors(qlist[0]);
     }
@@ -5533,6 +5690,13 @@ function removeCircularCursors() {
         otherCursorCircle.remove();
         otherCursorCircle = null;
     }
+    // Clear all multi-voice overlay cursors
+    for (var i = 0; i < otherCursorCircles.length; i++) {
+        if (otherCursorCircles[i]) {
+            otherCursorCircles[i].remove();
+        }
+    }
+    otherCursorCircles = [];
 }
 
 function updateCircularCursors(q) {
@@ -5545,17 +5709,78 @@ function updateCircularCursors(q) {
     } else {
         masterCursorCircle.attr({ cx: masterPoint.x, cy: masterPoint.y });
     }
-    if (q.other) {
-        var otherPoint = getCircularPoint(q.other, radius - 12);
-        if (!otherCursorCircle) {
-            otherCursorCircle = paper.circle(otherPoint.x, otherPoint.y, 5);
-            otherCursorCircle.attr({ fill: otherColor, stroke: otherColor });
-        } else {
-            otherCursorCircle.attr({ cx: otherPoint.x, cy: otherPoint.y });
+
+    // Handle multiple canon overlay voices (for eternal canonizer mode)
+    // Use dynamic voice states from jremix if available, otherwise fall back to q.others
+    var voiceStates = window.currentVoiceStates || [];
+    var overlays = [];
+
+    if (voiceStates.length > 0 && masterQs && masterQs.length > 0) {
+        // Use dynamic voice states from jremix
+        for (var i = 0; i < voiceStates.length; i++) {
+            var vs = voiceStates[i];
+            var ov = masterQs[vs.beatIdx];
+            if (ov) {
+                overlays.push({ beat: ov, index: i, recentJump: vs.beatsSinceJump < 4 });
+            }
         }
-    } else if (otherCursorCircle) {
+    } else if (q.others && Array.isArray(q.others) && q.others.length > 0) {
+        // Use pre-computed q.others from canon alignment
+        for (var i = 0; i < q.others.length; i++) {
+            if (q.others[i]) {
+                overlays.push({ beat: q.others[i], index: i, recentJump: false });
+            }
+        }
+    } else if (q.other) {
+        // Legacy single overlay fallback
+        overlays.push({ beat: q.other, index: 0, recentJump: false });
+    }
+
+    // Clear old legacy single cursor
+    if (otherCursorCircle) {
         otherCursorCircle.remove();
         otherCursorCircle = null;
+    }
+
+    // Update or create cursor circles for each overlay voice
+    var numOverlays = overlays.length;
+    for (var i = 0; i < numOverlays; i++) {
+        var ov = overlays[i];
+        // Place overlay cursors on the same radius as beat tiles, slightly offset inward per voice
+        var overlayRadius = radius - (i * 8);
+        var point = getCircularPoint(ov.beat, overlayRadius);
+        var color = getOverlayColor(ov.index, numOverlays);
+        // Make cursors larger and more visible
+        var cursorSize = ov.recentJump ? 10 : 8;
+
+        if (otherCursorCircles[i]) {
+            // Update existing cursor
+            otherCursorCircles[i].attr({
+                cx: point.x,
+                cy: point.y,
+                r: cursorSize,
+                fill: color,
+                stroke: "rgba(255, 255, 255, 0.8)"
+            });
+        } else {
+            // Create new cursor with prominent styling
+            var cursor = paper.circle(point.x, point.y, cursorSize);
+            cursor.attr({
+                fill: color,
+                stroke: "rgba(255, 255, 255, 0.8)",
+                "stroke-width": 2,
+                opacity: 1.0
+            });
+            otherCursorCircles[i] = cursor;
+        }
+    }
+
+    // Remove excess cursors if we have fewer overlays than before
+    while (otherCursorCircles.length > numOverlays) {
+        var excess = otherCursorCircles.pop();
+        if (excess) {
+            excess.remove();
+        }
     }
 }
 
@@ -6162,6 +6387,7 @@ function createCanonDriver(player) {
                     markCanonJumpTarget(choice.index);
                     markCanonVisitedBar(choice.index);
                     decayCanonVisitedBars();
+                    highlightJumpArc(currentIndex, choice.index);
                 }
             } else {
                 clearLastCanonHop();
@@ -6994,10 +7220,13 @@ function createJukeboxDriver(player, options) {
             canonLoopCandidates = loops.slice(0);
         }
 
+        // Export loopGraph edges for visualization
+        // This ensures all possible jump targets have visible arcs
+        window._jukeboxLoopGraph = loopGraph;
+
         // Refresh visualization to show updated loop connections
         if (masterQs && masterQs.length && (mode === "jukebox" || mode === "eternal")) {
-            var loopEdges = collectVisualizationLoops(80);
-            drawCircularLoopConnections(masterQs, loopEdges);
+            drawAllCircularLoops(masterQs);
         }
     }
 
@@ -7137,6 +7366,7 @@ function createJukeboxDriver(player, options) {
         // Collect candidates from current beat and nearby beats
         var searchRadius = Math.min(8, Math.floor(minLoopBeats / 2));
         var candidates = [];
+        var loopGraphSize = Object.keys(loopGraph).length;
         for (var offset = 0; offset <= searchRadius; offset++) {
             var searchIdx = src + offset;
             if (searchIdx >= 0 && searchIdx < masterQs.length && loopGraph[searchIdx]) {
@@ -7154,6 +7384,7 @@ function createJukeboxDriver(player, options) {
             }
         }
         if (!candidates.length) {
+            console.log('[selectJumpCandidate] No candidates found for src:', src, 'loopGraph has', loopGraphSize, 'sources, searchRadius:', searchRadius);
             return null;
         }
 
@@ -7366,6 +7597,7 @@ function createJukeboxDriver(player, options) {
             beatsUntilJump -= 1;
         }
 
+
         // Check if we're in the end zone and should use retreat point
         var endZoneStart = Math.floor(masterQs.length * 0.8);
         var inEndZone = currentIndex >= endZoneStart;
@@ -7382,6 +7614,7 @@ function createJukeboxDriver(player, options) {
                 }
                 currentIndex = retreatPoint.target;
                 registerJumpBubble(retreatPoint.target);
+                highlightJumpArc(retreatSourceIndex, retreatPoint.target);
                 var sourceBeat = masterQs[retreatSourceIndex];
                 var targetBeat = masterQs[retreatPoint.target];
                 beatsSinceJump = 0;
@@ -7405,6 +7638,7 @@ function createJukeboxDriver(player, options) {
         if (beatsSinceJump >= minDwellBeats && beatsUntilJump <= 0) {
             var jump = selectJumpCandidate(currentIndex);
             if (jump) {
+                console.log('[advanceIndex] JUMP!', currentIndex, '->', jump.target);
                 var jumpSourceIndex = currentIndex;
                 loopHistory.push({ source: currentIndex, target: jump.target });
                 if (loopHistory.length > LOOP_HISTORY_LIMIT) {
@@ -7412,6 +7646,7 @@ function createJukeboxDriver(player, options) {
                 }
                 currentIndex = jump.target;
                 registerJumpBubble(jump.target);
+                highlightJumpArc(jumpSourceIndex, jump.target);
                 var sourceBeat = masterQs[jumpSourceIndex];
                 var targetBeat = masterQs[jump.target];
                 beatsSinceJump = 0;
@@ -7487,7 +7722,11 @@ function createJukeboxDriver(player, options) {
 
         resume: function() {
             resetTileColors(masterQs);
-            rebuildLoopChoices();
+            // Don't rebuild loop choices on resume - just continue playing
+            // rebuildLoopChoices() is only needed on initial start
+            if (!loopChoices || !loopChoices.length) {
+                rebuildLoopChoices();
+            }
             beatsSinceJump = minDwellBeats;
             modeState = "explore";
             running = true;
