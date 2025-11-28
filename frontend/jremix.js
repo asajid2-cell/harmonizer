@@ -218,14 +218,22 @@ function createJRemixer(context, jquery) {
             var deltaTime = 0;
 
             // Get number of voices from window setting (default 2 for backwards compatibility)
-            // For non-canon modes, always use 2 voices
+            // Canon and eternal modes use layered voices; jukebox should be single-voice
             var currentMode = (typeof window !== 'undefined' && document.body)
                 ? document.body.getAttribute('data-mode')
                 : 'canon';
             var requestedVoices = window.canonVoiceCount || 2;
-            var numVoices = (currentMode === 'canon')
-                ? Math.max(2, Math.min(8, requestedVoices))
-                : 2; // Force 2 voices for jukebox/eternal modes
+            var numVoices;
+            if (currentMode === 'jukebox') {
+                // Eternal Jukebox: single voice, no canon overlay
+                numVoices = 1;
+            } else if (currentMode === 'canon') {
+                // Autocanonizer: multi-voice canon (2–8 voices)
+                numVoices = Math.max(2, Math.min(8, requestedVoices));
+            } else {
+                // Eternal Canonizer and other modes: main + one canon voice
+                numVoices = 2;
+            }
             console.log('[JRemixer] Initializing player with', numVoices, 'voices (mode:', currentMode, ', requested:', requestedVoices, ')');
 
             // Create main voice (always present)
