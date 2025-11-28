@@ -9,6 +9,14 @@ export class Simulation {
         this.grid = new Grid(width, height);
         this.paused = false;
         this.frameCount = 0;
+        // Global simulation tuning
+        this.gravity = 0.35;      // Per-frame acceleration for powders/liquids
+        this.maxVelocity = 4;     // Max falling speed in cells/frame
+        this.fireIntensity = 1.0; // Scales burning / fire spread
+        this.windX = 0;           // Horizontal wind component (-1 to 1)
+        this.stepsPerFrame = 1;   // How many updates per render
+        this.rainEnabled = false;
+        this.snowEnabled = false;
     }
 
     // Main update loop
@@ -45,6 +53,14 @@ export class Simulation {
                 }
             }
         }
+
+        // Simple weather systems
+        if (this.rainEnabled) {
+            this.spawnRain();
+        }
+        if (this.snowEnabled) {
+            this.spawnSnow();
+        }
     }
 
     // Update a single particle
@@ -64,6 +80,27 @@ export class Simulation {
         const typeDef = ParticleTypes[particle.type];
         if (!typeDef) return;
 
+        // Basic temperature diffusion and cooling
+        if (typeof particle.temperature === 'number') {
+            const neighbors = this.grid.getNeighbors(x, y);
+            let sumT = particle.temperature;
+            let countT = 1;
+            for (const key of ['top', 'bottom', 'left', 'right']) {
+                const n = neighbors[key];
+                if (n && typeof n.temperature === 'number') {
+                    sumT += n.temperature;
+                    countT++;
+                }
+            }
+            const avgT = sumT / countT;
+            const conductivity = typeDef.conductivity ?? 0.15;
+            particle.temperature += (avgT - particle.temperature) * conductivity * 0.25;
+
+            const ambient = 20;
+            const cooling = 0.01;
+            particle.temperature += (ambient - particle.temperature) * cooling;
+        }
+
         // Handle different particle states
         switch (typeDef.state) {
             case ParticleState.POWDER:
@@ -80,62 +117,135 @@ export class Simulation {
                 break;
         }
 
-        // Handle special behaviors
-        this.handleReactions(particle, x, y);
+        // Handle special behaviors at the final position
+        const finalX = particle.x ?? x;
+        const finalY = particle.y ?? y;
+        this.handleReactions(particle, finalX, finalY);
     }
 
-    // Powder physics (sand, gunpowder)
+    // Powder physics (sand, gunpowder, rust, ash)
     updatePowder(particle, x, y) {
-        // Try to move down
-        if (this.tryMove(particle, x, y, x, y + 1)) return;
+        const g = this.gravity || 0;
+        particle.velocityY = Math.min(
+            (particle.velocityY || 0) + g,
+            this.maxVelocity
+        );
 
-        // Try to move diagonally down
-        const dir = Math.random() < 0.5 ? -1 : 1;
-        if (this.tryMove(particle, x, y, x + dir, y + 1)) return;
-        if (this.tryMove(particle, x, y, x - dir, y + 1)) return;
+        const steps = Math.max(1, Math.round(Math.abs(particle.velocityY)));
+        let cx = particle.x ?? x;
+        let cy = particle.y ?? y;
 
-        // Try to displace lighter particles below
-        const below = this.grid.get(x, y + 1);
-        if (below && canDisplace(particle.type, below.type)) {
-            this.grid.swap(x, y, x, y + 1);
-            particle.updated = true;
-            below.updated = true;
+        for (let i = 0; i < steps; i++) {
+            // Try to move straight down
+            if (this.tryMove(particle, cx, cy, cx, cy + 1)) {
+                cy += 1;
+                continue;
+            }
+
+            // Try to move diagonally down
+            const dir = Math.random() < 0.5 ? -1 : 1;
+            if (this.tryMove(particle, cx, cy, cx + dir, cy + 1)) {
+                cx += dir;
+                cy += 1;
+                continue;
+            }
+            if (this.tryMove(particle, cx, cy, cx - dir, cy + 1)) {
+                cx -= dir;
+                cy += 1;
+                continue;
+            }
+
+            // Try to displace lighter particles below
+            const below = this.grid.get(cx, cy + 1);
+            if (below && canDisplace(particle.type, below.type)) {
+                this.grid.swap(cx, cy, cx, cy + 1);
+                cx = particle.x;
+                cy = particle.y;
+                continue;
+            }
+
+            // Blocked – settle
+            particle.velocityY = 0;
+            break;
+        }
+
+        // Wind can move very light powders (e.g. ash)
+        const def = ParticleTypes[particle.type];
+        const wind = this.windX || 0;
+        if (def && def.density < 1.0 && wind !== 0) {
+            const fx = particle.x ?? cx;
+            const fy = particle.y ?? cy;
+            if (Math.random() < Math.abs(wind) * 0.6) {
+                const dir = wind > 0 ? 1 : -1;
+                this.tryMove(particle, fx, fy, fx + dir, fy);
+            }
         }
     }
 
-    // Liquid physics (water, oil, acid, lava)
+    // Liquid physics (water, oil, acid, lava, molten_metal)
     updateLiquid(particle, x, y) {
         const typeDef = ParticleTypes[particle.type];
         const dispersion = typeDef.dispersion || 3;
 
-        // Try to move down
-        if (this.tryMove(particle, x, y, x, y + 1)) return;
+        // Liquids accelerate more gently than powders
+        const g = this.gravity || 0;
+        const liquidMaxVelocity = this.maxVelocity * 0.7;
+        particle.velocityY = Math.min(
+            (particle.velocityY || 0) + g * 0.7,
+            liquidMaxVelocity
+        );
 
-        // Try to move diagonally down
-        const dir = Math.random() < 0.5 ? -1 : 1;
-        if (this.tryMove(particle, x, y, x + dir, y + 1)) return;
-        if (this.tryMove(particle, x, y, x - dir, y + 1)) return;
+        const steps = Math.max(1, Math.round(Math.abs(particle.velocityY)));
+        let cx = particle.x ?? x;
+        let cy = particle.y ?? y;
 
-        // Try to displace lighter particles below
-        const below = this.grid.get(x, y + 1);
-        if (below && canDisplace(particle.type, below.type)) {
-            this.grid.swap(x, y, x, y + 1);
-            particle.updated = true;
-            below.updated = true;
-            return;
+        for (let i = 0; i < steps; i++) {
+            // Try to move down
+            if (this.tryMove(particle, cx, cy, cx, cy + 1)) {
+                cy += 1;
+                continue;
+            }
+
+            // Try to move diagonally down
+            const dir = Math.random() < 0.5 ? -1 : 1;
+            if (this.tryMove(particle, cx, cy, cx + dir, cy + 1)) {
+                cx += dir;
+                cy += 1;
+                continue;
+            }
+            if (this.tryMove(particle, cx, cy, cx - dir, cy + 1)) {
+                cx -= dir;
+                cy += 1;
+                continue;
+            }
+
+            // Try to displace lighter particles below
+            const below = this.grid.get(cx, cy + 1);
+            if (below && canDisplace(particle.type, below.type)) {
+                this.grid.swap(cx, cy, cx, cy + 1);
+                cx = particle.x;
+                cy = particle.y;
+                continue;
+            }
+
+            // Blocked – settle
+            particle.velocityY = 0;
+            break;
         }
 
-        // Spread horizontally
+        // Spread horizontally from the final position
+        cx = particle.x ?? cx;
+        cy = particle.y ?? cy;
         const spreadDir = Math.random() < 0.5 ? -1 : 1;
         for (let i = 1; i <= dispersion; i++) {
-            if (this.tryMove(particle, x, y, x + spreadDir * i, y)) return;
+            if (this.tryMove(particle, cx, cy, cx + spreadDir * i, cy)) return;
         }
         for (let i = 1; i <= dispersion; i++) {
-            if (this.tryMove(particle, x, y, x - spreadDir * i, y)) return;
+            if (this.tryMove(particle, cx, cy, cx - spreadDir * i, cy)) return;
         }
     }
 
-    // Gas physics (fire, smoke, steam)
+    // Gas physics (fire, smoke, steam, spark)
     updateGas(particle, x, y) {
         // Gases rise
         if (this.tryMove(particle, x, y, x, y - 1)) return;
@@ -145,10 +255,16 @@ export class Simulation {
         if (this.tryMove(particle, x, y, x + dir, y - 1)) return;
         if (this.tryMove(particle, x, y, x - dir, y - 1)) return;
 
-        // Drift sideways
-        if (Math.random() < 0.3) {
+        // Drift sideways (random + wind)
+        const baseDriftChance = 0.25;
+        const wind = this.windX || 0;
+        if (Math.random() < baseDriftChance) {
             const driftDir = Math.random() < 0.5 ? -1 : 1;
             this.tryMove(particle, x, y, x + driftDir, y);
+        }
+        if (wind !== 0 && Math.random() < Math.abs(wind)) {
+            const windDir = wind > 0 ? 1 : -1;
+            this.tryMove(particle, x, y, x + windDir, y);
         }
 
         // Swap with heavier particles above
@@ -160,10 +276,8 @@ export class Simulation {
         }
     }
 
-    // Solid physics (stone, wood, ice)
+    // Solid physics (stone, wood, ice, metal, glass, ember)
     updateSolid(particle, x, y) {
-        // Solids don't move on their own
-        // But handle temperature effects
         const typeDef = ParticleTypes[particle.type];
 
         // Melting
@@ -172,16 +286,28 @@ export class Simulation {
                 this.transformParticle(x, y, 'water');
             } else if (particle.type === 'stone') {
                 this.transformParticle(x, y, 'lava');
+            } else if (particle.type === 'metal') {
+                this.transformParticle(x, y, 'molten_metal');
+            } else if (particle.type === 'glass') {
+                this.transformParticle(x, y, 'lava');
             }
         }
     }
 
     // Handle chemical reactions and interactions
     handleReactions(particle, x, y) {
-        const typeDef = ParticleTypes[particle.type];
         const neighbors = this.grid.getNeighbors(x, y);
 
         switch (particle.type) {
+            case 'sand':
+                this.handleSand(particle, x, y, neighbors);
+                break;
+            case 'snow':
+                this.handleSnow(particle, x, y, neighbors);
+                break;
+            case 'mud':
+                this.handleMud(particle, x, y, neighbors);
+                break;
             case 'fire':
                 this.handleFire(particle, x, y, neighbors);
                 break;
@@ -203,13 +329,43 @@ export class Simulation {
             case 'steam':
                 this.handleSteam(particle, x, y, neighbors);
                 break;
+            case 'metal':
+                this.handleMetal(particle, x, y, neighbors);
+                break;
+            case 'molten_metal':
+                this.handleMoltenMetal(particle, x, y, neighbors);
+                break;
+            case 'ember':
+                this.handleEmber(particle, x, y, neighbors);
+                break;
+            case 'spark':
+                this.handleSpark(particle, x, y, neighbors);
+                break;
+        }
+    }
+
+    handleSand(particle, x, y, neighbors) {
+        const temp = particle.temperature || 20;
+        const nearLava = this.grid.hasNearbyType(x, y, 'lava', 1);
+
+        // Under intense heat, sand can fuse into stone or glass
+        if ((nearLava || temp > 800) && Math.random() < 0.003) {
+            if (temp > 1100 && Math.random() < 0.6) {
+                this.transformParticle(x, y, 'glass');
+            } else {
+                this.transformParticle(x, y, 'stone');
+            }
         }
     }
 
     handleFire(particle, x, y, neighbors) {
-        // Chance to create smoke
-        if (Math.random() < 0.1 && this.grid.isEmpty(x, y - 1)) {
-            this.grid.set(x, y - 1, createParticle('smoke', x, y - 1));
+        // Chance to create smoke or sparks above
+        if (this.grid.isEmpty(x, y - 1)) {
+            if (Math.random() < 0.08) {
+                this.grid.set(x, y - 1, createParticle('smoke', x, y - 1));
+            } else if (Math.random() < 0.04) {
+                this.grid.set(x, y - 1, createParticle('spark', x, y - 1));
+            }
         }
 
         // Spread fire to flammable neighbors
@@ -221,11 +377,31 @@ export class Simulation {
         ];
 
         for (const { p, nx, ny } of neighborList) {
-            if (p && ParticleTypes[p.type]?.flammable) {
-                if (Math.random() < 0.05) {
-                    // Gunpowder explodes
+            if (!p) continue;
+            const def = ParticleTypes[p.type];
+
+            // Heat up neighboring materials
+            if (typeof p.temperature === 'number') {
+                const conductivity = def?.conductivity ?? 0.2;
+                p.temperature += 10 * conductivity;
+            }
+
+            if (def?.flammable) {
+                const baseChance = 0.03;
+                const flashPoint = def.flashPoint ?? 200;
+                const heatFactor = Math.min(1, (particle.temperature || 600) / flashPoint);
+                const spreadChance = baseChance * heatFactor * this.fireIntensity;
+
+                if (Math.random() < spreadChance) {
                     if (p.type === 'gunpowder') {
                         this.explode(nx, ny, 5);
+                    } else if (p.type === 'wood' || p.type === 'plant') {
+                        // Combustion of organic material leaves embers
+                        if (Math.random() < 0.6) {
+                            this.transformParticle(nx, ny, 'ember');
+                        } else {
+                            this.transformParticle(nx, ny, 'fire');
+                        }
                     } else {
                         this.transformParticle(nx, ny, 'fire');
                     }
@@ -235,12 +411,11 @@ export class Simulation {
     }
 
     handleWater(particle, x, y, neighbors) {
-        // Check for nearby hot things
         const neighborList = [neighbors.top, neighbors.bottom, neighbors.left, neighbors.right];
 
+        // Boil into steam near very hot things
         for (const n of neighborList) {
-            if (n && (n.type === 'fire' || n.type === 'lava')) {
-                // Turn to steam
+            if (n && (n.type === 'fire' || n.type === 'lava' || n.type === 'molten_metal')) {
                 if (Math.random() < 0.3) {
                     this.transformParticle(x, y, 'steam');
                     return;
@@ -261,10 +436,23 @@ export class Simulation {
                 this.transformParticle(x, y, 'ice');
             }
         }
+
+        // Slowly rust nearby metal in contact with water
+        const nearbyMetals = this.grid.getNearbyOfType(x, y, 'metal', 1);
+        if (nearbyMetals.length && Math.random() < 0.02) {
+            const target = nearbyMetals[Math.floor(Math.random() * nearbyMetals.length)];
+            this.transformParticle(target.x, target.y, 'rust');
+        }
+
+        // Erode sand into mud where water seeps through
+        const nearbySand = this.grid.getNearbyOfType(x, y, 'sand', 1);
+        if (nearbySand.length && Math.random() < 0.01) {
+            const target = nearbySand[Math.floor(Math.random() * nearbySand.length)];
+            this.transformParticle(target.x, target.y, 'mud');
+        }
     }
 
     handleLava(particle, x, y, neighbors) {
-        // Ignite flammable things
         const neighborList = [
             { p: neighbors.top, nx: x, ny: y - 1 },
             { p: neighbors.bottom, nx: x, ny: y + 1 },
@@ -273,23 +461,41 @@ export class Simulation {
         ];
 
         for (const { p, nx, ny } of neighborList) {
-            if (p) {
-                if (p.type === 'water') {
-                    // Lava + water = stone
-                    this.transformParticle(x, y, 'stone');
-                    this.transformParticle(nx, ny, 'steam');
-                    return;
+            if (!p) continue;
+
+            // Heat all neighbors
+            if (typeof p.temperature === 'number') {
+                const conductivity = ParticleTypes[p.type]?.conductivity ?? 0.3;
+                p.temperature += 25 * conductivity;
+            }
+
+            if (p.type === 'water') {
+                // Lava + water = stone + steam
+                this.transformParticle(x, y, 'stone');
+                this.transformParticle(nx, ny, 'steam');
+                return;
+            }
+            if (p.type === 'ice') {
+                this.transformParticle(nx, ny, 'water');
+            }
+            if (p.type === 'metal') {
+                if (Math.random() < 0.4) {
+                    this.transformParticle(nx, ny, 'molten_metal');
                 }
-                if (p.type === 'ice') {
-                    this.transformParticle(nx, ny, 'water');
+                continue;
+            }
+            if (p.type === 'glass') {
+                if (Math.random() < 0.3) {
+                    this.transformParticle(nx, ny, 'lava');
                 }
-                if (ParticleTypes[p.type]?.flammable) {
-                    if (Math.random() < 0.2) {
-                        if (p.type === 'gunpowder') {
-                            this.explode(nx, ny, 5);
-                        } else {
-                            this.transformParticle(nx, ny, 'fire');
-                        }
+            }
+
+            if (ParticleTypes[p.type]?.flammable) {
+                if (Math.random() < 0.2) {
+                    if (p.type === 'gunpowder') {
+                        this.explode(nx, ny, 5);
+                    } else {
+                        this.transformParticle(nx, ny, 'fire');
                     }
                 }
             }
@@ -302,7 +508,6 @@ export class Simulation {
     }
 
     handleAcid(particle, x, y, neighbors) {
-        // Corrode nearby particles
         const neighborList = [
             { p: neighbors.top, nx: x, ny: y - 1 },
             { p: neighbors.bottom, nx: x, ny: y + 1 },
@@ -313,8 +518,11 @@ export class Simulation {
         for (const { p, nx, ny } of neighborList) {
             if (p && ParticleTypes[p.type]?.corrodible) {
                 if (Math.random() < 0.1) {
-                    this.grid.remove(nx, ny);
-                    // Acid gets consumed too
+                    if (p.type === 'metal') {
+                        this.transformParticle(nx, ny, 'rust');
+                    } else {
+                        this.grid.remove(nx, ny);
+                    }
                     if (Math.random() < 0.3) {
                         this.grid.remove(x, y);
                         return;
@@ -325,11 +533,10 @@ export class Simulation {
     }
 
     handleIce(particle, x, y, neighbors) {
-        // Melt if near heat
         const neighborList = [neighbors.top, neighbors.bottom, neighbors.left, neighbors.right];
 
         for (const n of neighborList) {
-            if (n && (n.type === 'fire' || n.type === 'lava')) {
+            if (n && (n.type === 'fire' || n.type === 'lava' || n.type === 'molten_metal')) {
                 if (Math.random() < 0.1) {
                     this.transformParticle(x, y, 'water');
                     return;
@@ -342,7 +549,6 @@ export class Simulation {
         // Grow if water nearby
         if (this.grid.hasNearbyType(x, y, 'water', 2)) {
             if (Math.random() < 0.005) {
-                // Try to grow in a random direction
                 const dirs = [
                     [0, -1], [0, 1], [-1, 0], [1, 0],
                     [-1, -1], [1, -1], [-1, 1], [1, 1]
@@ -356,9 +562,265 @@ export class Simulation {
     }
 
     handleSteam(particle, x, y, neighbors) {
-        // Condense back to water if high up and cooling
+        // Condense back to water if high up
         if (y < this.height * 0.3 && Math.random() < 0.01) {
             this.transformParticle(x, y, 'water');
+        }
+    }
+
+    handleSnow(particle, x, y, neighbors) {
+        // Melt near heat sources
+        if (this.grid.hasNearbyType(x, y, 'fire', 2) ||
+            this.grid.hasNearbyType(x, y, 'lava', 2) ||
+            this.grid.hasNearbyType(x, y, 'molten_metal', 2)) {
+            if (Math.random() < 0.05) {
+                this.transformParticle(x, y, 'water');
+                return;
+            }
+        }
+
+        // Slowly melt if temperature rises above freezing
+        const temp = particle.temperature || -5;
+        if (temp > 0 && Math.random() < 0.01) {
+            this.transformParticle(x, y, 'water');
+            return;
+        }
+
+        // Compaction: deep snow can become ice
+        if (this.grid.hasNearbyType(x, y, 'snow', 1) &&
+            this.grid.hasNearbyType(x, y + 1, 'snow', 0)) {
+            if (Math.random() < 0.003) {
+                this.transformParticle(x, y, 'ice');
+            }
+        }
+    }
+
+    handleMud(particle, x, y, neighbors) {
+        // Mud slowly dries into sand when away from water
+        const nearWater = this.grid.hasNearbyType(x, y, 'water', 2);
+        if (!nearWater && Math.random() < 0.002) {
+            this.transformParticle(x, y, 'sand');
+            return;
+        }
+
+        // If deep and compacted, mud can harden into stone
+        const nearMud = this.grid.hasNearbyType(x, y, 'mud', 1);
+        if (nearMud && !nearWater && Math.random() < 0.0008) {
+            this.transformParticle(x, y, 'stone');
+        }
+    }
+
+    handleMetal(particle, x, y, neighbors) {
+        const neighborList = [neighbors.top, neighbors.bottom, neighbors.left, neighbors.right];
+
+        for (const n of neighborList) {
+            if (!n) continue;
+            if (n.type === 'water' || n.type === 'steam') {
+                const isHot = (particle.temperature || 20) > 80;
+                const chance = isHot ? 0.05 : 0.01;
+                if (Math.random() < chance) {
+                    this.transformParticle(x, y, 'rust');
+                    return;
+                }
+            }
+        }
+    }
+
+    handleMoltenMetal(particle, x, y, neighbors) {
+        const neighborList = [
+            { p: neighbors.top, nx: x, ny: y - 1 },
+            { p: neighbors.bottom, nx: x, ny: y + 1 },
+            { p: neighbors.left, nx: x - 1, ny: y },
+            { p: neighbors.right, nx: x + 1, ny: y },
+        ];
+
+        // Quench in contact with water
+        for (const { p, nx, ny } of neighborList) {
+            if (p && p.type === 'water') {
+                if (Math.random() < 0.5) {
+                    this.transformParticle(x, y, 'metal');
+                    this.transformParticle(nx, ny, 'steam');
+                    return;
+                }
+            }
+        }
+
+        // Cool back into solid metal over time
+        if ((particle.temperature || 20) < 400) {
+            this.transformParticle(x, y, 'metal');
+        }
+    }
+
+    handleEmber(particle, x, y, neighbors) {
+        // Embers slowly shed ash below
+        if (this.grid.isEmpty(x, y + 1) && Math.random() < 0.05) {
+            this.grid.set(x, y + 1, createParticle('ash', x, y + 1));
+        }
+
+        // When cooled sufficiently, become ash
+        if ((particle.temperature || 20) < 180) {
+            this.transformParticle(x, y, 'ash');
+        }
+    }
+
+    handleSpark(particle, x, y, neighbors) {
+        const neighborList = [
+            neighbors.top,
+            neighbors.bottom,
+            neighbors.left,
+            neighbors.right
+        ];
+
+        for (const n of neighborList) {
+            if (!n) continue;
+            const def = ParticleTypes[n.type];
+            if (def?.flammable) {
+                if (n.type === 'gunpowder') {
+                    this.explode(n.x, n.y, 4);
+                } else {
+                    this.transformParticle(n.x, n.y, 'fire');
+                }
+                // Spark is consumed after igniting something
+                this.grid.remove(x, y);
+                return;
+            }
+        }
+    }
+
+    // Trigger a lightning strike at a given x-coordinate
+    strikeLightning(startX) {
+        let x = Math.floor(startX);
+        if (x < 0 || x >= this.width) {
+            x = Math.max(0, Math.min(this.width - 1, x));
+        }
+
+        let hitX = x;
+        let hitY = null;
+
+        for (let y = 0; y < this.height; y++) {
+            if (!this.grid.inBounds(x, y)) break;
+
+            const particle = this.grid.get(x, y);
+
+            // Draw a visual spark along the path through empty space
+            if (!particle && this.grid.isEmpty(x, y)) {
+                this.grid.set(x, y, createParticle('spark', x, y));
+            }
+
+            if (particle) {
+                hitX = x;
+                hitY = y;
+                this.zapCell(hitX, hitY, particle);
+                break;
+            }
+        }
+
+        // If nothing was hit, no further effect
+        if (hitY === null) return;
+    }
+
+    // Apply lightning effects to a single impacted cell
+    zapCell(x, y, particle) {
+        const def = ParticleTypes[particle.type];
+        if (!def) return;
+
+        // Strong heating
+        if (typeof particle.temperature === 'number') {
+            particle.temperature += 400;
+        } else {
+            particle.temperature = 400;
+        }
+
+        // Flammables can ignite or explode
+        if (def.flammable) {
+            if (particle.type === 'gunpowder') {
+                this.explode(x, y, 6);
+            } else {
+                this.transformParticle(x, y, 'fire');
+            }
+        }
+
+        // Conductive materials propagate a small arc network
+        const conductivity = def.conductivity ?? 0;
+        if (conductivity > 0.4) {
+            this.zapConductorNetwork(x, y);
+        }
+
+        // Water rapidly vaporizes
+        if (particle.type === 'water' && Math.random() < 0.7) {
+            this.transformParticle(x, y, 'steam');
+        }
+    }
+
+    // Spread lightning along connected conductors (metal, water, etc.)
+    zapConductorNetwork(startX, startY) {
+        const queue = [{ x: startX, y: startY }];
+        const visited = new Set();
+        const key = (xx, yy) => `${xx},${yy}`;
+        const maxNodes = 80;
+        let processed = 0;
+
+        while (queue.length && processed < maxNodes) {
+            const { x, y } = queue.shift();
+            const k = key(x, y);
+            if (visited.has(k)) continue;
+            visited.add(k);
+            processed++;
+
+            const p = this.grid.get(x, y);
+            if (!p) continue;
+            const def = ParticleTypes[p.type];
+            if (!def) continue;
+
+            const conductivity = def.conductivity ?? 0;
+            if (conductivity <= 0.4) continue;
+
+            // Heat conductor
+            if (typeof p.temperature === 'number') {
+                p.temperature += 250 * conductivity;
+            } else {
+                p.temperature = 250;
+            }
+
+            // Small chance to melt metal
+            if (p.type === 'metal' && Math.random() < 0.15) {
+                this.transformParticle(x, y, 'molten_metal');
+            }
+
+            // Ignite nearby flammables around each conductor
+            const neighbors = this.grid.getNeighbors(x, y);
+            for (const [nx, ny] of [
+                [x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]
+            ]) {
+                if (!this.grid.inBounds(nx, ny)) continue;
+                const n = this.grid.get(nx, ny);
+                if (!n) continue;
+                const nDef = ParticleTypes[n.type];
+                if (!nDef) continue;
+                if (nDef.flammable && Math.random() < 0.08) {
+                    if (n.type === 'gunpowder') {
+                        this.explode(nx, ny, 4);
+                    } else {
+                        this.transformParticle(nx, ny, 'fire');
+                    }
+                }
+            }
+
+            // Enqueue neighboring conductors
+            for (const [nx, ny] of [
+                [x, y - 1], [x, y + 1],
+                [x - 1, y], [x + 1, y]
+            ]) {
+                if (!this.grid.inBounds(nx, ny)) continue;
+                const nn = this.grid.get(nx, ny);
+                if (!nn) continue;
+                const nnDef = ParticleTypes[nn.type];
+                if (!nnDef) continue;
+                const nnCond = nnDef.conductivity ?? 0;
+                if (nnCond > 0.4 && !visited.has(key(nx, ny))) {
+                    queue.push({ x: nx, y: ny });
+                }
+            }
         }
     }
 
@@ -391,18 +853,14 @@ export class Simulation {
 
                     const particle = this.grid.get(px, py);
 
-                    // Remove or transform particles in explosion radius
                     if (dist < radius * 0.5) {
                         this.grid.remove(px, py);
-                        // Create fire in inner radius
                         if (Math.random() < 0.5) {
                             this.grid.set(px, py, createParticle('fire', px, py));
                         }
                     } else if (particle) {
-                        // Outer radius - just ignite flammables
                         if (ParticleTypes[particle.type]?.flammable) {
                             if (particle.type === 'gunpowder') {
-                                // Chain reaction
                                 setTimeout(() => this.explode(px, py, 3), 50);
                             } else {
                                 this.transformParticle(px, py, 'fire');
@@ -433,6 +891,30 @@ export class Simulation {
         this.grid.set(x, y, particle);
     }
 
+    // Spawn rain from the top of the world
+    spawnRain() {
+        const drops = Math.max(1, Math.floor(this.width * 0.04));
+        for (let i = 0; i < drops; i++) {
+            const x = Math.floor(Math.random() * this.width);
+            const y = 0;
+            if (this.grid.isEmpty(x, y)) {
+                this.grid.set(x, y, createParticle('water', x, y));
+            }
+        }
+    }
+
+    // Spawn snowflakes from the top
+    spawnSnow() {
+        const flakes = Math.max(1, Math.floor(this.width * 0.03));
+        for (let i = 0; i < flakes; i++) {
+            const x = Math.floor(Math.random() * this.width);
+            const y = 0;
+            if (this.grid.isEmpty(x, y)) {
+                this.grid.set(x, y, createParticle('snow', x, y));
+            }
+        }
+    }
+
     // Add particles in a brush area
     addBrush(centerX, centerY, type, size) {
         for (let dx = -size; dx <= size; dx++) {
@@ -441,7 +923,6 @@ export class Simulation {
                     const x = centerX + dx;
                     const y = centerY + dy;
 
-                    // Add some randomness to brush
                     if (Math.random() < 0.7) {
                         this.addParticle(x, y, type);
                     }
@@ -464,6 +945,34 @@ export class Simulation {
     // Clear all particles
     clear() {
         this.grid.clear();
+    }
+
+    // Adjust global intensity (gravity + fire)
+    setIntensity(multiplier) {
+        const m = Math.max(0.2, Math.min(multiplier, 3));
+        this.fireIntensity = m;
+        this.gravity = 0.25 * m;
+    }
+
+    // Set global wind (-1 to 1)
+    setWind(amount) {
+        this.windX = Math.max(-1, Math.min(1, amount || 0));
+    }
+
+    // Adjust simulation speed (steps per frame)
+    setSpeed(multiplier) {
+        const m = Math.max(0.25, Math.min(multiplier, 4));
+        const steps = Math.round(m * 1);
+        this.stepsPerFrame = Math.max(1, steps);
+    }
+
+    // Toggle weather systems
+    setRainEnabled(enabled) {
+        this.rainEnabled = !!enabled;
+    }
+
+    setSnowEnabled(enabled) {
+        this.snowEnabled = !!enabled;
     }
 
     // Toggle pause

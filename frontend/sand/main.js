@@ -58,6 +58,88 @@ class SandSimulator {
             brushValue.textContent = this.brushSize;
         });
 
+        // Global intensity slider (gravity + fire + lighting)
+        const intensitySlider = document.getElementById('intensity');
+        const intensityValue = document.getElementById('intensityValue');
+        if (intensitySlider && intensityValue) {
+            const applyIntensity = () => {
+                const raw = parseInt(intensitySlider.value, 10) || 100;
+                const factor = raw / 100; // 1.0 at 100
+                intensityValue.textContent = factor.toFixed(2);
+                this.simulation.setIntensity(factor);
+                this.renderer.setLightIntensity(factor);
+            };
+            intensitySlider.addEventListener('input', applyIntensity);
+            // Initialize based on default slider position
+            applyIntensity();
+        }
+
+        // Global wind slider (left/right gas & ash drift)
+        const windSlider = document.getElementById('wind');
+        const windValue = document.getElementById('windValue');
+        if (windSlider && windValue) {
+            const applyWind = () => {
+                const raw = parseInt(windSlider.value, 10) || 0; // 0..200
+                const normalized = (raw - 100) / 100; // -1..1
+                windValue.textContent = normalized.toFixed(2);
+                this.simulation.setWind(normalized);
+            };
+            windSlider.addEventListener('input', applyWind);
+            applyWind();
+        }
+
+        // Global speed slider (simulation steps per frame)
+        const speedSlider = document.getElementById('speed');
+        const speedValue = document.getElementById('speedValue');
+        if (speedSlider && speedValue) {
+            const applySpeed = () => {
+                const raw = parseInt(speedSlider.value, 10) || 100; // 50..200
+                const factor = raw / 100; // 0.5..2.0
+                speedValue.textContent = factor.toFixed(2);
+                this.simulation.setSpeed(factor);
+            };
+            speedSlider.addEventListener('input', applySpeed);
+            applySpeed();
+        }
+
+        // Heatmap toggle
+        const heatmapToggle = document.getElementById('heatmapToggle');
+        if (heatmapToggle) {
+            const applyHeatmap = () => {
+                this.renderer.setShowHeatmap(heatmapToggle.checked);
+            };
+            heatmapToggle.addEventListener('change', applyHeatmap);
+            applyHeatmap();
+        }
+
+        // Weather toggles
+        const rainToggle = document.getElementById('rainToggle');
+        if (rainToggle) {
+            const applyRain = () => {
+                this.simulation.setRainEnabled(rainToggle.checked);
+            };
+            rainToggle.addEventListener('change', applyRain);
+            applyRain();
+        }
+
+        const snowToggle = document.getElementById('snowToggle');
+        if (snowToggle) {
+            const applySnow = () => {
+                this.simulation.setSnowEnabled(snowToggle.checked);
+            };
+            snowToggle.addEventListener('change', applySnow);
+            applySnow();
+        }
+
+        // Lightning strike button
+        const lightningBtn = document.getElementById('lightningBtn');
+        if (lightningBtn) {
+            lightningBtn.addEventListener('click', () => {
+                const x = Math.floor(Math.random() * this.width);
+                this.simulation.strikeLightning(x);
+            });
+        }
+
         // Clear button
         document.getElementById('clearBtn').addEventListener('click', () => {
             this.simulation.clear();
@@ -172,8 +254,11 @@ class SandSimulator {
     }
 
     loop() {
-        // Update simulation
-        this.simulation.update();
+        // Update simulation (may run multiple steps per frame)
+        const steps = this.simulation.stepsPerFrame || 1;
+        for (let i = 0; i < steps; i++) {
+            this.simulation.update();
+        }
 
         // Render
         this.renderer.render();

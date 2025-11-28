@@ -2341,6 +2341,7 @@ jgs   `-=========-`()
             entries.forEach((entry, index) => {
                 const li = document.createElement('li');
                 li.style.margin = '0.1rem 0';
+
                 const link = document.createElement('a');
                 link.href = buildTrackUrl(entry.trackId, entry.mode || 'canon');
                 link.textContent = entry.title || entry.trackId;
@@ -2354,10 +2355,9 @@ jgs   `-=========-`()
                 metaSpan.style.fontSize = '0.8rem';
                 metaSpan.style.color = '#777';
                 metaSpan.style.marginLeft = '0.25rem';
-                const parts = [];
-                if (entry.artist) parts.push(entry.artist);
-                if (entry.mode) parts.push(entry.mode);
-                metaSpan.textContent = parts.length ? `(${parts.join(' • ')})` : '';
+                // Show only the mode label, in small brackets (e.g., [canon])
+                let modeLabel = entry.mode ? String(entry.mode).toLowerCase() : '';
+                metaSpan.textContent = modeLabel ? ` [${modeLabel}]` : '';
 
                 const removeBtn = document.createElement('button');
                 removeBtn.textContent = 'x';
@@ -2398,7 +2398,9 @@ jgs   `-=========-`()
                         return;
                     }
                     const analysis = window.curTrack.analysis || {};
-                    const title = (window.curTrack.fixedTitle || window.curTrack.title || '').toString();
+                    // Prefer the raw track title for display; strip any mode suffix if present
+                    let title = (window.curTrack.title || window.curTrack.fixedTitle || '').toString();
+                    title = title.replace(/\s+-\s+(Canon|Jukebox|Eternal|Autoharmonizer|Sculptor)\s*$/i, '');
                     const artist = (window.curTrack.artist || '').toString();
                     const mode = (document.body.dataset.mode || 'canon').toLowerCase();
 
@@ -2659,6 +2661,21 @@ jgs   `-=========-`()
             }
             return audio;
         };
+    })();
+
+    // Base audio only toggle (mute overlays / extra tracks)
+    (function() {
+        const baseToggle = document.getElementById('base-audio-only-toggle');
+        if (!baseToggle) return;
+
+        // Initialize global flag
+        window.harmonizerBaseAudioOnly = !!baseToggle.checked;
+
+        baseToggle.addEventListener('change', function(event) {
+            const enabled = !!event.target.checked;
+            window.harmonizerBaseAudioOnly = enabled;
+            console.log('[BaseAudioOnly] Toggle changed to:', enabled);
+        });
     })();
 
     // Canon voice count slider (only for Canon mode, not Eternal Jukebox)

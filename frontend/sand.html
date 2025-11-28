@@ -143,10 +143,13 @@
         .particle-btn[data-type="acid"] { background: #7fff00; color: #000; }
         .particle-btn[data-type="lava"] { background: #ff4500; }
         .particle-btn[data-type="ice"] { background: #a5f2f3; color: #000; }
+        .particle-btn[data-type="snow"] { background: #ffffff; color: #000; }
         .particle-btn[data-type="steam"] { background: #ddd; color: #000; }
         .particle-btn[data-type="gunpowder"] { background: #333; }
         .particle-btn[data-type="wood"] { background: #8b4513; }
         .particle-btn[data-type="plant"] { background: #228b22; }
+        .particle-btn[data-type="metal"] { background: linear-gradient(135deg, #b0b0b0, #e0e0e0); color: #000; }
+        .particle-btn[data-type="glass"] { background: rgba(200, 235, 255, 0.8); color: #000; }
         .particle-btn[data-type="eraser"] { background: #ff3333; }
 
         .control-btn {
@@ -319,10 +322,13 @@
                 <button class="particle-btn" data-type="acid">Acid</button>
                 <button class="particle-btn" data-type="lava">Lava</button>
                 <button class="particle-btn" data-type="ice">Ice</button>
+                <button class="particle-btn" data-type="snow">Snow</button>
                 <button class="particle-btn" data-type="steam">Steam</button>
                 <button class="particle-btn" data-type="gunpowder">Gunpowder</button>
                 <button class="particle-btn" data-type="wood">Wood</button>
                 <button class="particle-btn" data-type="plant">Plant</button>
+                <button class="particle-btn" data-type="metal">Metal</button>
+                <button class="particle-btn" data-type="glass">Glass</button>
                 <button class="particle-btn" data-type="eraser">Eraser</button>
             </div>
 
@@ -332,6 +338,55 @@
                     <input type="range" id="brushSize" min="1" max="20" value="3">
                     <span class="slider-value" id="brushSizeValue">3</span>
                 </div>
+            </div>
+
+            <div class="toolbar-section">
+                <span class="toolbar-label">Intensity:</span>
+                <div class="slider-container">
+                    <input type="range" id="intensity" min="50" max="200" value="100">
+                    <span class="slider-value" id="intensityValue">1.00</span>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <span class="toolbar-label">Wind:</span>
+                <div class="slider-container">
+                    <input type="range" id="wind" min="0" max="200" value="100">
+                    <span class="slider-value" id="windValue">0.00</span>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <span class="toolbar-label">Speed:</span>
+                <div class="slider-container">
+                    <input type="range" id="speed" min="50" max="200" value="100">
+                    <span class="slider-value" id="speedValue">1.00</span>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <span class="toolbar-label">View:</span>
+                <label style="font-size: 11px; color: #c2b280; margin-right: 6px;">
+                    <input type="checkbox" id="heatmapToggle">
+                    Heatmap
+                </label>
+            </div>
+
+            <div class="toolbar-section">
+                <span class="toolbar-label">Weather:</span>
+                <label style="font-size: 11px; color: #c2b280; margin-right: 6px;">
+                    <input type="checkbox" id="rainToggle">
+                    Rain
+                </label>
+                <label style="font-size: 11px; color: #c2b280;">
+                    <input type="checkbox" id="snowToggle">
+                    Snow
+                </label>
+            </div>
+
+            <div class="toolbar-section">
+                <span class="toolbar-label">Lightning:</span>
+                <button class="control-btn" id="lightningBtn">Strike</button>
             </div>
 
             <div class="toolbar-section">

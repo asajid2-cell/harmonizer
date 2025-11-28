@@ -87,7 +87,9 @@ export const ParticleTypes = {
         flammable: false,
         lifetime: 30 + Math.random() * 30,
         temperature: 600,
-        emitsLight: true
+        emitsLight: true,
+        lightRadius: 16,
+        lightIntensity: 1.0
     },
 
     smoke: {
@@ -138,7 +140,9 @@ export const ParticleTypes = {
         flammable: false,
         temperature: 1000,
         emitsLight: true,
-        dispersion: 2
+        dispersion: 2,
+        lightRadius: 26,
+        lightIntensity: 1.2
     },
 
     ice: {
@@ -151,6 +155,20 @@ export const ParticleTypes = {
         meltPoint: 0
     },
 
+    snow: {
+        name: 'Snow',
+        state: ParticleState.POWDER,
+        density: 0.3,
+        color: () => {
+            const base = 235;
+            const variation = 15;
+            const v = base + Math.random() * variation - variation / 2;
+            return [v, v, 255, 230];
+        },
+        flammable: false,
+        temperature: -5
+    },
+
     steam: {
         name: 'Steam',
         state: ParticleState.GAS,
@@ -159,6 +177,24 @@ export const ParticleTypes = {
         flammable: false,
         condensationPoint: 100,
         lifetime: 200 + Math.random() * 100
+    },
+
+    mud: {
+        name: 'Mud',
+        state: ParticleState.LIQUID,
+        density: 1.4,
+        color: () => {
+            const base = [110, 80, 55];
+            return [
+                base[0] + Math.random() * 20 - 10,
+                base[1] + Math.random() * 20 - 10,
+                base[2] + Math.random() * 10 - 5
+            ];
+        },
+        flammable: false,
+        corrodible: false,
+        dispersion: 2,
+        driesOut: true
     },
 
     gunpowder: {
@@ -206,6 +242,120 @@ export const ParticleTypes = {
         flammable: true,
         flashPoint: 200,
         grows: true
+    },
+
+    // Generic structural metal – heavy, conducts heat, corrodes in acid
+    metal: {
+        name: 'Metal',
+        state: ParticleState.SOLID,
+        density: 7.8,
+        color: () => {
+            const base = 150;
+            const variation = 25;
+            const v = base + Math.random() * variation - variation / 2;
+            return [v, v + 5, v + 10];
+        },
+        flammable: false,
+        corrodible: true,
+        conductivity: 0.95,
+        meltPoint: 1500
+    },
+
+    // Molten metal – created when metal is heated by lava/fire
+    molten_metal: {
+        name: 'Molten Metal',
+        state: ParticleState.LIQUID,
+        density: 7.2,
+        color: () => {
+            const colors = [
+                [255, 230, 180],
+                [255, 210, 140],
+                [255, 200, 120]
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        },
+        flammable: false,
+        temperature: 1200,
+        emitsLight: true,
+        dispersion: 1,
+        lightRadius: 22,
+        lightIntensity: 1.1
+    },
+
+    // Rust – powdery byproduct of metal + water/acid
+    rust: {
+        name: 'Rust',
+        state: ParticleState.POWDER,
+        density: 2.5,
+        color: () => {
+            const base = [183, 65, 14];
+            return [
+                base[0] + Math.random() * 20 - 10,
+                base[1] + Math.random() * 15 - 7,
+                base[2] + Math.random() * 15 - 7
+            ];
+        },
+        flammable: false,
+        corrodible: false
+    },
+
+    // Glass – brittle solid that can melt near lava
+    glass: {
+        name: 'Glass',
+        state: ParticleState.SOLID,
+        density: 2.6,
+        color: () => [210, 235, 255, 160],
+        flammable: false,
+        corrodible: false,
+        meltPoint: 800
+    },
+
+    // Ember – glowing remnant of burned wood/plant
+    ember: {
+        name: 'Ember',
+        state: ParticleState.SOLID,
+        density: 0.6,
+        color: () => {
+            const base = [220, 80, 20];
+            return [
+                base[0] + Math.random() * 30 - 15,
+                base[1] + Math.random() * 20 - 10,
+                base[2] + Math.random() * 20 - 10
+            ];
+        },
+        flammable: false,
+        temperature: 500,
+        emitsLight: true,
+        lightRadius: 10,
+        lightIntensity: 0.7,
+        lifetime: 120 + Math.random() * 120
+    },
+
+    // Ash – lightweight powder left by combustion
+    ash: {
+        name: 'Ash',
+        state: ParticleState.POWDER,
+        density: 0.2,
+        color: () => {
+            const gray = 140 + Math.random() * 40;
+            return [gray, gray, gray];
+        },
+        flammable: false,
+        corrodible: false
+    },
+
+    // Sparks – brief hot gas that helps carry fire upward
+    spark: {
+        name: 'Spark',
+        state: ParticleState.GAS,
+        density: 0.01,
+        color: () => [255, 230, 180],
+        flammable: false,
+        temperature: 900,
+        emitsLight: true,
+        lightRadius: 12,
+        lightIntensity: 0.9,
+        lifetime: 8 + Math.random() * 6
     }
 };
 

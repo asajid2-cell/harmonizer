@@ -6202,6 +6202,11 @@ function createCanonDriver(player) {
         if (!masterQs || !masterQs.length) {
             return { index: 0, reason: "sequential" };
         }
+        // In base-audio-only mode, never perform canon jumps – just step sequentially
+        if (typeof window !== "undefined" && window.harmonizerBaseAudioOnly) {
+            var nextIdx = (sourceIndex + 1);
+            return { index: nextIdx, reason: "sequential" };
+        }
         var policyMode = getGlobalPolicyMode("canon");
         var allowLooping = policyMode === "rl";
         if (!allowLooping && sourceIndex >= masterQs.length - 1) {
@@ -7478,6 +7483,15 @@ function createJukeboxDriver(player, options) {
     }
 
     function selectJumpCandidate(src) {
+        // In base-audio-only mode, never perform jukebox/eternal jumps – always go sequential
+        if (typeof window !== "undefined" && window.harmonizerBaseAudioOnly) {
+            return {
+                target: src + 1,
+                reason: "sequential",
+                similarity: 1.0,
+                score: 1.0
+            };
+        }
         if (!masterQs || !masterQs.length) {
             return null;
         }
@@ -8591,6 +8605,9 @@ function updateHudForBeat(beat) {
             return;
         }
 
+        // When "Base audio only" is enabled, avoid cross-track playback – stay on the current track only
+        var baseAudioOnly = (typeof window !== "undefined" && !!window.harmonizerBaseAudioOnly);
+
         // Avoid any resync during the crossfade freeze window
         if (Date.now() > freezeSyncUntil) {
             var desired;
@@ -8626,7 +8643,7 @@ function updateHudForBeat(beat) {
         // Enforce longer dwell before any jump
         var hardDwell = Math.max(minDwellBeats, 16);
         var allowJump = beatsSinceJump >= hardDwell;
-        var allowCross = true; // always consider cross edges
+        var allowCross = !baseAudioOnly; // in base-audio-only mode, never cross to the other track
         var choice = allowJump ? selectBestEdge(curQ, currentTrack, {
             preferCross: preferCross,
             forceCross: forceCross || bored,
@@ -8640,7 +8657,7 @@ function updateHudForBeat(beat) {
         if (!choice && beatsRemaining <= 2) {
             var otherTrack = currentTrack === 1 ? 2 : 1;
             var otherBeats = getBeatsForTrack(otherTrack);
-            if (otherBeats && otherBeats.length) {
+            if (!baseAudioOnly && otherBeats && otherBeats.length) {
                 choice = {
                     track: otherTrack,
                     index: 0, // restart other track to avoid end-to-end ping-pong
@@ -8801,6 +8818,8 @@ function updateHudForBeat(beat) {
                 // bring current track up after sync
                 getControllerForTrack(currentTrack).setVolume(0.72);
             }
+            // Ensure heartbeat is running so jumps and crossfades continue even when tab is unfocused
+            startHeartbeat();
             process();
         },
         toggle: function() {

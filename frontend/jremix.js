@@ -472,6 +472,31 @@ function createJRemixer(context, jquery) {
                 var beatsPerBar = (q.bar_length_beats) ? q.bar_length_beats : 4;
                 var useIndependentPaths = numVoices > 2; // Only use independent jumping for 3+ voices
 
+                // If Base audio only is enabled, stop all overlay voices and skip their playback
+                var baseAudioOnly = (typeof window !== 'undefined' && !!window.harmonizerBaseAudioOnly);
+                if (baseAudioOnly) {
+                    if (overlayVoices && overlayVoices.length) {
+                        overlayVoices.forEach(function(voice, idx) {
+                            if (voice && voice.source) {
+                                try { voice.source.stop(); } catch (e) {}
+                                voice.source = null;
+                            }
+                            if (typeof skewDeltas[idx] !== 'undefined') {
+                                skewDeltas[idx] = 0;
+                            }
+                            if (voice && voice.gain && voice.gain.gain) {
+                                try { voice.gain.gain.value = 0; } catch (e) {}
+                            }
+                        });
+                    }
+                    if (typeof window !== 'undefined') {
+                        window.currentVoiceStates = [];
+                        window.currentMainBeatIdx = mainBeatIdx;
+                    }
+                    curQ = q;
+                    return q.duration - delta;
+                }
+
                 // Expose current voice states for visualizer
                 var voiceStates = [];
 
