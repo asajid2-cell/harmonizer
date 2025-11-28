@@ -499,7 +499,9 @@ var ADVANCED_DEFAULTS = {
         maxSequentialBeats: 36,
         loopThreshold: 0.55,
         sectionBias: 0.6,
-        jumpVariance: 0.4
+        jumpVariance: 0.4,
+        routeLength: 8,
+        jumpTemperature: 0.25
     },
     eternalLoop: {
         musicality: 100,
@@ -954,6 +956,12 @@ function applyLoopFieldToDriver(fieldKey, value) {
     } else if (fieldKey === "jumpVariance" && typeof driver.setLoopJumpVariance === "function") {
         driver.setLoopJumpVariance(value);
         applied = true;
+    } else if (fieldKey === "routeLength" && typeof driver.setRouteLength === "function") {
+        driver.setRouteLength(value);
+        applied = true;
+    } else if (fieldKey === "jumpTemperature" && typeof driver.setJumpTemperature === "function") {
+        driver.setJumpTemperature(value);
+        applied = true;
     }
 
     // Immediately refresh visualization for fields that affect the loop graph
@@ -1265,6 +1273,12 @@ function sanitizeLoopSettings(raw, defaults) {
     if (source.jumpVariance !== undefined) {
         merged.jumpVariance = source.jumpVariance;
     }
+    if (source.routeLength !== undefined) {
+        merged.routeLength = source.routeLength;
+    }
+    if (source.jumpTemperature !== undefined) {
+        merged.jumpTemperature = source.jumpTemperature;
+    }
 
     var minLoopBeats = coerceNumber(merged.minLoopBeats);
     if (minLoopBeats === null) {
@@ -1295,6 +1309,18 @@ function sanitizeLoopSettings(raw, defaults) {
         jumpVariance = defaults && defaults.jumpVariance !== undefined ? defaults.jumpVariance : 0.4;
     }
     merged.jumpVariance = clamp01(jumpVariance);
+
+    var routeLength = coerceNumber(merged.routeLength);
+    if (routeLength === null) {
+        routeLength = defaults && defaults.routeLength !== undefined ? defaults.routeLength : 8;
+    }
+    merged.routeLength = Math.max(4, Math.min(32, Math.round(routeLength)));
+
+    var jumpTemperature = coerceNumber(merged.jumpTemperature);
+    if (jumpTemperature === null) {
+        jumpTemperature = defaults && defaults.jumpTemperature !== undefined ? defaults.jumpTemperature : 0.25;
+    }
+    merged.jumpTemperature = Math.max(0.05, Math.min(0.8, jumpTemperature));
 
     return merged;
 }
@@ -1805,6 +1831,29 @@ function clearLoopPaths() {
     });
     loopPaths = [];
     loopPathMap = {};
+}
+
+function clearTiles() {
+    if (!tiles || !tiles.length) {
+        tiles = [];
+        return;
+    }
+    for (var i = 0; i < tiles.length; i++) {
+        var t = tiles[i];
+        if (!t) {
+            continue;
+        }
+        if (t.rect && typeof t.rect.remove === "function") {
+            t.rect.remove();
+        }
+        if (t.cursor && typeof t.cursor.remove === "function") {
+            t.cursor.remove();
+        }
+        if (t.q && t.q.tile === t) {
+            t.q.tile = null;
+        }
+    }
+    tiles = [];
 }
 
 function applyCanonAlignment(qlist, alignment) {
@@ -3447,9 +3496,10 @@ function init() {
     }
 
     window.addEventListener("resize", debounce(function() {
-        if (mode === "jukebox" || mode === "eternal") {
-            applyModeLayout();
-        }
+        // Opening/closing DevTools or small window resizes should not
+        // regenerate the orbit or tiles; just keep the existing canvas
+        // and adjust the container shell if needed.
+        syncOrbitContainerSize();
     }, 160));
 
     // Initialize Section Sculptor UI controls
@@ -5265,7 +5315,7 @@ function createTiles(qlist) {
         return createSculptorTiles(qlist);
     }
     clearJukeboxBackdrop();
-    tiles = [];
+    clearTiles();
     normalizeColor();
     var GH = H - vPad * 2;
     var HB = H - vPad;
@@ -5287,7 +5337,7 @@ function createTiles(qlist) {
 }
 
 function createCircularTiles(qlist) {
-    tiles = [];
+    clearTiles();
     normalizeColor();
     clearLoopPaths();
     renderOrbitBase();
@@ -5324,7 +5374,7 @@ function createCircularTiles(qlist) {
 
 function createAutoharmonizerTiles(qlist) {
     // Create dual-loop visualization: two interlocking circles for autoharmonizer mode
-    tiles = [];
+    clearTiles();
     normalizeColor();
     clearLoopPaths();
     renderOrbitBase();
@@ -5473,7 +5523,7 @@ function createAutoharmonizerTiles(qlist) {
 
 function createSculptorTiles(qlist) {
     // Section Sculptor: visualize sections as horizontal timeline blocks
-    tiles = [];
+    clearTiles();
     normalizeColor();
     clearJukeboxBackdrop();
     clearLoopPaths();
@@ -5975,6 +6025,7 @@ function createCanonDriver(player) {
     var rlMinDwell = rlConfig.minDwell;
     var rlRepeatPenalty = rlConfig.repeatPenalty;
     var CANON_PHRASE_DWELL = 16;
+    var CANON_MIN_SCORE = 0.65;
 
     var curQ = 0;
     var running = false;
@@ -5984,10 +6035,73 @@ function createCanonDriver(player) {
     var recentCanonTargets = [];
     var canonJumpHistory = [];
     var canonVisitedBars = {};
+    var canonEdgeUsage = {}; // "src:dst" -> usage count
     var CANON_RECENT_LIMIT = 20;
     var CANON_JUMP_HISTORY_LIMIT = 8;
     var beatsSinceLastCanonJump = rlMinDwell;
     var maxBeatReached = 0;
+    var CANON_EDGE_USAGE_DECAY_INTERVAL = 16;
+    var canonBeatsSinceUsageDecay = 0;
+    var CANON_JUMP_TEMPERATURE = 0.25;
+    var CANON_STUCK_WINDOW = 64;
+    var CANON_STUCK_RATIO = 0.4;
+    var recentCanonBeats = [];
+    var CANON_EDGE_USAGE_DECAY_FACTOR = 0.96;
+    var CANON_EDGE_USAGE_DECAY_THRESHOLD = 0.2;
+
+    function trackCanonBeat(index) {
+        if (typeof index !== "number" || index < 0) {
+            return;
+        }
+        recentCanonBeats.push(index);
+        if (recentCanonBeats.length > CANON_STUCK_WINDOW) {
+            recentCanonBeats.shift();
+        }
+    }
+
+    function maybeResetCanonIfStuck() {
+        if (!recentCanonBeats.length || recentCanonBeats.length < 32) {
+            return;
+        }
+        var windowSize = recentCanonBeats.length;
+        var seen = Object.create(null);
+        for (var i = 0; i < windowSize; i++) {
+            seen[recentCanonBeats[i]] = true;
+        }
+        var uniqueCount = Object.keys(seen).length;
+        var ratio = uniqueCount / windowSize;
+        if (ratio >= CANON_STUCK_RATIO) {
+            return;
+        }
+        if (typeof window !== "undefined" && window.__canonLog) {
+            try {
+                window.__canonLog.push({
+                    type: "stuck_loop_reset",
+                    windowSize: windowSize,
+                    uniqueCount: uniqueCount,
+                    ratio: ratio,
+                    at: Date.now(),
+                    index: curQ
+                });
+            } catch (e) {}
+        }
+        canonEdgeUsage = {};
+        canonVisitedBars = {};
+        recentCanonTargets = [];
+        canonJumpHistory = [];
+        beatsSinceLastCanonJump = rlMinDwell;
+    }
+
+    function decayCanonEdgeUsage() {
+        Object.keys(canonEdgeUsage).forEach(function(key) {
+            var v = canonEdgeUsage[key] * CANON_EDGE_USAGE_DECAY_FACTOR;
+            if (v < CANON_EDGE_USAGE_DECAY_THRESHOLD) {
+                delete canonEdgeUsage[key];
+            } else {
+                canonEdgeUsage[key] = v;
+            }
+        });
+    }
 
     function clearLastCanonHop() {
         lastCanonHop.source = null;
@@ -6255,11 +6369,13 @@ function createCanonDriver(player) {
                 );
             }
         });
-        var bestCandidate = candidates[0];
-        var bestScore = null;
         var dwellBeats =
             (canonSettings && canonSettings.dwellBeats) || 6;
         var voiceOffsetsForSafe = canonVoiceOffsetsForDriver || [];
+        var scoredCandidates = [];
+        var bestCandidate = candidates[0];
+        var bestScore = null;
+
         candidates.forEach(function(candidate) {
             if (candidate.target >= masterQs.length) {
                 return;
@@ -6277,23 +6393,13 @@ function createCanonDriver(player) {
             if (isImmediateBacktrack) {
                 return;
             }
-        if (
-            allowLooping &&
-            candidate.reason !== "sequential" &&
-            isRecentlyVisitedCanonTarget(candidate.target)
-        ) {
-            return;
-        }
-        if (candidate.target < masterQs.length) {
-            var barIndex = masterQs[candidate.target] && masterQs[candidate.target].bar_index;
-            if (barIndex !== null && barIndex !== undefined && typeof barIndex === "number") {
-                var visits = canonVisitedBars[barIndex] || 0;
-                if (visits > 0) {
-                    // heavy burnout to escape local maxima
-                    candidate.score = (typeof candidate.score === "number" ? candidate.score : 0) - Math.min(5, 1 * visits);
-                }
+            if (
+                allowLooping &&
+                candidate.reason !== "sequential" &&
+                isRecentlyVisitedCanonTarget(candidate.target)
+            ) {
+                return;
             }
-        }
             // Prevent backward jumps that would create tight loops
             if (
                 allowLooping &&
@@ -6330,16 +6436,104 @@ function createCanonDriver(player) {
                     score -= repeatCount * rlRepeatPenalty;
                 }
             }
-            candidate.score = score;
+
+            // Bar visit / coverage shaping for non-sequential jumps
             if (
-                typeof score === "number" &&
-                (bestScore === null || score > bestScore)
+                candidate.reason !== "sequential" &&
+                candidate.target < masterQs.length
             ) {
-                bestScore = score;
-                bestCandidate = candidate;
+                var barIndex = masterQs[candidate.target] && masterQs[candidate.target].bar_index;
+                if (barIndex !== null && barIndex !== undefined && typeof barIndex === "number") {
+                    var visits = canonVisitedBars[barIndex] || 0;
+                    var visitPenalty = visits * 0.08;
+                    var coverageBonus = Math.max(0, 0.18 - visits * 0.05);
+                    score -= visitPenalty;
+                    score += coverageBonus;
+                }
+            }
+
+            // Edge usage penalty to discourage overused jumps
+            if (candidate.reason !== "sequential") {
+                var edgeKey = sourceIndex + ":" + candidate.target;
+                var usageCount = canonEdgeUsage[edgeKey] || 0;
+                if (usageCount > 0) {
+                    var usagePenalty = Math.min(0.35, Math.log(1 + usageCount) * 0.14);
+                    score -= usagePenalty;
+                }
+            }
+
+            candidate.score = score;
+            if (typeof score === "number") {
+                scoredCandidates.push(candidate);
+                if (bestScore === null || score > bestScore) {
+                    bestScore = score;
+                    bestCandidate = candidate;
+                }
             }
         });
-        var targetIdx = clampCanonIndex(bestCandidate.target);
+
+        if (!scoredCandidates.length) {
+            return { index: clampCanonIndex(sequentialTarget), reason: "sequential" };
+        }
+
+        // Sort by score so we can build a softmax pool around the strongest options
+        scoredCandidates.sort(function(a, b) {
+            var sa = (typeof a.score === "number") ? a.score : -Infinity;
+            var sb = (typeof b.score === "number") ? b.score : -Infinity;
+            return sb - sa;
+        });
+
+        var dynamicMin = CANON_MIN_SCORE;
+        if (beatsSinceLastJump > rlMinDwell * 2) {
+            dynamicMin -= 0.05;
+        }
+        if (beatsSinceLastJump > rlMinDwell * 4) {
+            dynamicMin -= 0.1;
+        }
+        if (bestScore !== null && bestScore < dynamicMin) {
+            dynamicMin = bestScore - 0.05;
+        }
+
+        var pool = [];
+        var maxPool = 6;
+        for (var i = 0; i < scoredCandidates.length && pool.length < maxPool; i++) {
+            var c = scoredCandidates[i];
+            if (typeof c.score !== "number") {
+                continue;
+            }
+            if (c.score >= dynamicMin) {
+                pool.push(c);
+            } else {
+                break;
+            }
+        }
+        if (!pool.length) {
+            pool.push(bestCandidate);
+        }
+
+        var chosen = pool[0];
+        if (pool.length > 1) {
+            var temperature = CANON_JUMP_TEMPERATURE;
+            var maxScore = pool[0].score;
+            var weights = [];
+            var totalWeight = 0;
+            for (var wIdx = 0; wIdx < pool.length; wIdx++) {
+                var s = pool[wIdx].score;
+                var w = Math.exp((s - maxScore) / temperature);
+                weights[wIdx] = w;
+                totalWeight += w;
+            }
+            var r = Math.random() * totalWeight;
+            for (var cIdx = 0; cIdx < pool.length; cIdx++) {
+                r -= weights[cIdx];
+                if (r <= 0) {
+                    chosen = pool[cIdx];
+                    break;
+                }
+            }
+        }
+
+        var targetIdx = clampCanonIndex(chosen.target);
         if (allowLooping && totalBeats > 0) {
             if (targetIdx >= totalBeats) {
                 targetIdx = targetIdx % totalBeats;
@@ -6350,7 +6544,7 @@ function createCanonDriver(player) {
         } else if (targetIdx <= sourceIndex) {
             targetIdx = clampCanonIndex(sourceIndex + 1);
         }
-        return { index: targetIdx, reason: bestCandidate.reason };
+        return { index: targetIdx, reason: chosen.reason };
     }
 
     function pausePlayback() {
@@ -6376,6 +6570,10 @@ function createCanonDriver(player) {
         lastLoggedIndex = null;
         clearLastCanonHop();
         clearRecentCanonTargets();
+        canonEdgeUsage = {};
+        canonVisitedBars = {};
+        recentCanonBeats = [];
+        canonBeatsSinceUsageDecay = 0;
         resetPlaybackState();
     }
 
@@ -6409,6 +6607,13 @@ function createCanonDriver(player) {
             stop();
         } else if (running) {
             var currentIndex = curQ;
+            trackCanonBeat(currentIndex);
+            canonBeatsSinceUsageDecay += 1;
+            if (canonBeatsSinceUsageDecay >= CANON_EDGE_USAGE_DECAY_INTERVAL) {
+                canonBeatsSinceUsageDecay = 0;
+                decayCanonEdgeUsage();
+            }
+            maybeResetCanonIfStuck();
             // Track maximum beat reached to prevent tight loops
             if (currentIndex > maxBeatReached) {
                 maxBeatReached = currentIndex;
@@ -6467,6 +6672,8 @@ function createCanonDriver(player) {
                 lastCanonHop.target = choice.index;
                 registerCanonDecision(reason);
                 if (reason !== "sequential") {
+                    var edgeKey = currentIndex + ":" + choice.index;
+                    canonEdgeUsage[edgeKey] = (canonEdgeUsage[edgeKey] || 0) + 1;
                     markCanonJumpTarget(choice.index);
                     markCanonVisitedBar(choice.index);
                     decayCanonVisitedBars();
@@ -6635,6 +6842,23 @@ function createJukeboxDriver(player, options) {
     var beatsPlayedDisplay = $("#beats-played");
     var eternalStatsContainer = $("#eternal-stats");
     var visitedBars = {};
+    var edgeUsage = {}; // per-session edge usage counts: "src:dst" -> count
+    var plannedJumps = []; // short-term plan of upcoming jumps
+    var ROUTE_LENGTH = Math.max(4, Math.min(32, Math.round(coerceNumber(options.routeLength) || 8)));
+    var rawJumpTemp = coerceNumber(options.jumpTemperature);
+    if (rawJumpTemp === null) {
+        rawJumpTemp = 0.25;
+    }
+    var JUMP_TEMPERATURE = Math.max(0.05, Math.min(0.8, rawJumpTemp));
+    var JUMP_USAGE_DECAY_INTERVAL = 16; // beats between decay passes
+    var JUMP_USAGE_DECAY_FACTOR = 0.96;
+    var JUMP_USAGE_DECAY_THRESHOLD = 0.2;
+    var JUMP_RESET_INTERVAL = 10; // number of jumps before a soft reset
+    var beatsSinceUsageDecay = 0;
+    var jumpsSinceReset = 0;
+    var JBX_STUCK_WINDOW = 64;
+    var JBX_STUCK_RATIO = 0.4;
+    var recentJukeboxBeats = [];
     var minScore = 0.7;
     var minDwellBeats = 6;
     var beatsSinceJump = 0;
@@ -6809,6 +7033,101 @@ function createJukeboxDriver(player, options) {
         updateStatsDisplay();
     }
 
+    function trackJukeboxBeat(index) {
+        if (typeof index !== "number" || index < 0) {
+            return;
+        }
+        recentJukeboxBeats.push(index);
+        if (recentJukeboxBeats.length > JBX_STUCK_WINDOW) {
+            recentJukeboxBeats.shift();
+        }
+    }
+
+    function maybeResetJukeboxIfStuck() {
+        if (!recentJukeboxBeats.length || recentJukeboxBeats.length < 32) {
+            return;
+        }
+        var windowSize = recentJukeboxBeats.length;
+        var seen = Object.create(null);
+        for (var i = 0; i < windowSize; i++) {
+            seen[recentJukeboxBeats[i]] = true;
+        }
+        var uniqueCount = Object.keys(seen).length;
+        var ratio = uniqueCount / windowSize;
+        if (ratio >= JBX_STUCK_RATIO) {
+            return;
+        }
+        if (typeof window !== "undefined" && window.__eternalLog) {
+            try {
+                window.__eternalLog.push({
+                    type: "stuck_loop_reset",
+                    mode: modeName,
+                    windowSize: windowSize,
+                    uniqueCount: uniqueCount,
+                    ratio: ratio,
+                    at: Date.now(),
+                    index: currentIndex
+                });
+            } catch (e) {}
+        }
+        edgeUsage = {};
+        loopHistory = [];
+        plannedJumps = [];
+        jumpsSinceReset = 0;
+        visitedBars = {};
+    }
+
+    function takePlannedJumpIfValid() {
+        if (!plannedJumps.length) {
+            return null;
+        }
+        var plan = plannedJumps[0];
+        if (!plan) {
+            plannedJumps.shift();
+            return null;
+        }
+        // If the plan has drifted out of sync with the current index, drop the whole route.
+        if (plan.source !== currentIndex) {
+            plannedJumps = [];
+            return null;
+        }
+        if (
+            typeof plan.target !== "number" ||
+            plan.target < 0 ||
+            plan.target >= masterQs.length ||
+            plan.target === currentIndex
+        ) {
+            plannedJumps.shift();
+            return null;
+        }
+        plannedJumps.shift();
+        return plan;
+    }
+
+    function planRouteFrom(startIdx) {
+        plannedJumps = [];
+        var idx = startIdx;
+        var steps = 0;
+        var safety = ROUTE_LENGTH * 3;
+        while (steps < ROUTE_LENGTH && safety-- > 0) {
+            var jump = selectJumpCandidate(idx);
+            if (!jump) {
+                break;
+            }
+            if (
+                typeof jump.target !== "number" ||
+                jump.target < 0 ||
+                jump.target >= masterQs.length ||
+                jump.target === idx
+            ) {
+                break;
+            }
+            plannedJumps.push(jump);
+            idx = jump.target;
+            steps++;
+        }
+    }
+
     function updateMinLoopBeats(value, opts) {
         var num = coerceNumber(value);
         if (num === null) {
@@ -6893,6 +7212,33 @@ function createJukeboxDriver(player, options) {
         if (!opts || opts.skipReschedule !== true) {
             scheduleNextJump(true);
         }
+        return true;
+    }
+
+    function updateRouteLength(value, opts) {
+        var num = coerceNumber(value);
+        if (num === null) {
+            return false;
+        }
+        num = Math.max(4, Math.min(32, Math.round(num)));
+        if (num === ROUTE_LENGTH) {
+            return false;
+        }
+        ROUTE_LENGTH = num;
+        plannedJumps = [];
+        return true;
+    }
+
+    function updateJumpTemperature(value, opts) {
+        var num = coerceNumber(value);
+        if (num === null) {
+            return false;
+        }
+        num = Math.max(0.05, Math.min(0.8, num));
+        if (num === JUMP_TEMPERATURE) {
+            return false;
+        }
+        JUMP_TEMPERATURE = num;
         return true;
     }
 
@@ -7021,6 +7367,11 @@ function createJukeboxDriver(player, options) {
         pulseNotes(baseNoteStrength);
         clearJumpBubbleHistory();
         stopStatsTracking();
+        edgeUsage = {};
+        plannedJumps = [];
+        recentJukeboxBeats = [];
+        jumpsSinceReset = 0;
+        visitedBars = {};
         resetPlaybackState();
     }
 
@@ -7610,6 +7961,7 @@ function createJukeboxDriver(player, options) {
                 return;
             }
             var visitPenalty = barVisits * 0.08;
+            var coverageBonus = Math.max(0, 0.18 - barVisits * 0.05);
 
             // Similarity + musical bonuses
             var baseScore;
@@ -7635,7 +7987,15 @@ function createJukeboxDriver(player, options) {
                 endZoneBonus -= 0.2;
             }
 
-            var score = baseScore + chromaBonus + sectionBonus + directionBias + energyBonus + endZoneBonus - visitPenalty;
+            var score = baseScore + chromaBonus + sectionBonus + directionBias + energyBonus + endZoneBonus - visitPenalty + coverageBonus;
+
+            // Usage penalty: discourage reusing the same edge too often this session
+            var edgeKey = src + ":" + targetIdx;
+            var usageCount = edgeUsage[edgeKey] || 0;
+            if (usageCount > 0) {
+                var usagePenalty = Math.min(0.45, Math.log(1 + usageCount) * 0.18);
+                score -= usagePenalty;
+            }
             var qualityScore = scoreJumpQuality(edge, {
                 modeName: modeName,
                 currentIndex: src,
@@ -7677,14 +8037,47 @@ function createJukeboxDriver(player, options) {
             return null;
         }
 
-        // Small wiggle room: choose among top 3 if very close
-        var top = [best];
-        for (var iTop = 1; iTop < Math.min(3, scored.length); iTop++) {
-            if (scored[iTop].score >= best.score * 0.95) {
-                top.push(scored[iTop]);
+        // Soft selection among the strongest candidates instead of always picking the single best
+        var pool = [];
+        var maxPool = 6;
+        for (var i = 0; i < scored.length && pool.length < maxPool; i++) {
+            if (scored[i].score >= dynamicMin) {
+                pool.push(scored[i]);
+            } else {
+                break;
             }
         }
-        var chosen = top.length > 1 ? top[Math.floor(Math.random() * top.length)] : best;
+        if (!pool.length) {
+            pool.push(best);
+        }
+
+        var chosen;
+        if (pool.length === 1) {
+            chosen = pool[0];
+        } else {
+            // Softmax-style sampling over scores for controlled randomness
+            var temperature = JUMP_TEMPERATURE;
+            var maxScore = pool[0].score;
+            var weights = [];
+            var totalWeight = 0;
+            for (var wIdx = 0; wIdx < pool.length; wIdx++) {
+                var s = pool[wIdx].score;
+                var w = Math.exp((s - maxScore) / temperature);
+                weights[wIdx] = w;
+                totalWeight += w;
+            }
+            var r = Math.random() * totalWeight;
+            for (var cIdx = 0; cIdx < pool.length; cIdx++) {
+                r -= weights[cIdx];
+                if (r <= 0) {
+                    chosen = pool[cIdx];
+                    break;
+                }
+            }
+            if (!chosen) {
+                chosen = pool[0];
+            }
+        }
         if (typeof window !== "undefined" && window.__eternalLog) {
             try {
                 window.__eternalLog.push({
@@ -7729,6 +8122,19 @@ function createJukeboxDriver(player, options) {
         if (beatsUntilJump > 0) {
             beatsUntilJump -= 1;
         }
+        // Periodically decay edge usage so heavily penalized edges can recover over long sessions
+        beatsSinceUsageDecay += 1;
+        if (beatsSinceUsageDecay >= JUMP_USAGE_DECAY_INTERVAL) {
+            beatsSinceUsageDecay = 0;
+            Object.keys(edgeUsage).forEach(function(key) {
+                var v = edgeUsage[key] * JUMP_USAGE_DECAY_FACTOR;
+                if (v < JUMP_USAGE_DECAY_THRESHOLD) {
+                    delete edgeUsage[key];
+                } else {
+                    edgeUsage[key] = v;
+                }
+            });
+        }
 
 
         // Check if we're in the end zone and should use retreat point
@@ -7769,7 +8175,14 @@ function createJukeboxDriver(player, options) {
         }
 
         if (beatsSinceJump >= minDwellBeats && beatsUntilJump <= 0) {
-            var jump = selectJumpCandidate(currentIndex);
+            var jump = takePlannedJumpIfValid();
+            if (!jump && !plannedJumps.length) {
+                planRouteFrom(currentIndex);
+                jump = takePlannedJumpIfValid();
+            }
+            if (!jump) {
+                jump = selectJumpCandidate(currentIndex);
+            }
             if (jump) {
                 console.log('[advanceIndex] JUMP!', currentIndex, '->', jump.target);
                 var jumpSourceIndex = currentIndex;
@@ -7777,6 +8190,16 @@ function createJukeboxDriver(player, options) {
                 if (loopHistory.length > LOOP_HISTORY_LIMIT) {
                     loopHistory.shift();
                 }
+                // Track edge usage for variety (penalize overused edges)
+                var edgeKey = jumpSourceIndex + ":" + jump.target;
+                edgeUsage[edgeKey] = (edgeUsage[edgeKey] || 0) + 1;
+                jumpsSinceReset += 1;
+                if (jumpsSinceReset >= JUMP_RESET_INTERVAL) {
+                    edgeUsage = {};
+                    loopHistory.length = 0;
+                    jumpsSinceReset = 0;
+                }
+
                 currentIndex = jump.target;
                 registerJumpBubble(jump.target);
                 highlightJumpArc(jumpSourceIndex, jump.target);
@@ -7813,6 +8236,8 @@ function createJukeboxDriver(player, options) {
         recordSectionVisit(q.section);
         markBarVisit(q);
         incrementBeatCount();
+        trackJukeboxBeat(currentIndex);
+        maybeResetJukeboxIfStuck();
         var delay = player.playQ(q);
         q.tile.highlight();
         // Highlight overlays for multi-voice canon
@@ -7842,6 +8267,7 @@ function createJukeboxDriver(player, options) {
             currentIndex = 0;
             beatsSinceJump = minDwellBeats;
             modeState = "explore";
+            recentJukeboxBeats = [];
             rebuildLoopChoices();
             resetStats();
             running = true;
@@ -7903,6 +8329,14 @@ function createJukeboxDriver(player, options) {
             updateJumpVariance(value);
         },
 
+        setRouteLength: function(value) {
+            updateRouteLength(value);
+        },
+
+        setJumpTemperature: function(value) {
+            updateJumpTemperature(value);
+        },
+
         recomputeLoopGraph: function(newSettings) {
             if (!newSettings || typeof newSettings !== "object") {
                 rebuildLoopChoices();
@@ -7934,6 +8368,12 @@ function createJukeboxDriver(player, options) {
                 if (updateJumpVariance(newSettings.jumpVariance, { skipReschedule: true })) {
                     needsReschedule = true;
                 }
+            }
+            if (Object.prototype.hasOwnProperty.call(newSettings, "routeLength")) {
+                updateRouteLength(newSettings.routeLength, { skipReschedule: true });
+            }
+            if (Object.prototype.hasOwnProperty.call(newSettings, "jumpTemperature")) {
+                updateJumpTemperature(newSettings.jumpTemperature, { skipReschedule: true });
             }
             if (needsRebuild) {
                 rebuildLoopChoices();
@@ -8068,6 +8508,11 @@ function createAutoharmonizerDriver(player) {
     var vocal1 = track1Data.vocality || [];
     var vocal2 = track2Data.vocality || [];
     var visitedBars = { 1: {}, 2: {} };
+    var autohEdgeUsage = {};
+    var AUTOH_EDGE_USAGE_DECAY_INTERVAL = 16;
+    var autohBeatsSinceUsageDecay = 0;
+    var AUTOH_EDGE_USAGE_DECAY_FACTOR = 0.96;
+    var AUTOH_EDGE_USAGE_DECAY_THRESHOLD = 0.2;
 
     var edgesByTrack = { 1: {}, 2: {} };
     jointEdges.forEach(function(edge) {
@@ -8383,6 +8828,17 @@ function createAutoharmonizerDriver(player) {
         });
     }
 
+    function decayAutohEdgeUsage() {
+        Object.keys(autohEdgeUsage).forEach(function(key) {
+            var v = autohEdgeUsage[key] * AUTOH_EDGE_USAGE_DECAY_FACTOR;
+            if (v < AUTOH_EDGE_USAGE_DECAY_THRESHOLD) {
+                delete autohEdgeUsage[key];
+            } else {
+                autohEdgeUsage[key] = v;
+            }
+        });
+    }
+
     function isRecent(trackNum, idx) {
         var key = trackNum + ":" + idx;
         return recentTargets[trackNum].indexOf(key) !== -1;
@@ -8436,13 +8892,15 @@ function createAutoharmonizerDriver(player) {
             } else {
                 score += 0.08;
             }
-            // Bar visit decay: discourage overused bars
+            // Bar visit shaping: mild burnout plus coverage bonus for under-visited bars
             var barIndex = tb && typeof tb.bar_index === "number" ? tb.bar_index : null;
+            var barVisits = 0;
             if (barIndex !== null && visitedBars[tgtTrack]) {
-                var visits = visitedBars[tgtTrack][barIndex] || 0;
-                if (visits > 0) {
-                    score -= Math.min(5.0, visits * 1.0); // strong burnout to avoid ping-pong
-                }
+                barVisits = visitedBars[tgtTrack][barIndex] || 0;
+                var visitPenalty = barVisits * 0.08;
+                var coverageBonus = Math.max(0, 0.18 - barVisits * 0.05);
+                score -= visitPenalty;
+                score += coverageBonus;
             }
             // Vocal penalty: avoid jumping into very vocal targets unless score is strong
             var tgtVocal = vocalFor(tgtTrack, tgtIdx);
@@ -8499,6 +8957,13 @@ function createAutoharmonizerDriver(player) {
             if (tempoSrc && tempoTgt) {
                 var tempoDiff = Math.abs(tempoSrc - tempoTgt) / Math.max(tempoSrc, tempoTgt);
                 score -= Math.min(0.2, tempoDiff * 0.8);
+            }
+            // Edge-usage penalty: discourage reusing the same transition too often
+            var edgeKey = trackNum + ":" + currentBeatIdx + ":" + tgtTrack + ":" + tgtIdx;
+            var usageCount = autohEdgeUsage[edgeKey] || 0;
+            if (usageCount > 0) {
+                var usagePenalty = Math.min(0.5, Math.log(1 + usageCount) * 0.2);
+                score -= usagePenalty;
             }
             var minScore = (tgtTrack === trackNum) ? 0.60 : 0.60;
             // Adaptive hysteresis: tighten threshold when content is novel, relax when repetitive
@@ -8564,6 +9029,10 @@ function updateHudForBeat(beat) {
         running = false;
         beatsSinceCross = 0;
         resetCrossHistory();
+        autohEdgeUsage = {};
+        autohBeatsSinceUsageDecay = 0;
+        visitedBars = { 1: {}, 2: {} };
+        recentTargets = { 1: [], 2: [] };
         if (track1Controller) {
             track1Controller.fadeTo(0, 200);
             track1Controller.stop();
@@ -8634,6 +9103,11 @@ function updateHudForBeat(beat) {
         }
         updateHudForBeat(currentBeat);
         decayVisitedBars();
+        autohBeatsSinceUsageDecay += 1;
+        if (autohBeatsSinceUsageDecay >= AUTOH_EDGE_USAGE_DECAY_INTERVAL) {
+            autohBeatsSinceUsageDecay = 0;
+            decayAutohEdgeUsage();
+        }
 
         var beatDuration = Math.max(currentBeat.duration || 0.25, 0.15);
         var bored = beatsSinceCross >= BORING_CROSS_AFTER;
@@ -8679,6 +9153,8 @@ function updateHudForBeat(beat) {
         if (choice) {
             var beatsForTrack = getBeatsForTrack(choice.track);
             var isSameTrack = choice.track === currentTrack;
+            var usageKey = currentTrack + ":" + curQ + ":" + choice.track + ":" + choice.index;
+            autohEdgeUsage[usageKey] = (autohEdgeUsage[usageKey] || 0) + 1;
             if (isSameTrack) {
                 curQ = choice.index % beatsForTrack.length;
                 lastProcessedBeat = -1; // Reset so heartbeat can detect next beat
@@ -8737,6 +9213,8 @@ function updateHudForBeat(beat) {
             beatsSinceCross = 0;
             visitedBars = { 1: {}, 2: {} };
             recentTargets = { 1: [], 2: [] };
+            autohEdgeUsage = {};
+            autohBeatsSinceUsageDecay = 0;
             resetCrossHistory();
             currentSyncOffset = 0;
 
@@ -8798,6 +9276,8 @@ function updateHudForBeat(beat) {
             }
             visitedBars = { 1: {}, 2: {} };
             recentTargets = { 1: [], 2: [] };
+            autohEdgeUsage = {};
+            autohBeatsSinceUsageDecay = 0;
             resetCrossHistory();
             currentSyncOffset = 0;
             if (track1Controller) {

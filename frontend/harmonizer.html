@@ -641,7 +641,9 @@ jgs   `-=========-`()
                     maxSequentialBeats: settings.maxSequentialBeats,
                     loopThreshold: settings.loopThreshold,
                     sectionBias: settings.sectionBias,
-                    jumpVariance: settings.jumpVariance
+                    jumpVariance: settings.jumpVariance,
+                    routeLength: settings.routeLength,
+                    jumpTemperature: settings.jumpTemperature
                 };
             }
             return null;
@@ -1323,7 +1325,9 @@ jgs   `-=========-`()
                     { key: 'maxSequentialBeats', label: 'Sequential Ceiling', min: 8, max: 128, step: 1, format: (v) => `${v} beats`, description: 'Maximum beats to play before forcing a jump.' },
                     { key: 'loopThreshold', label: 'Similarity Threshold', min: 0.3, max: 0.95, step: 0.01, format: (v) => `${Math.round(v * 100)}%`, description: 'Higher values require closer similarity before a loop is accepted.' },
                     { key: 'sectionBias', label: 'Section Bias', min: 0, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}% in-section`, description: 'Preference for staying within the same section when looping.' },
-                    { key: 'jumpVariance', label: 'Jump Variance', min: 0, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}%`, description: 'Higher values encourage varied jump timing; lower values keep loops tighter.' }
+                    { key: 'jumpVariance', label: 'Jump Variance', min: 0, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}%`, description: 'Higher values encourage varied jump timing; lower values keep loops tighter.' },
+                    { key: 'routeLength', label: 'Route Length', min: 4, max: 32, step: 1, format: (v) => `${v} jumps`, description: 'Number of jumps to pre-plan in each loop route. Shorter = more reactive, longer = more journey-like paths.' },
+                    { key: 'jumpTemperature', label: 'Jump Temperature', min: 0.05, max: 0.8, step: 0.05, format: (v) => v.toFixed(2), description: 'Controls randomness when sampling among strong jumps. Lower = more deterministic, higher = more adventurous.' }
                 ]
             },
             eternalOverlay: {

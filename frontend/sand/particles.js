@@ -390,6 +390,66 @@ export const ParticleTypes = {
         lightIntensity: 0.9
     },
 
+    // Void singularity �?" pulls in nearby matter
+    void: {
+        name: 'Void',
+        state: ParticleState.SOLID,
+        density: 999.0,
+        color: () => {
+            const base = [12, 4, 32];
+            const variation = 10;
+            return [
+                base[0] + Math.random() * variation - variation / 2,
+                base[1] + Math.random() * (variation / 2) - variation / 4,
+                base[2] + Math.random() * variation - variation / 2
+            ];
+        },
+        flammable: false,
+        corrodible: false,
+        conductivity: 0.0
+    },
+
+    // Directional fans that push nearby particles
+    fan_left: {
+        name: 'Fan \u2190',
+        state: ParticleState.SOLID,
+        density: 5.0,
+        color: () => [80, 180, 255],
+        flammable: false,
+        corrodible: false,
+        conductivity: 0.1
+    },
+
+    fan_right: {
+        name: 'Fan \u2192',
+        state: ParticleState.SOLID,
+        density: 5.0,
+        color: () => [80, 220, 255],
+        flammable: false,
+        corrodible: false,
+        conductivity: 0.1
+    },
+
+    fan_up: {
+        name: 'Fan \u2191',
+        state: ParticleState.SOLID,
+        density: 5.0,
+        color: () => [60, 200, 235],
+        flammable: false,
+        corrodible: false,
+        conductivity: 0.1
+    },
+
+    fan_down: {
+        name: 'Fan \u2193',
+        state: ParticleState.SOLID,
+        density: 5.0,
+        color: () => [60, 160, 235],
+        flammable: false,
+        corrodible: false,
+        conductivity: 0.1
+    },
+
     portal_blue: {
         name: 'Portal A',
         state: ParticleState.SOLID,

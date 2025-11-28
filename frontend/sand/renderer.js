@@ -20,6 +20,7 @@ export class Renderer {
         // Lighting parameters
         this.lightIntensity = 1.0;
         this.lightRadius = 22;
+        this.enableLighting = true;
 
         // Debug / visualization flags
         this.showHeatmap = false;
@@ -40,6 +41,10 @@ export class Renderer {
     // Set global light intensity (used by UI)
     setLightIntensity(intensity) {
         this.lightIntensity = Math.max(0, intensity);
+    }
+
+    setLightingEnabled(enabled) {
+        this.enableLighting = !!enabled;
     }
 
     // Toggle heatmap visualization
@@ -145,6 +150,10 @@ export class Renderer {
 
     // Simple radial lighting with basic occlusion "ray tracing"
     applyLighting(lightSources) {
+        if (!this.enableLighting) {
+            return;
+        }
+
         const width = this.simulation.width;
         const height = this.simulation.height;
         const baseRadius = this.lightRadius;

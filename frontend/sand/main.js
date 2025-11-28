@@ -29,6 +29,13 @@ class SandSimulator {
         this.fps = 0;
         this.frameCount = 0;
         this.lastFpsUpdate = performance.now();
+        this.lastFrameTime = performance.now();
+        this.targetFps = 240;
+        this.adaptivePerformance = true;
+        this.lowDetailMode = false;
+        this.mirrorX = false;
+        this.mirrorY = false;
+        this.savedScene = null;
 
         // Initialize UI
         this.initUI();
@@ -57,6 +64,22 @@ class SandSimulator {
             this.brushSize = parseInt(brushSlider.value);
             brushValue.textContent = this.brushSize;
         });
+
+        // Mirror drawing toggles
+        const mirrorXToggle = document.getElementById('mirrorXToggle');
+        if (mirrorXToggle) {
+            this.mirrorX = mirrorXToggle.checked;
+            mirrorXToggle.addEventListener('change', () => {
+                this.mirrorX = mirrorXToggle.checked;
+            });
+        }
+        const mirrorYToggle = document.getElementById('mirrorYToggle');
+        if (mirrorYToggle) {
+            this.mirrorY = mirrorYToggle.checked;
+            mirrorYToggle.addEventListener('change', () => {
+                this.mirrorY = mirrorYToggle.checked;
+            });
+        }
 
         // Global intensity slider (gravity + fire + lighting)
         const intensitySlider = document.getElementById('intensity');
@@ -100,6 +123,26 @@ class SandSimulator {
             };
             speedSlider.addEventListener('input', applySpeed);
             applySpeed();
+        }
+
+        // Optional lighting toggle (performance)
+        const lightingToggle = document.getElementById('lightingToggle');
+        if (lightingToggle) {
+            const applyLighting = () => {
+                this.renderer.setLightingEnabled(lightingToggle.checked);
+            };
+            lightingToggle.addEventListener('change', applyLighting);
+            applyLighting();
+        }
+
+        // Optional heat simulation toggle (performance)
+        const heatSimToggle = document.getElementById('heatSimToggle');
+        if (heatSimToggle) {
+            const applyHeatSim = () => {
+                this.simulation.setTemperatureEnabled(heatSimToggle.checked);
+            };
+            heatSimToggle.addEventListener('change', applyHeatSim);
+            applyHeatSim();
         }
 
         // Heatmap toggle
@@ -151,6 +194,37 @@ class SandSimulator {
             const paused = this.simulation.togglePause();
             pauseBtn.textContent = paused ? 'Resume' : 'Pause';
         });
+
+        // Preset scene buttons
+        const presetVolcano = document.getElementById('presetVolcano');
+        if (presetVolcano) {
+            presetVolcano.addEventListener('click', () => {
+                this.simulation.loadPreset('volcano');
+            });
+        }
+        const presetWaterfall = document.getElementById('presetWaterfall');
+        if (presetWaterfall) {
+            presetWaterfall.addEventListener('click', () => {
+                this.simulation.loadPreset('waterfall');
+            });
+        }
+
+        // Scene save/load buttons (single snapshot slot)
+        const saveSceneBtn = document.getElementById('saveSceneBtn');
+        if (saveSceneBtn) {
+            saveSceneBtn.addEventListener('click', () => {
+                this.savedScene = this.simulation.captureSnapshot();
+            });
+        }
+
+        const loadSceneBtn = document.getElementById('loadSceneBtn');
+        if (loadSceneBtn) {
+            loadSceneBtn.addEventListener('click', () => {
+                if (this.savedScene) {
+                    this.simulation.restoreSnapshot(this.savedScene);
+                }
+            });
+        }
 
         // Mouse events
         this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
@@ -230,11 +304,44 @@ class SandSimulator {
         this.lastMousePos = null;
     }
 
-    draw(x, y, erase) {
+    drawAt(x, y, erase) {
         if (erase || this.currentType === 'eraser') {
             this.simulation.eraseBrush(x, y, this.brushSize);
         } else {
             this.simulation.addBrush(x, y, this.currentType, this.brushSize);
+        }
+    }
+
+    draw(x, y, erase) {
+        // Base stroke
+        this.drawAt(x, y, erase);
+
+        const width = this.width;
+        const height = this.height;
+
+        // Horizontal mirror
+        if (this.mirrorX) {
+            const mx = width - 1 - x;
+            if (mx !== x) {
+                this.drawAt(mx, y, erase);
+            }
+        }
+
+        // Vertical mirror
+        if (this.mirrorY) {
+            const my = height - 1 - y;
+            if (my !== y) {
+                this.drawAt(x, my, erase);
+            }
+        }
+
+        // Diagonal (both axes)
+        if (this.mirrorX && this.mirrorY) {
+            const mx = width - 1 - x;
+            const my = height - 1 - y;
+            if (mx !== x || my !== y) {
+                this.drawAt(mx, my, erase);
+            }
         }
     }
 
@@ -254,17 +361,36 @@ class SandSimulator {
     }
 
     loop() {
+        const now = performance.now();
+        const dt = now - this.lastFrameTime;
+        this.lastFrameTime = now;
+
         // Update simulation (may run multiple steps per frame)
         const steps = this.simulation.stepsPerFrame || 1;
         for (let i = 0; i < steps; i++) {
             this.simulation.update();
         }
 
-        // Render
-        this.renderer.render();
+        // Render using dirty-chunk path for higher FPS
+        this.renderer.renderDirty();
 
         // Update stats
         this.updateStats();
+
+        // Simple adaptive performance: if FPS is consistently low, drop detail
+        if (this.adaptivePerformance && this.fps > 0) {
+            const target = this.targetFps;
+            if (this.fps < target * 0.55 && !this.lowDetailMode) {
+                this.lowDetailMode = true;
+                this.renderer.setLightingEnabled(false);
+                this.simulation.setTemperatureEnabled(false);
+                this.simulation.setSpeed(0.75);
+            } else if (this.fps > target * 0.9 && this.lowDetailMode) {
+                this.lowDetailMode = false;
+                this.renderer.setLightingEnabled(true);
+                this.simulation.setTemperatureEnabled(true);
+            }
+        }
 
         // Next frame
         requestAnimationFrame(() => this.loop());

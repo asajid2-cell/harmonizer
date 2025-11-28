@@ -90,6 +90,11 @@
         .particle-btn[data-type="portal_orange"] { background: #ff9933; color: #000; }
         .particle-btn[data-type="c4"] { background: #cccccc; color: #000; }
         .particle-btn[data-type="uranium"] { background: #8aff4a; color: #000; }
+        .particle-btn[data-type="void"] { background: radial-gradient(circle at 30% 30%, #5533aa, #050015); color: #fff; }
+        .particle-btn[data-type="fan_left"] { background: #2a4f7a; color: #fff; }
+        .particle-btn[data-type="fan_right"] { background: #2a6f9a; color: #fff; }
+        .particle-btn[data-type="fan_up"] { background: #245f8a; color: #fff; }
+        .particle-btn[data-type="fan_down"] { background: #204a72; color: #fff; }
         .particle-btn[data-type="eraser"] { background: #ff3333; }
 
         .control-btn {
@@ -154,6 +159,12 @@
             color: #666;
             text-align: right;
         }
+
+        .scene-label {
+            font-size: 11px;
+            color: #ccc;
+            margin-right: 4px;
+        }
     </style>
 </head>
 <body>
@@ -176,6 +187,11 @@
             <button class="particle-btn" data-type="plant">Plant</button>
             <button class="particle-btn" data-type="c4">C4</button>
             <button class="particle-btn" data-type="uranium">Uranium</button>
+            <button class="particle-btn" data-type="void">Void</button>
+            <button class="particle-btn" data-type="fan_left">Fan ←</button>
+            <button class="particle-btn" data-type="fan_right">Fan →</button>
+            <button class="particle-btn" data-type="fan_up">Fan ↑</button>
+            <button class="particle-btn" data-type="fan_down">Fan ↓</button>
             <button class="particle-btn" data-type="metal">Metal</button>
             <button class="particle-btn" data-type="glass">Glass</button>
             <button class="particle-btn" data-type="portal_blue">Portal A</button>
@@ -189,6 +205,14 @@
                 <input type="range" id="brushSize" min="1" max="20" value="3">
                 <span class="slider-value" id="brushSizeValue">3</span>
             </div>
+            <label style="font-size: 11px; color: #ccc; margin-left: 6px;">
+                <input type="checkbox" id="mirrorXToggle">
+                Mirror X
+            </label>
+            <label style="font-size: 11px; color: #ccc; margin-left: 6px;">
+                <input type="checkbox" id="mirrorYToggle">
+                Mirror Y
+            </label>
         </div>
 
         <div class="toolbar-section">
@@ -221,6 +245,14 @@
                 <input type="checkbox" id="heatmapToggle">
                 Heatmap
             </label>
+            <label style="font-size: 11px; color: #ccc; margin-left: 8px;">
+                <input type="checkbox" id="lightingToggle" checked>
+                Lighting
+            </label>
+            <label style="font-size: 11px; color: #ccc; margin-left: 8px;">
+                <input type="checkbox" id="heatSimToggle" checked>
+                Heat sim
+            </label>
         </div>
 
         <div class="toolbar-section">
@@ -243,6 +275,18 @@
         <div class="toolbar-section">
             <button class="control-btn" id="clearBtn">Clear</button>
             <button class="control-btn" id="pauseBtn">Pause</button>
+        </div>
+
+        <div class="toolbar-section">
+            <span class="toolbar-label">Presets:</span>
+            <button class="control-btn" id="presetVolcano">Volcano</button>
+            <button class="control-btn" id="presetWaterfall">Waterfall</button>
+        </div>
+
+        <div class="toolbar-section">
+            <span class="toolbar-label">Scene:</span>
+            <button class="control-btn" id="saveSceneBtn">Save</button>
+            <button class="control-btn" id="loadSceneBtn">Load</button>
         </div>
     </div>
 

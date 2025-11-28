@@ -21,6 +21,7 @@ export class Simulation {
             portal_blue: null,
             portal_orange: null
         };
+        this.temperatureEnabled = true;
     }
 
     // Main update loop
@@ -85,7 +86,7 @@ export class Simulation {
         if (!typeDef) return;
 
         // Basic temperature diffusion and cooling
-        if (typeof particle.temperature === 'number') {
+        if (this.temperatureEnabled && typeof particle.temperature === 'number') {
             const neighbors = this.grid.getNeighbors(x, y);
             let sumT = particle.temperature;
             let countT = 1;
@@ -347,6 +348,21 @@ export class Simulation {
                 break;
             case 'spark':
                 this.handleSpark(particle, x, y, neighbors);
+                break;
+            case 'void':
+                this.handleVoid(particle, x, y);
+                break;
+            case 'fan_left':
+                this.handleFan(particle, x, y, -1, 0);
+                break;
+            case 'fan_right':
+                this.handleFan(particle, x, y, 1, 0);
+                break;
+            case 'fan_up':
+                this.handleFan(particle, x, y, 0, -1);
+                break;
+            case 'fan_down':
+                this.handleFan(particle, x, y, 0, 1);
                 break;
         }
     }
@@ -747,6 +763,87 @@ export class Simulation {
         }
     }
 
+    // Directional fan that pushes nearby light materials along a straight path
+    handleFan(particle, x, y, dirX, dirY) {
+        const maxDistance = 6;
+
+        for (let i = 1; i <= maxDistance; i++) {
+            const tx = x + dirX * i;
+            const ty = y + dirY * i;
+
+            if (!this.grid.inBounds(tx, ty)) break;
+
+            const target = this.grid.get(tx, ty);
+            if (!target) continue;
+
+            const def = ParticleTypes[target.type];
+            if (!def) continue;
+
+            // Push light powders, gases and liquids
+            if (
+                def.state === ParticleState.POWDER ||
+                def.state === ParticleState.GAS ||
+                def.state === ParticleState.LIQUID
+            ) {
+                const nx = tx + dirX;
+                const ny = ty + dirY;
+
+                if (!this.grid.inBounds(nx, ny)) continue;
+                if (!this.grid.isEmpty(nx, ny)) continue;
+
+                this.grid.move(tx, ty, nx, ny);
+                target.updated = true;
+            }
+        }
+    }
+
+    // Singularity-style gravity well that pulls in nearby matter
+    handleVoid(particle, x, y) {
+        const radius = 8;
+        const radius2 = radius * radius;
+
+        for (let dx = -radius; dx <= radius; dx++) {
+            for (let dy = -radius; dy <= radius; dy++) {
+                if (dx === 0 && dy === 0) continue;
+                const dist2 = dx * dx + dy * dy;
+                if (dist2 > radius2) continue;
+
+                const tx = x + dx;
+                const ty = y + dy;
+                if (!this.grid.inBounds(tx, ty)) continue;
+
+                const target = this.grid.get(tx, ty);
+                if (!target) continue;
+                if (target.type === 'void') continue;
+
+                // Close particles are simply consumed
+                if (dist2 <= 2) {
+                    this.grid.remove(tx, ty);
+                    continue;
+                }
+
+                // With some probability, pull the particle one step toward the void
+                if (Math.random() < 0.35) {
+                    const stepX = x - tx;
+                    const stepY = y - ty;
+                    let nx = tx;
+                    let ny = ty;
+
+                    if (Math.abs(stepX) > Math.abs(stepY)) {
+                        nx += stepX > 0 ? 1 : -1;
+                    } else {
+                        ny += stepY > 0 ? 1 : -1;
+                    }
+
+                    if (!this.grid.inBounds(nx, ny)) continue;
+                    if (!this.grid.isEmpty(nx, ny)) continue;
+
+                    this.grid.move(tx, ty, nx, ny);
+                }
+            }
+        }
+    }
+
     // Trigger a lightning strike at a given x-coordinate
     strikeLightning(startX) {
         let x = Math.floor(startX);
@@ -1006,6 +1103,91 @@ export class Simulation {
         }
     }
 
+    // Capture a lightweight snapshot of the current scene (type grid only)
+    captureSnapshot() {
+        const types = new Array(this.grid.cells.length);
+        for (let i = 0; i < this.grid.cells.length; i++) {
+            const p = this.grid.cells[i];
+            types[i] = p ? p.type : null;
+        }
+        return {
+            width: this.width,
+            height: this.height,
+            types
+        };
+    }
+
+    // Restore a snapshot created by captureSnapshot
+    restoreSnapshot(snapshot) {
+        if (!snapshot) return;
+        if (snapshot.width !== this.width || snapshot.height !== this.height) return;
+        if (!Array.isArray(snapshot.types) || snapshot.types.length !== this.grid.cells.length) return;
+
+        this.clear();
+
+        let index = 0;
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const type = snapshot.types[index++];
+                if (type) {
+                    this.addParticle(x, y, type);
+                }
+            }
+        }
+    }
+
+    // Simple preset scenes to quickly showcase behaviors without heavy cost
+    loadPreset(name) {
+        this.clear();
+
+        if (name === 'volcano') {
+            const baseY = Math.floor(this.height * 0.75);
+            const centerX = Math.floor(this.width / 2);
+            const radius = Math.floor(this.width * 0.12);
+
+            for (let dx = -radius; dx <= radius; dx++) {
+                for (let dy = 0; dy <= radius; dy++) {
+                    const x = centerX + dx;
+                    const y = baseY + dy;
+                    if (!this.grid.inBounds(x, y)) continue;
+                    if (Math.abs(dx) + dy < radius * 1.1) {
+                        this.grid.set(x, y, createParticle('stone', x, y));
+                    }
+                }
+            }
+
+            for (let y = baseY - 4; y < baseY; y++) {
+                for (let x = centerX - 4; x <= centerX + 4; x++) {
+                    if (this.grid.inBounds(x, y)) {
+                        this.grid.set(x, y, createParticle('lava', x, y));
+                    }
+                }
+            }
+        } else if (name === 'waterfall') {
+            const ledgeY = Math.floor(this.height * 0.3);
+            const ledgeXEnd = Math.floor(this.width * 0.6);
+
+            for (let x = 0; x <= ledgeXEnd; x++) {
+                for (let h = 0; h < 3; h++) {
+                    const y = ledgeY + h;
+                    this.grid.set(x, y, createParticle('stone', x, y));
+                }
+            }
+
+            for (let x = Math.floor(this.width * 0.65); x < this.width; x++) {
+                for (let y = this.height - 6; y < this.height; y++) {
+                    this.grid.set(x, y, createParticle('stone', x, y));
+                }
+            }
+
+            for (let y = ledgeY - 8; y < ledgeY - 2; y++) {
+                for (let x = 2; x < 10; x++) {
+                    this.grid.set(x, y, createParticle('water', x, y));
+                }
+            }
+        }
+    }
+
     // Erase particles in a brush area
     eraseBrush(centerX, centerY, size) {
         for (let dx = -size; dx <= size; dx++) {
@@ -1062,6 +1244,10 @@ export class Simulation {
 
     setSnowEnabled(enabled) {
         this.snowEnabled = !!enabled;
+    }
+
+    setTemperatureEnabled(enabled) {
+        this.temperatureEnabled = !!enabled;
     }
 
     // Compute a surface normal for a portal tile based on nearby solids
