@@ -210,6 +210,17 @@ export const ParticleTypes = {
         flashPoint: 100
     },
 
+    c4: {
+        name: 'C4',
+        state: ParticleState.SOLID,
+        density: 1.6,
+        color: () => [210, 220, 210],
+        flammable: true,
+        explosive: true,
+        flashPoint: 80,
+        explosionRadius: 9
+    },
+
     wood: {
         name: 'Wood',
         state: ParticleState.SOLID,
@@ -356,6 +367,53 @@ export const ParticleTypes = {
         lightRadius: 12,
         lightIntensity: 0.9,
         lifetime: 8 + Math.random() * 6
+    },
+
+    uranium: {
+        name: 'Uranium',
+        state: ParticleState.SOLID,
+        density: 18.0,
+        color: () => {
+            const base = [150, 240, 120];
+            return [
+                base[0] + Math.random() * 20 - 10,
+                base[1] + Math.random() * 20 - 10,
+                base[2] + Math.random() * 10 - 5
+            ];
+        },
+        flammable: false,
+        corrodible: true,
+        conductivity: 0.6,
+        temperature: 80,
+        emitsLight: true,
+        lightRadius: 14,
+        lightIntensity: 0.9
+    },
+
+    portal_blue: {
+        name: 'Portal A',
+        state: ParticleState.SOLID,
+        density: 0.0,
+        color: () => [80, 180, 255],
+        flammable: false,
+        corrodible: false,
+        conductivity: 0.0,
+        emitsLight: true,
+        lightRadius: 18,
+        lightIntensity: 1.3
+    },
+
+    portal_orange: {
+        name: 'Portal B',
+        state: ParticleState.SOLID,
+        density: 0.0,
+        color: () => [255, 170, 60],
+        flammable: false,
+        corrodible: false,
+        conductivity: 0.0,
+        emitsLight: true,
+        lightRadius: 18,
+        lightIntensity: 1.3
     }
 };
 

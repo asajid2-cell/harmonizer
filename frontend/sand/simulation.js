@@ -17,6 +17,10 @@ export class Simulation {
         this.stepsPerFrame = 1;   // How many updates per render
         this.rainEnabled = false;
         this.snowEnabled = false;
+        this.portals = {
+            portal_blue: null,
+            portal_orange: null
+        };
     }
 
     // Main update loop
@@ -335,6 +339,9 @@ export class Simulation {
             case 'molten_metal':
                 this.handleMoltenMetal(particle, x, y, neighbors);
                 break;
+            case 'uranium':
+                this.handleUranium(particle, x, y, neighbors);
+                break;
             case 'ember':
                 this.handleEmber(particle, x, y, neighbors);
                 break;
@@ -395,6 +402,9 @@ export class Simulation {
                 if (Math.random() < spreadChance) {
                     if (p.type === 'gunpowder') {
                         this.explode(nx, ny, 5);
+                    } else if (p.type === 'c4') {
+                        const radius = ParticleTypes.c4?.explosionRadius ?? 9;
+                        this.explode(nx, ny, radius);
                     } else if (p.type === 'wood' || p.type === 'plant') {
                         // Combustion of organic material leaves embers
                         if (Math.random() < 0.6) {
@@ -494,6 +504,9 @@ export class Simulation {
                 if (Math.random() < 0.2) {
                     if (p.type === 'gunpowder') {
                         this.explode(nx, ny, 5);
+                    } else if (p.type === 'c4') {
+                        const radius = ParticleTypes.c4?.explosionRadius ?? 9;
+                        this.explode(nx, ny, radius);
                     } else {
                         this.transformParticle(nx, ny, 'fire');
                     }
@@ -610,6 +623,50 @@ export class Simulation {
         }
     }
 
+    handleUranium(particle, x, y, neighbors) {
+        // Uranium continuously heats itself a little
+        particle.temperature = (particle.temperature || 20) + 0.1;
+
+        const neighborList = [
+            neighbors.top,
+            neighbors.bottom,
+            neighbors.left,
+            neighbors.right
+        ];
+
+        for (const n of neighborList) {
+            if (!n) continue;
+            const def = ParticleTypes[n.type];
+            if (!def) continue;
+
+            // Irradiate neighbors: raise temperature
+            if (typeof n.temperature === 'number') {
+                n.temperature += 0.5;
+            } else {
+                n.temperature = 30;
+            }
+
+            // Occasional ignition of flammables
+            if (def.flammable && Math.random() < 0.002) {
+                if (n.type === 'gunpowder' || n.type === 'c4') {
+                    this.explode(n.x, n.y, n.type === 'c4' ? 9 : 5);
+                } else {
+                    this.transformParticle(n.x, n.y, 'fire');
+                }
+            }
+
+            // Sand near uranium can slowly vitrify into glass
+            if (n.type === 'sand' && Math.random() < 0.0008) {
+                this.transformParticle(n.x, n.y, 'glass');
+            }
+
+            // Plants near uranium wither into ash
+            if (n.type === 'plant' && Math.random() < 0.002) {
+                this.transformParticle(n.x, n.y, 'ash');
+            }
+        }
+    }
+
     handleMetal(particle, x, y, neighbors) {
         const neighborList = [neighbors.top, neighbors.bottom, neighbors.left, neighbors.right];
 
@@ -677,6 +734,9 @@ export class Simulation {
             if (def?.flammable) {
                 if (n.type === 'gunpowder') {
                     this.explode(n.x, n.y, 4);
+                } else if (n.type === 'c4') {
+                    const radius = ParticleTypes.c4?.explosionRadius ?? 9;
+                    this.explode(n.x, n.y, radius);
                 } else {
                     this.transformParticle(n.x, n.y, 'fire');
                 }
@@ -735,6 +795,9 @@ export class Simulation {
         if (def.flammable) {
             if (particle.type === 'gunpowder') {
                 this.explode(x, y, 6);
+            } else if (particle.type === 'c4') {
+                const radius = ParticleTypes.c4?.explosionRadius ?? 9;
+                this.explode(x, y, radius);
             } else {
                 this.transformParticle(x, y, 'fire');
             }
@@ -827,6 +890,14 @@ export class Simulation {
     // Try to move particle to new position
     tryMove(particle, fromX, fromY, toX, toY) {
         if (!this.grid.inBounds(toX, toY)) return false;
+
+        const target = this.grid.get(toX, toY);
+
+        // Teleport through portals instead of blocking movement
+        if (target && (target.type === 'portal_blue' || target.type === 'portal_orange')) {
+            return this.teleportThroughPortal(particle, fromX, fromY, toX, toY, target);
+        }
+
         if (!this.grid.isEmpty(toX, toY)) return false;
 
         this.grid.move(fromX, fromY, toX, toY);
@@ -889,6 +960,10 @@ export class Simulation {
 
         const particle = createParticle(type, x, y);
         this.grid.set(x, y, particle);
+
+        if (type === 'portal_blue' || type === 'portal_orange') {
+            this.portals[type] = { x, y };
+        }
     }
 
     // Spawn rain from the top of the world
@@ -936,7 +1011,19 @@ export class Simulation {
         for (let dx = -size; dx <= size; dx++) {
             for (let dy = -size; dy <= size; dy++) {
                 if (dx * dx + dy * dy <= size * size) {
-                    this.grid.remove(centerX + dx, centerY + dy);
+                    const x = centerX + dx;
+                    const y = centerY + dy;
+                    const particle = this.grid.get(x, y);
+
+                    // Keep portal bookkeeping in sync when erased
+                    if (particle && (particle.type === 'portal_blue' || particle.type === 'portal_orange')) {
+                        const info = this.portals[particle.type];
+                        if (info && info.x === x && info.y === y) {
+                            this.portals[particle.type] = null;
+                        }
+                    }
+
+                    this.grid.remove(x, y);
                 }
             }
         }
@@ -945,6 +1032,8 @@ export class Simulation {
     // Clear all particles
     clear() {
         this.grid.clear();
+        this.portals.portal_blue = null;
+        this.portals.portal_orange = null;
     }
 
     // Adjust global intensity (gravity + fire)
@@ -973,6 +1062,78 @@ export class Simulation {
 
     setSnowEnabled(enabled) {
         this.snowEnabled = !!enabled;
+    }
+
+    // Compute a surface normal for a portal tile based on nearby solids
+    getPortalNormal(x, y) {
+        const neighbors = this.grid.getNeighbors(x, y);
+
+        // Prefer a solid "wall" tile and point away from it
+        if (neighbors.top && ParticleTypes[neighbors.top.type]?.state === ParticleState.SOLID) {
+            return { x: 0, y: 1 }; // wall above, portal faces down
+        }
+        if (neighbors.bottom && ParticleTypes[neighbors.bottom.type]?.state === ParticleState.SOLID) {
+            return { x: 0, y: -1 }; // wall below, portal faces up
+        }
+        if (neighbors.left && ParticleTypes[neighbors.left.type]?.state === ParticleState.SOLID) {
+            return { x: 1, y: 0 }; // wall left, portal faces right
+        }
+        if (neighbors.right && ParticleTypes[neighbors.right.type]?.state === ParticleState.SOLID) {
+            return { x: -1, y: 0 }; // wall right, portal faces left
+        }
+
+        // Default orientation: facing up
+        return { x: 0, y: -1 };
+    }
+
+    // Teleport a moving particle through a portal, preserving velocity with orientation
+    teleportThroughPortal(particle, fromX, fromY, portalX, portalY, portalTile) {
+        const type = portalTile.type;
+        const otherType = type === 'portal_blue' ? 'portal_orange' : 'portal_blue';
+        const exitInfo = this.portals[otherType];
+
+        // Need a matching portal to teleport
+        if (!exitInfo) return false;
+
+        const exitPortal = this.grid.get(exitInfo.x, exitInfo.y);
+        if (!exitPortal || exitPortal.type !== otherType) return false;
+
+        // Entry / exit orientation
+        const entryNormal = this.getPortalNormal(portalX, portalY);
+        const exitNormal = this.getPortalNormal(exitInfo.x, exitInfo.y);
+        const entryTangent = { x: -entryNormal.y, y: entryNormal.x };
+        const exitTangent = { x: -exitNormal.y, y: exitNormal.x };
+
+        // Map velocity into portal's local frame and back out
+        const vx = particle.velocityX || 0;
+        const vy = particle.velocityY || 0;
+        const vN = vx * entryNormal.x + vy * entryNormal.y;
+        const vT = vx * entryTangent.x + vy * entryTangent.y;
+
+        const outVx = vN * exitNormal.x + vT * exitTangent.x;
+        const outVy = vN * exitNormal.y + vT * exitTangent.y;
+
+        particle.velocityX = outVx;
+        particle.velocityY = outVy;
+
+        // Spawn position just outside the exit portal along its facing direction
+        let outX = exitInfo.x + exitNormal.x;
+        let outY = exitInfo.y + exitNormal.y;
+
+        if (!this.grid.inBounds(outX, outY) || !this.grid.isEmpty(outX, outY)) {
+            // If blocked, try the portal cell itself as a last resort
+            outX = exitInfo.x;
+            outY = exitInfo.y;
+            if (!this.grid.isEmpty(outX, outY)) {
+                return false;
+            }
+        }
+
+        // Move the particle directly to the exit
+        this.grid.remove(fromX, fromY);
+        this.grid.set(outX, outY, particle);
+        particle.updated = true;
+        return true;
     }
 
     // Toggle pause

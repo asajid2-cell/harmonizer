@@ -89,7 +89,7 @@
             border-radius: 8px;
             margin-bottom: 20px;
             flex-wrap: wrap;
-            align-items: center;
+            align-items: flex-start;
             backdrop-filter: blur(10px);
         }
 
@@ -97,8 +97,10 @@
             display: flex;
             gap: 5px;
             align-items: center;
-            padding: 0 15px;
+            padding: 0 15px 8px;
             border-right: 1px solid #3a3a3a;
+            flex-wrap: wrap;
+            max-width: 100%;
         }
 
         .toolbar-section:last-child {
@@ -148,8 +150,12 @@
         .particle-btn[data-type="gunpowder"] { background: #333; }
         .particle-btn[data-type="wood"] { background: #8b4513; }
         .particle-btn[data-type="plant"] { background: #228b22; }
+        .particle-btn[data-type="c4"] { background: #cccccc; color: #000; }
+        .particle-btn[data-type="uranium"] { background: #8aff4a; color: #000; }
         .particle-btn[data-type="metal"] { background: linear-gradient(135deg, #b0b0b0, #e0e0e0); color: #000; }
         .particle-btn[data-type="glass"] { background: rgba(200, 235, 255, 0.8); color: #000; }
+        .particle-btn[data-type="portal_blue"] { background: #3ba7ff; color: #000; }
+        .particle-btn[data-type="portal_orange"] { background: #ff9933; color: #000; }
         .particle-btn[data-type="eraser"] { background: #ff3333; }
 
         .control-btn {
@@ -327,8 +333,12 @@
                 <button class="particle-btn" data-type="gunpowder">Gunpowder</button>
                 <button class="particle-btn" data-type="wood">Wood</button>
                 <button class="particle-btn" data-type="plant">Plant</button>
+                <button class="particle-btn" data-type="c4">C4</button>
+                <button class="particle-btn" data-type="uranium">Uranium</button>
                 <button class="particle-btn" data-type="metal">Metal</button>
                 <button class="particle-btn" data-type="glass">Glass</button>
+                <button class="particle-btn" data-type="portal_blue">Portal A</button>
+                <button class="particle-btn" data-type="portal_orange">Portal B</button>
                 <button class="particle-btn" data-type="eraser">Eraser</button>
             </div>
 
