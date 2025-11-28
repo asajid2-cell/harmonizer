@@ -236,6 +236,14 @@ jgs   `-=========-`()
                         </button>
                     </div>
                 </form>
+                <div id="pinned-tracks-panel" class="status-panel" role="navigation" aria-label="Pinned demo tracks">
+                    <h3 style="margin-top: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.08em;">Pinned Songs</h3>
+                    <p id="pinned-tracks-empty" style="font-size: 0.85rem; color: #888; margin: 0.25rem 0 0.5rem;">
+                        No pinned songs yet. Use “Add Song to Homescreen” while a track is playing to pin it here.
+                    </p>
+                    <ul id="pinned-tracks-list" style="list-style: none; padding: 0; margin: 0; font-size: 0.9rem;">
+                    </ul>
+                </div>
                 <div id="form-status" class="status-panel" role="status" aria-live="polite"></div>
             </section>
 
@@ -285,6 +293,9 @@ jgs   `-=========-`()
                             </div>
                             <button type="button" id="reset-cache-btn" class="viz-button ghost" title="Clear cached track profiles">
                                 Reset Cached Songs
+                            </button>
+                            <button type="button" id="pin-track-btn" class="viz-button ghost" title="Add this song to the homescreen list for quick access">
+                                Add Song to Homescreen
                             </button>
                             <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
                                 Advanced: Off
@@ -2268,6 +2279,148 @@ jgs   `-=========-`()
                 } finally {
                     resetCacheBtn.disabled = false;
                     resetCacheBtn.textContent = 'Reset Cached Songs';
+                }
+            });
+        }
+
+        // Pinned songs (homescreen quick links)
+        const PINNED_STORAGE_KEY = 'HARMONIZER_PINNED_TRACKS_V1';
+        const pinnedPanel = document.getElementById('pinned-tracks-panel');
+        const pinnedList = document.getElementById('pinned-tracks-list');
+        const pinnedEmpty = document.getElementById('pinned-tracks-empty');
+
+        function loadPinnedTracks() {
+            try {
+                const raw = localStorage.getItem(PINNED_STORAGE_KEY);
+                if (!raw) return [];
+                const parsed = JSON.parse(raw);
+                if (!Array.isArray(parsed)) return [];
+                return parsed.filter(item => item && item.trackId);
+            } catch (e) {
+                console.warn('[PinnedTracks] Failed to parse pinned tracks from storage', e);
+                return [];
+            }
+        }
+
+        function savePinnedTracks(list) {
+            try {
+                localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(list || []));
+            } catch (e) {
+                console.warn('[PinnedTracks] Failed to save pinned tracks', e);
+            }
+        }
+
+        function buildTrackUrl(trackId, mode) {
+            if (!trackId) return window.location.pathname || '/';
+            const params = new URLSearchParams();
+            params.set('trid', trackId);
+            if (mode) {
+                params.set('mode', mode);
+            }
+            let basePath = window.location.pathname || '/';
+            if (basePath.endsWith('index.html')) {
+                basePath = basePath.slice(0, -'index.html'.length);
+            }
+            const hasFileExtension = /\.[^/]+$/.test(basePath);
+            if (!hasFileExtension && !basePath.endsWith('/')) {
+                basePath += '/';
+            }
+            const suffix = params.toString();
+            return suffix ? `${basePath}?${suffix}` : basePath;
+        }
+
+        function renderPinnedTracks() {
+            if (!pinnedPanel || !pinnedList || !pinnedEmpty) return;
+            const entries = loadPinnedTracks();
+            pinnedList.innerHTML = '';
+            if (!entries.length) {
+                pinnedEmpty.style.display = 'block';
+                return;
+            }
+            pinnedEmpty.style.display = 'none';
+            entries.forEach((entry, index) => {
+                const li = document.createElement('li');
+                li.style.margin = '0.1rem 0';
+                const link = document.createElement('a');
+                link.href = buildTrackUrl(entry.trackId, entry.mode || 'canon');
+                link.textContent = entry.title || entry.trackId;
+                link.style.display = 'inline-block';
+                link.style.color = '#8cf';
+                link.style.textDecoration = 'none';
+                link.addEventListener('mouseover', () => link.style.textDecoration = 'underline');
+                link.addEventListener('mouseout', () => link.style.textDecoration = 'none');
+
+                const metaSpan = document.createElement('span');
+                metaSpan.style.fontSize = '0.8rem';
+                metaSpan.style.color = '#777';
+                metaSpan.style.marginLeft = '0.25rem';
+                const parts = [];
+                if (entry.artist) parts.push(entry.artist);
+                if (entry.mode) parts.push(entry.mode);
+                metaSpan.textContent = parts.length ? `(${parts.join(' • ')})` : '';
+
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = 'x';
+                removeBtn.title = 'Remove from pinned songs';
+                removeBtn.style.marginLeft = '0.4rem';
+                removeBtn.style.fontSize = '0.7rem';
+                removeBtn.style.padding = '0 0.3rem';
+                removeBtn.style.background = 'transparent';
+                removeBtn.style.border = '1px solid rgba(255,255,255,0.25)';
+                removeBtn.style.borderRadius = '2px';
+                removeBtn.style.color = '#aaa';
+                removeBtn.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    const current = loadPinnedTracks();
+                    current.splice(index, 1);
+                    savePinnedTracks(current);
+                    renderPinnedTracks();
+                });
+
+                li.appendChild(link);
+                li.appendChild(metaSpan);
+                li.appendChild(removeBtn);
+                pinnedList.appendChild(li);
+            });
+        }
+
+        renderPinnedTracks();
+
+        const pinTrackBtn = document.getElementById('pin-track-btn');
+        if (pinTrackBtn) {
+            pinTrackBtn.addEventListener('click', function() {
+                try {
+                    const params = new URLSearchParams(window.location.search);
+                    const trid = params.get('trid');
+                    if (!trid || !window.curTrack) {
+                        alert('No active song to pin. Load a track first.');
+                        return;
+                    }
+                    const analysis = window.curTrack.analysis || {};
+                    const title = (window.curTrack.fixedTitle || window.curTrack.title || '').toString();
+                    const artist = (window.curTrack.artist || '').toString();
+                    const mode = (document.body.dataset.mode || 'canon').toLowerCase();
+
+                    const current = loadPinnedTracks();
+                    const existingIndex = current.findIndex(item => item && item.trackId === trid && item.mode === mode);
+                    const entry = {
+                        trackId: trid,
+                        title: title || trid,
+                        artist: artist || (analysis.artist || ''),
+                        mode: mode
+                    };
+                    if (existingIndex >= 0) {
+                        current[existingIndex] = entry;
+                    } else {
+                        current.push(entry);
+                    }
+                    savePinnedTracks(current);
+                    renderPinnedTracks();
+                    alert('Song pinned to homescreen!');
+                } catch (e) {
+                    console.error('[PinnedTracks] Failed to pin track', e);
+                    alert('Could not pin this song. Please try again.');
                 }
             });
         }

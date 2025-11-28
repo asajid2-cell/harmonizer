@@ -1495,12 +1495,36 @@ function getTitle(title, artist, url) {
         } else {
             title = null;
         }
-    } else {
-        if (artist !== '(unknown artist)') {
-            title = title + ' (autocanonized) by ' + artist;
-        } 
     }
-    return title;
+
+    // Append artist if we have a real one (not the placeholder)
+    if (artist && artist !== '(unknown artist)') {
+        title = title ? (title + ' by ' + artist) : artist;
+    }
+
+    // Append current mode name (canon / jukebox / eternal / autoharmonizer / sculptor)
+    var modeName = (typeof mode === "string" ? mode.toLowerCase() : "canon");
+    var modeLabel = null;
+    if (modeName === "jukebox") {
+        modeLabel = "Jukebox";
+    } else if (modeName === "eternal") {
+        modeLabel = "Eternal";
+    } else if (modeName === "autoharmonizer") {
+        modeLabel = "Autoharmonizer";
+    } else if (modeName === "sculptor") {
+        modeLabel = "Sculptor";
+    } else {
+        modeLabel = "Canon";
+    }
+
+    if (title && modeLabel) {
+        return title + " - " + modeLabel;
+    } else if (title) {
+        return title;
+    } else if (modeLabel) {
+        return modeLabel;
+    }
+    return null;
 }
 
 function loadTrack(trid) {
@@ -3165,18 +3189,7 @@ function allReady() {
         }
     }
 
-    info("ready!");
-    if (mode === "jukebox") {
-        info(getFullTitle() + " - Eternal Jukebox");
-    } else if (mode === "eternal") {
-        info(getFullTitle() + " - Eternal Canonizer");
-    } else if (mode === "autoharmonizer") {
-        info(getFullTitle() + " - Autoharmonizer");
-    } else if (mode === "sculptor") {
-        info(getFullTitle() + " - Section Sculptor");
-    } else {
-        info(getFullTitle() + " - Autocanonizer");
-    }
+    info(getFullTitle() || "ready!");
     createTiles(masterQs);
 }
 

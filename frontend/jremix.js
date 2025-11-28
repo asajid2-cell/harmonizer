@@ -274,16 +274,24 @@ function createJRemixer(context, jquery) {
                 var voiceSource = null;
 
                 // Distribute voices across stereo field
-                // For 2 voices: [-0.28, 0.28]
-                // For 3 voices: [-0.5, 0, 0.5]
-                // For 4 voices: [-0.6, -0.2, 0.2, 0.6]
+                // For 2 total voices (main + 1 overlay): keep overlay centered for balanced headphones
+                // For 3+ total voices: spread overlays symmetrically around center
                 var panValue = 0;
                 if (numVoices > 2) {
-                    // Spread evenly from -0.7 to 0.7
-                    panValue = -0.7 + (1.4 * (i + 1) / numVoices);
+                    // Number of overlay voices (excluding main)
+                    var overlayCount = numVoices - 1;
+                    // Evenly space overlays from -maxSpread to +maxSpread
+                    var maxSpread = 0.7;
+                    if (overlayCount === 1) {
+                        panValue = 0;
+                    } else {
+                        var position = i - (overlayCount - 1) / 2;
+                        var norm = (overlayCount > 1) ? position / ((overlayCount - 1) / 2) : 0;
+                        panValue = norm * maxSpread;
+                    }
                 } else {
-                    // Original 2-voice behavior
-                    panValue = 0.28;
+                    // Single overlay: keep it centered so main+overlay stay balanced
+                    panValue = 0;
                 }
 
                 if (voiceHp) {
@@ -557,13 +565,9 @@ function createJRemixer(context, jquery) {
                             continue; // Skip if no audio available
                         }
                         var oduration = trackRef.audio_summary.duration - otherBeat.start;
-                        var panLfo = Math.sin((q.which || 0) * 0.05) * 0.7;
                         var baseGain = (typeof voice.baseGain === "number") ? voice.baseGain : voice.gain.gain.value;
-                        // Consistent volume - no per-beat variation, just use the base gain
+                        // Consistent volume and pan - no per-beat breathing or LFO
                         var targetGain = baseGain;
-                        if (voice.panner && typeof voice.panner.pan !== "undefined") {
-                            try { voice.panner.pan.value = panLfo; } catch (e) {}
-                        }
                         voice.source = llPlay(trackRef.buffer, otherBeat.start, oduration, voice.gain);
                         voice.gain.gain.value = targetGain;
 
