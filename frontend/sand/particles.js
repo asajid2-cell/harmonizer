@@ -397,10 +397,7 @@ export const ParticleTypes = {
         color: () => [80, 180, 255],
         flammable: false,
         corrodible: false,
-        conductivity: 0.0,
-        emitsLight: true,
-        lightRadius: 18,
-        lightIntensity: 1.3
+        conductivity: 0.0
     },
 
     portal_orange: {
@@ -410,10 +407,7 @@ export const ParticleTypes = {
         color: () => [255, 170, 60],
         flammable: false,
         corrodible: false,
-        conductivity: 0.0,
-        emitsLight: true,
-        lightRadius: 18,
-        lightIntensity: 1.3
+        conductivity: 0.0
     }
 };
 
