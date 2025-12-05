@@ -13,6 +13,14 @@ from .parser import CodeParser, ParsedFile, ParsedFunction, ParsedClass
 from .js_parser import JSParser, ParsedJSFile, ParsedJSFunction, ParsedJSClass
 from .java_parser import JavaParser, ParsedJavaFile, ParsedJavaFunction, ParsedJavaClass
 from .html_css_parser import HTMLCSSParser, ParsedHTMLCSSFile, ParsedHTMLElement, ParsedCSSRule
+from .c_cpp_parser import CCppParser, ParsedCFile, ParsedCFunction, ParsedCClass
+from .csharp_parser import CSharpParser, ParsedCSharpFile, ParsedCSharpMethod, ParsedCSharpClass
+from .go_parser import GoParser, ParsedGoFile, ParsedGoFunction, ParsedGoStruct
+from .rust_parser import RustParser, ParsedRustFile, ParsedRustFunction, ParsedRustStruct
+from .ruby_parser import RubyParser, ParsedRubyFile, ParsedRubyMethod, ParsedRubyClass
+from .php_parser import PHPParser, ParsedPHPFile, ParsedPHPFunction, ParsedPHPClass
+from .bash_parser import BashParser, ParsedBashFile, ParsedBashFunction
+from .sql_parser import SQLParser, ParsedSQLFile, ParsedSQLTable, ParsedSQLProcedure, ParsedSQLView
 from .embedder import CodeEmbedder
 from .text_search import TextSearchEngine
 from ..storage.vector_store import VectorStore
@@ -60,6 +68,14 @@ class Indexer:
         self.js_parser = JSParser()
         self.java_parser = JavaParser()
         self.html_css_parser = HTMLCSSParser()
+        self.c_cpp_parser = CCppParser()
+        self.csharp_parser = CSharpParser()
+        self.go_parser = GoParser()
+        self.rust_parser = RustParser()
+        self.ruby_parser = RubyParser()
+        self.php_parser = PHPParser()
+        self.bash_parser = BashParser()
+        self.sql_parser = SQLParser()
         self.embedder = embedder or CodeEmbedder()
         self.vector_store = vector_store or VectorStore()
         self.metadata_store = metadata_store or MetadataStore()
@@ -70,9 +86,20 @@ class Indexer:
         self.js_extensions = {'.js', '.jsx', '.ts', '.tsx'}
         self.java_extensions = {'.java', '.kt'}
         self.html_css_extensions = {'.html', '.htm', '.css'}
-        self.all_extensions = self.python_extensions | self.js_extensions | self.java_extensions | self.html_css_extensions
+        self.c_cpp_extensions = {'.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.hh', '.hxx'}
+        self.csharp_extensions = {'.cs'}
+        self.go_extensions = {'.go'}
+        self.rust_extensions = {'.rs'}
+        self.ruby_extensions = {'.rb', '.rake'}
+        self.php_extensions = {'.php', '.phtml'}
+        self.bash_extensions = {'.sh', '.bash', '.zsh'}
+        self.sql_extensions = {'.sql'}
+        self.all_extensions = (self.python_extensions | self.js_extensions | self.java_extensions |
+                              self.html_css_extensions | self.c_cpp_extensions | self.csharp_extensions |
+                              self.go_extensions | self.rust_extensions | self.ruby_extensions |
+                              self.php_extensions | self.bash_extensions | self.sql_extensions)
 
-        logger.info("Indexer initialized with multi-language support (Python, JS/TS, Java, Kotlin, HTML, CSS)")
+        logger.info("Indexer initialized with multi-language support (Python, JS/TS, Java, Kotlin, HTML, CSS, C, C++, C#, Go, Rust, Ruby, PHP, Bash, SQL)")
 
     def index_directory(self, directory_path: str, show_progress: bool = True) -> IndexStats:
         """
@@ -114,13 +141,16 @@ class Indexer:
             try:
                 file_stats = self.index_file(str(code_file))
 
-                # Update stats
-                stats.files_processed += 1
-                stats.total_symbols += file_stats.total_symbols
-                stats.functions_indexed += file_stats.functions_indexed
-                stats.classes_indexed += file_stats.classes_indexed
-                stats.methods_indexed += file_stats.methods_indexed
-                stats.total_lines += file_stats.total_lines
+                # Update stats - check if file actually succeeded
+                if file_stats.files_failed > 0:
+                    stats.files_failed += file_stats.files_failed
+                else:
+                    stats.files_processed += file_stats.files_processed
+                    stats.total_symbols += file_stats.total_symbols
+                    stats.functions_indexed += file_stats.functions_indexed
+                    stats.classes_indexed += file_stats.classes_indexed
+                    stats.methods_indexed += file_stats.methods_indexed
+                    stats.total_lines += file_stats.total_lines
 
             except Exception as e:
                 logger.error(f"Failed to index {code_file}: {e}")
@@ -213,6 +243,142 @@ class Indexer:
 
             # Extract symbols from HTML/CSS file
             symbols_to_index = self._extract_html_css_symbols(parsed_file, stats)
+
+        elif file_ext in self.c_cpp_extensions:
+            parsed_file = self.c_cpp_parser.parse_file(file_path)
+            if not parsed_file:
+                logger.warning(f"Failed to parse C/C++ file {file_path}")
+                stats.files_failed = 1
+                return stats
+
+            # Add file to metadata store
+            file_id = self.metadata_store.add_file(
+                path=file_path,
+                total_lines=parsed_file.total_lines
+            )
+            stats.total_lines = parsed_file.total_lines
+
+            # Extract symbols from C/C++ file
+            symbols_to_index = self._extract_c_cpp_symbols(parsed_file, stats)
+
+        elif file_ext in self.csharp_extensions:
+            parsed_file = self.csharp_parser.parse_file(file_path)
+            if not parsed_file:
+                logger.warning(f"Failed to parse C# file {file_path}")
+                stats.files_failed = 1
+                return stats
+
+            # Add file to metadata store
+            file_id = self.metadata_store.add_file(
+                path=file_path,
+                total_lines=parsed_file.total_lines
+            )
+            stats.total_lines = parsed_file.total_lines
+
+            # Extract symbols from C# file
+            symbols_to_index = self._extract_csharp_symbols(parsed_file, stats)
+
+        elif file_ext in self.go_extensions:
+            parsed_file = self.go_parser.parse_file(file_path)
+            if not parsed_file:
+                logger.warning(f"Failed to parse Go file {file_path}")
+                stats.files_failed = 1
+                return stats
+
+            # Add file to metadata store
+            file_id = self.metadata_store.add_file(
+                path=file_path,
+                total_lines=parsed_file.total_lines
+            )
+            stats.total_lines = parsed_file.total_lines
+
+            # Extract symbols from Go file
+            symbols_to_index = self._extract_go_symbols(parsed_file, stats)
+
+        elif file_ext in self.rust_extensions:
+            parsed_file = self.rust_parser.parse_file(file_path)
+            if not parsed_file:
+                logger.warning(f"Failed to parse Rust file {file_path}")
+                stats.files_failed = 1
+                return stats
+
+            # Add file to metadata store
+            file_id = self.metadata_store.add_file(
+                path=file_path,
+                total_lines=parsed_file.total_lines
+            )
+            stats.total_lines = parsed_file.total_lines
+
+            # Extract symbols from Rust file
+            symbols_to_index = self._extract_rust_symbols(parsed_file, stats)
+
+        elif file_ext in self.ruby_extensions:
+            parsed_file = self.ruby_parser.parse_file(file_path)
+            if not parsed_file:
+                logger.warning(f"Failed to parse Ruby file {file_path}")
+                stats.files_failed = 1
+                return stats
+
+            # Add file to metadata store
+            file_id = self.metadata_store.add_file(
+                path=file_path,
+                total_lines=parsed_file.total_lines
+            )
+            stats.total_lines = parsed_file.total_lines
+
+            # Extract symbols from Ruby file
+            symbols_to_index = self._extract_ruby_symbols(parsed_file, stats)
+
+        elif file_ext in self.php_extensions:
+            parsed_file = self.php_parser.parse_file(file_path)
+            if not parsed_file:
+                logger.warning(f"Failed to parse PHP file {file_path}")
+                stats.files_failed = 1
+                return stats
+
+            # Add file to metadata store
+            file_id = self.metadata_store.add_file(
+                path=file_path,
+                total_lines=parsed_file.total_lines
+            )
+            stats.total_lines = parsed_file.total_lines
+
+            # Extract symbols from PHP file
+            symbols_to_index = self._extract_php_symbols(parsed_file, stats)
+
+        elif file_ext in self.bash_extensions:
+            parsed_file = self.bash_parser.parse_file(file_path)
+            if not parsed_file:
+                logger.warning(f"Failed to parse Bash file {file_path}")
+                stats.files_failed = 1
+                return stats
+
+            # Add file to metadata store
+            file_id = self.metadata_store.add_file(
+                path=file_path,
+                total_lines=parsed_file.total_lines
+            )
+            stats.total_lines = parsed_file.total_lines
+
+            # Extract symbols from Bash file
+            symbols_to_index = self._extract_bash_symbols(parsed_file, stats)
+
+        elif file_ext in self.sql_extensions:
+            parsed_file = self.sql_parser.parse_file(file_path)
+            if not parsed_file:
+                logger.warning(f"Failed to parse SQL file {file_path}")
+                stats.files_failed = 1
+                return stats
+
+            # Add file to metadata store
+            file_id = self.metadata_store.add_file(
+                path=file_path,
+                total_lines=parsed_file.total_lines
+            )
+            stats.total_lines = parsed_file.total_lines
+
+            # Extract symbols from SQL file
+            symbols_to_index = self._extract_sql_symbols(parsed_file, stats)
 
         else:
             logger.warning(f"Unsupported file type: {file_path}")
@@ -411,6 +577,413 @@ class Indexer:
                 'data': rule_data
             })
             stats.functions_indexed += 1  # Count CSS rules as functions for stats
+
+        return symbols_to_index
+
+    def _extract_c_cpp_symbols(self, parsed_file: ParsedCFile, stats: IndexStats) -> List[Dict]:
+        """Extract symbols from parsed C/C++ file"""
+        symbols_to_index = []
+
+        # Add top-level functions
+        for func in parsed_file.functions:
+            # Create a compatible data object
+            func_data = type('CFunction', (), {
+                'name': func.name,
+                'code': func.code,
+                'start_line': func.start_line,
+                'end_line': func.end_line,
+                'docstring': func.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'function',
+                'data': func_data
+            })
+            stats.functions_indexed += 1
+
+        # Add classes/structs and their methods
+        for cls in parsed_file.classes:
+            # Create compatible class data object
+            cls_data = type('CClass', (), {
+                'name': cls.name,
+                'code': cls.code,
+                'start_line': cls.start_line,
+                'end_line': cls.end_line,
+                'docstring': cls.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'class',
+                'data': cls_data
+            })
+            stats.classes_indexed += 1
+
+            # Add methods
+            for method in cls.methods:
+                method_data = type('CMethod', (), {
+                    'name': method.name,
+                    'code': method.code,
+                    'start_line': method.start_line,
+                    'end_line': method.end_line,
+                    'docstring': method.docstring
+                })()
+
+                symbols_to_index.append({
+                    'type': 'method',
+                    'data': method_data,
+                    'parent_class': cls.name
+                })
+                stats.methods_indexed += 1
+
+        return symbols_to_index
+
+    def _extract_csharp_symbols(self, parsed_file: ParsedCSharpFile, stats: IndexStats) -> List[Dict]:
+        """Extract symbols from parsed C# file"""
+        symbols_to_index = []
+
+        # Add top-level functions (rare in C#, but possible with top-level statements)
+        for func in parsed_file.functions:
+            # Create a compatible data object
+            func_data = type('CSharpFunction', (), {
+                'name': func.name,
+                'code': func.code,
+                'start_line': func.start_line,
+                'end_line': func.end_line,
+                'docstring': func.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'function',
+                'data': func_data
+            })
+            stats.functions_indexed += 1
+
+        # Add classes/interfaces and their methods
+        for cls in parsed_file.classes:
+            # Create compatible class data object
+            cls_data = type('CSharpClass', (), {
+                'name': cls.name,
+                'code': cls.code,
+                'start_line': cls.start_line,
+                'end_line': cls.end_line,
+                'docstring': cls.docstring
+            })()
+
+            # Use 'interface' type if it's an interface
+            symbol_type = 'interface' if cls.is_interface else 'class'
+
+            symbols_to_index.append({
+                'type': symbol_type,
+                'data': cls_data
+            })
+            stats.classes_indexed += 1
+
+            # Add methods
+            for method in cls.methods:
+                method_data = type('CSharpMethod', (), {
+                    'name': method.name,
+                    'code': method.code,
+                    'start_line': method.start_line,
+                    'end_line': method.end_line,
+                    'docstring': method.docstring
+                })()
+
+                symbols_to_index.append({
+                    'type': 'method',
+                    'data': method_data,
+                    'parent_class': cls.name
+                })
+                stats.methods_indexed += 1
+
+        return symbols_to_index
+
+    def _extract_go_symbols(self, parsed_file: ParsedGoFile, stats: IndexStats) -> List[Dict]:
+        """Extract symbols from parsed Go file"""
+        symbols_to_index = []
+
+        # Add functions
+        for func in parsed_file.functions:
+            func_data = type('GoFunction', (), {
+                'name': func.name,
+                'code': func.code,
+                'start_line': func.start_line,
+                'end_line': func.end_line,
+                'docstring': func.docstring
+            })()
+
+            # Methods have a receiver
+            if func.receiver:
+                symbols_to_index.append({
+                    'type': 'method',
+                    'data': func_data,
+                    'parent_class': func.receiver
+                })
+                stats.methods_indexed += 1
+            else:
+                symbols_to_index.append({
+                    'type': 'function',
+                    'data': func_data
+                })
+                stats.functions_indexed += 1
+
+        # Add structs/interfaces
+        for struct in parsed_file.structs:
+            struct_data = type('GoStruct', (), {
+                'name': struct.name,
+                'code': struct.code,
+                'start_line': struct.start_line,
+                'end_line': struct.end_line,
+                'docstring': struct.docstring
+            })()
+
+            symbol_type = 'interface' if struct.is_interface else 'struct'
+            symbols_to_index.append({
+                'type': symbol_type,
+                'data': struct_data
+            })
+            stats.classes_indexed += 1
+
+        return symbols_to_index
+
+    def _extract_rust_symbols(self, parsed_file: ParsedRustFile, stats: IndexStats) -> List[Dict]:
+        """Extract symbols from parsed Rust file"""
+        symbols_to_index = []
+
+        # Add functions
+        for func in parsed_file.functions:
+            func_data = type('RustFunction', (), {
+                'name': func.name,
+                'code': func.code,
+                'start_line': func.start_line,
+                'end_line': func.end_line,
+                'docstring': func.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'function',
+                'data': func_data
+            })
+            stats.functions_indexed += 1
+
+        # Add structs/enums/traits and their methods
+        for struct in parsed_file.structs:
+            struct_data = type('RustStruct', (), {
+                'name': struct.name,
+                'code': struct.code,
+                'start_line': struct.start_line,
+                'end_line': struct.end_line,
+                'docstring': struct.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': struct.kind,  # struct, enum, or trait
+                'data': struct_data
+            })
+            stats.classes_indexed += 1
+
+            # Add methods
+            for method in struct.methods:
+                method_data = type('RustMethod', (), {
+                    'name': method.name,
+                    'code': method.code,
+                    'start_line': method.start_line,
+                    'end_line': method.end_line,
+                    'docstring': method.docstring
+                })()
+
+                symbols_to_index.append({
+                    'type': 'method',
+                    'data': method_data,
+                    'parent_class': struct.name
+                })
+                stats.methods_indexed += 1
+
+        return symbols_to_index
+
+    def _extract_ruby_symbols(self, parsed_file: ParsedRubyFile, stats: IndexStats) -> List[Dict]:
+        """Extract symbols from parsed Ruby file"""
+        symbols_to_index = []
+
+        # Add functions
+        for func in parsed_file.functions:
+            func_data = type('RubyFunction', (), {
+                'name': func.name,
+                'code': func.code,
+                'start_line': func.start_line,
+                'end_line': func.end_line,
+                'docstring': func.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'function',
+                'data': func_data
+            })
+            stats.functions_indexed += 1
+
+        # Add classes/modules and their methods
+        for cls in parsed_file.classes:
+            cls_data = type('RubyClass', (), {
+                'name': cls.name,
+                'code': cls.code,
+                'start_line': cls.start_line,
+                'end_line': cls.end_line,
+                'docstring': cls.docstring
+            })()
+
+            symbol_type = 'module' if cls.is_module else 'class'
+            symbols_to_index.append({
+                'type': symbol_type,
+                'data': cls_data
+            })
+            stats.classes_indexed += 1
+
+            # Add methods
+            for method in cls.methods:
+                method_data = type('RubyMethod', (), {
+                    'name': method.name,
+                    'code': method.code,
+                    'start_line': method.start_line,
+                    'end_line': method.end_line,
+                    'docstring': method.docstring
+                })()
+
+                symbols_to_index.append({
+                    'type': 'method',
+                    'data': method_data,
+                    'parent_class': cls.name
+                })
+                stats.methods_indexed += 1
+
+        return symbols_to_index
+
+    def _extract_php_symbols(self, parsed_file: ParsedPHPFile, stats: IndexStats) -> List[Dict]:
+        """Extract symbols from parsed PHP file"""
+        symbols_to_index = []
+
+        # Add functions
+        for func in parsed_file.functions:
+            func_data = type('PHPFunction', (), {
+                'name': func.name,
+                'code': func.code,
+                'start_line': func.start_line,
+                'end_line': func.end_line,
+                'docstring': func.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'function',
+                'data': func_data
+            })
+            stats.functions_indexed += 1
+
+        # Add classes/interfaces/traits and their methods
+        for cls in parsed_file.classes:
+            cls_data = type('PHPClass', (), {
+                'name': cls.name,
+                'code': cls.code,
+                'start_line': cls.start_line,
+                'end_line': cls.end_line,
+                'docstring': cls.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': cls.kind,  # class, interface, or trait
+                'data': cls_data
+            })
+            stats.classes_indexed += 1
+
+            # Add methods
+            for method in cls.methods:
+                method_data = type('PHPMethod', (), {
+                    'name': method.name,
+                    'code': method.code,
+                    'start_line': method.start_line,
+                    'end_line': method.end_line,
+                    'docstring': method.docstring
+                })()
+
+                symbols_to_index.append({
+                    'type': 'method',
+                    'data': method_data,
+                    'parent_class': cls.name
+                })
+                stats.methods_indexed += 1
+
+        return symbols_to_index
+
+    def _extract_bash_symbols(self, parsed_file: ParsedBashFile, stats: IndexStats) -> List[Dict]:
+        """Extract symbols from parsed Bash file"""
+        symbols_to_index = []
+
+        # Add functions
+        for func in parsed_file.functions:
+            func_data = type('BashFunction', (), {
+                'name': func.name,
+                'code': func.code,
+                'start_line': func.start_line,
+                'end_line': func.end_line,
+                'docstring': func.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'function',
+                'data': func_data
+            })
+            stats.functions_indexed += 1
+
+        return symbols_to_index
+
+    def _extract_sql_symbols(self, parsed_file: ParsedSQLFile, stats: IndexStats) -> List[Dict]:
+        """Extract symbols from parsed SQL file"""
+        symbols_to_index = []
+
+        # Add tables
+        for table in parsed_file.tables:
+            table_data = type('SQLTable', (), {
+                'name': table.name,
+                'code': table.code,
+                'start_line': table.start_line,
+                'end_line': table.end_line,
+                'docstring': table.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'table',
+                'data': table_data
+            })
+            stats.classes_indexed += 1  # Count tables as classes
+
+        # Add procedures/functions/triggers
+        for proc in parsed_file.procedures:
+            proc_data = type('SQLProcedure', (), {
+                'name': proc.name,
+                'code': proc.code,
+                'start_line': proc.start_line,
+                'end_line': proc.end_line,
+                'docstring': proc.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': proc.kind,  # procedure, function, or trigger
+                'data': proc_data
+            })
+            stats.functions_indexed += 1
+
+        # Add views
+        for view in parsed_file.views:
+            view_data = type('SQLView', (), {
+                'name': view.name,
+                'code': view.code,
+                'start_line': view.start_line,
+                'end_line': view.end_line,
+                'docstring': view.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'view',
+                'data': view_data
+            })
+            stats.classes_indexed += 1  # Count views as classes
 
         return symbols_to_index
 

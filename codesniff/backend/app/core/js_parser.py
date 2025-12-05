@@ -84,7 +84,7 @@ class JSParser:
             ParsedJSFile object or None on error
         """
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
                 source_code = f.read()
 
             lines = source_code.split('\n')

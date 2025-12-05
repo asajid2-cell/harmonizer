@@ -2,6 +2,42 @@
 
 Complete installation and configuration guide for CodeSniff.
 
+## Quick Start (Recommended)
+
+Simply run the automated setup script:
+```powershell
+.\run.ps1
+```
+
+This script will:
+1. Check and install all correct dependency versions automatically
+2. Open two terminal windows (backend and frontend)
+3. Start both servers
+4. Open your browser automatically
+
+## Critical Dependency Fixes
+
+**IMPORTANT**: The following package versions are **required** and will be automatically installed by `run.ps1`:
+
+| Package | Version | Why This Version? |
+|---------|---------|-------------------|
+| tree-sitter | 0.21.3 | Compatible API with tree-sitter-python 0.21.0 |
+| tree-sitter-python | 0.21.0 | Works with tree-sitter 0.21.3 |
+| numpy | 1.26.4 | Works with both FAISS (<2.0) and transformers (>=1.25.2) |
+| faiss-cpu | 1.7.4 | Vector similarity search |
+
+### Why These Specific Versions?
+
+- **tree-sitter**: Version 0.20.4 uses old API, 0.23.4 uses new incompatible API. Version 0.21.3 is the sweet spot.
+- **numpy**: FAISS 1.7.4 requires <2.0, but transformers needs >=1.25.2. Version 1.26.4 satisfies both.
+
+### Bugs Fixed
+
+1. **UTF-8 BOM Handling**: Parser now strips BOM from files automatically
+2. **Tree-sitter API**: Fixed initialization for 0.21.x API
+3. **Stats Tracking**: Failed files now counted correctly
+4. **FAISS Loading**: NumPy version compatibility fixed
+
 ## Prerequisites
 
 ### Required Software

@@ -72,7 +72,7 @@ class HTMLCSSParser:
             ParsedHTMLCSSFile or None if parsing fails
         """
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
                 code = f.read()
 
             lines = code.split('\n')

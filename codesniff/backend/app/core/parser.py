@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 from pathlib import Path
 import tree_sitter_python as tspython
-from tree_sitter import Parser, Node
+from tree_sitter import Parser, Node, Language
 from loguru import logger
 
 
@@ -55,9 +55,12 @@ class CodeParser:
 
     def __init__(self):
         """Initialize Tree-sitter parser with Python grammar"""
-        # Load Python language - use the language object directly from the binding
-        self.language = tspython.language()
-        self.parser = Parser(self.language)
+        # For tree-sitter 0.21.x with tree-sitter-python 0.21.x
+        # The language() function returns a pointer that needs to be wrapped in Language
+        python_lang = Language(tspython.language(), "python")
+
+        self.parser = Parser()
+        self.parser.set_language(python_lang)
         logger.info("CodeParser initialized with Python grammar")
 
     def parse_file(self, file_path: str) -> Optional[ParsedFile]:
@@ -71,12 +74,19 @@ class CodeParser:
             ParsedFile object containing all extracted symbols, or None on error
         """
         try:
-            # Read file content
-            with open(file_path, 'r', encoding='utf-8') as f:
-                source_code = f.read()
+            # Read file content as bytes
+            with open(file_path, 'rb') as f:
+                source_bytes = f.read()
+
+            # Strip BOM if present (BOM is the first 3 bytes: EF BB BF)
+            if source_bytes.startswith(b'\xef\xbb\xbf'):
+                source_bytes = source_bytes[3:]
+
+            # Decode for text operations
+            source_code = source_bytes.decode('utf-8')
 
             # Parse with tree-sitter
-            tree = self.parser.parse(bytes(source_code, 'utf8'))
+            tree = self.parser.parse(source_bytes)
             root_node = tree.root_node
 
             # Extract functions and classes
@@ -104,6 +114,7 @@ class CodeParser:
 
         except Exception as e:
             logger.error(f"Error parsing file {file_path}: {e}")
+            logger.exception("Full traceback:")
             return None
 
     def _extract_functions(self, node: Node, source_code: str, file_path: str,
