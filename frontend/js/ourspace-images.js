@@ -541,6 +541,142 @@
         return allowed.includes(value) ? value : 'classic';
     }
 
+    // ========================================
+    // THEATRE MODE
+    // ========================================
+
+    let theatreMode = {
+        active: false,
+        currentIndex: 0,
+        images: [],
+        audioPlaying: false
+    };
+
+    function setupTheatreMode() {
+        const theatreBtn = document.getElementById('theatre-mode-btn');
+        const overlay = document.getElementById('theatre-mode-overlay');
+        const closeBtn = document.getElementById('theatre-close');
+        const prevBtn = document.getElementById('theatre-prev');
+        const nextBtn = document.getElementById('theatre-next');
+        const image = document.getElementById('theatre-image');
+
+        if (!theatreBtn || !overlay) return;
+
+        // Open theatre mode
+        theatreBtn.addEventListener('click', function() {
+            const data = loadFromLocalStorage();
+            if (!data || !data.images || data.images.length === 0) {
+                alert('No photos uploaded yet! Add some photos to use Theatre Mode.');
+                return;
+            }
+
+            theatreMode.images = data.images;
+            theatreMode.currentIndex = 0;
+            theatreMode.active = true;
+
+            overlay.classList.add('active');
+            showTheatreImage(0);
+            playTheatreMusic();
+
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        });
+
+        // Close theatre mode
+        closeBtn.addEventListener('click', closeTheatreMode);
+
+        // Close on ESC key
+        document.addEventListener('keydown', function(e) {
+            if (theatreMode.active && e.key === 'Escape') {
+                closeTheatreMode();
+            }
+        });
+
+        // Navigation
+        prevBtn.addEventListener('click', () => navigateTheatre(-1));
+        nextBtn.addEventListener('click', () => navigateTheatre(1));
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (!theatreMode.active) return;
+
+            if (e.key === 'ArrowLeft') {
+                navigateTheatre(-1);
+            } else if (e.key === 'ArrowRight') {
+                navigateTheatre(1);
+            }
+        });
+
+        console.log('[Theatre Mode] Setup complete');
+    }
+
+    function closeTheatreMode() {
+        const overlay = document.getElementById('theatre-mode-overlay');
+        overlay.classList.remove('active');
+        theatreMode.active = false;
+        document.body.style.overflow = '';
+
+        // Stop music if it was started by theatre mode
+        if (theatreMode.audioPlaying) {
+            stopTheatreMusic();
+            theatreMode.audioPlaying = false;
+        }
+    }
+
+    function navigateTheatre(direction) {
+        theatreMode.currentIndex += direction;
+
+        // Wrap around
+        if (theatreMode.currentIndex < 0) {
+            theatreMode.currentIndex = theatreMode.images.length - 1;
+        } else if (theatreMode.currentIndex >= theatreMode.images.length) {
+            theatreMode.currentIndex = 0;
+        }
+
+        showTheatreImage(theatreMode.currentIndex);
+    }
+
+    function showTheatreImage(index) {
+        const image = document.getElementById('theatre-image');
+        const counter = document.getElementById('theatre-counter');
+
+        if (theatreMode.images[index]) {
+            image.src = theatreMode.images[index].data;
+            image.style.animation = 'none';
+            // Trigger reflow to restart animation
+            image.offsetHeight;
+            image.style.animation = 'imageSlideIn 0.4s ease';
+        }
+
+        counter.textContent = `${index + 1} / ${theatreMode.images.length}`;
+    }
+
+    function playTheatreMusic() {
+        // Try to find and play the persistent audio player
+        const audioPlayer = document.querySelector('#persistent-audio-deck audio');
+        if (audioPlayer && audioPlayer.paused) {
+            audioPlayer.play().then(() => {
+                theatreMode.audioPlaying = true;
+                console.log('[Theatre Mode] Music started');
+            }).catch(err => {
+                console.log('[Theatre Mode] Could not auto-play music:', err);
+            });
+        }
+    }
+
+    function stopTheatreMusic() {
+        const audioPlayer = document.querySelector('#persistent-audio-deck audio');
+        if (audioPlayer && !audioPlayer.paused) {
+            audioPlayer.pause();
+            console.log('[Theatre Mode] Music stopped');
+        }
+    }
+
+    // Initialize theatre mode when images module loads
+    window.addEventListener('DOMContentLoaded', function() {
+        setTimeout(setupTheatreMode, 500); // Slight delay to ensure DOM is ready
+    });
+
 })();
 
 

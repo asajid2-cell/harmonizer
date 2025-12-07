@@ -1101,9 +1101,25 @@
                                     </select>
                                 </label>
                                 <button id="pictures-reorder-btn" style="margin-left: 10px;">Reorder</button>
+                                <button id="theatre-mode-btn" style="margin-left: 10px;">🎭 Theatre Mode</button>
                             </div>
                             <div id="picture-grid" class="picture-grid" data-columns="4">
                                 <!-- Pictures will be added here dynamically -->
+                            </div>
+
+                            <!-- Theatre Mode Overlay -->
+                            <div id="theatre-mode-overlay" class="theatre-mode-overlay">
+                                <div class="theatre-controls">
+                                    <button id="theatre-close" class="theatre-btn">✕ Close</button>
+                                    <div class="theatre-info">
+                                        <span id="theatre-counter">0 / 0</span>
+                                    </div>
+                                </div>
+                                <button id="theatre-prev" class="theatre-nav theatre-nav-left">‹</button>
+                                <div id="theatre-image-container" class="theatre-image-container">
+                                    <img id="theatre-image" src="" alt="">
+                                </div>
+                                <button id="theatre-next" class="theatre-nav theatre-nav-right">›</button>
                             </div>
                         </div>
                     </div>
