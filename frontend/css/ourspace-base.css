@@ -4092,81 +4092,66 @@ body.view-mode .layout-editable:hover {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-/* Mobile responsive */
+/* Mobile responsive - ONLY when theatre mode is active */
 @media (max-width: 768px) {
-    .theatre-mode-overlay {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        min-height: 100vh !important;
-        min-height: -webkit-fill-available !important;
+    .theatre-mode-overlay.active {
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
     }
 
-    .theatre-nav {
-        width: 55px !important;
-        height: 55px !important;
-        font-size: 36px !important;
+    .theatre-mode-overlay .theatre-nav {
+        width: 55px;
+        height: 55px;
+        font-size: 36px;
     }
 
-    .theatre-nav-left {
-        left: 10px !important;
+    .theatre-mode-overlay .theatre-nav-left {
+        left: 10px;
     }
 
-    .theatre-nav-right {
-        right: 10px !important;
+    .theatre-mode-overlay .theatre-nav-right {
+        right: 10px;
     }
 
-    .theatre-controls {
-        padding: 0 15px !important;
-        top: 10px !important;
-        flex-direction: row !important;
-        flex-wrap: wrap !important;
-        gap: 5px !important;
+    .theatre-mode-overlay .theatre-controls {
+        padding: 0 15px;
+        top: 10px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 5px;
     }
 
-    .theatre-btn {
-        padding: 8px 16px !important;
-        font-size: 14px !important;
+    .theatre-mode-overlay .theatre-btn {
+        padding: 8px 16px;
+        font-size: 14px;
     }
 
-    .theatre-info {
-        font-size: 14px !important;
+    .theatre-mode-overlay .theatre-info {
+        font-size: 14px;
     }
 
-    .theatre-image-container {
-        padding: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
+    .theatre-mode-overlay .theatre-image-container {
+        padding: 0;
     }
 
-    #theatre-image {
-        max-width: 100vw !important;
-        max-height: 100vh !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        object-fit: contain !important;
-        border-radius: 0 !important;
+    .theatre-mode-overlay #theatre-image {
+        max-width: 100vw;
+        max-height: 100vh;
+        border-radius: 0;
     }
 
     /* Always show controls on mobile for touch usability */
     .theatre-mode-overlay .theatre-nav,
     .theatre-mode-overlay .theatre-controls {
-        opacity: 0.7 !important;
+        opacity: 0.7;
     }
 
     .theatre-mode-overlay:active .theatre-nav,
     .theatre-mode-overlay:active .theatre-controls {
-        opacity: 1 !important;
+        opacity: 1;
     }
 
-    /* Prevent any mobile browser UI from interfering */
+    /* Prevent mobile browser UI from interfering - ONLY when active */
     body.theatre-active {
         overflow: hidden !important;
         position: fixed !important;
