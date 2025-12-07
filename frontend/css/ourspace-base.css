@@ -3955,7 +3955,7 @@ body.view-mode .layout-editable:hover {
     to { opacity: 1; }
 }
 
-.theatre-controls {
+.theatre-mode-overlay .theatre-controls {
     position: fixed;
     top: 30px;
     left: 0;
@@ -3973,7 +3973,7 @@ body.view-mode .layout-editable:hover {
     opacity: 1;
 }
 
-.theatre-btn {
+.theatre-mode-overlay .theatre-btn {
     background: rgba(255, 255, 255, 0.1);
     border: 2px solid rgba(255, 255, 255, 0.3);
     color: #fff;
@@ -3985,19 +3985,19 @@ body.view-mode .layout-editable:hover {
     backdrop-filter: blur(10px);
 }
 
-.theatre-btn:hover {
+.theatre-mode-overlay .theatre-btn:hover {
     background: rgba(255, 255, 255, 0.2);
     border-color: rgba(255, 255, 255, 0.5);
     transform: scale(1.05);
 }
 
-.theatre-info {
+.theatre-mode-overlay .theatre-info {
     color: #fff;
     font-size: 18px;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
-.theatre-image-container {
+.theatre-mode-overlay .theatre-image-container {
     width: 100vw;
     height: 100vh;
     display: flex;
@@ -4011,7 +4011,7 @@ body.view-mode .layout-editable:hover {
     box-sizing: border-box;
 }
 
-#theatre-image {
+.theatre-mode-overlay #theatre-image {
     max-width: 95vw;
     max-height: 95vh;
     width: auto;
@@ -4024,7 +4024,7 @@ body.view-mode .layout-editable:hover {
     transition: all 0.3s ease;
 }
 
-#theatre-image:hover {
+.theatre-mode-overlay #theatre-image:hover {
     box-shadow: 0 0 100px rgba(255, 255, 255, 0.25);
 }
 
@@ -4039,7 +4039,7 @@ body.view-mode .layout-editable:hover {
     }
 }
 
-.theatre-nav {
+.theatre-mode-overlay .theatre-nav {
     position: fixed;
     top: 50%;
     transform: translateY(-50%);
@@ -4065,17 +4065,17 @@ body.view-mode .layout-editable:hover {
     opacity: 1;
 }
 
-.theatre-nav:hover {
+.theatre-mode-overlay .theatre-nav:hover {
     background: rgba(255, 255, 255, 0.2);
     color: rgba(255, 255, 255, 1);
     transform: translateY(-50%) scale(1.1);
 }
 
-.theatre-nav-left {
+.theatre-mode-overlay .theatre-nav-left {
     left: 30px;
 }
 
-.theatre-nav-right {
+.theatre-mode-overlay .theatre-nav-right {
     right: 30px;
 }
 
