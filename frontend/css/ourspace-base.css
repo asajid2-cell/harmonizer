@@ -3657,15 +3657,11 @@ body.view-mode .layout-editable:hover {
    ======================================== */
 @media (max-width: 480px) {
     /* CRITICAL: Prevent horizontal overflow */
-    * {
-        max-width: 100vw !important;
-        box-sizing: border-box !important;
-    }
-
     html,
     body {
         overflow-x: hidden !important;
         width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     #ourspace-main,
