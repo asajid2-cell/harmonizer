@@ -338,6 +338,29 @@
 #persistent-audio-deck[data-minimized="true"] .player-meta__artist {
     font-size: 0.7rem;
 }
+@media (max-width: 480px) {
+    /* FIXED: Player text readability */
+    #persistent-audio-deck .player-meta__label {
+        font-size: 0.75rem !important; /* was 0.58rem - now 12px+ */
+    }
+    #persistent-audio-deck .player-controls button {
+        font-size: 0.75rem !important; /* was 0.68rem - now 12px+ */
+    }
+
+    /* FIXED: Player button touch targets */
+    #persistent-audio-deck .player-minimize,
+    #persistent-audio-deck .player-close {
+        width: 44px !important;
+        height: 44px !important;
+        font-size: 1rem !important;
+    }
+
+    #persistent-audio-deck .player-controls button {
+        min-height: 44px !important;
+        padding: 12px 10px !important;
+    }
+}
+
 @media (max-width: 620px) {
     #persistent-audio-deck {
         left: 16px;

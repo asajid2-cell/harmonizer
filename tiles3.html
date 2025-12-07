@@ -1,0 +1,608 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <title>RLAI open web page</title>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=ISO-8859-1">
+  <meta http-equiv="Cache-control" content="no-cache">
+  <link href="style.css" rel="stylesheet" type="text/css">
+</head>
+<body
+ style="background-color: rgb(255, 255, 255); font-family: Palatino;">
+<table style="width: 100%;" border="0" cellpadding="3" cellspacing="0">
+  <tbody>
+    <tr>
+      <td rowspan="2" bgcolor="#ffffff" valign="top" width="1%"> <a
+ href=""><img src="rl-logo.jpg" alt="RLAI" border="0"></a></td>
+      <td style="vertical-align: top;"><span
+ style="color: rgb(102, 102, 102);">Reinforcement Learning and
+Artificial
+Intelligence (RLAI)</span><br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: bottom;"> <span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 24px; line-height: normal; font-size-adjust: none;">Tile
+Coding Software -- Reference Manual, Version 3.0</span><br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">
+by <a href="http://richsutton.com/index.html">Richard S. Sutton</a>
+<p> </p>
+<br>
+</span><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino;">Here</span> we describe software
+implementing the core
+part of the
+idea of tile coding as described in <a
+ href="http://www.incompleteideas.net/book/RLbook2018.pdf#page=239">Section
+9.5.4</a> of the
+reinforcement-learning textbook by Sutton and Barto. That section
+should be read and fully understood before
+reading this manual or using this software. The software is
+currently available in Python and Common Lisp. An implementation in C
+or C++ would be a welcome contribution.<br>
+<br>
+Tile
+coding is a way of representing the
+values of
+a vector of continuous variables as a large binary vector with few 1s
+and many 0s.
+The binary vector is not represented explicitly, but as a
+list of the components that are 1s. The main step is to partition, or
+tile, the continuous space multiple times and select one tile from each
+tiling, that corresponding the the vector's value.
+Each tile is converted to an element in the big binary
+vector, and the list of
+the tile (element) numbers is returned as the representation of the
+vector's value. Tile coding is recommended as a way of applying online
+learning methods to domains with continuous state or
+action variables.<br>
+<br>
+The tile-coding software evolved from software developed at the
+University of New Hampshire for a related but more specialized use
+called "<a
+ href="http://en.wikipedia.org/wiki/Cerebellar_Model_Articulation_Controller">CMAC</a>"
+(see the </span><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><a
+ href="tilesUNHdoc.pdf">external documentation by Miller and Glanz</a></span><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">).
+Here we
+separate tile coding from full CMACs, which allows it to be used more
+flexibly. The current software is
+also simplified
+and streamlined consistent with its use in reinforcement learning
+applications.
+For example, our code is only one page in length. <br>
+<br>
+The code in Python is available <a href="tiles3.py-remove">here</a>,
+and in
+Lisp is available <a href="tiles3.lisp">here</a>.<br>
+</span>
+<hr style="width: 100%; height: 2px;">
+<h1>A Simple Example<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"></span></h1>
+<h2><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"></span></h2>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">Here
+is a simple example of the use of the tile coding software from Python.
+<br>
+<br>
+Whatever you are tiling, you will need an index hash table, or IHT. You
+make one by calling <code>IHT(size)</code>, e.g., <br>
+</span>
+<pre style="margin-left: 40px; font-size: 16px;"><code><big>iht = IHT(1024)</big><br></code></pre>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">
+Suppose you wish to tile a
+two-dimensional x,y space, where each
+dimension runs from 0 to 10. The tiling software will partition this
+using multiple 10 by 10 partitions, each offset from the other (it is
+10 by 10 because the software partitions at integer boundaries). You
+obtain a
+list of tile indices for a point (here the point (x, y) = (3.6, 7.21))
+by calling<br>
+</span>
+<pre style="margin-left: 40px; font-size: 16px;"><code><big>indices = tiles(iht, 8, [3.6, 7.21])</big><br></code></pre>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino;"></span></span><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">The
+second argument (8) is the number of offset tilings. The point will
+fall in one tile in each of the 8 tilings, so the returned list will
+have exactly eight positive integers in it, all between 0 and one less
+than the size of iht. In general, the indices may be something like
+[374, 971, 246, 435, 23, 739, 336, 827], though in this special case,
+if this is the first time you've used iht, the indices will be [0, 1,
+2, 3, 4, 5, 6, 7]. You are guaranteed that all of these exact indices
+will be returned if ever in the future you tile this same point. If you
+tile a new point within a distance of about 1 in both x and y
+directions, then the returned indices will have some in common with
+this point. Thus:</span>
+<pre><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"></span></pre>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><br>
+</span>
+<pre style="margin-left: 40px; font-size: 16px;"><big><code>&gt;&gt;&gt; iht = IHT(1024)<br><br><br>&gt;&gt;&gt; tiles(iht, 8, [3.6, 7.21])<br><br>[0, 1, 2, 3, 4, 5, 6, 7]<br><br><br>&gt;&gt;&gt; tiles(iht, 8, [3.7, 7.21])         # a nearby point<br><br>[0, 1, 2, 8, 4, 5, 6, 7]               # differs by one tile<br><br><br>&gt;&gt;&gt; </code><code>tiles(iht, 8, [4, 7])              # while a farther away point<br><br>[9, 10, 11, 8, 4, 12, 6, 7]</code>            # differs by 4 (or 5) tiles</big><code><big><br><br><br>&gt;&gt;&gt; tiles(iht, 8, [-37.2, 7])          # and a point more than one away in any dim<br><br>[13, 14, 15, 16, 17, 18, 19, 20]       # will have all different tiles</big><br></code></pre>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><br>
+As the last example shows, far away points have no tiles in common. It
+also shows that the idea of a 10 by 10 space is
+really just in our minds. As far as the software is concerned there is
+a 2D plane stretching to infinity in all directions. (Of course if you
+visit too much of the space you will run out of indices -- you only
+have as many as you specified with the size of iht.)<br>
+</span>
+<hr style="width: 100%; height: 2px;">
+<h1>Fleshing
+out the example<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"></span></h1>
+<h2><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"></span></h2>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">
+Suppose you wanted to do some supervised learning of a two dimensional
+surface. That is, you have data of examples of the form (x, y, z),
+where x,y are locations in the plane and z is the desired height at
+those coordinates. Let's say x and y run each from 1 to 3, and that you
+would like to use, again, 10 x 10 grid tilings. Because the tile
+coding software always partitions at the integer boundaries, you
+will
+need to scale your points to a 10 x 10 region. It is almost always
+useful to make your own interface routine, here called <code>mytiles</code>,
+that
+takes your data in its original form and converts its scale so that
+the tiles can have a width of one (the absolute values are not
+important).
+Here is the complete code, including learning:<br>
+<code><br>
+</code></span>
+<div style="margin-left: 40px;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>from
+tiles3 import tiles, IHT<br>
+<br>
+maxSize = 2048</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>iht
+= IHT(maxSize)</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>weights
+= [0]*maxSize</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>numTilings
+= 8</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>stepSize
+= 0.1/numTilings</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>def
+mytiles(x, y):</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;
+scaleFactor = 10.0/(3-1)</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;
+return tiles(iht, numTilings, list(x*scaleFactor,y*scaleFactor))</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>def
+learn(x, y, z):</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;
+tiles = mytiles(x, y)</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;
+estimate = 0</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;
+for tile in tiles: </small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+estimate +=
+weights[tile]&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp; &nbsp;&nbsp; #form estimate</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;
+error = z - estimate</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;
+for tile in tiles: </small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+weights[tile] += stepSize *
+error&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #learn
+weights</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>def
+test(x, y):</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;
+tiles = mytiles(x, y)</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;
+estimate = 0</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;
+for tile in tiles: </small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+estimate +=
+weights[tile]</small></code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small>&nbsp;&nbsp;&nbsp;
+return estimate</small>
+</code></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"></span></div>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><br>
+You can then train using <code>learn</code> and obtain estimates using
+<code>test</code>.<br>
+</span></span>
+<hr style="width: 100%; height: 2px;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"></span></span><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"></span></span>
+<h1>Arguments</h1>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">The
+full tiles routine takes three required arguments and one optional
+argument:<br>
+</span></span>
+<div style="margin-left: 40px;"><br>
+<big><code><big>tiles(iht, numTilings, floats, ints)</big><br>
+</code></big></div>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><br>
+The first argument is either an index hash table (next section) or a
+positive integer specifying the upper range of returned indices. In the
+latter case, pseudo-random hashing is done from the beginning without a
+hash table. This is the most computationally efficient form of tile
+coding and is necessary for very large problems, but we don't recommend
+you start with it.<br>
+<br>
+If the first argument is a positive integer, then for best results it
+should be a large power of two.<br>
+<br>
+For best results, the second argument, numTilings, should be</span></span><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">
+a power of two greater or equal to four times the number of floats. The
+third argument is a list or tuple of floating point numbers to be tiled.<br>
+<br>
+The </span><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">fourth
+argument, <code>ints</code>, is optional, defaulting to None. It is a
+list of integers that will also be tiled; all distinct integers will
+result in different tilings. In reinforcement learning, discrete
+actions are often provided here. More generally, if multiple groups of
+tilings (multiple calls to </span></span><code><big>tiles</big></code><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><small>)</small>
+are used with the same IHT, then each should differ in the first
+element of </span></span><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code>ints</code></span></span><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">,
+as described later.<br>
+</span></span>
+<hr style="width: 100%; height: 2px;">
+<h1><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"></span></span>Index
+hash tables</h1>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">
+<p>An index hash table is a data structure providing an interface to an
+underlying hash table (a dictionary, in Python) that efficiently keeps
+track of which indices have been used so far, gives you new ones when
+asked, and warns you when you have asked for too many. Basically, it
+makes sure that every new tile you encounter is given a separate index
+up to the provided size. The interface routines are:<br>
+</p>
+<p><code>&nbsp;&nbsp;&nbsp; IHT(size)<br>
+<br>
+</code>Make a new index hash table that is guaranteed to never produce
+an index larger than size. If you do ask for too many indexes, it
+prints a warning message and then starts reusing old indexes in a
+semi-random but reliable manner. Be generous with size.<br>
+</p>
+<p><code>&nbsp;&nbsp;&nbsp; iht.count<br>
+<br>
+</code>The number of indices currently used. All used indices
+will be between 0 and one less than this number. The count is alway
+less than the size, and only count have been used, so knowing the count
+can often speed operations that only need be done on the used features
+(e.g., eligibility traces).<br>
+</p>
+<p><code>&nbsp;&nbsp;&nbsp; iht.fullp()<br>
+<br>
+</code>Returns True iff the index hash table is full.<br>
+</p>
+<p><code>&nbsp;&nbsp;&nbsp; iht.overfullCount<br>
+<br>
+</code>The number of indices asked of the index hash table over and
+beyond its capacity. This starts at zero, and a warning message is
+printed when it becomes 1.<br>
+</p>
+<p><code>&nbsp;&nbsp;&nbsp; iht.size<br>
+<br>
+</code>The size of the index hash table.<br>
+</p>
+<p>&nbsp;Next we describe examples, gradually increasing in complexity,
+of
+the use of the tiles routine. </p>
+<hr>
+<h2><a name="Example:_32_4x4_Rectangular_Grid-Tilings"></a>Example: 32
+4x4 Rectangular Grid-Tilings </h2>
+In the simplest case, we form simple grid-like tilings. Suppose we are
+interested
+in the unit square over two real variables <i>x</i> and <i>y</i>. We
+wish to tile it into 4x4 tilings (i.e.,
+each
+tile
+is .25 by .25). This will create the possibility of generalization
+between any two input vectors in which both components are within .25
+of each other. <code>tiles</code>
+assumes unit generalization in its inputs, so we arrange for .25
+generalization by scaling <i>x</i> and <i>y</i> before calling tiles:
+<br>
+<br>
+</span></span></span>
+<div style="margin-left: 40px;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code>def
+mytiles(x, y):
+</code></span></span></span><br>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code>&nbsp;&nbsp;&nbsp;
+return tiles(iht, 32, list(x*4,y*4))</code></span></span></span></div>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">
+<p>Despite this fairly
+broad generalization, we want the ability to make fine
+distinctions if required.
+For this we need many tilings, say 32, as specified above.
+This will give us an ultimate resolution of .25/32=.0078, or better
+than 1%.
+<br>
+</p>
+<p>Finally, we have to select the size of the index hash table. This is
+the range
+of tile indices (in [0,size)) that will be returned. First we consider
+the
+"natural" memory size, as if we were doing no hashing. This is simply
+the total number of tiles in all the tilings,
+or (4+1)*(4+1)*32=800 in our case. This is not a large number and might
+be used
+directly as the <code>size</code> of the index hash table.
+If you don't use an IHT, then you should use something considerable
+larger and a power of two.<br>
+</p>
+<hr>
+<h2><a name="Complex_Multiple-Call_Variations_"></a>Complex
+(Multiple-Call) Variations </h2>
+<p>Sometimes one can get by with a single kind of tiling, as
+produced by a
+single call
+to <code>tiles</code> (note that a single call creates multiple
+tillings, but these are
+all simple offset copies of each other). But for many other cases one
+needs to be a little more sophisticated.
+A great deal can be done to control the generalization and to limit the
+memory requirements
+by using multiple tilings through multiple calls to <code>tiles</code>.
+We consider some of
+these below. </p>
+<p>Suppose as previously you have input vectors in the unit square,
+but
+you want to generalize
+between input vectors that are similar along the <i>x</i> dimension OR
+similar along the <i>y</i>
+dimension. To do this you need <i>two</i> kinds of tilings, one
+producing stripes horizontally and one vertically. Suppose you want to
+make 32 tilings of each type, and combine the results
+in one 64-element list of tiles:<code></code><br>
+</p>
+<div style="margin-left: 40px;">
+<code></code><code>tiles(iht, 32, [x/0.25], </code><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code>[</code></span></span></span><code>0</code><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code>]</code></span></span></span><code>)
++ </code><code>tiles(iht,
+32, [y/0.25], </code><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code>[</code></span></span></span><code>1</code><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code>]</code></span></span></span><code>)</code><br>
+<code></code></div>
+<br>
+Notice that we change the final
+integer input from 0 to 1 in the second call. Whenever using multiple
+calls like this, it is a good idea to give them each a different
+setting for the integer arguments.
+<p>There are a lot of possibilities here. One could use two groups
+of
+tilings, one for each single dimension, as illustrated above, PLUS an
+additional group of tilings that depends on both dimensions. This would
+create a system that generalizes partly along each dimension
+separately, but also on the two dimensions conjunctively, so that it
+could if needed
+learn to give a special response to a particular <i>pair</i> of <i>x,y</i>
+values.
+Another possibility would be to choose some groups of tilings with
+coarse generalization and
+some with fine. </p>
+<p>One can control the tendency to generalize in the different ways
+given by each group of tilings by controlling the number of tilings in
+each group. For example, if you wanted
+discrimination to be stronger along <i>x</i> rather than <i>y</i>,
+then you would ask for more <i>x</i> tillings
+(more than 32) in the above example, or fewer <i>y</i> tilings. </p>
+<hr>
+<h2><a name="Getting_Consistent_Hashing_"></a>Getting Consistent
+Hashing When Not Using an Index Hash Table<br>
+</h2>
+<p>In many applications one wants to make sure hashing, a random
+process,
+is done
+in a consistent way, e.g., across different runs of a program. The
+hashing done by the routines described here (when not using an index
+hash table) is
+determined
+by some tables filled with random numbers the first time the routine is
+called. To get consistent hashing you need only ensure that the random
+number generator is in a consistent state for the first call. A
+convenient way to do this is
+to make a dummy first call during an initialization portion of your
+program. For example, an early portion of your C++ code could include: </p>
+<div style="margin-left: 40px;"><code>int dummy_tiles[1];</code><br>
+<code>float dummy_vars[1];</code><br>
+<code></code><br>
+<code>srand(0);</code><br>
+<code>tiles(dummy_tiles,1,1,dummy_vars,0); // initializes tiling code</code><br>
+<code></code></div>
+<br>
+In lisp, you would use an implementation-dependent procedure to set <code>*random-state*</code>
+in
+a reproducable manner, then call <code>(tiles nil 1 1)</code>.<br>
+<br>
+In Python, you can seed the random number generator with <code>random.seed(<span
+ style="font-style: italic;">number</span>)</code>, and then import the
+<code>tiles</code> module.<br>
+<hr>
+<h2><a name="Lisp_Versions_"></a>Lisp Versions </h2>
+<p>The LISP version has almost the same interface as the Python:<br>
+</p>
+<p><code>&nbsp;&nbsp;&nbsp; (tiles iht num-tilings float &amp;optional
+ints)<br>
+</code><code>
+</code></p>
+<p><code>&nbsp;&nbsp;&nbsp; (tiles-wrap iht num-tilings float
+wrap-widths &amp;optional ints)</code><br>
+</p>
+<p><code>&nbsp;&nbsp;&nbsp; (make-iht size)<br>
+&nbsp;&nbsp;&nbsp; (iht-count iht)<br>
+&nbsp;&nbsp;&nbsp; (iht-fullp iht)<br>
+&nbsp;&nbsp;&nbsp; (iht-overfull-count iht)<br>
+&nbsp;&nbsp;&nbsp; (iht-size iht)</code><br>
+</p>
+<hr>
+<h2><a name="Python_Calling_C_Versions_"></a>Python Calling C Versions </h2>
+<p>In order to improve the efficiency of the tiling functions, but
+still have the flexibility of
+Python, we would also like a version available for Python which calls
+the C
+version of tiles. The calling
+sequences should be exactly the same as for the Python versions.<br>
+</p>
+<hr>
+<h2><a name="Wrap-around_Versions_"></a> Wrap-around Versions </h2>
+<p>The tilings we have discussed so far stretch out to infinity
+with no
+need to specify a range for them. This is cool, but sometimes not what
+you want. Sometimes you want the variables to wrap-around over some
+range. For example, you may have an angle variable that goes from 0 to
+2pi and then should wrap around, that is, you would like generalization
+to occur between angles just greater than 0 and angles that are nearly
+2pi. To accomodate this, we provide some alternative, wrap-around
+versions of the tiling routines. </p>
+<p>These versions take an additional input, <code>wrapwidths</code>,
+which parallels the float structure (array or list), and which
+specifies for each float the width of the range over which it wraps. If
+you don't want a float to wrap, it's wrapwidth should
+be False (in LISP, nil). The wrapwidth is in the same units as the
+floats, but should be an integer. This can be confusing, so let's do a
+simple 1D example. Suppose you have one real input, an angle theta.
+Theta is originally in radians, that is, in [0,2pi), which you would
+like to wrap around at 2pi. Remember that these functions all have
+their tile boundaries at the integers, so if you passed in theta
+directly there would be tile boundaries at 0, 1, and 2, i.e., just a
+few tiles over the whole range, which is probably not what you want. So
+let's say what we want! Suppose we want tilings with 10 tiles over the
+[0,2pi) range. Then we have to scale theta so that it goes from 0 to 10
+(instead of 0 to 2pi). One would do this by multiplying theta by
+10/2pi. With the new scaled theta, the wrapping is over [0,10), for a
+wrap_width of 10. Here is the Python code for this case, assuming we
+want 16
+tilings over the original [0,2pi) range with a memory size of 512:<br>
+</p>
+</span></span></span><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><br>
+</code></span>
+<div style="margin-left: 40px;"><big><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small><big>from
+tiles3 import tiles, IHT<br>
+<br>
+iht = IHT(512)<br>
+<br>
+tiles(iht, 16, [theta * 10/(2*3.14159)], [10])</big></small></code></span></big></div>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">
+<p>Note that the code would be exactly the same if the original range
+of theta was [-pi,+pi]. Specifying the complete range of
+wrapping (rather than just the width) is not necessary for the same
+reason as we did not need to give a range at all in the previous
+routines.
+</p>
+<p>As another example, suppose you wanted to cover the 2pi x 3
+rectangular
+area with 16 tilings, each with a width of generalization one-tenth of
+the space in each dimension, and with wrap-around in the first
+dimension but not the second. In C you would do<br>
+</p>
+</span></span></span>
+<div style="margin-left: 40px;"><big><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><code><small><big>from
+tiles3 import tiles, IHT<br>
+<br>
+iht = IHT(512)<br>
+<br>
+tiles(iht, 16, [x/(3*0.1), y/(2*3.14159*0.1)], [False, 10])</big></small></code></span></big></div>
+<span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;"><span
+ style="font-family: Palatino; font-style: normal; font-variant: normal; font-weight: normal; font-size: 20px; line-height: normal; font-size-adjust: none;">
+<p> </p>
+<p>In Python (and the Python calling C version), the wrapping routines
+are:<br>
+</p>
+<p><code>tileswrap(numtilings,
+memsize, floats, wrapwidths, ints)</code><br>
+</p>
+<br>
+<font size="-1"> </font><!--Auto content--><!--End of /cgi-bin/lastmodified.pl--></span>
+</span></span>
+</body>
+</html>

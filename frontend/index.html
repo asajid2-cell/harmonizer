@@ -18,7 +18,7 @@ a:hover,a:focus-visible{color:#3f9}
 .retro-window__title{position:absolute;left:50%;transform:translateX(-50%);text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:.18em;white-space:nowrap;pointer-events:none}
 .retro-window__controls{display:flex;gap:4px;z-index:1}
 .retro-window__btn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid rgba(0,0,0,.4);background-color:#fff3;font-weight:700;line-height:1;font-size:10px}
-.retro-nav{display:flex;gap:8px;padding:6px 10px;background-color:#0b1422;border-bottom:1px solid #24324f;font-family:"MS Sans Serif",Tahoma,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.retro-nav{display:flex;gap:8px;padding:6px 10px;background-color:#0b1422;border-bottom:1px solid #24324f;font-family:"MS Sans Serif",Tahoma,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.08em;flex-wrap:wrap}
 .retro-nav a{color:#8ab4ff;text-decoration:none}
 .retro-nav a:hover,.retro-nav a:focus-visible,.retro-nav a[aria-current=page]{color:#fca1ff;text-decoration:underline}
 .retro-content{padding:18px 20px;text-align:center}
@@ -42,6 +42,105 @@ a:hover,a:focus-visible{color:#3f9}
 .retro-list li{margin-bottom:10px}
 .retro-callout{margin-top:12px;padding:12px;border:1px dashed rgba(255,255,255,.35);background-color:#0c1422cc;font-family:Courier New,monospace;font-size:11px}
 .retro-contact{margin-top:20px;display:grid;gap:12px;font-family:Courier New,monospace;font-size:14px}
+
+/* ========================================
+   MOBILE BREAKPOINT (Up to 480px)
+   ======================================== */
+@media (max-width: 480px) {
+    /* CRITICAL FIX: Prevent horizontal overflow */
+    *{max-width:100vw;box-sizing:border-box}
+    html,body{overflow-x:hidden;width:100%}
+
+    body{background-size:30px 30px,50px 50px}
+    .retro-wrapper{padding:12px 4px 12px;min-height:100vh}
+    .retro-window{border-width:2px;min-height:auto;max-width:100%}
+    .retro-window__chrome{padding:8px 6px;font-size:12px;flex-direction:column;gap:6px;align-items:stretch} /* FIXED: 12px readability */
+    .retro-window__brand{text-align:center;font-size:11px} /* FIXED: 11px readability */
+    .retro-window__title{position:static;transform:none;font-size:12px;letter-spacing:.1em;margin:2px 0} /* FIXED: 12px readability */
+    .retro-window__controls{justify-content:center;align-self:center}
+    .retro-window__btn{width:44px;height:44px;font-size:14px} /* FIXED: 44px touch target */
+    .retro-nav{flex-direction:column;gap:4px;padding:8px;font-size:12px;align-items:stretch} /* FIXED: 12px readability */
+    .retro-nav a{padding:12px 8px;text-align:center;border:1px solid rgba(138,180,255,.3);background:rgba(11,20,34,.5);border-radius:2px;display:block;min-height:44px} /* FIXED: 44px touch target */
+    .retro-nav a:hover,.retro-nav a:focus-visible,.retro-nav a[aria-current=page]{background:rgba(138,180,255,.2)}
+    .retro-content{padding:12px 8px}
+    .retro-title{font-size:clamp(20px,6vw,28px);letter-spacing:.08em;margin-bottom:12px;line-height:1.2}
+    .retro-intro{font-size:12px;line-height:1.5;max-width:100%;padding:0 4px}
+    .retro-ascii-wall{column-width:100%;column-count:1;padding:10px;width:calc(100% - 8px);min-height:auto;margin:8px auto;overflow:hidden!important;max-width:100vw!important;box-sizing:border-box!important} /* FIXED: overflow */
+    .retro-ascii-card{font-size:3px!important;line-height:1!important;margin:12px 0;break-before:auto;margin-left:0!important;margin-top:0!important;max-width:calc(100vw - 40px)!important;overflow-x:hidden!important;overflow-y:hidden!important;box-sizing:border-box!important;word-break:break-all!important;transform:scale(0.95)!important;transform-origin:left top!important}
+    .retro-ascii-card[aria-label="internet discotheque marquee"]{margin-top:0!important}
+    .retro-ascii-card[aria-label="amiga workstation"]{margin-top:12px!important;margin-left:0!important}
+    .retro-ascii-card[aria-label="ps2 controller"]{margin-top:12px!important;margin-left:0!important}
+    .retro-credits{font-size:12px;gap:6px;margin-top:16px} /* FIXED: 12px readability */
+    .retro-footer{font-size:11px;padding:8px;text-align:center} /* FIXED: 11px readability */
+    .retro-article{font-size:12px;padding:0 4px;max-width:100%}
+    .retro-article h2{font-size:14px;margin-bottom:8px}
+    .retro-list{padding-left:14px}
+    .retro-list li{margin-bottom:8px;font-size:12px}
+    .retro-callout{padding:10px;font-size:11px;margin-top:10px} /* FIXED: 11px readability */
+    .retro-contact{font-size:12px;gap:10px;margin-top:16px}
+}
+
+/* ========================================
+   TABLET BREAKPOINT (481px to 768px)
+   ======================================== */
+@media (min-width: 481px) and (max-width: 768px) {
+    body{background-size:40px 40px,65px 65px}
+    .retro-wrapper{padding:20px 12px 16px}
+    .retro-window{border-width:2px}
+    .retro-window__chrome{padding:8px 12px;font-size:11px}
+    .retro-window__brand{font-size:10px}
+    .retro-window__title{font-size:12px;letter-spacing:.14em}
+    .retro-window__btn{width:20px;height:20px;font-size:11px}
+    .retro-nav{gap:6px;padding:8px 12px;flex-wrap:wrap;justify-content:center}
+    .retro-nav a{padding:8px 12px;font-size:10px}
+    .retro-content{padding:16px 18px}
+    .retro-title{font-size:clamp(24px,5vw,34px);letter-spacing:.1em}
+    .retro-intro{font-size:13px;line-height:1.5;max-width:520px}
+    .retro-ascii-wall{column-width:180px;column-gap:16px;padding:16px;width:min(90vw,720px)}
+    .retro-ascii-card{font-size:7px;line-height:1}
+    .retro-ascii-card[aria-label="internet discotheque marquee"]{margin-top:20vh}
+    .retro-ascii-card[aria-label="amiga workstation"]{margin-top:24vh;margin-left:60px}
+    .retro-ascii-card[aria-label="ps2 controller"]{margin-top:28vh;margin-left:120px}
+    .retro-credits{font-size:13px;margin-top:16px}
+    .retro-footer{font-size:10px;padding:10px}
+    .retro-article{font-size:13px;max-width:560px}
+    .retro-article h2{font-size:15px}
+    .retro-list{padding-left:16px}
+    .retro-callout{padding:12px;font-size:11px}
+    .retro-contact{font-size:13px}
+}
+
+/* ========================================
+   LAPTOP/SMALL DESKTOP (769px to 1024px)
+   ======================================== */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .retro-wrapper{padding:28px 16px 20px}
+    .retro-window__chrome{padding:7px 12px}
+    .retro-nav{gap:10px;padding:7px 14px}
+    .retro-content{padding:20px 24px}
+    .retro-title{font-size:clamp(28px,4.2vw,38px)}
+    .retro-intro{max-width:480px}
+    .retro-ascii-wall{column-width:190px;column-gap:18px;width:min(90vw,940px);padding:18px}
+    .retro-ascii-card{font-size:7.5px}
+    .retro-ascii-card[aria-label="internet discotheque marquee"]{margin-top:28vh}
+    .retro-ascii-card[aria-label="amiga workstation"]{margin-top:32vh;margin-left:80px}
+    .retro-ascii-card[aria-label="ps2 controller"]{margin-top:36vh;margin-left:140px}
+    .retro-credits{font-size:14px}
+    .retro-article{max-width:620px}
+}
+
+/* ========================================
+   LARGE DESKTOP (1025px and above)
+   ======================================== */
+@media (min-width: 1025px) {
+    .retro-wrapper{max-width:1800px;margin:0 auto;padding:32px 20px 24px}
+    .retro-window{max-width:1650px}
+    .retro-ascii-wall{max-width:1500px}
+    .retro-article{max-width:680px}
+    .retro-title{font-size:clamp(36px,4vw,44px);letter-spacing:.14em}
+    .retro-intro{font-size:14px;max-width:520px}
+    .retro-content{padding:22px 28px}
+}
 </style></head> <body> <a href="#main" class="sr-only">
 Skip to main content
 </a> <div class="retro-wrapper"> <div class="retro-window"> <div class="retro-window__chrome"> <span class="retro-window__brand">Business Casual presents</span> <span class="retro-window__title">Internet Discotheque</span> <div class="retro-window__controls"> <span class="retro-window__btn">_</span> <span class="retro-window__btn">[]</span> <span class="retro-window__btn">X</span> </div> </div> <nav aria-label="Pages" class="retro-nav"> <a href="/" aria-current="page"> Home </a><a href="/projects"> Showcase </a><a href="/harmonizer.html"> Harmonizer </a><a href="/eldrichify.html"> Image Playground </a><a href="/talk-to-disco-teque.html"> Talk to Disco-teque </a><a href="/codesniff.html"> CodeSniff </a><a href="https://plaza.one/" target="_blank" rel="noopener"> Radio </a><a href="/ourspace.html"> OurSpace </a><a href="/sand.html"> Sand Sim </a><a href="/notebook.html"> Notebook </a><a href="/cheatsheets/"> Quick Reference </a> </nav> <main id="main" class="retro-content">  <h1 class="retro-title">Internet Discotheque</h1>  <section class="retro-ascii-wall" aria-label="dancing ascii gallery">

@@ -1594,3 +1594,258 @@ body.eldrichify-terminal {
     50% { transform: translateY(-10px); opacity: 0.32; }
     100% { transform: translateY(0); opacity: 0.2; }
 }
+
+/* ========================================
+   MOBILE BREAKPOINT (Up to 480px)
+   CRITICAL FIXES for horizontal overflow
+   ======================================== */
+@media (max-width: 480px) {
+    /* CRITICAL: Prevent horizontal overflow globally */
+    * {
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+    }
+
+    html,
+    body {
+        overflow-x: hidden !important;
+        width: 100% !important;
+    }
+
+    /* CRITICAL: Fix main layout containers */
+    .eld-main,
+    .eld-shell,
+    .eld-hero,
+    .eld-hero-copy {
+        width: 100% !important;
+        max-width: 100vw !important;
+        padding: 12px !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+    }
+
+    /* CRITICAL: Fix hero section */
+    .eld-hero {
+        flex-direction: column !important;
+        gap: 16px !important;
+        padding: 16px 12px !important;
+    }
+
+    /* Fix eyebrow */
+    .eld-eyebrow {
+        font-size: 12px !important; /* Readability */
+        word-wrap: break-word !important;
+    }
+
+    /* Fix main heading */
+    .eld-hero h1,
+    h1 {
+        font-size: clamp(24px, 6vw, 32px) !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        hyphens: auto !important;
+        line-height: 1.2 !important;
+        max-width: 100% !important;
+    }
+
+    /* Fix paragraphs */
+    .eld-hero p,
+    p {
+        font-size: 14px !important; /* Readability */
+        line-height: 1.6 !important;
+        word-wrap: break-word !important;
+        max-width: 100% !important;
+    }
+
+    /* Fix callouts list */
+    .eld-callouts {
+        padding-left: 20px !important;
+        max-width: 100% !important;
+    }
+
+    .eld-callouts li,
+    li {
+        font-size: 13px !important;
+        margin-bottom: 10px !important;
+        word-wrap: break-word !important;
+    }
+
+    /* CRITICAL: Fix CTA row */
+    .eld-cta-row {
+        flex-direction: column !important;
+        gap: 12px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Fix buttons */
+    .eld-cta,
+    button {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: 44px !important; /* Touch target */
+        font-size: 14px !important; /* Readability */
+        padding: 12px 16px !important;
+        margin: 4px 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Navigation */
+    .eld-nav {
+        font-size: 12px !important;
+        padding: 12px 8px !important;
+        overflow-x: auto !important;
+    }
+
+    /* Form elements */
+    input[type="file"],
+    input[type="text"],
+    input[type="email"],
+    select,
+    textarea {
+        width: 100% !important;
+        max-width: 100% !important;
+        font-size: 14px !important;
+        padding: 10px !important;
+        min-height: 44px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Range inputs accessibility */
+    input[type="range"] {
+        width: 100% !important;
+        min-height: 44px !important; /* Touch target */
+    }
+
+    /* Labels */
+    label {
+        font-size: 12px !important; /* Readability */
+        display: block !important;
+        margin-bottom: 6px !important;
+    }
+
+    /* Image preview */
+    .eld-preview,
+    #preview-container,
+    img {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+
+    /* Canvas elements */
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+
+    /* Terminal/Console */
+    #terminal-close,
+    .terminal-btn {
+        min-height: 44px !important;
+        min-width: 44px !important;
+        font-size: 14px !important;
+    }
+
+    /* Grid layouts to single column */
+    .eld-grid,
+    .grid-layout {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    /* Panels and sections */
+    .eld-panel,
+    .eld-section,
+    section,
+    div[class*="panel"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 12px !important;
+        margin: 8px 0 !important;
+    }
+
+    /* Typography improvements */
+    h2 { font-size: 20px !important; }
+    h3 { font-size: 18px !important; }
+    h4 { font-size: 16px !important; }
+    h5, h6 { font-size: 14px !important; }
+
+    /* Touch targets for all interactive elements */
+    a,
+    button,
+    input[type="button"],
+    input[type="submit"],
+    [role="button"],
+    .clickable {
+        min-height: 44px !important;
+        min-width: 44px !important;
+    }
+
+    /* Ensure readability */
+    body,
+    .eld-main {
+        font-size: 14px !important;
+        line-height: 1.5 !important;
+    }
+
+    /* ASCII art responsiveness */
+    pre,
+    .eld-mini-glyph {
+        font-size: 10px !important;
+        overflow-x: auto !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        word-wrap: break-word !important;
+        white-space: pre-wrap !important;
+    }
+
+    /* CRITICAL: Fix ASCII art overflow */
+    .eld-hero-art,
+    .eld-ascii-grid,
+    .eld-ascii-grid pre {
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        font-size: 5px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* FIXED: Persistent audio deck overflow */
+    #persistent-audio-deck {
+        width: 100% !important;
+        max-width: 100vw !important;
+        left: 0 !important;
+        right: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Flexbox containers */
+    .flex-row,
+    [class*="row"] {
+        flex-direction: column !important;
+    }
+
+    /* NUCLEAR OVERRIDE - Force everything to fit viewport */
+    * {
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+    }
+
+    body,
+    html {
+        overflow-x: hidden !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+    }
+
+    /* Force all containers to respect viewport */
+    main,
+    section,
+    div,
+    article,
+    aside,
+    pre {
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+    }
+}
