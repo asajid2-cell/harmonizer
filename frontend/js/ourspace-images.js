@@ -586,8 +586,16 @@
             showTheatreImage(0);
             playTheatreMusic();
 
-            // Prevent body scroll
+            // Prevent body scroll and lock for mobile
+            document.body.classList.add('theatre-active');
             document.body.style.overflow = 'hidden';
+
+            // Prevent mobile browser address bar from showing
+            if (window.innerWidth <= 768) {
+                setTimeout(() => {
+                    window.scrollTo(0, 1);
+                }, 100);
+            }
         });
 
         // Close theatre mode
@@ -622,6 +630,7 @@
         const overlay = document.getElementById('theatre-mode-overlay');
         overlay.classList.remove('active');
         theatreMode.active = false;
+        document.body.classList.remove('theatre-active');
         document.body.style.overflow = '';
 
         // Stop music if it was started by theatre mode
