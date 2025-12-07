@@ -42,6 +42,9 @@
         // Lightbox
         setupLightbox();
 
+        // Theatre Mode
+        setupTheatreMode();
+
         console.log("[Images] Initialization complete");
     }
 
@@ -560,17 +563,22 @@
         const nextBtn = document.getElementById('theatre-next');
         const image = document.getElementById('theatre-image');
 
-        if (!theatreBtn || !overlay) return;
+        if (!theatreBtn || !overlay) {
+            console.log('[Theatre Mode] Elements not found, skipping setup');
+            return;
+        }
+
+        console.log('[Theatre Mode] Initializing...');
 
         // Open theatre mode
         theatreBtn.addEventListener('click', function() {
-            const data = loadFromLocalStorage();
-            if (!data || !data.images || data.images.length === 0) {
+            const images = window.OurSpace.profile.widgets.pictureWall.images;
+            if (!images || images.length === 0) {
                 alert('No photos uploaded yet! Add some photos to use Theatre Mode.');
                 return;
             }
 
-            theatreMode.images = data.images;
+            theatreMode.images = images;
             theatreMode.currentIndex = 0;
             theatreMode.active = true;
 
@@ -671,11 +679,6 @@
             console.log('[Theatre Mode] Music stopped');
         }
     }
-
-    // Initialize theatre mode when images module loads
-    window.addEventListener('DOMContentLoaded', function() {
-        setTimeout(setupTheatreMode, 500); // Slight delay to ensure DOM is ready
-    });
 
 })();
 
