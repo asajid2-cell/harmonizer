@@ -658,7 +658,7 @@
         const counter = document.getElementById('theatre-counter');
 
         if (theatreMode.images[index]) {
-            image.src = theatreMode.images[index].data;
+            image.src = theatreMode.images[index].url;
             image.style.animation = 'none';
             // Trigger reflow to restart animation
             image.offsetHeight;
