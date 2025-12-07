@@ -1,8 +1,48 @@
+# ========================================
+# TOP-LEVEL PATTERNS (Apply to entire monorepo)
+# ========================================
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
 
-# Node modules (global)
+# Node
 node_modules/
+*.log
+npm-debug.log*
+
+# Testing & Reports (All generated test artifacts)
+*TESTING*.md
+*REPORT*.md
+*DIAGNOSTIC*.md
+*VERIFICATION*.md
+*RESULTS*.md
+*SUMMARY*.md
+*FIXES*.md
+MOBILE_*.md
+TABLET_*.md
+LAPTOP_*.md
+DESKTOP_*.md
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Flask session files
 backend/flask_session/

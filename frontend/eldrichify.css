@@ -1672,10 +1672,13 @@ body.eldrichify-terminal {
 
     /* CRITICAL: Fix CTA row */
     .eld-cta-row {
+        display: flex !important;
         flex-direction: column !important;
+        flex-wrap: nowrap !important;
         gap: 12px !important;
         width: 100% !important;
         max-width: 100% !important;
+        align-items: stretch !important;
     }
 
     /* Fix buttons */
@@ -1801,13 +1804,27 @@ body.eldrichify-terminal {
     }
 
     /* CRITICAL: Fix ASCII art overflow */
-    .eld-hero-art,
-    .eld-ascii-grid,
-    .eld-ascii-grid pre {
+    .eld-hero-art {
         max-width: 100% !important;
-        overflow-x: auto !important;
+        overflow-x: hidden !important;
         font-size: 5px !important;
         box-sizing: border-box !important;
+    }
+
+    .eld-ascii-grid {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        display: block !important; /* Force vertical stacking */
+    }
+
+    .eld-ascii-grid pre {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        font-size: 5px !important;
+        box-sizing: border-box !important;
+        display: block !important;
+        margin-bottom: 8px !important;
     }
 
     /* FIXED: Persistent audio deck overflow */
@@ -1838,14 +1855,201 @@ body.eldrichify-terminal {
         max-width: 100vw !important;
     }
 
+    /* FIX: Launch link overflow */
+    .launch-link,
+    button.launch-link,
+    a.launch-link {
+        max-width: 100% !important;
+        width: 100% !important;
+        font-size: 10px !important;
+        padding: 8px 6px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        box-sizing: border-box !important;
+        display: block !important;
+    }
+
+    /* FIX: Pre tag ASCII art overflow - ULTRA AGGRESSIVE */
+    .eld-hero-art pre,
+    .eld-ascii-grid pre,
+    pre {
+        font-size: 2.5px !important; /* Even smaller */
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow: hidden !important; /* Hide instead of scroll */
+        box-sizing: border-box !important;
+        transform: scale(0.7) !important; /* More shrink */
+        transform-origin: left top !important;
+        white-space: pre-wrap !important; /* Allow wrapping if needed */
+        word-break: break-all !important;
+    }
+
+    /* Constrain hero art containers */
+    .eld-hero-art,
+    .eld-ascii-grid {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
     /* Force all containers to respect viewport */
     main,
     section,
     div,
     article,
-    aside,
-    pre {
+    aside {
         max-width: 100vw !important;
         overflow-x: hidden !important;
+    }
+}
+
+/* ========================================
+   LAPTOP/SMALL DESKTOP (769px to 1024px)
+   ======================================== */
+@media (min-width: 769px) and (max-width: 1024px) {
+    /* Prevent main layout overflow */
+    .eld-main,
+    .eld-shell,
+    .eld-hero,
+    .eld-hero-copy {
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Prevent hero art overflow */
+    .eld-hero-art {
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .eld-ascii-grid {
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        display: block !important; /* Change from flex to block */
+    }
+
+    .eld-ascii-grid pre {
+        display: block !important;
+        margin: 8px 0 !important;
+        flex: none !important; /* Remove flex properties */
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+
+    pre,
+    pre.eld-mini-glyph {
+        max-width: 100% !important;
+        width: auto !important;
+        overflow: hidden !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+        font-size: 0.6rem !important;
+        transform: scale(0.9) !important;
+        transform-origin: left top !important;
+        white-space: pre !important;
+        display: inline-block !important;
+    }
+
+    /* Constrain text elements */
+    .eld-eyebrow,
+    .eld-hero h1,
+    .eld-hero p {
+        max-width: 100% !important;
+        word-wrap: break-word !important;
+    }
+
+    /* Prevent callouts overflow */
+    .eld-callouts,
+    .eld-callouts li,
+    .eld-cta-row {
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+}
+
+/* ========================================
+   TABLET (481px to 768px)
+   ======================================== */
+@media (min-width: 481px) and (max-width: 768px) {
+    /* Prevent main layout overflow */
+    .eld-main,
+    .eld-shell,
+    .eld-hero,
+    .eld-hero-copy {
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Prevent hero art overflow */
+    .eld-hero-art {
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .eld-ascii-grid {
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        display: block !important; /* Change from flex to block */
+    }
+
+    .eld-ascii-grid pre {
+        display: block !important;
+        margin: 8px 0 !important;
+        flex: none !important; /* Remove flex properties */
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+
+    pre,
+    pre.eld-mini-glyph {
+        max-width: 100% !important;
+        width: auto !important;
+        overflow: hidden !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+        font-size: 0.65rem !important;
+        transform: scale(0.92) !important;
+        transform-origin: left top !important;
+        white-space: pre !important;
+        display: inline-block !important;
+    }
+
+    /* Constrain text elements */
+    .eld-eyebrow,
+    .eld-hero h1,
+    .eld-hero p {
+        max-width: 100% !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+    }
+
+    /* Prevent callouts and CTA overflow */
+    .eld-callouts,
+    .eld-callouts li,
+    .eld-cta-row {
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Ensure list items wrap */
+    .eld-callouts li {
+        word-wrap: break-word !important;
     }
 }

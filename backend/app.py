@@ -710,6 +710,58 @@ def clear_track_cache():
     })
 
 
+@app.route("/api/cache/list", methods=["GET"])
+def list_cached_tracks():
+    """List all currently cached tracks with their metadata."""
+    cached_tracks = []
+
+    # Files to skip (not track analysis data)
+    skip_files = {"discoteque_memory.jsonl", "audio_cache.json", "analysis_cache.json"}
+
+    # Scan data folder for analysis JSON files
+    try:
+        for path in DATA_FOLDER.glob("*.json"):
+            if path.name in skip_files or "combined" in path.name:
+                continue
+
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+
+                # Extract track info from analysis data (nested under response.track)
+                track_data = data.get("response", {}).get("track", {})
+                audio_summary = track_data.get("audio_summary", {})
+
+                track_info = {
+                    "trackId": path.stem,  # filename without extension
+                    "title": track_data.get("title", "Unknown Track"),
+                    "artist": track_data.get("artist", "Unknown Artist"),
+                    "duration": audio_summary.get("duration", 0),
+                    "filename": path.name
+                }
+                cached_tracks.append(track_info)
+            except Exception as e:
+                print(f"[Cache] Failed to read {path.name}: {e}", flush=True)
+                continue
+
+        # Sort by title for easier browsing
+        cached_tracks.sort(key=lambda x: x.get("title", "").lower())
+
+        return jsonify({
+            "status": "ok",
+            "tracks": cached_tracks,
+            "count": len(cached_tracks)
+        })
+    except Exception as e:
+        print(f"[Cache] Failed to list cached tracks: {e}", flush=True)
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "tracks": [],
+            "count": 0
+        }), 500
+
+
 def _require_rl_token():
     """RL labeler endpoints no longer require a token (no-op helper)."""
     return

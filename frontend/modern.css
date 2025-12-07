@@ -2106,6 +2106,42 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
         font-size: 0.9rem;
     }
 
+    /* Prevent hero overflow on tablet */
+    .hero,
+    .hero-visual,
+    .hero-orbit,
+    .hero-ring {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .hero-ring,
+    .hero-orbit {
+        width: 100% !important;
+        transform: scale(0.92) !important;
+    }
+
+    .ascii-woman,
+    .ascii-background {
+        max-width: 100% !important;
+        font-size: 1rem !important;
+        overflow: hidden !important;
+    }
+
+    /* Constrain layout and panels */
+    .layout,
+    #intake-panel {
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    .layout h2,
+    .ascii-divider {
+        max-width: 100% !important;
+        overflow: hidden !important;
+    }
+
     .ascii-dancer-cluster {
         gap: 14px;
     }
@@ -2394,6 +2430,29 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
 
     .ascii-woman {
         font-size: 1.3rem;
+    }
+
+    /* Prevent hero overflow on laptop */
+    .hero-visual,
+    .hero-orbit,
+    .hero-ring,
+    .ring-base,
+    .ring-highlight {
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        transform: scale(0.95) !important;
+        transform-origin: center !important;
+    }
+
+    .ascii-woman,
+    .ascii-background {
+        max-width: 100% !important;
+        width: 100% !important;
+        font-size: 1.1rem !important; /* Smaller than current 1.3rem */
+        overflow: hidden !important;
+        box-sizing: border-box !important;
     }
 
     .corner-cluster {

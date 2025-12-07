@@ -65,8 +65,8 @@ a:hover,a:focus-visible{color:#3f9}
     .retro-content{padding:12px 8px}
     .retro-title{font-size:clamp(20px,6vw,28px);letter-spacing:.08em;margin-bottom:12px;line-height:1.2}
     .retro-intro{font-size:12px;line-height:1.5;max-width:100%;padding:0 4px}
-    .retro-ascii-wall{column-width:100%;column-count:1;padding:10px;width:calc(100% - 8px);min-height:auto;margin:8px auto;overflow:hidden!important;max-width:100vw!important;box-sizing:border-box!important} /* FIXED: overflow */
-    .retro-ascii-card{font-size:3px!important;line-height:1!important;margin:12px 0;break-before:auto;margin-left:0!important;margin-top:0!important;max-width:calc(100vw - 40px)!important;overflow-x:hidden!important;overflow-y:hidden!important;box-sizing:border-box!important;word-break:break-all!important;transform:scale(0.95)!important;transform-origin:left top!important}
+    .retro-ascii-wall{columns:auto!important;column-count:auto!important;column-width:auto!important;padding:10px;width:calc(100% - 8px);min-height:auto;margin:8px auto;overflow:hidden!important;max-width:100vw!important;box-sizing:border-box!important;display:block!important} /* FIXED: overflow */
+    .retro-ascii-card,pre.retro-ascii-card{font-size:2.5px!important;line-height:1!important;margin:12px 0;break-before:auto;margin-left:0!important;margin-top:0!important;max-width:100%!important;width:100%!important;overflow:hidden!important;box-sizing:border-box!important;word-break:break-all!important;transform:scale(0.75)!important;transform-origin:left top!important;white-space:pre!important}
     .retro-ascii-card[aria-label="internet discotheque marquee"]{margin-top:0!important}
     .retro-ascii-card[aria-label="amiga workstation"]{margin-top:12px!important;margin-left:0!important}
     .retro-ascii-card[aria-label="ps2 controller"]{margin-top:12px!important;margin-left:0!important}

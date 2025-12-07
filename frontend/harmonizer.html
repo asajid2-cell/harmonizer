@@ -231,8 +231,14 @@ jgs   `-=========-`()
 
                     <div class="form-actions">
                         <button type="submit" class="cta">Transform Track</button>
-                        <button type="button" class="cta site-logo" id="site-logo" aria-label="Explore music catalogue">
-                            Explore music catalogue
+                        <button type="button" class="cta" id="view-cached-songs" aria-label="View uploaded songs">
+                            View Uploaded Songs
+                        </button>
+                        <button type="button" class="cta" id="find-music-btn" aria-label="Find music to download">
+                            Find Music to Download (tidal)
+                        </button>
+                        <button type="button" class="cta" id="youtube-to-mp3-btn" aria-label="YouTube to MP3 converter">
+                            YouTube to MP3
                         </button>
                     </div>
                 </form>
@@ -518,6 +524,24 @@ jgs   `-=========-`()
                 <button type="button" class="modal-reset-link" id="queue-modal-reset">Reset form</button>
                 <button type="button" class="viz-button ghost" id="queue-modal-cancel">Cancel</button>
                 <button type="button" class="viz-button" id="queue-modal-submit">Add to Queue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cached Songs Modal -->
+    <div id="cached-songs-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Uploaded Songs</h3>
+                <button type="button" class="modal-close" id="cached-songs-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="cached-songs-list" style="max-height: 400px; overflow-y: auto;">
+                    <p style="color: #888; text-align: center; padding: 2rem;">Loading...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="viz-button ghost" id="cached-songs-modal-close-btn">Close</button>
             </div>
         </div>
     </div>
@@ -2477,11 +2501,107 @@ jgs   `-=========-`()
             signinButton.addEventListener('click', handleGoogleSignIn);
         }
 
-        // Music icon button (top right) - link to tidal.squid.wtf
-        const siteLogoButton = document.getElementById('site-logo');
-        if (siteLogoButton) {
-            siteLogoButton.addEventListener('click', () => {
+        // View Cached Songs button - shows modal with all uploaded songs
+        const viewCachedSongsButton = document.getElementById('view-cached-songs');
+        if (viewCachedSongsButton) {
+            viewCachedSongsButton.addEventListener('click', async () => {
+                const modal = document.getElementById('cached-songs-modal');
+                const listContainer = document.getElementById('cached-songs-list');
+
+                // Show modal
+                modal.style.display = 'block';
+                listContainer.innerHTML = '<p style="color: #888; text-align: center; padding: 2rem;">Loading...</p>';
+
+                try {
+                    const res = await fetch('/api/cache/list');
+                    const data = await res.json();
+
+                    if (data.tracks && data.tracks.length > 0) {
+                        let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
+                        data.tracks.forEach(track => {
+                            const title = track.title || 'Unknown Track';
+                            const artist = track.artist || 'Unknown Artist';
+                            const trackId = track.trackId;
+                            const duration = track.duration ? Math.floor(track.duration) : 0;
+                            const minutes = Math.floor(duration / 60);
+                            const seconds = duration % 60;
+                            const durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                            html += `
+                                <li style="border-bottom: 1px solid #333; padding: 0.75rem 0;">
+                                    <button class="cached-song-item" data-track-id="${trackId}" style="
+                                        background: none;
+                                        border: none;
+                                        color: inherit;
+                                        cursor: pointer;
+                                        text-align: left;
+                                        width: 100%;
+                                        padding: 0.5rem;
+                                        border-radius: 4px;
+                                        transition: background 0.2s;
+                                    " onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">
+                                        <div style="font-weight: 500; font-size: 1rem; margin-bottom: 0.25rem;">${title}</div>
+                                        <div style="font-size: 0.85rem; color: #888;">
+                                            ${artist}${duration > 0 ? ` • ${durationStr}` : ''}
+                                        </div>
+                                    </button>
+                                </li>
+                            `;
+                        });
+                        html += '</ul>';
+                        listContainer.innerHTML = html;
+
+                        // Add click handlers to load songs
+                        document.querySelectorAll('.cached-song-item').forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                const trackId = btn.getAttribute('data-track-id');
+                                // Build URL with track ID to load the visualizer
+                                const params = new URLSearchParams();
+                                params.set('trid', trackId);
+                                params.set('mode', 'canon');
+                                window.location.href = `?${params.toString()}`;
+                            });
+                        });
+                    } else {
+                        listContainer.innerHTML = '<p style="color: #888; text-align: center; padding: 2rem;">No uploaded songs found. Upload a track to get started!</p>';
+                    }
+                } catch (error) {
+                    console.error('Failed to load cached songs:', error);
+                    listContainer.innerHTML = '<p style="color: #f44; text-align: center; padding: 2rem;">Failed to load songs. Please try again.</p>';
+                }
+            });
+        }
+
+        // Close cached songs modal
+        const cachedSongsModalClose = document.getElementById('cached-songs-modal-close');
+        const cachedSongsModalCloseBtn = document.getElementById('cached-songs-modal-close-btn');
+        const cachedSongsModal = document.getElementById('cached-songs-modal');
+
+        if (cachedSongsModalClose) {
+            cachedSongsModalClose.addEventListener('click', () => {
+                cachedSongsModal.style.display = 'none';
+            });
+        }
+
+        if (cachedSongsModalCloseBtn) {
+            cachedSongsModalCloseBtn.addEventListener('click', () => {
+                cachedSongsModal.style.display = 'none';
+            });
+        }
+
+        // Find Music to Download button - link to tidal.squid.wtf
+        const findMusicButton = document.getElementById('find-music-btn');
+        if (findMusicButton) {
+            findMusicButton.addEventListener('click', () => {
                 window.open('https://tidal.squid.wtf/', '_blank');
+            });
+        }
+
+        // YouTube to MP3 button - link to converter site
+        const youtubeToMp3Button = document.getElementById('youtube-to-mp3-btn');
+        if (youtubeToMp3Button) {
+            youtubeToMp3Button.addEventListener('click', () => {
+                window.open('https://cnvmp3.com/v51', '_blank');
             });
         }
 
