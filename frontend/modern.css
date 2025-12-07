@@ -1629,15 +1629,11 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
    ======================================== */
 @media (max-width: 480px) {
     /* CRITICAL FIX: Prevent horizontal overflow */
-    * {
-        max-width: 100vw;
-        box-sizing: border-box;
-    }
-
     html,
     body {
         overflow-x: hidden;
         width: 100%;
+        box-sizing: border-box;
     }
 
     body {
