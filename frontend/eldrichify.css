@@ -1634,8 +1634,7 @@ body.eldrichify-terminal {
     }
 
     /* Fix main heading */
-    .eld-hero h1,
-    h1 {
+    .eld-hero h1 {
         font-size: clamp(24px, 6vw, 32px) !important;
         word-wrap: break-word !important;
         overflow-wrap: break-word !important;
@@ -1645,8 +1644,7 @@ body.eldrichify-terminal {
     }
 
     /* Fix paragraphs */
-    .eld-hero p,
-    p {
+    .eld-hero p {
         font-size: 14px !important; /* Readability */
         line-height: 1.6 !important;
         word-wrap: break-word !important;
@@ -1659,8 +1657,7 @@ body.eldrichify-terminal {
         max-width: 100% !important;
     }
 
-    .eld-callouts li,
-    li {
+    .eld-callouts li {
         font-size: 13px !important;
         margin-bottom: 10px !important;
         word-wrap: break-word !important;
@@ -1679,7 +1676,8 @@ body.eldrichify-terminal {
 
     /* Fix buttons */
     .eld-cta,
-    button {
+    .eld-nav button,
+    .eld-hero button {
         width: 100% !important;
         max-width: 100% !important;
         min-height: 44px !important; /* Touch target */
@@ -1696,12 +1694,12 @@ body.eldrichify-terminal {
         overflow-x: auto !important;
     }
 
-    /* Form elements */
-    input[type="file"],
-    input[type="text"],
-    input[type="email"],
-    select,
-    textarea {
+    /* Form elements - scoped to eldrichify */
+    .eld-main input[type="file"],
+    .eld-main input[type="text"],
+    .eld-main input[type="email"],
+    .eld-main select,
+    .eld-main textarea {
         width: 100% !important;
         max-width: 100% !important;
         font-size: 14px !important;
@@ -1710,29 +1708,29 @@ body.eldrichify-terminal {
         box-sizing: border-box !important;
     }
 
-    /* Range inputs accessibility */
-    input[type="range"] {
+    /* Range inputs accessibility - scoped to eldrichify */
+    .eld-main input[type="range"] {
         width: 100% !important;
         min-height: 44px !important; /* Touch target */
     }
 
-    /* Labels */
-    label {
+    /* Labels - scoped to eldrichify */
+    .eld-main label {
         font-size: 12px !important; /* Readability */
         display: block !important;
         margin-bottom: 6px !important;
     }
 
-    /* Image preview */
+    /* Image preview - scoped to eldrichify */
     .eld-preview,
     #preview-container,
-    img {
+    .eld-main img {
         max-width: 100% !important;
         height: auto !important;
     }
 
-    /* Canvas elements */
-    canvas {
+    /* Canvas elements - scoped to eldrichify */
+    .eld-main canvas {
         max-width: 100% !important;
         height: auto !important;
     }
@@ -1763,32 +1761,38 @@ body.eldrichify-terminal {
         margin: 8px 0 !important;
     }
 
-    /* Typography improvements */
-    h2 { font-size: 20px !important; }
-    h3 { font-size: 18px !important; }
-    h4 { font-size: 16px !important; }
-    h5, h6 { font-size: 14px !important; }
+    /* Typography improvements - scoped to eldrichify */
+    .eld-hero h2,
+    .eld-main h2 { font-size: 20px !important; }
+    .eld-hero h3,
+    .eld-main h3 { font-size: 18px !important; }
+    .eld-hero h4,
+    .eld-main h4 { font-size: 16px !important; }
+    .eld-hero h5,
+    .eld-hero h6,
+    .eld-main h5,
+    .eld-main h6 { font-size: 14px !important; }
 
-    /* Touch targets for all interactive elements */
-    a,
-    button,
-    input[type="button"],
-    input[type="submit"],
-    [role="button"],
-    .clickable {
+    /* Touch targets for eldrichify interactive elements */
+    .eld-nav a,
+    .eld-hero a,
+    .eld-cta,
+    .eld-nav input[type="button"],
+    .eld-nav input[type="submit"],
+    .eld-hero [role="button"],
+    .eld-main .clickable {
         min-height: 44px !important;
         min-width: 44px !important;
     }
 
-    /* Ensure readability */
-    body,
+    /* Ensure readability - scoped to eldrichify */
     .eld-main {
         font-size: 14px !important;
         line-height: 1.5 !important;
     }
 
-    /* ASCII art responsiveness */
-    pre,
+    /* ASCII art responsiveness - scoped to eldrichify */
+    .eld-main pre,
     .eld-mini-glyph {
         font-size: 10px !important;
         overflow-x: auto !important;
