@@ -1,0 +1,350 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * Neon Glow Effects
+ */
+
+/* ========================================
+   NEON TEXT
+   ======================================== */
+
+.neon {
+    color: var(--theme-primary);
+    text-shadow:
+        0 0 5px var(--theme-primary),
+        0 0 10px var(--theme-primary),
+        0 0 20px var(--theme-primary),
+        0 0 40px var(--theme-primary);
+}
+
+.neon--secondary {
+    color: var(--theme-secondary);
+    text-shadow:
+        0 0 5px var(--theme-secondary),
+        0 0 10px var(--theme-secondary),
+        0 0 20px var(--theme-secondary),
+        0 0 40px var(--theme-secondary);
+}
+
+.neon--white {
+    color: #ffffff;
+    text-shadow:
+        0 0 5px #ffffff,
+        0 0 10px #ffffff,
+        0 0 20px var(--theme-primary),
+        0 0 40px var(--theme-primary);
+}
+
+/* ========================================
+   NEON FLICKER
+   ======================================== */
+
+.neon--flicker {
+    animation: neon-flicker 3s infinite;
+}
+
+.neon--flicker-fast {
+    animation: neon-flicker-fast 1.5s infinite;
+}
+
+@keyframes neon-flicker-fast {
+    0%, 18%, 22%, 25%, 53%, 57%, 100% {
+        text-shadow:
+            0 0 5px var(--theme-primary),
+            0 0 10px var(--theme-primary),
+            0 0 20px var(--theme-primary),
+            0 0 40px var(--theme-primary);
+    }
+    20%, 24%, 55% {
+        text-shadow: none;
+    }
+}
+
+/* ========================================
+   NEON BOX
+   ======================================== */
+
+.neon-box {
+    border: 2px solid var(--theme-primary);
+    box-shadow:
+        0 0 5px var(--theme-primary),
+        0 0 10px var(--theme-primary),
+        inset 0 0 5px var(--theme-primary),
+        inset 0 0 10px var(--theme-primary);
+}
+
+.neon-box--pulse {
+    animation: neon-box-pulse 2s ease infinite;
+}
+
+@keyframes neon-box-pulse {
+    0%, 100% {
+        box-shadow:
+            0 0 5px var(--theme-primary),
+            0 0 10px var(--theme-primary),
+            inset 0 0 5px var(--theme-primary);
+    }
+    50% {
+        box-shadow:
+            0 0 10px var(--theme-primary),
+            0 0 20px var(--theme-primary),
+            0 0 30px var(--theme-primary),
+            inset 0 0 10px var(--theme-primary),
+            inset 0 0 20px var(--theme-primary);
+    }
+}
+
+/* ========================================
+   NEON LINE
+   ======================================== */
+
+.neon-line {
+    height: 2px;
+    background: var(--theme-primary);
+    box-shadow:
+        0 0 5px var(--theme-primary),
+        0 0 10px var(--theme-primary),
+        0 0 20px var(--theme-primary);
+}
+
+.neon-line--animated {
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--theme-primary),
+        transparent
+    );
+    background-size: 200% 100%;
+    animation: neon-line-sweep 2s linear infinite;
+}
+
+@keyframes neon-line-sweep {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* ========================================
+   NEON BORDER
+   ======================================== */
+
+.neon-border {
+    position: relative;
+}
+
+.neon-border::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: var(--theme-gradient);
+    border-radius: inherit;
+    z-index: -1;
+    filter: blur(8px);
+    opacity: 0.6;
+}
+
+.neon-border::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--theme-bg);
+    border-radius: inherit;
+    z-index: -1;
+}
+
+/* ========================================
+   NEON UNDERLINE
+   ======================================== */
+
+.neon-underline {
+    position: relative;
+    display: inline-block;
+}
+
+.neon-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--theme-primary);
+    box-shadow:
+        0 0 5px var(--theme-primary),
+        0 0 10px var(--theme-primary);
+}
+
+/* ========================================
+   NEON BUTTON GLOW
+   ======================================== */
+
+.neon-btn {
+    position: relative;
+    color: var(--theme-primary);
+    border: 1px solid var(--theme-primary);
+    background: transparent;
+    overflow: visible;
+}
+
+.neon-btn::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: var(--theme-primary);
+    filter: blur(10px);
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+    z-index: -1;
+}
+
+.neon-btn:hover::before {
+    opacity: 0.4;
+}
+
+.neon-btn:hover {
+    box-shadow:
+        0 0 5px var(--theme-primary),
+        0 0 10px var(--theme-primary),
+        0 0 20px var(--theme-primary);
+}
+
+/* ========================================
+   NEON ICON
+   ======================================== */
+
+.neon-icon {
+    filter: drop-shadow(0 0 5px var(--theme-primary))
+            drop-shadow(0 0 10px var(--theme-primary));
+}
+
+.neon-icon--pulse {
+    animation: neon-icon-pulse 2s ease infinite;
+}
+
+@keyframes neon-icon-pulse {
+    0%, 100% {
+        filter: drop-shadow(0 0 5px var(--theme-primary));
+    }
+    50% {
+        filter: drop-shadow(0 0 10px var(--theme-primary))
+                drop-shadow(0 0 20px var(--theme-primary));
+    }
+}
+
+/* ========================================
+   NEON TUBE EFFECT
+   ======================================== */
+
+.neon-tube {
+    position: relative;
+    display: inline-block;
+    padding: var(--space-2) var(--space-4);
+    color: var(--theme-primary);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+}
+
+.neon-tube::before,
+.neon-tube::after {
+    content: '';
+    position: absolute;
+    background: var(--theme-primary);
+    border-radius: var(--radius-full);
+}
+
+/* Top tube */
+.neon-tube::before {
+    top: 0;
+    left: 10%;
+    width: 80%;
+    height: 3px;
+    box-shadow:
+        0 0 5px var(--theme-primary),
+        0 0 10px var(--theme-primary),
+        0 0 20px var(--theme-primary);
+}
+
+/* Bottom tube */
+.neon-tube::after {
+    bottom: 0;
+    left: 10%;
+    width: 80%;
+    height: 3px;
+    box-shadow:
+        0 0 5px var(--theme-primary),
+        0 0 10px var(--theme-primary),
+        0 0 20px var(--theme-primary);
+}
+
+/* ========================================
+   NEON SIGN (Complex)
+   ======================================== */
+
+.neon-sign {
+    position: relative;
+    display: inline-block;
+    padding: var(--space-4) var(--space-6);
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    color: var(--theme-primary);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-widest);
+    background: transparent;
+    border: 3px solid var(--theme-primary);
+    border-radius: var(--radius-md);
+    text-shadow:
+        0 0 5px var(--theme-primary),
+        0 0 10px var(--theme-primary),
+        0 0 20px var(--theme-primary),
+        0 0 40px var(--theme-primary),
+        0 0 80px var(--theme-primary);
+    box-shadow:
+        0 0 5px var(--theme-primary),
+        0 0 10px var(--theme-primary),
+        0 0 20px var(--theme-primary),
+        inset 0 0 5px var(--theme-primary),
+        inset 0 0 10px var(--theme-primary);
+    animation: neon-sign-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes neon-sign-glow {
+    from {
+        filter: brightness(1);
+    }
+    to {
+        filter: brightness(1.2);
+    }
+}
+
+/* ========================================
+   MULTI-COLOR NEON
+   ======================================== */
+
+.neon-rainbow {
+    animation: neon-rainbow-cycle 5s linear infinite;
+}
+
+@keyframes neon-rainbow-cycle {
+    0%, 100% {
+        color: #ff0000;
+        text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 40px #ff0000;
+    }
+    16% {
+        color: #ff8800;
+        text-shadow: 0 0 10px #ff8800, 0 0 20px #ff8800, 0 0 40px #ff8800;
+    }
+    33% {
+        color: #ffff00;
+        text-shadow: 0 0 10px #ffff00, 0 0 20px #ffff00, 0 0 40px #ffff00;
+    }
+    50% {
+        color: #00ff00;
+        text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 40px #00ff00;
+    }
+    66% {
+        color: #00ffff;
+        text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 40px #00ffff;
+    }
+    83% {
+        color: #ff00ff;
+        text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 40px #ff00ff;
+    }
+}

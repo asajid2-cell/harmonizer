@@ -392,8 +392,9 @@ def _add_to_cache(file_hash: str, track_id: str, title: str, artist: str):
 
 
 def _cleanup_old_jobs():
-    """Remove jobs older than 10 minutes"""
+    """Remove jobs older than 10 minutes (audio jobs kept longer)."""
     cutoff = datetime.now() - timedelta(minutes=10)
+    audio_cutoff = datetime.now() - timedelta(hours=2)
     with _imgen_lock:
         to_delete = [jid for jid, job in _imgen_jobs.items() if job["created"] < cutoff]
         for jid in to_delete:
@@ -403,7 +404,7 @@ def _cleanup_old_jobs():
         for jid in to_delete:
             del _eldrichify_jobs[jid]
     with _audio_lock:
-        to_delete = [jid for jid, job in _audio_jobs.items() if job["created"] < cutoff]
+        to_delete = [jid for jid, job in _audio_jobs.items() if job["created"] < audio_cutoff]
         for jid in to_delete:
             del _audio_jobs[jid]
 
@@ -4248,7 +4249,6 @@ if __name__ == "__main__":
             print(f"[OurSpace] Database initialization warning: {e}")
 
     app.run(debug=True, port=4000)
-
 
 
 

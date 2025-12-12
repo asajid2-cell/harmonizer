@@ -1,0 +1,188 @@
+/* Harmonizer-styled shell for Sonic Architect visualizers.
+   Keep this scoped to the lite page only. */
+
+:root {
+  --sonic-bg: #050107;
+  --sonic-panel: rgba(20, 8, 30, 0.92);
+  --sonic-panel-border: rgba(255, 0, 255, 0.35);
+  --sonic-accent: #ff00ff;
+  --sonic-accent-soft: rgba(255, 0, 255, 0.15);
+  --sonic-text: #f3e9ff;
+  --sonic-muted: #bda6d6;
+  --sonic-radius: 10px;
+  --sonic-font: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: radial-gradient(1200px 800px at 50% 10%, #120016 0%, var(--sonic-bg) 55%, #000 100%);
+  color: var(--sonic-text);
+  font-family: var(--sonic-font);
+}
+
+.sonic-lite {
+  overflow: hidden;
+}
+
+#sonic-lite-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+.canvas-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.sonic-topbar {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 220px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--sonic-panel);
+  border-bottom: 1px solid var(--sonic-panel-border);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+}
+
+.sonic-topbar__left {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.sonic-title {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--sonic-text);
+  text-transform: uppercase;
+  font-size: 15px;
+}
+
+.sonic-subtitle {
+  font-size: 12px;
+  color: var(--sonic-muted);
+}
+
+.sonic-topbar__center {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+}
+
+.sonic-label {
+  font-size: 12px;
+  color: var(--sonic-muted);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sonic-select {
+  background: rgba(0,0,0,0.55);
+  color: var(--sonic-text);
+  border: 1px solid var(--sonic-panel-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+.sonic-select:focus {
+  box-shadow: 0 0 0 2px var(--sonic-accent-soft);
+}
+
+.sonic-fx {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  font-size: 12px;
+}
+
+.sonic-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--sonic-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sonic-toggle input {
+  accent-color: var(--sonic-accent);
+}
+
+.sonic-topbar__right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sonic-btn {
+  background: rgba(0,0,0,0.6);
+  color: var(--sonic-text);
+  border: 1px solid var(--sonic-accent);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+}
+
+.sonic-btn.ghost {
+  border-color: rgba(255,255,255,0.25);
+  color: var(--sonic-muted);
+}
+
+.sonic-btn:hover {
+  background: var(--sonic-accent-soft);
+  box-shadow: 0 0 18px rgba(255,0,255,0.35);
+}
+
+.sonic-btn:active {
+  transform: translateY(1px);
+}
+
+.sonic-hint {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  background: var(--sonic-panel);
+  border: 1px solid var(--sonic-panel-border);
+  border-radius: var(--sonic-radius);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--sonic-text);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+}
+
+@media (max-width: 900px) {
+  .sonic-topbar {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .sonic-topbar__right {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+

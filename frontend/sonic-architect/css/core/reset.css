@@ -1,0 +1,351 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * CSS Reset + Custom Properties
+ * Mobile-first responsive design
+ */
+
+/* ========================================
+   CSS Custom Properties (Theme System)
+   ======================================== */
+
+:root {
+    /* === Base Theme Variables === */
+    --theme-primary: #00f0ff;
+    --theme-secondary: #ff003c;
+    --theme-accent: #ffffff;
+    --theme-bg: #050505;
+    --theme-bg-alt: #0a0a0c;
+    --theme-panel: rgba(10, 10, 12, 0.85);
+    --theme-panel-solid: #0a0a0c;
+    --theme-text: #e0e0e0;
+    --theme-text-muted: #666666;
+    --theme-border: rgba(255, 255, 255, 0.1);
+    --theme-border-strong: rgba(255, 255, 255, 0.2);
+
+    /* === Computed Theme Values === */
+    --theme-glow: 0 0 20px var(--theme-primary);
+    --theme-glow-intense: 0 0 30px var(--theme-primary), 0 0 60px var(--theme-primary);
+    --theme-gradient: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
+    --theme-gradient-vertical: linear-gradient(180deg, var(--theme-primary), var(--theme-secondary));
+    --theme-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --theme-shadow-lg: 0 16px 64px rgba(0, 0, 0, 0.6);
+
+    /* === Spacing Scale (8px base) === */
+    --space-0: 0;
+    --space-1: 0.25rem;   /* 4px */
+    --space-2: 0.5rem;    /* 8px */
+    --space-3: 0.75rem;   /* 12px */
+    --space-4: 1rem;      /* 16px */
+    --space-5: 1.5rem;    /* 24px */
+    --space-6: 2rem;      /* 32px */
+    --space-7: 2.5rem;    /* 40px */
+    --space-8: 3rem;      /* 48px */
+    --space-9: 4rem;      /* 64px */
+    --space-10: 5rem;     /* 80px */
+
+    /* === Typography Scale === */
+    --font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+    --font-family-display: 'Orbitron', 'Audiowide', var(--font-family);
+
+    --text-xs: 0.625rem;   /* 10px */
+    --text-sm: 0.75rem;    /* 12px */
+    --text-base: 0.875rem; /* 14px */
+    --text-md: 1rem;       /* 16px */
+    --text-lg: 1.125rem;   /* 18px */
+    --text-xl: 1.25rem;    /* 20px */
+    --text-2xl: 1.5rem;    /* 24px */
+    --text-3xl: 2rem;      /* 32px */
+    --text-4xl: 2.5rem;    /* 40px */
+    --text-5xl: 3rem;      /* 48px */
+    --text-6xl: 4rem;      /* 64px */
+
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-black: 900;
+
+    --line-height-tight: 1.1;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
+
+    --letter-spacing-tight: -0.025em;
+    --letter-spacing-normal: 0;
+    --letter-spacing-wide: 0.05em;
+    --letter-spacing-wider: 0.1em;
+    --letter-spacing-widest: 0.2em;
+
+    /* === Border Radius === */
+    --radius-none: 0;
+    --radius-sm: 2px;
+    --radius-md: 4px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
+    --radius-full: 9999px;
+
+    /* === Transitions === */
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+    --transition-slow: 400ms ease;
+    --transition-slower: 600ms ease;
+    --transition-bounce: 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* === Z-Index Scale === */
+    --z-base: 0;
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-overlay: 300;
+    --z-modal: 400;
+    --z-popover: 500;
+    --z-tooltip: 600;
+    --z-notification: 700;
+    --z-loader: 800;
+
+    /* === Breakpoints (for reference, use @media in layout files) === */
+    --bp-sm: 480px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+
+    /* === Layout Dimensions === */
+    --header-height: 48px;
+    --player-bar-height: 80px;
+    --mobile-nav-height: 64px;
+    --panel-width: 320px;
+    --panel-width-lg: 360px;
+
+    /* === Glassmorphism === */
+    --glass-bg: rgba(10, 10, 12, 0.75);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --glass-blur: blur(20px) saturate(180%);
+    --glass-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ========================================
+   Theme Variations
+   ======================================== */
+
+[data-theme="cyber"] {
+    --theme-primary: #00f0ff;
+    --theme-secondary: #ff003c;
+    --theme-accent: #ffffff;
+    --theme-bg: #050505;
+}
+
+[data-theme="vapor"] {
+    --theme-primary: #ff71ce;
+    --theme-secondary: #01cdfe;
+    --theme-accent: #05ffa1;
+    --theme-bg: #1a1a2e;
+    --theme-bg-alt: #16213e;
+}
+
+[data-theme="matrix"] {
+    --theme-primary: #00ff00;
+    --theme-secondary: #003300;
+    --theme-accent: #00ff00;
+    --theme-bg: #000000;
+    --theme-text: #00ff00;
+    --theme-text-muted: #006600;
+}
+
+[data-theme="sunset"] {
+    --theme-primary: #ff6b35;
+    --theme-secondary: #f7c59f;
+    --theme-accent: #efa00b;
+    --theme-bg: #1a1423;
+    --theme-bg-alt: #2d1f3d;
+}
+
+[data-theme="void"] {
+    --theme-primary: #ffffff;
+    --theme-secondary: #888888;
+    --theme-accent: #ffffff;
+    --theme-bg: #000000;
+    --theme-panel: rgba(20, 20, 20, 0.9);
+}
+
+[data-theme="aurora"] {
+    --theme-primary: #00d4aa;
+    --theme-secondary: #7b2cbf;
+    --theme-accent: #e040fb;
+    --theme-bg: #0d1117;
+    --theme-bg-alt: #161b22;
+}
+
+[data-theme="retrowave"] {
+    --theme-primary: #ff00ff;
+    --theme-secondary: #00ffff;
+    --theme-accent: #ffff00;
+    --theme-bg: #2d1b69;
+    --theme-bg-alt: #1a0f40;
+}
+
+[data-theme="bloodmoon"] {
+    --theme-primary: #ff0000;
+    --theme-secondary: #8b0000;
+    --theme-accent: #ff4500;
+    --theme-bg: #0a0000;
+    --theme-bg-alt: #150000;
+}
+
+[data-theme="hologram"] {
+    --theme-primary: #00ffff;
+    --theme-secondary: #ff00ff;
+    --theme-accent: #ffff00;
+    --theme-bg: #000011;
+    --theme-bg-alt: #000022;
+}
+
+[data-theme="custom"] {
+    /* User-defined via JavaScript */
+}
+
+/* ========================================
+   CSS Reset
+   ======================================== */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+}
+
+body {
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile */
+    font-family: var(--font-family);
+    font-size: var(--text-base);
+    line-height: var(--line-height-normal);
+    color: var(--theme-text);
+    background-color: var(--theme-bg);
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Remove default styling */
+button,
+input,
+select,
+textarea {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    outline: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+button {
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+img,
+svg,
+video,
+canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+ul,
+ol {
+    list-style: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+}
+
+/* Remove input autofill background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--theme-bg) inset;
+    -webkit-text-fill-color: var(--theme-text);
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--theme-border-strong);
+    border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--theme-primary);
+}
+
+/* Selection */
+::selection {
+    background: var(--theme-primary);
+    color: var(--theme-bg);
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+    outline: 2px solid var(--theme-primary);
+    outline-offset: 2px;
+}
+
+/* Hidden utility */
+.hidden {
+    display: none !important;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

@@ -162,6 +162,13 @@ jgs   `-=========-`()
                                 <p>layer + evolve</p>
                             </div>
                         </button>
+                        <button type="button" data-algorithm="dopamine" class="mode-card toggle">
+                            <span class="mode-card-icon" aria-hidden="true">&#9889;</span>
+                            <div class="mode-card-body">
+                                <h3>DOPAMINE MINER</h3>
+                                <p>infinite climax</p>
+                            </div>
+                        </button>
                         <button type="button" data-algorithm="autoharmonizer" class="mode-card toggle">
                             <span class="mode-card-icon" aria-hidden="true">↔</span>
                             <div class="mode-card-body">
@@ -266,6 +273,7 @@ jgs   `-=========-`()
                                 <option value="canon">Autocanonizer</option>
                                 <option value="jukebox">Eternal Jukebox</option>
                                 <option value="eternal">Eternal Canonizer</option>
+                                <option value="dopamine">Dopamine Miner</option>
                                 <option value="autoharmonizer">Autoharmonizer</option>
                                 <option value="sculptor">Section Sculptor</option>
                             </select>
@@ -306,6 +314,9 @@ jgs   `-=========-`()
                             <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
                                 Advanced: Off
                             </button>
+                            <button type="button" id="stack-toggle" class="viz-button ghost" aria-pressed="false" title="Stack additional modes on top of the base engine">
+                                Stack: Off
+                            </button>
                         </div>
                         <div class="rl-model-switch" id="rl-model-switch" role="group" aria-label="RL model selector">
                             <span class="rl-model-label">RL Model:</span>
@@ -317,6 +328,9 @@ jgs   `-=========-`()
                         </button>
                         <button type="button" id="add-to-queue-btn" class="viz-button ghost" aria-label="Add or view uploaded songs">
                             + Add Songs
+                        </button>
+                        <button type="button" id="visualize-this-btn" class="viz-button ghost" aria-label="Open Sonic Architect visualizer for this track">
+                            Visualize This
                         </button>
                     </div>
                     <!-- Section Sculptor Controls -->
@@ -513,6 +527,24 @@ jgs   `-=========-`()
         </div>
     </div>
 
+    <!-- Stack Modes Modal -->
+    <div id="stack-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Stack Modes</h3>
+                <button type="button" class="modal-close" id="stack-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Pick additional modes to run on top of the base engine. Stacked modes apply after each beat.</p>
+                <div id="stack-layer-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-reset-link" id="stack-modal-clear">Clear stack</button>
+                <button type="button" class="viz-button ghost" id="stack-modal-cancel">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Cached Songs Modal -->
 	    <div id="cached-songs-modal" class="modal" style="display: none;">
 	        <div class="modal-content">
@@ -520,16 +552,24 @@ jgs   `-=========-`()
 	                <h3>Uploaded Songs</h3>
 	                <button type="button" class="modal-close" id="cached-songs-modal-close">&times;</button>
 	            </div>
-	            <div class="modal-body">
-	                <div id="cached-songs-list" style="max-height: 400px; overflow-y: auto;">
-	                    <p style="color: #888; text-align: center; padding: 2rem;">Loading...</p>
+		            <div class="modal-body">
+		                <div id="cached-songs-list" style="max-height: 400px; overflow-y: auto;">
+		                    <p style="color: #888; text-align: center; padding: 2rem;">Loading...</p>
+		                </div>
+	                <div id="cached-albums-pane" style="display: none; max-height: 400px; overflow-y: auto;">
+	                    <p style="color: #888; text-align: center; padding: 2rem;">Loading albums...</p>
 	                </div>
-	            </div>
-	            <div class="modal-footer">
-	                <button type="button" class="viz-button ghost small" id="cached-songs-upload-btn">Upload Songs</button>
+	                <div id="cached-queue-pane" style="display: none; max-height: 400px; overflow-y: auto;">
+	                    <p style="color: #888; text-align: center; padding: 2rem;">Queue is empty.</p>
+	                </div>
+		            </div>
+		            <div class="modal-footer">
+		                <button type="button" class="viz-button ghost small" id="cached-songs-upload-btn">Upload Songs</button>
 	                <button type="button" class="viz-button ghost small" id="cached-songs-next-btn">Next Song</button>
-	                <button type="button" class="viz-button ghost" id="cached-songs-modal-close-btn">Close</button>
-	            </div>
+	                <button type="button" class="viz-button ghost small" id="cached-songs-queue-btn">View Queue</button>
+	                <button type="button" class="viz-button ghost small" id="cached-songs-albums-btn">Albums</button>
+		                <button type="button" class="viz-button ghost" id="cached-songs-modal-close-btn">Close</button>
+		            </div>
 	        </div>
 	    </div>
 
@@ -887,7 +927,7 @@ jgs   `-=========-`()
         const params = new URLSearchParams(window.location.search);
         const tridParam = params.get('trid');
         const requestedMode = (params.get('mode') || 'canon').toLowerCase();
-        const allowedModes = new Set(['canon', 'jukebox', 'eternal', 'autoharmonizer', 'sculptor']);
+        const allowedModes = new Set(['canon', 'jukebox', 'eternal', 'dopamine', 'autoharmonizer', 'sculptor']);
         const normalizedMode = allowedModes.has(requestedMode) ? requestedMode : modeFromBody;
         document.body.dataset.mode = normalizedMode;
         if (vizModeSelect) {
@@ -1041,9 +1081,9 @@ jgs   `-=========-`()
                     throw new Error('Unexpected response from server.');
                 }
 
-                // Poll for job completion
-                statusPanel.textContent = 'Processing audio... this takes 2-3 minutes.';
-                const result = await pollJobStatus(jobId, statusPanel);
+	                // Poll for job completion
+	                statusPanel.textContent = 'Processing audio... this can take several minutes for long tracks.';
+	                const result = await pollJobStatus(jobId, statusPanel);
 
                 // Job completed successfully
                 statusPanel.textContent = 'Complete! Loading visualizer...';
@@ -1057,43 +1097,46 @@ jgs   `-=========-`()
             }
         });
 
-        async function pollJobStatus(jobId, statusPanel) {
-            const maxAttempts = 180; // 3 minutes (180 * 1 second)
-            let attempts = 0;
+	        async function pollJobStatus(jobId, statusPanel) {
+	            const maxAttempts = 600; // 10 minutes (600 * 1 second)
+	            let attempts = 0;
 
-            while (attempts < maxAttempts) {
-                try {
-                    const response = await fetch(buildApiUrl(`api/process/status/${jobId}`));
-                    if (!response.ok) {
-                        throw new Error('Failed to check processing status');
-                    }
+	            while (attempts < maxAttempts) {
+	                try {
+	                    const response = await fetch(buildApiUrl(`api/process/status/${jobId}`));
+	                    if (!response.ok) {
+	                        throw new Error('Failed to check processing status');
+	                    }
 
-                    const data = await response.json();
+	                    const data = await response.json();
 
-                    // Update status message with progress
-                    if (data.progress) {
-                        statusPanel.textContent = data.progress;
-                    }
+	                    // Update status message with progress
+	                    if (data.progress) {
+	                        statusPanel.textContent = data.progress;
+	                    }
 
-                    if (data.status === 'completed') {
-                        return data.result;
-                    }
+	                    if (data.status === 'completed') {
+	                        if (data.result && data.result.trackId) {
+	                            return data.result;
+	                        }
+	                        throw new Error('Processing completed but no trackId returned.');
+	                    }
 
-                    if (data.status === 'failed') {
-                        throw new Error(data.error || 'Processing failed');
-                    }
+	                    if (data.status === 'failed') {
+	                        throw new Error(data.error || 'Processing failed');
+	                    }
 
-                    // Still processing - wait 1 second before next poll
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    attempts++;
+	                } catch (err) {
+	                    console.warn('[Upload] Status poll failed, retrying:', err);
+	                }
 
-                } catch (err) {
-                    throw err;
-                }
-            }
+	                // Still processing - wait 1 second before next poll
+	                await new Promise(resolve => setTimeout(resolve, 1000));
+	                attempts++;
+	            }
 
-            throw new Error('Processing timeout - please try again with a shorter track');
-        }
+	            throw new Error('Processing timeout - this track may be too long, or the server is busy.');
+	        }
 
         async function processPlaylist(entries, form) {
             const submitButton = form.querySelector('button[type="submit"]');
@@ -1366,6 +1409,23 @@ jgs   `-=========-`()
                     { key: 'jumpVariance', label: 'Jump Variance', min: 0, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}%`, description: 'Influences how surprising the loop timing can be.' }
                 ]
             },
+            dopamineMiner: {
+                title: 'Infinite Climax Settings',
+                description: 'Hunt the loudest, highest-energy hooks and refuse to leave them.',
+                fields: [
+                    { key: 'peakFraction', label: 'Peak Fraction', min: 0.02, max: 0.5, step: 0.01, format: (v) => `Top ${Math.round(v * 100)}%`, description: 'How much of the song is considered peak. Lower = only the biggest drops, higher = more material.' },
+                    { key: 'minClusterBeats', label: 'Min Peak Length', min: 4, max: 128, step: 1, format: (v) => `${v} beats`, description: 'Ignore tiny spikes shorter than this many beats.' },
+                    { key: 'clusterGapBeats', label: 'Gap Tolerance', min: 0, max: 8, step: 1, format: (v) => `${v} beats`, description: 'Merge nearby peaks separated by short dips.' },
+                    { key: 'largestClusterOnly', label: 'Single Peak Mode', min: 0, max: 1, step: 1, format: (v) => (v >= 1 ? 'On' : 'Off'), description: 'If On, lock to the single largest peak cluster.' },
+                    { key: 'minDwellBeats', label: 'Dwell', min: 1, max: 32, step: 1, format: (v) => `${v} beats`, description: 'Minimum beats to stay before a jump is allowed.' },
+                    { key: 'maxSequentialBeats', label: 'Sequential Ceiling', min: 4, max: 128, step: 1, format: (v) => `${v} beats`, description: 'Force a jump if we’ve been playing linearly too long.' },
+                    { key: 'minJumpSpanBeats', label: 'Min Jump Span', min: 1, max: 64, step: 1, format: (v) => `${v} beats`, description: 'Avoid micro-stutters by requiring jumps to span at least this far.' },
+                    { key: 'minJumpSimilarity', label: 'Jump Similarity', min: 0.3, max: 0.98, step: 0.01, format: (v) => `${Math.round(v * 100)}%`, description: 'Higher values only jump between very similar repetitions.' },
+                    { key: 'crossClusterBias', label: 'Cross-Peak Bias', min: 0, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}%`, description: '0% = stay within current peak, 100% = prefer jumping to other peak repetitions.' },
+                    { key: 'jumpTemperature', label: 'Jump Temperature', min: 0.05, max: 0.8, step: 0.01, format: (v) => `${Number(v).toFixed(2)}`, description: 'Higher values add more randomness when selecting loop targets.' },
+                    { key: 'escapeProb', label: 'Escape Chance', min: 0, max: 0.2, step: 0.005, format: (v) => `${Math.round(v * 1000) / 10}%`, description: 'Tiny chance to pick a wild peak jump to avoid getting stuck.' }
+                ]
+            },
             sculptorConfig: {
                 title: 'Section Sculptor Settings',
                 description: 'Trim and blend sections before arranging your timeline.',
@@ -1398,6 +1458,12 @@ jgs   `-=========-`()
                 groups: ['eternalOverlay', 'eternalLoop']
             },
             {
+                id: 'dopamine',
+                label: 'Dopamine Miner',
+                summary: 'Lock onto the loudest hooks and jump between their repetitions.',
+                groups: ['dopamineMiner']
+            },
+            {
                 id: 'sculptor',
                 label: 'Section Sculptor',
                 summary: 'Fine-tune trimmed sections before building custom arrangements.',
@@ -1409,6 +1475,7 @@ jgs   `-=========-`()
             canon: ['canon'],
             jukebox: ['jukebox'],
             eternal: ['eternal'],
+            dopamine: ['dopamine'],
             sculptor: ['sculptor']
         };
 
@@ -1421,6 +1488,7 @@ jgs   `-=========-`()
             canon: ['canonOverlay'],
             jukebox: ['jukeboxLoop'],
             eternal: ['eternalOverlay', 'eternalLoop'],
+            dopamine: ['dopamineMiner'],
             sculptor: ['sculptorConfig']
         };
 
@@ -2492,19 +2560,290 @@ jgs   `-=========-`()
         const viewCachedSongsButton = document.getElementById('view-cached-songs');
         if (viewCachedSongsButton) {
             viewCachedSongsButton.addEventListener('click', async () => {
-                const modal = document.getElementById('cached-songs-modal');
-                const listContainer = document.getElementById('cached-songs-list');
+	                const modal = document.getElementById('cached-songs-modal');
+	                const listContainer = document.getElementById('cached-songs-list');
+	                const albumsPane = document.getElementById('cached-albums-pane');
+	                const albumsBtn = document.getElementById('cached-songs-albums-btn');
+	                const queuePane = document.getElementById('cached-queue-pane');
+	                const queueBtn = document.getElementById('cached-songs-queue-btn');
+	                const ALBUMS_STORAGE_KEY = 'harmonizerAlbums';
 
-                // Show modal
-                modal.style.display = 'block';
-                listContainer.innerHTML = '<p style="color: #888; text-align: center; padding: 2rem;">Loading...</p>';
+	                let albumsViewActive = false;
+	                let queueViewActive = false;
+	                let pendingAlbumTrack = null;
 
-                try {
+	                function generateAlbumId() {
+	                    return 'alb_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+	                }
+
+	                function saveAlbums(albums) {
+	                    try {
+	                        localStorage.setItem(ALBUMS_STORAGE_KEY, JSON.stringify(albums));
+	                    } catch (e) {
+	                        console.warn('[Albums] Failed to save albums', e);
+	                    }
+	                }
+
+	                function loadAlbums() {
+	                    try {
+	                        const raw = localStorage.getItem(ALBUMS_STORAGE_KEY);
+	                        const parsed = raw ? JSON.parse(raw) : [];
+	                        if (!Array.isArray(parsed)) {
+	                            return [];
+	                        }
+	                        let mutated = false;
+	                        parsed.forEach(album => {
+	                            if (!album.id) {
+	                                album.id = generateAlbumId();
+	                                mutated = true;
+	                            }
+	                            if (!Array.isArray(album.tracks)) {
+	                                album.tracks = [];
+	                                mutated = true;
+	                            }
+	                        });
+	                        if (mutated) {
+	                            saveAlbums(parsed);
+	                        }
+	                        return parsed;
+	                    } catch (e) {
+	                        return [];
+	                    }
+	                }
+
+	                function addTrackToAlbum(albumId, track) {
+	                    const albums = loadAlbums();
+	                    const album = albums.find(a => a.id === albumId);
+	                    if (!album) return false;
+	                    if (!album.tracks.some(t => t.id === track.id)) {
+	                        album.tracks.push(track);
+	                        saveAlbums(albums);
+	                    }
+	                    return true;
+	                }
+
+	                function playAlbum(albumId) {
+	                    const albums = loadAlbums();
+	                    const album = albums.find(a => a.id === albumId);
+	                    if (!album || !album.tracks.length) {
+	                        alert('Album is empty.');
+	                        return;
+	                    }
+	                    if (typeof window.clearQueue === 'function') {
+	                        window.clearQueue();
+	                    }
+	                    if (typeof window.addToQueue === 'function') {
+	                        album.tracks.forEach(t => window.addToQueue(t.id, t.title, t.artist));
+	                    }
+	                    if (typeof window.playNextInQueue === 'function') {
+	                        window.playNextInQueue();
+	                    }
+	                    modal.style.display = 'none';
+	                }
+
+	                function renderAlbumsView() {
+	                    if (!albumsPane) return;
+	                    const albums = loadAlbums();
+	                    let html = '';
+
+	                    if (pendingAlbumTrack) {
+	                        html += `<div style="margin-bottom: 8px; color: #aaf; font-size: 0.9rem;">
+	                            Add "${pendingAlbumTrack.title}" to an album:
+	                        </div>`;
+	                    }
+
+	                    html += `
+	                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+	                            <input type="text" id="new-album-name-input" placeholder="New album name" style="flex: 1; padding: 6px; background: #111; color: #fff; border: 1px solid #333; border-radius: 4px;">
+	                            <button type="button" class="viz-button ghost small" id="create-album-btn">Create</button>
+	                        </div>
+	                    `;
+
+	                    if (!albums.length) {
+	                        html += '<p style="color: #888; text-align: center; padding: 1rem;">No albums yet. Create one above.</p>';
+	                    } else {
+	                        html += '<ul style="list-style: none; padding: 0; margin: 0;">';
+	                        albums.forEach(album => {
+	                            const count = (album.tracks || []).length;
+	                            html += `
+	                                <li style="border-bottom: 1px solid #333; padding: 0.75rem 0;">
+	                                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+	                                        <div>
+	                                            <div style="font-weight: 600;">${album.name || 'Untitled Album'}</div>
+	                                            <div style="font-size: 0.85rem; color: #888;">${count} song${count === 1 ? '' : 's'}</div>
+	                                        </div>
+	                                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+	                                            ${pendingAlbumTrack ? `<button type="button" class="viz-button ghost small add-track-to-album-btn" data-album-id="${album.id}">Add Here</button>` : ''}
+	                                            <button type="button" class="viz-button ghost small play-album-btn" data-album-id="${album.id}">Play Album</button>
+	                                        </div>
+	                                    </div>
+	                                    ${count ? `<ol style="margin: 6px 0 0 18px; color: #ccc; font-size: 0.9rem;">
+	                                        ${(album.tracks || []).map(t => `<li>${t.title || 'Track'} <span style="color:#888;">- ${t.artist || ''}</span></li>`).join('')}
+	                                    </ol>` : ''}
+	                                </li>
+	                            `;
+	                        });
+	                        html += '</ul>';
+	                    }
+
+	                    albumsPane.innerHTML = html;
+
+	                    const createBtn = document.getElementById('create-album-btn');
+	                    if (createBtn) {
+	                        createBtn.addEventListener('click', () => {
+	                            const input = document.getElementById('new-album-name-input');
+	                            const name = (input && input.value || '').trim();
+	                            if (!name) return;
+	                            const albumsNow = loadAlbums();
+	                            albumsNow.push({ id: generateAlbumId(), name, tracks: [] });
+	                            saveAlbums(albumsNow);
+	                            if (input) input.value = '';
+	                            renderAlbumsView();
+	                        });
+	                    }
+
+	                    document.querySelectorAll('.add-track-to-album-btn').forEach(btn => {
+	                        btn.addEventListener('click', (e) => {
+	                            e.preventDefault();
+	                            e.stopPropagation();
+	                            const albumId = btn.getAttribute('data-album-id');
+	                            if (pendingAlbumTrack && albumId) {
+	                                addTrackToAlbum(albumId, pendingAlbumTrack);
+	                                pendingAlbumTrack = null;
+	                                renderAlbumsView();
+	                            }
+	                        });
+	                    });
+
+	                    document.querySelectorAll('.play-album-btn').forEach(btn => {
+	                        btn.addEventListener('click', (e) => {
+	                            e.preventDefault();
+	                            e.stopPropagation();
+	                            const albumId = btn.getAttribute('data-album-id');
+	                            if (albumId) {
+	                                playAlbum(albumId);
+	                            }
+	                        });
+	                    });
+	                }
+
+	                function renderQueueView() {
+	                    if (!queuePane) {
+	                        return;
+	                    }
+	                    const queue = (typeof window.getTrackQueue === 'function') ? window.getTrackQueue() : [];
+	                    if (!queue.length) {
+	                        queuePane.innerHTML = '<p style="color: #888; text-align: center; padding: 2rem;">Queue is empty.</p>';
+	                        return;
+	                    }
+	                    let html = '<p style="color:#888; font-size:0.85rem; margin: 0 0 8px 0;">Drag to reorder queued songs.</p>';
+	                    html += '<ul id="cached-queue-list" style="list-style:none; padding:0; margin:0;">';
+	                    queue.forEach((track, index) => {
+	                        const title = track.title || 'Unknown Track';
+	                        const artist = track.artist || 'Unknown Artist';
+	                        const encTitle = encodeURIComponent(title);
+	                        const encArtist = encodeURIComponent(artist);
+	                        html += `
+	                            <li data-track-id="${track.id}" data-title="${encTitle}" data-artist="${encArtist}"
+	                                style="display:flex; align-items:center; gap:8px; border-bottom:1px solid #333; padding:8px 4px; cursor:grab;">
+	                                <span style="color:#777;">≡</span>
+	                                <div style="flex:1;">
+	                                    <div style="font-weight:500;">${index + 1}. ${title}</div>
+	                                    <div style="font-size:0.85rem; color:#888;">${artist}</div>
+	                                </div>
+	                            </li>
+	                        `;
+	                    });
+	                    html += '</ul>';
+	                    queuePane.innerHTML = html;
+
+	                    if (window.jQuery && typeof jQuery.fn.sortable === 'function') {
+	                        jQuery('#cached-queue-list').sortable({
+	                            axis: 'y',
+	                            update: function() {
+	                                const newOrder = [];
+	                                jQuery('#cached-queue-list li').each(function() {
+	                                    const li = jQuery(this);
+	                                    const id = li.data('track-id');
+	                                    const title = decodeURIComponent(li.data('title') || '') || 'Unknown Track';
+	                                    const artist = decodeURIComponent(li.data('artist') || '') || 'Unknown Artist';
+	                                    newOrder.push({ id, title, artist });
+	                                });
+	                                if (typeof window.setTrackQueueOrder === 'function') {
+	                                    window.setTrackQueueOrder(newOrder);
+	                                }
+	                            }
+	                        });
+	                    }
+	                }
+
+	                function showQueueView() {
+	                    queueViewActive = true;
+	                    albumsViewActive = false;
+	                    listContainer.style.display = 'none';
+	                    if (albumsPane) albumsPane.style.display = 'none';
+	                    if (queuePane) queuePane.style.display = 'block';
+	                    if (albumsBtn) albumsBtn.textContent = 'Albums';
+	                    if (queueBtn) queueBtn.textContent = 'Songs';
+	                    renderQueueView();
+	                }
+
+	                function showAlbumsView() {
+	                    albumsViewActive = true;
+	                    queueViewActive = false;
+	                    listContainer.style.display = 'none';
+	                    if (albumsPane) albumsPane.style.display = 'block';
+	                    if (queuePane) queuePane.style.display = 'none';
+	                    if (albumsBtn) albumsBtn.textContent = 'Songs';
+	                    if (queueBtn) queueBtn.textContent = 'View Queue';
+	                    renderAlbumsView();
+	                }
+
+	                function showSongsView() {
+	                    albumsViewActive = false;
+	                    queueViewActive = false;
+	                    if (albumsPane) albumsPane.style.display = 'none';
+	                    listContainer.style.display = 'block';
+	                    if (queuePane) queuePane.style.display = 'none';
+	                    if (albumsBtn) albumsBtn.textContent = 'Albums';
+	                    if (queueBtn) queueBtn.textContent = 'View Queue';
+	                }
+
+	                // Show modal
+	                modal.style.display = 'block';
+	                listContainer.innerHTML = '<p style="color: #888; text-align: center; padding: 2rem;">Loading...</p>';
+	                showSongsView();
+	                if (albumsBtn) {
+	                    albumsBtn.textContent = 'Albums';
+	                    albumsBtn.onclick = () => {
+	                        if (albumsViewActive) {
+	                            showSongsView();
+	                        } else {
+	                            showAlbumsView();
+	                        }
+	                    };
+	                }
+	                if (queueBtn) {
+	                    queueBtn.textContent = 'View Queue';
+	                    queueBtn.onclick = () => {
+	                        if (queueViewActive) {
+	                            showSongsView();
+	                        } else {
+	                            showQueueView();
+	                        }
+	                    };
+	                }
+
+	                try {
                     const res = await fetch('/api/cache/list');
                     const data = await res.json();
 
-                    if (data.tracks && data.tracks.length > 0) {
-                        let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
+	                    if (data.tracks && data.tracks.length > 0) {
+	                        let html =
+	                            '<div class="cached-songs-search-row" style="margin-bottom: 12px;">' +
+	                            '<input type="search" id="cached-songs-search" class="queue-input" placeholder="Search songs..." autocomplete="off" />' +
+	                            '</div>' +
+	                            '<ul style="list-style: none; padding: 0; margin: 0;">';
                         data.tracks.forEach(track => {
 	                            const title = track.title || 'Unknown Track';
 	                            const artist = track.artist || 'Unknown Artist';
@@ -2534,20 +2873,52 @@ jgs   `-=========-`()
                                             ${artist}${duration > 0 ? ` • ${durationStr}` : ''}
                                         </div>
 	                                    </button>
-	                                    <button type="button" class="viz-button ghost small cached-song-queue-btn"
-	                                        data-track-id="${trackId}"
-	                                        data-title="${encTitle}"
-	                                        data-artist="${encArtist}"
-	                                        style="margin-top: 6px;">
-	                                        Add to Queue
-	                                    </button>
-	                                </li>
+		                                    <button type="button" class="viz-button ghost small cached-song-queue-btn"
+		                                        data-track-id="${trackId}"
+		                                        data-title="${encTitle}"
+		                                        data-artist="${encArtist}"
+		                                        style="margin-top: 6px;">
+		                                        Add to Queue
+		                                    </button>
+		                                    <button type="button" class="viz-button ghost small cached-song-album-btn"
+		                                        data-track-id="${trackId}"
+		                                        data-title="${encTitle}"
+		                                        data-artist="${encArtist}"
+		                                        style="margin-top: 6px; margin-left: 6px;">
+		                                        Add to Album
+		                                    </button>
+		                                </li>
                             `;
                         });
-                        html += '</ul>';
-                        listContainer.innerHTML = html;
+	                        html += '</ul>';
+	                        listContainer.innerHTML = html;
 
-                        // Add click handlers to load songs
+	                        const searchInput = document.getElementById('cached-songs-search');
+	                        if (searchInput) {
+	                            searchInput.addEventListener('input', () => {
+	                                const query = (searchInput.value || '').trim().toLowerCase();
+	                                listContainer.querySelectorAll('li').forEach(li => {
+	                                    const contentBtn = li.querySelector('.cached-song-item');
+	                                    const text = contentBtn ? contentBtn.textContent.toLowerCase() : li.textContent.toLowerCase();
+	                                    li.style.display = !query || text.includes(query) ? '' : 'none';
+	                                });
+	                            });
+	                        }
+
+	                        // Add to album handlers
+	                        document.querySelectorAll('.cached-song-album-btn').forEach(btn => {
+	                            btn.addEventListener('click', (e) => {
+	                                e.preventDefault();
+	                                e.stopPropagation();
+	                                const trackId = btn.getAttribute('data-track-id');
+	                                const title = decodeURIComponent(btn.getAttribute('data-title') || '') || 'Unknown Track';
+	                                const artist = decodeURIComponent(btn.getAttribute('data-artist') || '') || 'Unknown Artist';
+	                                pendingAlbumTrack = { id: trackId, title, artist };
+	                                showAlbumsView();
+	                            });
+	                        });
+
+	                        // Add click handlers to load songs
 	                        document.querySelectorAll('.cached-song-item').forEach(btn => {
 	                            btn.addEventListener('click', () => {
 	                                const trackId = btn.getAttribute('data-track-id');
@@ -2891,7 +3262,3 @@ jgs   `-=========-`()
 <script src="./js/persistent-player.js?v=2025112424" defer></script>
 </body>
 </html>
-
-
-
-

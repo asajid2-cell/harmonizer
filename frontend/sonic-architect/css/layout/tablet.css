@@ -1,0 +1,350 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * Tablet Layout (480-1023px)
+ * SM (480-767px) - Tablet Portrait
+ * MD (768-1023px) - Tablet Landscape
+ */
+
+/* ========================================
+   SM BREAKPOINT (480-767px) - Tablet Portrait
+   ======================================== */
+
+@media (min-width: 480px) {
+    /* Grid adjustments */
+    .ui-layer {
+        grid-template-rows: auto 1fr auto auto;
+        grid-template-areas:
+            "header"
+            "main"
+            "player"
+            "nav";
+    }
+
+    /* Header enhancements */
+    .header {
+        padding: var(--space-2) var(--space-4);
+    }
+
+    .header__title {
+        font-size: var(--text-lg);
+    }
+
+    .header__version {
+        display: inline;
+    }
+
+    .header__stats {
+        display: flex;
+    }
+
+    /* Show HUD corners */
+    .hud-corner {
+        display: block;
+    }
+
+    /* Player bar - horizontal layout */
+    .player-bar {
+        grid-template-columns: auto minmax(100px, 200px) 1fr auto auto;
+        grid-template-rows: auto;
+        grid-template-areas: "art info progress controls volume";
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+    }
+
+    .player-bar__volume {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+    }
+
+    /* Show shuffle/repeat buttons */
+    #btn-shuffle,
+    #btn-repeat {
+        display: flex;
+    }
+
+    /* Album art */
+    .album-art {
+        width: 56px;
+        height: 56px;
+    }
+
+    /* Track info */
+    .track-name {
+        font-size: var(--text-md);
+    }
+
+    .track-artist {
+        font-size: var(--text-sm);
+    }
+
+    /* Volume slider width */
+    .slider--volume {
+        width: 80px;
+    }
+
+    /* Panel overlays - slide in from side */
+    .panel.is-open.panel--left {
+        right: auto;
+        width: 320px;
+        animation: slide-right var(--transition-normal) ease;
+    }
+
+    .panel.is-open.panel--right {
+        left: auto;
+        width: 320px;
+        animation: slide-left var(--transition-normal) ease;
+    }
+
+    /* Mobile nav - larger icons */
+    .mobile-nav__item svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .mobile-nav__item span {
+        font-size: var(--text-xs);
+    }
+
+    /* Theme grid - 5x2 */
+    .theme-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    /* Control sections */
+    .control-section {
+        padding: var(--space-4);
+    }
+
+    /* Spectrum canvas */
+    .spectrum-canvas {
+        height: 60px;
+    }
+
+    /* Overlay improvements */
+    .overlay__title {
+        font-size: var(--text-4xl);
+    }
+
+    /* Loader */
+    .loader__logo {
+        font-size: var(--text-4xl);
+    }
+
+    .loader__progress {
+        width: 250px;
+    }
+
+    /* File drop zone */
+    .file-drop-zone {
+        padding: var(--space-5);
+    }
+
+    .file-drop-zone svg {
+        width: 40px;
+        height: 40px;
+    }
+
+    /* Playlist */
+    .playlist {
+        max-height: 300px;
+    }
+}
+
+/* ========================================
+   MD BREAKPOINT (768-1023px) - Tablet Landscape
+   ======================================== */
+
+@media (min-width: 768px) {
+    /* Two-column layout with left sidebar */
+    .ui-layer {
+        grid-template-columns: var(--panel-width) 1fr;
+        grid-template-rows: auto 1fr auto;
+        grid-template-areas:
+            "left header"
+            "left main"
+            "left player";
+    }
+
+    /* Hide mobile nav */
+    .mobile-nav {
+        display: none;
+    }
+
+    /* Show left panel by default */
+    .panel--left {
+        display: flex;
+        grid-area: left;
+        border-radius: 0;
+    }
+
+    .panel--left .panel__toggle {
+        display: flex;
+    }
+
+    /* Right panel still overlays */
+    .panel.is-open.panel--right {
+        top: 0;
+        bottom: 0;
+        width: 360px;
+    }
+
+    /* Header adjustments for two-column */
+    .header {
+        padding: var(--space-2) var(--space-5);
+    }
+
+    /* Player bar - more space */
+    .player-bar {
+        padding: var(--space-3) var(--space-5);
+        grid-template-columns: auto minmax(150px, 250px) 1fr auto auto;
+    }
+
+    /* Volume slider width */
+    .slider--volume {
+        width: 100px;
+    }
+
+    /* Larger album art */
+    .album-art {
+        width: 64px;
+        height: 64px;
+    }
+
+    /* Panel content scroll area */
+    .panel__content {
+        padding: var(--space-4);
+    }
+
+    /* Control sections get dividers */
+    .control-section {
+        padding-bottom: var(--space-4);
+        border-bottom: 1px solid var(--theme-border);
+    }
+
+    .control-section:last-child {
+        border-bottom: none;
+    }
+
+    /* Collapsed panel state */
+    .panel--left.is-collapsed {
+        width: 48px;
+    }
+
+    .panel--left.is-collapsed .panel__content {
+        display: none;
+    }
+
+    .panel--left.is-collapsed .panel__title {
+        display: none;
+    }
+
+    .panel--left.is-collapsed .panel__toggle svg {
+        transform: rotate(180deg);
+    }
+
+    /* Theme grid - wrap better */
+    .theme-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: var(--space-2);
+    }
+
+    /* Spectrum canvas */
+    .spectrum-canvas {
+        height: 70px;
+    }
+
+    /* Progress bar gets waveform display */
+    .waveform-container {
+        display: block;
+    }
+
+    /* HUD corners adjust for sidebar */
+    .hud-corner--tl,
+    .hud-corner--bl {
+        left: calc(var(--panel-width) + var(--space-4));
+    }
+
+    /* Notification positioning */
+    .notifications {
+        right: var(--space-4);
+        left: calc(var(--panel-width) + var(--space-4));
+        max-width: 400px;
+        margin-left: auto;
+    }
+}
+
+/* ========================================
+   TABLET LANDSCAPE MODE SPECIFIC
+   ======================================== */
+
+@media (min-width: 768px) and (max-width: 1023px) and (orientation: landscape) {
+    /* Reduce panel width in landscape */
+    .ui-layer {
+        grid-template-columns: 280px 1fr;
+    }
+
+    .panel--left {
+        width: 280px;
+    }
+
+    /* Compact header */
+    .header {
+        min-height: 44px;
+    }
+
+    /* Compact player bar */
+    .player-bar {
+        min-height: 70px;
+    }
+
+    .album-art {
+        width: 54px;
+        height: 54px;
+    }
+
+    /* Adjust HUD corners */
+    .hud-corner--tl,
+    .hud-corner--bl {
+        left: calc(280px + var(--space-4));
+    }
+}
+
+/* ========================================
+   SPLIT BOTTOM PANEL (Alternative Layout)
+   ======================================== */
+
+@media (min-width: 480px) and (max-width: 767px) {
+    /* Optional: Show both panels in split view */
+    .ui-layer.split-view {
+        grid-template-rows: auto 1fr auto auto auto;
+        grid-template-areas:
+            "header"
+            "main"
+            "player"
+            "panels"
+            "nav";
+    }
+
+    .split-view .panels-container {
+        grid-area: panels;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        height: 200px;
+        border-top: var(--glass-border);
+    }
+
+    .split-view .panel {
+        display: flex;
+        position: relative;
+        border-radius: 0;
+    }
+
+    .split-view .panel--left {
+        border-right: var(--glass-border);
+    }
+
+    .split-view .panel__content {
+        padding: var(--space-2);
+    }
+}

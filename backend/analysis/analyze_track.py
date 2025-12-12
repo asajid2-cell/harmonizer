@@ -1166,53 +1166,92 @@ def compute_beat_to_beat_similarity(
     segments: List[Dict],
 ) -> np.ndarray:
     """
-    Compute similarity matrix between beats based on their overlapping segments.
-    Returns NxN matrix where N is number of beats.
+    Compute similarity matrix between beats.
+
+    The previous implementation compared every segment pair inside every beat
+    pair, which was O(N^2 * S^2) and frequently caused analysis to stall or
+    timeout for normal-length tracks. We now summarize each beat into a fixed
+    feature vector (average segment timbre + pitches) and compute cosine
+    similarity in vectorized blocks. This preserves 0..1 similarity semantics
+    while making processing robust for queued uploads.
     """
     n_beats = len(beats)
-    similarity_matrix = np.zeros((n_beats, n_beats), dtype=np.float32)
+    if n_beats == 0:
+        return np.zeros((0, 0), dtype=np.float32)
 
-    # Map segments to beats
-    beat_segments = []
-    for beat in beats:
-        beat_start = beat.start
-        beat_end = beat.start + beat.duration
-        overlapping = []
-        for seg in segments:
-            seg_start = seg["start"]
-            seg_end = seg["start"] + seg["duration"]
-            # Check if segment overlaps with beat
-            if seg_start < beat_end and seg_end > beat_start:
-                overlapping.append(seg)
-        beat_segments.append(overlapping)
+    segments_sorted = sorted(segments, key=lambda s: s.get("start", 0.0))
 
-    # Compute pairwise similarities
-    for i in range(n_beats):
-        for j in range(n_beats):
-            if i == j:
-                similarity_matrix[i, j] = 1.0
-                continue
+    timbre_dim = next((len(s["timbre"]) for s in segments_sorted if s.get("timbre")), 12)
+    pitch_dim = next((len(s["pitches"]) for s in segments_sorted if s.get("pitches")), 12)
+    feature_dim = timbre_dim + pitch_dim
 
-            # Compare segments in each beat
-            segs_i = beat_segments[i]
-            segs_j = beat_segments[j]
+    def _coerce_vec(values: Optional[List[float]], dim: int) -> np.ndarray:
+        if not values:
+            return np.zeros(dim, dtype=np.float32)
+        arr = np.asarray(values, dtype=np.float32).flatten()
+        if arr.size == dim:
+            return arr
+        if arr.size > dim:
+            return arr[:dim]
+        padded = np.zeros(dim, dtype=np.float32)
+        padded[:arr.size] = arr
+        return padded
 
-            if not segs_i or not segs_j:
-                similarity_matrix[i, j] = 0.0
-                continue
+    beat_features = np.zeros((n_beats, feature_dim), dtype=np.float32)
 
-            # Average similarity across segment pairs
-            similarities = []
-            for seg_i in segs_i:
-                for seg_j in segs_j:
-                    sim = compute_segment_similarity(seg_i, seg_j)
-                    similarities.append(sim)
+    seg_idx = 0
+    n_segments = len(segments_sorted)
+    for i, beat in enumerate(beats):
+        beat_start = float(getattr(beat, "start", 0.0))
+        beat_end = beat_start + float(getattr(beat, "duration", 0.0))
 
-            if similarities:
-                similarity_matrix[i, j] = np.mean(similarities)
+        while seg_idx < n_segments:
+            seg = segments_sorted[seg_idx]
+            seg_start = float(seg.get("start", 0.0))
+            seg_end = seg_start + float(seg.get("duration", 0.0))
+            if seg_end <= beat_start:
+                seg_idx += 1
             else:
-                similarity_matrix[i, j] = 0.0
+                break
 
+        scan = seg_idx
+        timbre_accum: List[np.ndarray] = []
+        pitch_accum: List[np.ndarray] = []
+        while scan < n_segments:
+            seg = segments_sorted[scan]
+            seg_start = float(seg.get("start", 0.0))
+            if seg_start >= beat_end:
+                break
+            seg_end = seg_start + float(seg.get("duration", 0.0))
+            if seg_end > beat_start:
+                timbre = seg.get("timbre")
+                pitches = seg.get("pitches")
+                if timbre:
+                    timbre_accum.append(_coerce_vec(timbre, timbre_dim))
+                if pitches:
+                    pitch_accum.append(_coerce_vec(pitches, pitch_dim))
+            scan += 1
+
+        if timbre_accum or pitch_accum:
+            timbre_vec = np.mean(np.stack(timbre_accum), axis=0) if timbre_accum else np.zeros(timbre_dim, dtype=np.float32)
+            pitch_vec = np.mean(np.stack(pitch_accum), axis=0) if pitch_accum else np.zeros(pitch_dim, dtype=np.float32)
+            beat_features[i, :timbre_dim] = timbre_vec
+            beat_features[i, timbre_dim:] = pitch_vec
+
+    norms = np.linalg.norm(beat_features, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    beat_features = beat_features / norms
+
+    similarity_matrix = np.empty((n_beats, n_beats), dtype=np.float32)
+    block = 1024
+    beat_features_t = beat_features.T
+    for start in range(0, n_beats, block):
+        sub = beat_features[start:start + block] @ beat_features_t
+        sub = (sub + 1.0) * 0.5
+        np.clip(sub, 0.0, 1.0, out=sub)
+        similarity_matrix[start:start + block, :] = sub.astype(np.float32, copy=False)
+
+    np.fill_diagonal(similarity_matrix, 1.0)
     return similarity_matrix
 
 
@@ -2178,7 +2217,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
 
 
 

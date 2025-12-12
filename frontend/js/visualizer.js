@@ -449,9 +449,79 @@ var currentQueueIndex = -1;
 var selectedQueueIndex = -1;
 var autoPlayNext = false;
 var queueAutoPlayPending = false;
+var QUEUE_STORAGE_KEY = "harmonizerTrackQueue";
 var playbackState = {
     hasStarted: false,
     isPaused: false
+};
+
+function persistTrackQueue() {
+    try {
+        if (!window.localStorage) {
+            return;
+        }
+        localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(trackQueue));
+    } catch (e) {
+        // Ignore storage failures (quota/private mode)
+    }
+}
+
+function loadPersistedTrackQueue() {
+    try {
+        if (!window.localStorage) {
+            return false;
+        }
+        var raw = localStorage.getItem(QUEUE_STORAGE_KEY);
+        if (!raw) {
+            return false;
+        }
+        var parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) {
+            return false;
+        }
+        trackQueue = parsed
+            .filter(function(t) { return t && t.id; })
+            .map(function(t) {
+                return {
+                    id: t.id,
+                    title: t.title || "Unknown Track",
+                    artist: t.artist || "Unknown Artist"
+                };
+            });
+        currentQueueIndex = -1;
+        selectedQueueIndex = trackQueue.length ? 0 : -1;
+        updateQueueUI();
+        return trackQueue.length > 0;
+    } catch (e) {
+        return false;
+    }
+}
+
+window.getTrackQueue = function() {
+    return trackQueue.slice();
+};
+
+window.setTrackQueueOrder = function(newOrder) {
+    if (!Array.isArray(newOrder)) {
+        return;
+    }
+    trackQueue = newOrder
+        .filter(function(t) { return t && t.id; })
+        .map(function(t) {
+            return {
+                id: t.id,
+                title: t.title || "Unknown Track",
+                artist: t.artist || "Unknown Artist"
+            };
+        });
+    if (currentQueueIndex >= trackQueue.length) {
+        currentQueueIndex = trackQueue.length - 1;
+    }
+    if (selectedQueueIndex >= trackQueue.length) {
+        selectedQueueIndex = trackQueue.length - 1;
+    }
+    persistTrackQueue();
+    updateQueueUI();
 };
 
 function markPlaybackStarted() {
@@ -512,6 +582,19 @@ var ADVANCED_DEFAULTS = {
         sectionBias: 0.20,
         jumpVariance: 0.65
     },
+    dopamineMiner: {
+        peakFraction: 0.1,
+        minClusterBeats: 16,
+        clusterGapBeats: 2,
+        largestClusterOnly: 0,
+        minDwellBeats: 4,
+        maxSequentialBeats: 32,
+        minJumpSpanBeats: 8,
+        minJumpSimilarity: 0.72,
+        crossClusterBias: 0.5,
+        jumpTemperature: 0.2,
+        escapeProb: 0.03
+    },
     sculptorConfig: {
         durationScale: 1.0,
         minSectionSeconds: 6,
@@ -530,6 +613,7 @@ var advancedSettings = {
     eternalOverlay: cloneSettings(ADVANCED_DEFAULTS.eternalOverlay),
     jukeboxLoop: cloneSettings(ADVANCED_DEFAULTS.jukeboxLoop),
     eternalLoop: cloneSettings(ADVANCED_DEFAULTS.eternalLoop),
+    dopamineMiner: cloneSettings(ADVANCED_DEFAULTS.dopamineMiner),
     sculptorConfig: cloneSettings(ADVANCED_DEFAULTS.sculptorConfig)
 };
 
@@ -541,8 +625,122 @@ var advancedEnabled = {
     eternalOverlay: false,
     jukeboxLoop: false,
     eternalLoop: false,
+    dopamineMiner: false,
     sculptorConfig: false
 };
+
+// ===== Stackable modes (layers) =====
+var stackedLayerIds = [];
+var activeStackLayers = [];
+var stackRegistry = Object.create(null);
+
+function registerStackLayer(def) {
+    if (!def || !def.id || typeof def.factory !== "function") {
+        return;
+    }
+    stackRegistry[def.id] = {
+        id: def.id,
+        label: def.label || def.id,
+        description: def.description || "",
+        factory: def.factory
+    };
+}
+
+function listStackLayers() {
+    return Object.keys(stackRegistry).map(function(key) {
+        return stackRegistry[key];
+    });
+}
+
+function updateStackButtonLabel() {
+    try {
+        var btn = document.getElementById("stack-toggle");
+        if (!btn) return;
+        var enabled = stackedLayerIds.length > 0;
+        btn.textContent = enabled ? "Stack: On" : "Stack: Off";
+        btn.setAttribute("aria-pressed", enabled ? "true" : "false");
+        btn.classList.toggle("active", enabled);
+    } catch (e) {}
+}
+
+function rebuildActiveStackLayers() {
+    activeStackLayers = [];
+    if (!stackedLayerIds.length) {
+        updateStackButtonLabel();
+        return;
+    }
+    var ctx = { track: curTrack, beats: masterQs, mode: mode };
+    stackedLayerIds.forEach(function(id) {
+        var def = stackRegistry[id];
+        if (!def) return;
+        try {
+            var inst = def.factory(ctx);
+            if (inst) {
+                inst.id = id;
+                activeStackLayers.push(inst);
+            }
+        } catch (err) {
+            console.warn("[Stack] Failed to build layer", id, err);
+        }
+    });
+    updateStackButtonLabel();
+}
+
+function notifyStackOnBeat(meta) {
+    if (!activeStackLayers.length) return;
+    activeStackLayers.forEach(function(layer) {
+        if (layer && typeof layer.onBeat === "function") {
+            try { layer.onBeat(meta); } catch (e) {}
+        }
+    });
+}
+
+function applyStackedNextIndex(meta) {
+    if (!activeStackLayers.length) {
+        return meta.proposedIndex;
+    }
+    var idx = meta.proposedIndex;
+    var guard = 0;
+    activeStackLayers.forEach(function(layer) {
+        if (!layer || typeof layer.transformNextIndex !== "function") return;
+        if (guard++ > 6) return;
+        try {
+            var out = layer.transformNextIndex(Object.assign({}, meta, { proposedIndex: idx }));
+            if (out && typeof out.index === "number" && isFinite(out.index)) {
+                var clamped = Math.max(0, Math.min(masterQs.length - 1, Math.round(out.index)));
+                idx = clamped;
+            }
+        } catch (e) {}
+    });
+    return idx;
+}
+
+window.getAvailableStackLayers = function() {
+    return listStackLayers().map(function(def) {
+        return { id: def.id, label: def.label, description: def.description };
+    });
+};
+window.getStackedLayers = function() {
+    return stackedLayerIds.slice();
+};
+window.setStackedLayers = function(ids) {
+    if (!Array.isArray(ids)) {
+        ids = [];
+    }
+    var next = ids
+        .map(function(v) { return (v || "") + ""; })
+        .map(function(v) { return v.toLowerCase(); })
+        .filter(function(v) { return !!stackRegistry[v]; });
+    stackedLayerIds = Array.from(new Set(next));
+    rebuildActiveStackLayers();
+    if (driver && typeof driver.onStackChange === "function") {
+        try { driver.onStackChange(activeStackLayers.slice(), stackedLayerIds.slice()); } catch (e) {}
+    }
+};
+window.clearStackedLayers = function() {
+    window.setStackedLayers([]);
+};
+
 var canonLoopGraph = {};
 var DEFAULT_CANON_RL_TUNING = {
     minDwell: 8,
@@ -764,7 +962,8 @@ var ROUNDABLE_BEAT_FIELDS = {
     canonOverlay: ["minOffsetBeats", "maxOffsetBeats", "dwellBeats"],
     eternalOverlay: ["minOffsetBeats", "maxOffsetBeats", "dwellBeats"],
     jukeboxLoop: ["minLoopBeats", "maxSequentialBeats"],
-    eternalLoop: ["minLoopBeats", "maxSequentialBeats"]
+    eternalLoop: ["minLoopBeats", "maxSequentialBeats"],
+    dopamineMiner: ["minClusterBeats", "clusterGapBeats", "minDwellBeats", "maxSequentialBeats", "minJumpSpanBeats"]
 };
 
 (function hydrateBeatRoundingPreference() {
@@ -1442,6 +1641,7 @@ function rebuildDriverForCurrentMode(shouldResume) {
     }
 
     driver = Driver(remixer.getPlayer());
+    rebuildActiveStackLayers();
     if (typeof window.refreshSculptorPalette === "function") {
         try {
             window.refreshSculptorPalette();
@@ -3222,6 +3422,8 @@ function allReady() {
         modePillText = "Eternal Jukebox";
     } else if (mode === "eternal") {
         modePillText = "Eternal Canonizer";
+    } else if (mode === "dopamine") {
+        modePillText = "Dopamine Miner";
     } else if (mode === "autoharmonizer") {
         modePillText = "Autoharmonizer";
     } else if (mode === "sculptor") {
@@ -3499,11 +3701,14 @@ function init() {
         remixer = createJRemixer(context, $);
         driver = Driver(remixer.getPlayer());
 
-        // Load playlist queue from sessionStorage if available
-        loadPlaylistQueue();
+	        // Load playlist queue from sessionStorage if available
+	        loadPlaylistQueue();
+	        if (!trackQueue.length) {
+	            loadPersistedTrackQueue();
+	        }
 
-        if (initialTrid) {
-            fetchAnalysis(initialTrid);
+	        if (initialTrid) {
+	            fetchAnalysis(initialTrid);
         } else {
             info("Load a track to begin.");
         }
@@ -3979,6 +4184,7 @@ function loadPlaylistQueue() {
             // Enable auto-play for playlists
             autoPlayNext = true;
             updateQueueUI();
+            persistTrackQueue();
 
             // Clear from sessionStorage after loading
             sessionStorage.removeItem('playlistQueue');
@@ -4012,6 +4218,7 @@ function addToQueue(trackId, title, artist) {
     }
 
     updateQueueUI();
+    persistTrackQueue();
     console.log('[Queue] Added track:', title, '| Queue length:', trackQueue.length);
 }
 
@@ -4131,6 +4338,7 @@ function removeFromQueue(index) {
     }
 
     updateQueueUI();
+    persistTrackQueue();
     console.log('[Queue] Removed track:', removed.title);
 }
 
@@ -4140,6 +4348,7 @@ function clearQueue() {
     selectedQueueIndex = -1;
     autoPlayNext = false;
     updateQueueUI();
+    persistTrackQueue();
     console.log('[Queue] Cleared');
 }
 
@@ -4333,6 +4542,22 @@ $(document).ready(function() {
 		        }
 		    });
 
+		    // Visualize This button handler: open Sonic Architect for current track
+		    $("#visualize-this-btn").click(function() {
+		        var trackId = (window.curTrack && window.curTrack.id) ? window.curTrack.id : null;
+		        if (!trackId) {
+		            alert("No track loaded yet.");
+		            return;
+		        }
+		        var params = new URLSearchParams();
+		        params.set("trid", trackId);
+		        if (mode) {
+		            params.set("mode", mode);
+		        }
+		        var targetUrl = resolveApiUrl("sonic-architect.html", false);
+		        window.location.href = targetUrl + "?" + params.toString();
+		    });
+
 		    function openQueueUploadModal() {
 		        if (!queueModalShouldPersist) {
 		            resetQueueModalForm();
@@ -4384,25 +4609,76 @@ $(document).ready(function() {
 	        queueModalStatus.removeClass("visible");
 	    });
 
-	    function delay(ms) {
-	        return new Promise(function(resolve) {
-	            setTimeout(resolve, ms);
-	        });
-	    }
+		    function delay(ms) {
+		        return new Promise(function(resolve) {
+		            setTimeout(resolve, ms);
+		        });
+		    }
 
-	    async function processUploadFile(file) {
-	        var entryFormData = new FormData();
-	        entryFormData.append('source', 'upload');
-	        entryFormData.append('algorithm', mode);
-	        entryFormData.append('audio', file);
+		    async function pollProcessJob(jobId, fallbackTitle, fallbackArtist) {
+		        var pollAttempt = 0;
+		        var maxAttempts = 900; // ~15 minutes with backoff
+		        while (pollAttempt < maxAttempts) {
+		            if (queueUploadCancelled) {
+		                throw new Error("Upload cancelled");
+		            }
+		            pollAttempt++;
+		            var statusRes;
+		            try {
+		                statusRes = await fetch(resolveApiUrl('api/process/status/' + encodeURIComponent(jobId)), {
+		                    method: 'GET'
+		                });
+		            } catch (e) {
+		                await delay(Math.min(5000, 400 * pollAttempt));
+		                continue;
+		            }
+		            var statusData = {};
+		            try {
+		                statusData = await statusRes.json();
+		            } catch (e) {
+		                statusData = {};
+		            }
 
-	        var response;
-	        try {
-	            response = await fetch('/api/process', {
-	                method: 'POST',
-	                body: entryFormData
-	            });
-	        } catch (e) {
+		            if (statusRes.ok && statusData) {
+		                if (statusData.status === 'completed' && statusData.result && statusData.result.trackId) {
+		                    return {
+		                        ok: true,
+		                        trackId: statusData.result.trackId,
+		                        title: statusData.result.title || fallbackTitle,
+		                        artist: statusData.result.artist || fallbackArtist
+		                    };
+		                }
+		                if (statusData.status === 'failed') {
+		                    return {
+		                        ok: false,
+		                        shouldRetry: true,
+		                        error: statusData.error || "Processing failed"
+		                    };
+		                }
+		            }
+
+		            await delay(Math.min(5000, 600 + 250 * pollAttempt));
+		        }
+		        return {
+		            ok: false,
+		            shouldRetry: true,
+		            error: "Processing timeout - server is busy or track is too long"
+		        };
+		    }
+
+		    async function processUploadFile(file) {
+		        var entryFormData = new FormData();
+		        entryFormData.append('source', 'upload');
+		        entryFormData.append('algorithm', mode);
+		        entryFormData.append('audio', file);
+
+		        var response;
+		        try {
+		            response = await fetch(resolveApiUrl('api/process'), {
+		                method: 'POST',
+		                body: entryFormData
+		            });
+		        } catch (e) {
 	            return { ok: false, shouldRetry: true, error: e.message || "Network error" };
 	        }
 
@@ -4413,24 +4689,30 @@ $(document).ready(function() {
 	            data = {};
 	        }
 
-	        if (response.ok && data.trackId) {
-	            return {
-	                ok: true,
-	                trackId: data.trackId,
-	                title: data.title || file.name,
-	                artist: data.artist || "Upload"
-	            };
-	        }
+		        if (response.ok) {
+		            // Cached uploads return a completed job immediately.
+		            if (data && data.jobId && data.status === "processing") {
+		                return await pollProcessJob(data.jobId, data.title || file.name, data.artist || "Upload");
+		            }
+		            if (data && data.trackId) {
+		                return {
+		                    ok: true,
+		                    trackId: data.trackId,
+		                    title: data.title || file.name,
+		                    artist: data.artist || "Upload"
+		                };
+		            }
+		        }
 
 	        var errorMessage = data.error || "Failed to process track";
 	        var shouldRetry = !(response.status >= 400 && response.status < 500 && response.status !== 429);
 	        return { ok: false, shouldRetry: shouldRetry, error: errorMessage };
 	    }
 
-	    async function processUploadQueue(files) {
-	        for (var i = 0; i < files.length; i++) {
-	            var file = files[i];
-	            var attempt = 0;
+		    async function processUploadQueue(files) {
+		        for (var i = 0; i < files.length; i++) {
+		            var file = files[i];
+		            var attempt = 0;
 	            while (true) {
 	                if (queueUploadCancelled) {
 	                    throw new Error("Upload cancelled");
@@ -4458,7 +4740,7 @@ $(document).ready(function() {
 	    }
 
 	    // Submit handler
-	    $("#queue-modal-submit").click(async function() {
+		    $("#queue-modal-submit").click(async function() {
 	        queueModalShouldPersist = true;
 	        queueUploadCancelled = false;
 	        queueModalStatus.addClass("visible info").removeClass("error success").text("Processing...");
@@ -4526,13 +4808,13 @@ $(document).ready(function() {
             }
 
             // Check if YouTube URL is a playlist
-            if (currentQueueSource === 'youtube' && url) {
-                if (url.includes('list=') || url.includes('playlist')) {
-                    var playlistResponse = await fetch('/api/playlist-info', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: url })
-                    });
+	            if (currentQueueSource === 'youtube' && url) {
+	                if (url.includes('list=') || url.includes('playlist')) {
+	                    var playlistResponse = await fetch(resolveApiUrl('api/playlist-info'), {
+	                        method: 'POST',
+	                        headers: { 'Content-Type': 'application/json' },
+	                        body: JSON.stringify({ url: url })
+	                    });
 
                     var playlistData = await playlistResponse.json();
 
@@ -4548,10 +4830,10 @@ $(document).ready(function() {
                             entryFormData.append('youtube_url', entry.url);
                             entryFormData.append('algorithm', mode);
 
-                            var response = await fetch('/api/process', {
-                                method: 'POST',
-                                body: entryFormData
-                            });
+	                            var response = await fetch(resolveApiUrl('api/process'), {
+	                                method: 'POST',
+	                                body: entryFormData
+	                            });
 
                             var data = await response.json();
                             if (data.trackId) {
@@ -4572,10 +4854,10 @@ $(document).ready(function() {
             // Process single track
             queueModalStatus.text("Processing track...");
 
-            var response = await fetch('/api/process', {
-                method: 'POST',
-                body: formData
-            });
+	            var response = await fetch(resolveApiUrl('api/process'), {
+	                method: 'POST',
+	                body: formData
+	            });
 
             var data = await response.json();
             if (response.ok && data.trackId) {
@@ -6844,8 +7126,20 @@ function createCanonDriver(player) {
                 nextQ._pocketGate = null;
             }
             var delay = player.playQ(nextQ);
+            notifyStackOnBeat({ mode: "canon", currentIndex: currentIndex, beat: nextQ });
             renderOverlayChips(nextQ);
             var choice = chooseCanonNextIndex(currentIndex);
+            var stackedIndex = applyStackedNextIndex({
+                mode: "canon",
+                currentIndex: currentIndex,
+                proposedIndex: choice.index,
+                beat: nextQ,
+                proposedReason: choice.reason
+            });
+            if (stackedIndex !== choice.index) {
+                choice.reason = "stack";
+                choice.index = stackedIndex;
+            }
             if (choice.index < masterQs.length) {
                 var reason =
                     choice.reason === "sequential"
@@ -8289,7 +8583,17 @@ function createJukeboxDriver(player, options) {
     }
 
     function advanceSequential() {
-        currentIndex += 1;
+        var prevIndex = currentIndex;
+        var proposed = currentIndex + 1;
+        var prevBeat = masterQs && masterQs[prevIndex];
+        var stacked = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: prevIndex,
+            proposedIndex: proposed,
+            beat: prevBeat,
+            proposedReason: "sequential"
+        });
+        currentIndex = stacked;
         if (currentIndex >= masterQs.length) {
             var reentry = fallbackReentryTarget();
             currentIndex = Math.max(0, Math.min(masterQs.length - 1, reentry));
@@ -8589,6 +8893,549 @@ function createJukeboxDriver(player, options) {
         }
     };
 }
+
+// ===== Dopamine Miner (Infinite Climax) =====
+function sanitizeDopamineMinerSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.dopamineMiner || {};
+    var out = cloneSettings(defaults);
+
+    var pf = coerceNumber(input.peakFraction);
+    if (pf === null) pf = defaults.peakFraction;
+    out.peakFraction = clampNumber(pf, 0.02, 0.6);
+
+    var minCluster = coerceNumber(input.minClusterBeats);
+    if (minCluster === null) minCluster = defaults.minClusterBeats;
+    out.minClusterBeats = clampNumber(Math.round(minCluster), 1, 256);
+
+    var gap = coerceNumber(input.clusterGapBeats);
+    if (gap === null) gap = defaults.clusterGapBeats;
+    out.clusterGapBeats = clampNumber(Math.round(gap), 0, 16);
+
+    var largest = coerceNumber(input.largestClusterOnly);
+    if (largest === null) largest = defaults.largestClusterOnly;
+    out.largestClusterOnly = largest >= 1 ? 1 : 0;
+
+    var dwell = coerceNumber(input.minDwellBeats);
+    if (dwell === null) dwell = defaults.minDwellBeats;
+    out.minDwellBeats = clampNumber(Math.round(dwell), 1, 64);
+
+    var maxSeq = coerceNumber(input.maxSequentialBeats);
+    if (maxSeq === null) maxSeq = defaults.maxSequentialBeats;
+    out.maxSequentialBeats = clampNumber(Math.round(maxSeq), 2, 256);
+
+    var minSpan = coerceNumber(input.minJumpSpanBeats);
+    if (minSpan === null) minSpan = defaults.minJumpSpanBeats;
+    out.minJumpSpanBeats = clampNumber(Math.round(minSpan), 1, 128);
+
+    var minSim = coerceNumber(input.minJumpSimilarity);
+    if (minSim === null) minSim = defaults.minJumpSimilarity;
+    out.minJumpSimilarity = clampNumber(minSim, 0.05, 0.99);
+
+    var cross = coerceNumber(input.crossClusterBias);
+    if (cross === null) cross = defaults.crossClusterBias;
+    out.crossClusterBias = clamp01(cross);
+
+    var temp = coerceNumber(input.jumpTemperature);
+    if (temp === null) temp = defaults.jumpTemperature;
+    out.jumpTemperature = clampNumber(temp, 0.05, 0.8);
+
+    var escape = coerceNumber(input.escapeProb);
+    if (escape === null) escape = defaults.escapeProb;
+    out.escapeProb = clampNumber(escape, 0, 0.4);
+
+    return out;
+}
+
+function buildPeakClusters(beats, settings) {
+    settings = settings || ADVANCED_DEFAULTS.dopamineMiner;
+    if (!beats || !beats.length) {
+        return {
+            energies: [],
+            threshold: 0,
+            peakFlags: [],
+            peakSet: {},
+            clusters: [],
+            clusterByBeat: []
+        };
+    }
+
+    var n = beats.length;
+    var energies = new Array(n);
+    for (var i = 0; i < n; i++) {
+        var b = beats[i];
+        var v = 0;
+        if (b && typeof b.median_volume === "number") v = b.median_volume;
+        else if (b && typeof b.volume === "number") v = b.volume;
+        else if (b && typeof b.loudness === "number") v = b.loudness;
+        if (!isFinite(v)) v = 0;
+        energies[i] = v;
+    }
+
+    var sorted = energies.slice(0).sort(function(a, b) { return a - b; });
+    var keepFrac = clampNumber(settings.peakFraction, 0.02, 0.6);
+    var cutoffIdx = Math.floor((1 - keepFrac) * (sorted.length - 1));
+    cutoffIdx = Math.max(0, Math.min(sorted.length - 1, cutoffIdx));
+    var threshold = sorted[cutoffIdx];
+
+    var peakFlags = new Array(n);
+    for (var j = 0; j < n; j++) {
+        peakFlags[j] = energies[j] >= threshold;
+    }
+
+    var clusters = [];
+    var clusterByBeat = new Array(n);
+    for (var c = 0; c < n; c++) clusterByBeat[c] = null;
+
+    var maxGap = Math.max(0, Math.round(settings.clusterGapBeats || 0));
+    var minLen = Math.max(1, Math.round(settings.minClusterBeats || 1));
+
+    var inCluster = false;
+    var start = 0;
+    var lastPeak = -1;
+    var highCount = 0;
+    var sumEnergy = 0;
+
+    function closeCluster(endIdx) {
+        if (!inCluster) return;
+        var length = endIdx - start + 1;
+        if (length >= minLen && highCount > 0) {
+            var beatsList = [];
+            for (var k = start; k <= endIdx; k++) beatsList.push(k);
+            var id = clusters.length;
+            clusters.push({
+                id: id,
+                start: start,
+                end: endIdx,
+                beats: beatsList,
+                peakCount: highCount,
+                avgEnergy: sumEnergy / length
+            });
+            for (var kk = start; kk <= endIdx; kk++) {
+                clusterByBeat[kk] = id;
+            }
+        }
+        inCluster = false;
+        highCount = 0;
+        sumEnergy = 0;
+        lastPeak = -1;
+    }
+
+    for (var idx = 0; idx < n; idx++) {
+        var isPeak = peakFlags[idx];
+        if (!inCluster) {
+            if (isPeak) {
+                inCluster = true;
+                start = idx;
+                lastPeak = idx;
+                highCount = 1;
+                sumEnergy = energies[idx];
+            }
+            continue;
+        }
+
+        sumEnergy += energies[idx];
+        if (isPeak) {
+            highCount += 1;
+            lastPeak = idx;
+            continue;
+        }
+
+        if (maxGap === 0) {
+            closeCluster(idx - 1);
+            continue;
+        }
+        if (idx - lastPeak > maxGap) {
+            closeCluster(idx - 1);
+        }
+    }
+    closeCluster(n - 1);
+
+    if (clusters.length && settings.largestClusterOnly >= 1) {
+        clusters.sort(function(a, b) {
+            if (b.beats.length !== a.beats.length) return b.beats.length - a.beats.length;
+            return b.avgEnergy - a.avgEnergy;
+        });
+        var keep = clusters[0];
+        clusters = [keep];
+        for (var cb = 0; cb < n; cb++) clusterByBeat[cb] = null;
+        for (var kk2 = keep.start; kk2 <= keep.end; kk2++) clusterByBeat[kk2] = keep.id;
+    }
+
+    var peakSet = {};
+    clusters.forEach(function(cl) {
+        for (var bIdx = cl.start; bIdx <= cl.end; bIdx++) {
+            peakSet[bIdx] = true;
+        }
+    });
+
+    return {
+        energies: energies,
+        threshold: threshold,
+        peakFlags: peakFlags,
+        peakSet: peakSet,
+        clusters: clusters,
+        clusterByBeat: clusterByBeat
+    };
+}
+
+function createDopamineMinerDriver(player, options) {
+    options = options || {};
+    var modeName = "dopamine";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+    var currentIndex = 0;
+    var beatsSinceJump = 0;
+    var sequentialCount = 0;
+    var recentTargets = [];
+    var RECENT_LIMIT = 18;
+
+    var settings = sanitizeDopamineMinerSettings(options, ADVANCED_DEFAULTS.dopamineMiner);
+    var peakData = null;
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function rememberTarget(idx) {
+        recentTargets.push(idx);
+        if (recentTargets.length > RECENT_LIMIT) recentTargets.shift();
+    }
+
+    function isRecentlyVisited(idx) {
+        for (var i = recentTargets.length - 1; i >= 0; i--) {
+            if (recentTargets[i] === idx) return true;
+        }
+        return false;
+    }
+
+    function chooseClusterTarget(excludeClusterId) {
+        if (!peakData || !peakData.clusters.length) return null;
+        var pool = peakData.clusters.filter(function(c) { return c.id !== excludeClusterId; });
+        if (!pool.length) pool = peakData.clusters.slice(0);
+        var total = 0;
+        var weights = pool.map(function(c) {
+            var w = Math.max(0.01, c.avgEnergy || 0.01) * Math.sqrt(c.beats.length);
+            total += w;
+            return w;
+        });
+        var r = Math.random() * total;
+        for (var i = 0; i < pool.length; i++) {
+            r -= weights[i];
+            if (r <= 0) return pool[i].start;
+        }
+        return pool[0].start;
+    }
+
+    function findNearestPeak(fromIdx) {
+        if (!peakData || !peakData.clusters.length) return 0;
+        var best = null;
+        var bestDist = Infinity;
+        peakData.clusters.forEach(function(c) {
+            var d = 0;
+            if (fromIdx < c.start) d = c.start - fromIdx;
+            else if (fromIdx > c.end) d = fromIdx - c.end;
+            if (d < bestDist) {
+                bestDist = d;
+                best = c;
+            }
+        });
+        return best ? best.start : peakData.clusters[0].start;
+    }
+
+    function scoreCandidate(edge, currentClusterId) {
+        var absSpan =
+            (typeof edge.abs_span === "number" && isFinite(edge.abs_span))
+                ? edge.abs_span
+                : Math.abs((edge.target || 0) - currentIndex);
+        var spanNorm = absSpan / Math.max(1, masterQs.length / 2);
+        var spanBonus = Math.pow(Math.min(1, spanNorm), 0.65) * 0.25;
+
+        var sim = edge.similarity || 0;
+        var simScore = Math.pow(sim, 1.6);
+
+        var targetEnergy = 0;
+        if (peakData && peakData.energies && peakData.energies[edge.target] !== undefined) {
+            targetEnergy = peakData.energies[edge.target];
+        }
+        var energyBonus = clamp01(targetEnergy) * 0.3;
+
+        var targetCluster = peakData ? peakData.clusterByBeat[edge.target] : null;
+        var crossBonus =
+            targetCluster !== null &&
+            currentClusterId !== null &&
+            targetCluster !== currentClusterId
+                ? settings.crossClusterBias * 0.35
+                : 0;
+
+        var recentPenalty = isRecentlyVisited(edge.target) ? 0.35 : 0;
+
+        var jitter = (Math.random() - 0.5) * settings.jumpTemperature * 0.25;
+        return simScore + spanBonus + energyBonus + crossBonus + jitter - recentPenalty;
+    }
+
+    function selectJumpCandidate(currentClusterId) {
+        if (!serverLoopCandidateMap || !serverLoopCandidateMap[currentIndex]) return null;
+        var edges = serverLoopCandidateMap[currentIndex] || [];
+        var filtered = edges.filter(function(edge) {
+            if (!edge || typeof edge.target !== "number") return false;
+            if (!peakData.peakSet[edge.target]) return false;
+            if ((edge.similarity || 0) < settings.minJumpSimilarity) return false;
+            var absSpan =
+                (typeof edge.abs_span === "number" && isFinite(edge.abs_span))
+                    ? edge.abs_span
+                    : Math.abs(edge.target - currentIndex);
+            if (absSpan < settings.minJumpSpanBeats) return false;
+            return true;
+        });
+        if (!filtered.length) return null;
+
+        var scored = filtered.map(function(edge) {
+            return { edge: edge, score: scoreCandidate(edge, currentClusterId) };
+        }).sort(function(a, b) { return b.score - a.score; });
+
+        var bestScore = scored[0].score;
+        var pool = scored.filter(function(s) { return s.score >= bestScore - 0.15; });
+        var temperature = Math.max(0.05, settings.jumpTemperature);
+        var maxScore = pool[0].score;
+        var weights = [];
+        var total = 0;
+        for (var i = 0; i < pool.length; i++) {
+            var w = Math.exp((pool[i].score - maxScore) / temperature);
+            weights.push(w);
+            total += w;
+        }
+        var r = Math.random() * total;
+        for (var j = 0; j < pool.length; j++) {
+            r -= weights[j];
+            if (r <= 0) return pool[j].edge.target;
+        }
+        return pool[0].edge.target;
+    }
+
+    function computeNextIndex() {
+        if (!peakData) peakData = buildPeakClusters(masterQs, settings);
+        if (!peakData || !peakData.clusters.length) {
+            return Math.min(masterQs.length - 1, currentIndex + 1);
+        }
+
+        var currentClusterId = peakData.clusterByBeat[currentIndex];
+        if (currentClusterId === null || !peakData.peakSet[currentIndex]) {
+            return findNearestPeak(currentIndex);
+        }
+
+        var currentCluster = peakData.clusters.filter(function(c) { return c.id === currentClusterId; })[0];
+        var nextLinear = currentIndex + 1;
+        var wouldExitPeak = !peakData.peakSet[nextLinear] || (currentCluster && nextLinear > currentCluster.end);
+
+        if (Math.random() < settings.escapeProb) {
+            var wild = chooseClusterTarget(currentClusterId);
+            if (wild !== null) return wild;
+        }
+
+        if (beatsSinceJump < settings.minDwellBeats && sequentialCount < settings.maxSequentialBeats && !wouldExitPeak) {
+            return nextLinear;
+        }
+
+        var jumpTarget = selectJumpCandidate(currentClusterId);
+        if (jumpTarget !== null) {
+            return jumpTarget;
+        }
+
+        if (!wouldExitPeak) {
+            return nextLinear;
+        }
+        var fallback = chooseClusterTarget(currentClusterId);
+        return fallback !== null ? fallback : findNearestPeak(currentIndex);
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        var delay = player.playQ(q);
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q, driver: this });
+
+        var proposed = computeNextIndex();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: "dopamine"
+        });
+
+        if (nextIdx === currentIndex + 1) {
+            sequentialCount += 1;
+        } else {
+            beatsSinceJump = 0;
+            sequentialCount = 0;
+            rememberTarget(nextIdx);
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+        beatsSinceJump += 1;
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeDopamineMinerSettings(customSettings, ADVANCED_DEFAULTS.dopamineMiner);
+        peakData = buildPeakClusters(masterQs, settings);
+        recentTargets = [];
+        sequentialCount = 0;
+        beatsSinceJump = 0;
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getDopamineMinerSettings());
+            currentIndex = peakData && peakData.clusters.length ? peakData.clusters[0].start : 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            if (!peakData) {
+                rebuildFromSettings(getDopamineMinerSettings());
+            }
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {
+            // no-op for now; stacked layers update separately
+        },
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+function getDopamineMinerSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("dopamineMiner");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("dopamineMiner") : cloneAdvancedDefaults("dopamineMiner");
+    return sanitizeDopamineMinerSettings(settings, ADVANCED_DEFAULTS.dopamineMiner);
+}
+
+// Register Dopamine Miner as a stackable layer (snap-to-peak filter).
+registerStackLayer({
+    id: "dopamine",
+    label: "Dopamine Miner",
+    description: "Constrain playback to top-energy peak clusters.",
+    factory: function(ctx) {
+        if (!ctx || !ctx.beats || !ctx.beats.length) return null;
+        var settings = getDopamineMinerSettings();
+        var data = buildPeakClusters(ctx.beats, settings);
+        if (!data || !data.clusters.length) return null;
+
+        function snapToNearestPeak(idx, fallbackIdx) {
+            if (data.peakSet[idx]) return idx;
+            var best = null;
+            var bestDist = Infinity;
+            data.clusters.forEach(function(c) {
+                var d = 0;
+                if (idx < c.start) d = c.start - idx;
+                else if (idx > c.end) d = idx - c.end;
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = c;
+                }
+            });
+            if (best) return best.start;
+            return typeof fallbackIdx === "number" ? fallbackIdx : idx;
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.proposedIndex !== "number") return null;
+                var proposed = meta.proposedIndex;
+                if (data.peakSet[proposed]) return null;
+                var snapped = snapToNearestPeak(proposed, meta.currentIndex);
+                return { index: snapped };
+            }
+        };
+    }
+});
 
 function createAutoharmonizerDriver(player) {
     // Autoharmonizer: dual-track fusion with cross-track jumping and sculpted transitions
@@ -10012,6 +10859,9 @@ function Driver(player) {
     } else if (mode === "eternal") {
         var eternalSettings = getLoopSettingsForMode("eternal");
         return createJukeboxDriver(player, eternalSettings);
+    } else if (mode === "dopamine") {
+        var dopamineSettings = getDopamineMinerSettings();
+        return createDopamineMinerDriver(player, dopamineSettings);
     } else if (mode === "autoharmonizer") {
         return createAutoharmonizerDriver(player);
     } else if (mode === "sculptor") {

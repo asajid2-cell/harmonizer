@@ -224,8 +224,8 @@ function createJRemixer(context, jquery) {
                 : 'canon';
             var requestedVoices = window.canonVoiceCount || 2;
             var numVoices;
-            if (currentMode === 'jukebox') {
-                // Eternal Jukebox: single voice, no canon overlay
+            if (currentMode === 'jukebox' || currentMode === 'dopamine') {
+                // Eternal Jukebox and Dopamine Miner: single voice, no canon overlay
                 numVoices = 1;
             } else if (currentMode === 'canon') {
                 // Autocanonizer: multi-voice canon (2–8 voices)

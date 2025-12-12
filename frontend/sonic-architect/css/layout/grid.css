@@ -1,0 +1,345 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * CSS Grid System
+ */
+
+/* ========================================
+   BASE APPLICATION LAYOUT
+   ======================================== */
+
+.app {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    background-color: var(--theme-bg);
+}
+
+/* Canvas container - always full screen behind everything */
+.canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: var(--z-base);
+}
+
+/* ========================================
+   UI LAYER - MAIN GRID CONTAINER
+   ======================================== */
+
+.ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    pointer-events: none;
+    display: grid;
+
+    /* Mobile-first: Single column layout */
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto auto;
+    grid-template-areas:
+        "header"
+        "main"
+        "player"
+        "nav";
+}
+
+/* All interactive elements need pointer-events */
+.ui-layer > * {
+    pointer-events: auto;
+}
+
+/* ========================================
+   HEADER
+   ======================================== */
+
+.header {
+    grid-area: header;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border-bottom: var(--glass-border);
+    min-height: var(--header-height);
+}
+
+.header__logo {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+
+.header__title {
+    font-family: var(--font-family-display);
+    font-size: var(--text-md);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--letter-spacing-wider);
+}
+
+.header__version {
+    font-size: var(--text-xs);
+    color: var(--theme-text-muted);
+    letter-spacing: var(--letter-spacing-widest);
+}
+
+.header__stats {
+    display: none;
+    gap: var(--space-2);
+}
+
+.header__actions {
+    display: flex;
+    gap: var(--space-1);
+}
+
+/* ========================================
+   PANELS (Left & Right Sidebars)
+   ======================================== */
+
+.panel {
+    display: none; /* Hidden on mobile by default */
+    flex-direction: column;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    overflow: hidden;
+}
+
+.panel--left {
+    grid-area: left;
+    border-right: var(--glass-border);
+    border-left: none;
+    border-top: none;
+    border-bottom: none;
+}
+
+.panel--right {
+    grid-area: right;
+    border-left: var(--glass-border);
+    border-right: none;
+    border-top: none;
+    border-bottom: none;
+}
+
+.panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--theme-border);
+    flex-shrink: 0;
+}
+
+.panel__title {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    color: var(--theme-primary);
+}
+
+.panel__toggle {
+    display: none;
+}
+
+.panel__content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+/* ========================================
+   PLAYER BAR
+   ======================================== */
+
+.player-bar {
+    grid-area: player;
+    display: grid;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border-top: var(--glass-border);
+    min-height: var(--player-bar-height);
+
+    /* Mobile: Simplified 2-row layout */
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+        "art info controls"
+        "progress progress progress";
+}
+
+.player-bar__art {
+    grid-area: art;
+}
+
+.player-bar__info {
+    grid-area: info;
+    min-width: 0; /* Allow truncation */
+}
+
+.player-bar__controls {
+    grid-area: controls;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.player-bar__progress {
+    grid-area: progress;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.player-bar__volume {
+    display: none; /* Hidden on mobile */
+}
+
+/* ========================================
+   MOBILE NAVIGATION
+   ======================================== */
+
+.mobile-nav {
+    grid-area: nav;
+    display: flex;
+    justify-content: space-around;
+    align-items: stretch;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border-top: var(--glass-border);
+    min-height: var(--mobile-nav-height);
+    padding: var(--space-1) 0;
+}
+
+.mobile-nav__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    color: var(--theme-text-muted);
+    transition: color var(--transition-fast);
+}
+
+.mobile-nav__item span {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+}
+
+.mobile-nav__item.active {
+    color: var(--theme-primary);
+}
+
+.mobile-nav__item:hover {
+    color: var(--theme-text);
+}
+
+/* ========================================
+   HUD CORNERS
+   ======================================== */
+
+.hud-corner {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--theme-primary);
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 5;
+    display: none; /* Hidden on mobile */
+}
+
+.hud-corner--tl {
+    top: var(--space-4);
+    left: var(--space-4);
+    border-right: 0;
+    border-bottom: 0;
+}
+
+.hud-corner--tr {
+    top: var(--space-4);
+    right: var(--space-4);
+    border-left: 0;
+    border-bottom: 0;
+}
+
+.hud-corner--bl {
+    bottom: var(--space-4);
+    left: var(--space-4);
+    border-right: 0;
+    border-top: 0;
+}
+
+.hud-corner--br {
+    bottom: var(--space-4);
+    right: var(--space-4);
+    border-left: 0;
+    border-top: 0;
+}
+
+/* ========================================
+   MOBILE PANEL OVERLAYS
+   ======================================== */
+
+/* When panels are shown on mobile, they overlay as modals */
+.panel.is-open {
+    display: flex;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    bottom: calc(var(--player-bar-height) + var(--mobile-nav-height));
+    z-index: var(--z-overlay);
+    animation: fade-in-up var(--transition-normal) ease;
+}
+
+/* ========================================
+   UI HIDDEN STATE
+   ======================================== */
+
+.app.ui-hidden .ui-layer {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-slow);
+}
+
+.app.ui-hidden .hud-corner {
+    opacity: 0;
+}
+
+/* Show cursor hint when UI is hidden */
+.app.ui-hidden::after {
+    content: 'Press H to show UI';
+    position: fixed;
+    bottom: var(--space-4);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: var(--space-2) var(--space-4);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    color: var(--theme-text-muted);
+    opacity: 0;
+    animation: fade-in 0.5s ease 2s forwards;
+    pointer-events: none;
+}

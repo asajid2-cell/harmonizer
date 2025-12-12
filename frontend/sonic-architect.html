@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Harmonizer Visualizer</title>
+
+    <!-- Import Maps for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="sonic-architect/css/harmonizer-lite.css?v=20251212">
+</head>
+<body class="sonic-lite">
+    <div id="sonic-lite-root">
+        <header id="sonic-topbar" class="sonic-topbar">
+            <div class="sonic-topbar__left">
+                <div class="sonic-title">Visualizer</div>
+                <div class="sonic-subtitle">Sonic Architect</div>
+            </div>
+
+            <div class="sonic-topbar__center">
+                <label class="sonic-label">
+                    Mode
+                    <select id="sonic-viz-mode" class="sonic-select">
+                        <option value="sphere">Sphere</option>
+                        <option value="galaxy">Particle Galaxy</option>
+                        <option value="bars">Audio Bars 3D</option>
+                        <option value="tunnel">Waveform Tunnel</option>
+                        <option value="terrain">Terrain</option>
+                        <option value="ribbons">Ribbons</option>
+                        <option value="dna">DNA Helix</option>
+                        <option value="kaleidoscope">Kaleidoscope</option>
+                        <option value="nebula">Nebula</option>
+                        <option value="fireworks">Fireworks</option>
+                        <option value="circuit">Circuit Board</option>
+                    </select>
+                </label>
+                <div class="sonic-fx">
+                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-bloom" checked> Bloom</label>
+                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-chromatic"> Chromatic</label>
+                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-glitch"> Glitch</label>
+                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-scanlines" checked> Scanlines</label>
+                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-vignette"> Vignette</label>
+                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-grain"> Grain</label>
+                </div>
+            </div>
+
+            <div class="sonic-topbar__right">
+                <button id="sonic-add-songs-btn" class="sonic-btn">Add Songs</button>
+                <button id="sonic-view-queue-btn" class="sonic-btn">View Queue</button>
+                <button id="sonic-next-btn" class="sonic-btn">Next Song</button>
+                <button id="sonic-back-btn" class="sonic-btn ghost">Back</button>
+            </div>
+        </header>
+
+        <div id="sonic-autoplay-hint" class="sonic-hint" hidden>
+            Click anywhere to enable audio playback.
+        </div>
+
+        <div id="canvas-container" class="canvas-container"></div>
+    </div>
+
+    <script type="module" src="sonic-architect/js/app-harmonizer.js?v=20251212"></script>
+</body>
+</html>
+

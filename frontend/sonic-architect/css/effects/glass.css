@@ -1,0 +1,318 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * Glassmorphism & Frosted Glass Effects
+ */
+
+/* ========================================
+   BASIC GLASSMORPHISM
+   ======================================== */
+
+.frosted {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.frosted--light {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.frosted--dark {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ========================================
+   ADVANCED GLASS CARD
+   ======================================== */
+
+.glass-card {
+    position: relative;
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.1) 0%,
+        rgba(255, 255, 255, 0.05) 100%
+    );
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-lg);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+}
+
+/* Shine effect */
+.glass-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent
+    );
+    transition: left 0.5s ease;
+}
+
+.glass-card:hover::before {
+    left: 100%;
+}
+
+/* ========================================
+   GLASS WITH GLOW
+   ======================================== */
+
+.glass-glow {
+    position: relative;
+    background: rgba(10, 10, 12, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-glow::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: var(--theme-gradient);
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+    z-index: -1;
+    filter: blur(20px);
+}
+
+.glass-glow:hover::before {
+    opacity: 0.3;
+}
+
+/* ========================================
+   GLASS MORPHISM VARIANTS
+   ======================================== */
+
+/* Light mode glass */
+.glass--light {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: #1a1a1a;
+}
+
+/* Colored glass */
+.glass--primary {
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.glass--secondary {
+    background: rgba(255, 0, 60, 0.1);
+    border: 1px solid rgba(255, 0, 60, 0.2);
+}
+
+/* ========================================
+   GLASS BORDER EFFECT
+   ======================================== */
+
+.glass-border {
+    position: relative;
+    background: var(--theme-bg);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.glass-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.2),
+        rgba(255, 255, 255, 0.05)
+    );
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    border-radius: inherit;
+}
+
+/* ========================================
+   GLASS REFLECTION
+   ======================================== */
+
+.glass-reflect {
+    position: relative;
+    overflow: hidden;
+}
+
+.glass-reflect::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        to bottom right,
+        rgba(255, 255, 255, 0.1) 0%,
+        rgba(255, 255, 255, 0.05) 40%,
+        transparent 50%
+    );
+    transform: rotate(-45deg);
+    pointer-events: none;
+}
+
+/* ========================================
+   GLASS LAYERS (Depth Effect)
+   ======================================== */
+
+.glass-layers {
+    position: relative;
+    background: rgba(10, 10, 12, 0.6);
+    backdrop-filter: blur(40px);
+}
+
+.glass-layers::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.glass-layers::after {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+/* ========================================
+   ACRYLIC EFFECT (Windows Style)
+   ======================================== */
+
+.acrylic {
+    position: relative;
+    background: rgba(10, 10, 12, 0.7);
+    backdrop-filter: blur(30px) saturate(125%);
+    -webkit-backdrop-filter: blur(30px) saturate(125%);
+}
+
+/* Noise overlay for acrylic */
+.acrylic::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+}
+
+/* ========================================
+   GLASS HIGHLIGHT
+   ======================================== */
+
+.glass-highlight {
+    position: relative;
+}
+
+.glass-highlight::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.1),
+        transparent
+    );
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+/* ========================================
+   GLASS MODAL BACKDROP
+   ======================================== */
+
+.glass-backdrop {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* ========================================
+   LIQUID GLASS (Animated)
+   ======================================== */
+
+.glass-liquid {
+    position: relative;
+    background: rgba(10, 10, 12, 0.7);
+    backdrop-filter: blur(20px);
+    overflow: hidden;
+}
+
+.glass-liquid::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(255, 255, 255, 0.1) 0%,
+        transparent 70%
+    );
+    animation: liquid-move 10s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes liquid-move {
+    0%, 100% {
+        transform: translate(-25%, -25%) rotate(0deg);
+    }
+    50% {
+        transform: translate(25%, 25%) rotate(180deg);
+    }
+}
+
+/* ========================================
+   GLASS INPUT
+   ======================================== */
+
+.glass-input {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    color: var(--theme-text);
+    transition: all var(--transition-fast);
+}
+
+.glass-input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.1);
+}
+
+.glass-input::placeholder {
+    color: var(--theme-text-muted);
+}

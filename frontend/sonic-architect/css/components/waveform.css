@@ -1,0 +1,167 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * Waveform Seek Bar Styles
+ */
+
+/* ========================================
+   WAVEFORM CONTAINER
+   ======================================== */
+
+.waveform-container {
+    position: relative;
+    width: 100%;
+    height: 40px;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+}
+
+.waveform-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* ========================================
+   PROGRESS BAR
+   ======================================== */
+
+.progress-bar {
+    position: relative;
+    flex: 1;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg,
+        rgba(var(--theme-primary-rgb), 0.2) 0%,
+        rgba(var(--theme-primary-rgb), 0.1) 100%
+    );
+    pointer-events: none;
+    transition: width 0.1s linear;
+}
+
+/* ========================================
+   SEEK BAR (Hidden - using canvas instead)
+   ======================================== */
+
+.seek-bar {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 1;
+    margin: 0;
+    padding: 0;
+}
+
+/* Fallback visible seek bar for no-JS */
+.no-js .seek-bar {
+    opacity: 1;
+}
+
+/* ========================================
+   TIME DISPLAY
+   ======================================== */
+
+.player-bar__progress {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 1;
+    min-width: 0;
+}
+
+.time {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--theme-text-muted);
+    min-width: 40px;
+    text-align: center;
+}
+
+/* ========================================
+   HOVER EFFECTS
+   ======================================== */
+
+.progress-bar:hover .progress-fill {
+    background: linear-gradient(90deg,
+        rgba(var(--theme-primary-rgb), 0.3) 0%,
+        rgba(var(--theme-primary-rgb), 0.15) 100%
+    );
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 479px) {
+    .waveform-container {
+        height: 32px;
+    }
+
+    .progress-bar {
+        height: 32px;
+    }
+
+    .time {
+        display: none;
+    }
+}
+
+@media (min-width: 480px) {
+    .waveform-container {
+        height: 36px;
+    }
+
+    .progress-bar {
+        height: 36px;
+    }
+}
+
+@media (min-width: 768px) {
+    .waveform-container {
+        height: 40px;
+    }
+
+    .progress-bar {
+        height: 40px;
+    }
+}
+
+/* ========================================
+   LOADING STATE
+   ======================================== */
+
+.progress-bar.is-loading .waveform-canvas {
+    opacity: 0.5;
+}
+
+.progress-bar.is-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(var(--theme-primary-rgb), 0.2) 50%,
+        transparent 100%
+    );
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}

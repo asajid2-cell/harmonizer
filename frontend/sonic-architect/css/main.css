@@ -1,0 +1,163 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * Main CSS Entry Point
+ *
+ * Mobile-first responsive design with 4 breakpoints:
+ * - Base (0-479px): Mobile
+ * - SM (480-767px): Tablet Portrait
+ * - MD (768-1023px): Tablet Landscape
+ * - LG (1024px+): Desktop
+ */
+
+/* ========================================
+   CORE STYLES
+   ======================================== */
+
+/* Reset & Custom Properties */
+@import url('./core/reset.css');
+
+/* Typography System */
+@import url('./core/typography.css');
+
+/* Animation Keyframes (50+) */
+@import url('./core/animations.css');
+
+/* Utility Classes */
+@import url('./core/utilities.css');
+
+/* ========================================
+   LAYOUT (Mobile-First)
+   ======================================== */
+
+/* CSS Grid System */
+@import url('./layout/grid.css');
+
+/* Mobile Base Styles (0-479px) */
+@import url('./layout/mobile.css');
+
+/* Tablet Styles (480-1023px) */
+@import url('./layout/tablet.css');
+
+/* Desktop Styles (1024px+) */
+@import url('./layout/desktop.css');
+
+/* ========================================
+   COMPONENTS
+   ======================================== */
+
+/* Buttons - Morphing, Glowing, Liquid */
+@import url('./components/buttons.css');
+
+/* Sliders - Custom Range Inputs */
+@import url('./components/sliders.css');
+
+/* Toggles - Animated Toggle Switches */
+@import url('./components/toggles.css');
+
+/* Panels - Glassmorphism Panels, Modals */
+@import url('./components/panels.css');
+
+/* Playlist - Track List, Drop Zones */
+@import url('./components/playlist.css');
+
+/* Visualizer - Mode Selector */
+@import url('./components/visualizer.css');
+
+/* Album Art - Display & Modal */
+@import url('./components/album-art.css');
+
+/* Waveform - Seek Bar */
+@import url('./components/waveform.css');
+
+/* ========================================
+   VISUAL EFFECTS
+   ======================================== */
+
+/* Glitch Effects */
+@import url('./effects/glitch.css');
+
+/* Neon Glow Effects */
+@import url('./effects/neon.css');
+
+/* Glassmorphism */
+@import url('./effects/glass.css');
+
+/* ========================================
+   THEME OVERRIDES
+   ======================================== */
+
+/* Base theme is defined in reset.css */
+/* Additional theme files can be imported as needed */
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+    * {
+        background: transparent !important;
+        color: #000 !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    .app {
+        display: none;
+    }
+}
+
+/* ========================================
+   REDUCED MOTION
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .glitch::before,
+    .glitch::after {
+        display: none;
+    }
+}
+
+/* ========================================
+   HIGH CONTRAST MODE
+   ======================================== */
+
+@media (prefers-contrast: high) {
+    :root {
+        --theme-border: rgba(255, 255, 255, 0.5);
+        --glass-bg: rgba(0, 0, 0, 0.9);
+    }
+
+    .btn {
+        border-width: 2px;
+    }
+
+    .panel {
+        border-width: 2px;
+    }
+}
+
+/* ========================================
+   DARK MODE (Default)
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+    /* Already dark by default, no changes needed */
+}
+
+/* ========================================
+   LIGHT MODE (If ever needed)
+   ======================================== */
+
+@media (prefers-color-scheme: light) {
+    /* Could add light mode overrides here */
+    /* For now, we stay dark regardless */
+}
