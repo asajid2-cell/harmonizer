@@ -448,6 +448,7 @@ var trackQueue = [];
 var currentQueueIndex = -1;
 var selectedQueueIndex = -1;
 var autoPlayNext = false;
+var queueAutoPlayPending = false;
 var playbackState = {
     hasStarted: false,
     isPaused: false
@@ -3240,6 +3241,19 @@ function allReady() {
 
     info(getFullTitle() || "ready!");
     createTiles(masterQs);
+
+    if (queueAutoPlayPending) {
+        var runningNow = false;
+        if (driver && typeof driver.isRunning === "function") {
+            runningNow = driver.isRunning();
+        }
+        queueAutoPlayPending = false;
+        if (!runningNow) {
+            togglePlayback().catch(function(err) {
+                console.error("[Queue] Auto-play failed:", err);
+            });
+        }
+    }
 }
 
 
@@ -4024,11 +4038,38 @@ function selectQueueOffset(delta) {
     updateQueueUI();
 }
 
+function resetCanvasForTrackSwitch() {
+    curTrack = null;
+    masterQs = null;
+    pendingOrbitRedraw = false;
+    window.currentVoiceStates = [];
+    window.lastVoiceJump = null;
+    window.currentMainBeatIdx = null;
+    resetPlaybackState();
+    try {
+        if (driver && driver.isRunning && driver.isRunning()) {
+            driver.stop();
+        }
+    } catch (e) {
+        // Ignore stop errors during hard reset.
+    }
+    clearTiles();
+    clearLoopPaths();
+    clearOrbitBase();
+    clearJukeboxBackdrop();
+    if (paper && typeof paper.clear === "function") {
+        paper.clear();
+    }
+    applyModeLayout();
+}
+
 function playQueueIndex(index) {
     if (index < 0 || index >= trackQueue.length) {
         return false;
     }
     var target = trackQueue[index];
+    resetCanvasForTrackSwitch();
+    queueAutoPlayPending = true;
     selectedQueueIndex = index;
     currentQueueIndex = index;
     autoPlayNext = true;
@@ -4206,33 +4247,44 @@ window.clearQueue = clearQueue;
 
 // Queue modal handling
 $(document).ready(function() {
-    var queueModal = $("#queue-modal");
-    var queueModalStatus = $("#queue-modal-status");
-    var queueSourceToggle = $("#queue-source-toggle");
-    var currentQueueSource = "youtube";
-    var queueModalShouldPersist = false;
+	    var queueModal = $("#queue-modal");
+	    var queueModalStatus = $("#queue-modal-status");
+	    var queueSourceToggle = $("#queue-source-toggle");
+	    var currentQueueSource = "youtube";
+	    var queueModalShouldPersist = false;
+	    var queueUploadCancelled = false;
 
-    function resetQueueModalForm() {
-        $("#queue-youtube-url-input").val("");
-        $("#queue-drive-url-input").val("");
-        $("#queue-spotify-url-input").val("");
-        $("#queue-soundcloud-url-input").val("");
+	    function resetQueueModalForm() {
+	        $("#queue-youtube-url-input").val("");
+	        $("#queue-drive-url-input").val("");
+	        $("#queue-spotify-url-input").val("");
+	        $("#queue-soundcloud-url-input").val("");
 
         var fileInput = document.getElementById('queue-audio-file-input');
-        if (fileInput) {
-            fileInput.value = "";
-        }
-        $("#queue-file-upload-name").text("No file chosen");
+	        if (fileInput) {
+	            fileInput.value = "";
+	        }
+	        $("#queue-file-upload-name").text("No file chosen");
+	
+	        queueSourceToggle.find("button").removeClass("active");
+	        var defaultSourceBtn = queueSourceToggle.find('[data-source="youtube"]');
+	        if (!defaultSourceBtn.length) {
+	            defaultSourceBtn = queueSourceToggle.find("button").first();
+	        }
+	        if (defaultSourceBtn.length) {
+	            defaultSourceBtn.addClass("active");
+	            currentQueueSource = (defaultSourceBtn.data("source") || "upload") + "";
+	            currentQueueSource = currentQueueSource.toLowerCase();
+	            $(".queue-source-pane").hide();
+	            $("#queue-" + currentQueueSource + "-pane").show();
+	        } else {
+	            currentQueueSource = "upload";
+	        }
 
-        queueSourceToggle.find("button").removeClass("active");
-        queueSourceToggle.find('[data-source="youtube"]').addClass("active");
-        $(".queue-source-pane").hide();
-        $("#queue-youtube-pane").show();
-        currentQueueSource = "youtube";
-
-        queueModalStatus.removeClass("visible error success info").text("");
-        queueModalShouldPersist = false;
-    }
+	        queueModalStatus.removeClass("visible error success info").text("");
+	        queueModalShouldPersist = false;
+	        queueUploadCancelled = false;
+	    }
 
     function markQueueModalDirty() {
         queueModalShouldPersist = true;
@@ -4258,66 +4310,192 @@ $(document).ready(function() {
         $("#queue-audio-file-input").click();
     });
 
-    $("#queue-audio-file-input").change(function() {
-        if (this.files.length > 0) {
-            $("#queue-file-upload-name").text(this.files[0].name);
-        } else {
-            $("#queue-file-upload-name").text("No file chosen");
-        }
-        markQueueModalDirty();
-    });
+	    $("#queue-audio-file-input").change(function() {
+	        if (this.files.length === 1) {
+	            $("#queue-file-upload-name").text(this.files[0].name);
+	        } else if (this.files.length > 1) {
+	            $("#queue-file-upload-name").text(this.files.length + " files selected");
+	        } else {
+	            $("#queue-file-upload-name").text("No file chosen");
+	        }
+	        markQueueModalDirty();
+	    });
 
     $("#queue-youtube-url-input, #queue-drive-url-input, #queue-spotify-url-input, #queue-soundcloud-url-input").on("input", markQueueModalDirty);
 
-    // Add to queue button handler
-    $("#add-to-queue-btn").click(function() {
-        if (!queueModalShouldPersist) {
-            resetQueueModalForm();
-        }
-        queueModal.show();
-    });
+		    // Add Songs button handler: open uploaded songs list
+		    $("#add-to-queue-btn").click(function() {
+		        var viewCachedSongsButton = document.getElementById("view-cached-songs");
+		        if (viewCachedSongsButton) {
+		            viewCachedSongsButton.click();
+		        } else {
+		            console.warn("[Queue] Uploaded songs view not available on this page.");
+		        }
+		    });
 
-    // Close modal handlers
-    $("#queue-modal-close, #queue-modal-cancel").click(function() {
-        queueModal.hide();
-    });
+		    function openQueueUploadModal() {
+		        if (!queueModalShouldPersist) {
+		            resetQueueModalForm();
+		        }
+		        // Default to upload pane
+		        queueSourceToggle.find("button").removeClass("active");
+		        queueSourceToggle.find('[data-source="upload"]').addClass("active");
+		        $(".queue-source-pane").hide();
+		        $("#queue-upload-pane").show();
+		        currentQueueSource = "upload";
+		        // Avoid stacking modals
+		        $("#cached-songs-modal").hide();
+		        queueModal.show();
+		    }
 
-    // Click outside modal to close
-    queueModal.click(function(e) {
-        if (e.target === queueModal[0]) {
-            queueModal.hide();
-        }
-    });
+		    // Upload button inside Uploaded Songs modal
+		    $("#cached-songs-upload-btn").click(function() {
+		        openQueueUploadModal();
+		    });
 
-    $("#queue-modal-reset").click(function() {
-        resetQueueModalForm();
-        queueModalStatus.removeClass("visible");
-    });
+		    // Next song button inside Uploaded Songs modal
+		    $("#cached-songs-next-btn").click(function() {
+		        var advanced = (mode || "").toLowerCase();
+		        var played = playNextInQueue();
+		        if (played) {
+		            $("#cached-songs-modal").hide();
+		            info("Loading next queued song...");
+		        } else {
+		            info("Queue is empty.");
+		        }
+		    });
 
-    // Submit handler
-    $("#queue-modal-submit").click(async function() {
-        queueModalShouldPersist = true;
-        queueModalStatus.addClass("visible info").removeClass("error success").text("Processing...");
+	    // Close modal handlers
+	    $("#queue-modal-close, #queue-modal-cancel").click(function() {
+	        queueUploadCancelled = true;
+	        queueModal.hide();
+	    });
 
-        try {
-            var formData = new FormData();
-            formData.append('source', currentQueueSource);
-            formData.append('algorithm', mode);
+	    // Click outside modal to close
+	    queueModal.click(function(e) {
+	        if (e.target === queueModal[0]) {
+	            queueUploadCancelled = true;
+	            queueModal.hide();
+	        }
+	    });
+
+	    $("#queue-modal-reset").click(function() {
+	        resetQueueModalForm();
+	        queueModalStatus.removeClass("visible");
+	    });
+
+	    function delay(ms) {
+	        return new Promise(function(resolve) {
+	            setTimeout(resolve, ms);
+	        });
+	    }
+
+	    async function processUploadFile(file) {
+	        var entryFormData = new FormData();
+	        entryFormData.append('source', 'upload');
+	        entryFormData.append('algorithm', mode);
+	        entryFormData.append('audio', file);
+
+	        var response;
+	        try {
+	            response = await fetch('/api/process', {
+	                method: 'POST',
+	                body: entryFormData
+	            });
+	        } catch (e) {
+	            return { ok: false, shouldRetry: true, error: e.message || "Network error" };
+	        }
+
+	        var data = {};
+	        try {
+	            data = await response.json();
+	        } catch (e) {
+	            data = {};
+	        }
+
+	        if (response.ok && data.trackId) {
+	            return {
+	                ok: true,
+	                trackId: data.trackId,
+	                title: data.title || file.name,
+	                artist: data.artist || "Upload"
+	            };
+	        }
+
+	        var errorMessage = data.error || "Failed to process track";
+	        var shouldRetry = !(response.status >= 400 && response.status < 500 && response.status !== 429);
+	        return { ok: false, shouldRetry: shouldRetry, error: errorMessage };
+	    }
+
+	    async function processUploadQueue(files) {
+	        for (var i = 0; i < files.length; i++) {
+	            var file = files[i];
+	            var attempt = 0;
+	            while (true) {
+	                if (queueUploadCancelled) {
+	                    throw new Error("Upload cancelled");
+	                }
+	                attempt++;
+	                queueModalStatus
+	                    .addClass("visible info")
+	                    .removeClass("error success")
+	                    .text("Processing " + (i + 1) + "/" + files.length + ": " + file.name + " (attempt " + attempt + ")");
+
+	                var result = await processUploadFile(file);
+	                if (result.ok) {
+	                    addToQueue(result.trackId, result.title, result.artist);
+	                    break;
+	                }
+
+	                if (!result.shouldRetry) {
+	                    throw new Error(result.error);
+	                }
+
+	                queueModalStatus.text("Retrying " + file.name + "... " + result.error);
+	                await delay(Math.min(10000, 1000 * attempt));
+	            }
+	        }
+	    }
+
+	    // Submit handler
+	    $("#queue-modal-submit").click(async function() {
+	        queueModalShouldPersist = true;
+	        queueUploadCancelled = false;
+	        queueModalStatus.addClass("visible info").removeClass("error success").text("Processing...");
+
+	        try {
+	            var formData = new FormData();
+	            formData.append('source', currentQueueSource);
+	            formData.append('algorithm', mode);
 
             var url = null;
-            var fileInput = document.getElementById('queue-audio-file-input');
+	            var fileInput = document.getElementById('queue-audio-file-input');
 
-            if (currentQueueSource === 'upload') {
-                if (!fileInput.files || fileInput.files.length === 0) {
-                    queueModalStatus.addClass("visible error").removeClass("info").text("Please choose a file");
-                    return;
-                }
-                formData.append('audio', fileInput.files[0]);
-            } else if (currentQueueSource === 'youtube') {
-                url = $("#queue-youtube-url-input").val().trim();
-                if (!url) {
-                    queueModalStatus.addClass("visible error").removeClass("info").text("Please enter a URL");
-                    return;
+	            if (currentQueueSource === 'upload') {
+	                if (!fileInput.files || fileInput.files.length === 0) {
+	                    queueModalStatus.addClass("visible error").removeClass("info").text("Please choose a file");
+	                    return;
+	                }
+	                var files = Array.from(fileInput.files);
+		                if (files.length > 40) {
+		                    queueModalStatus.addClass("visible error").removeClass("info").text("Please select 40 files or fewer");
+		                    return;
+		                }
+	                if (files.length > 1) {
+	                    await processUploadQueue(files);
+	                    queueModalStatus.addClass("success").removeClass("info").text("Added " + files.length + " tracks to queue!");
+	                    setTimeout(function() {
+	                        queueModal.hide();
+	                        resetQueueModalForm();
+	                    }, 1500);
+	                    return;
+	                }
+	                formData.append('audio', files[0]);
+	            } else if (currentQueueSource === 'youtube') {
+	                url = $("#queue-youtube-url-input").val().trim();
+	                if (!url) {
+	                    queueModalStatus.addClass("visible error").removeClass("info").text("Please enter a URL");
+	                    return;
                 }
                 formData.append('youtube_url', url);
             } else if (currentQueueSource === 'drive') {
@@ -4467,13 +4645,19 @@ $(document).ready(function() {
         $("#queue-minimize-btn").html("Ã¢Ë†â€™");
     });
 
-    // Make queue window draggable
-    (function initQueueDrag() {
-        var queueContainer = document.getElementById('queue-container');
-        var dragHandle = queueContainer.querySelector('.queue-drag-handle');
-        var isDragging = false;
-        var currentX, currentY, initialX, initialY;
-        var xOffset = 0, yOffset = 0;
+	    // Make queue window draggable
+	    (function initQueueDrag() {
+	        var queueContainer = document.getElementById('queue-container');
+	        if (!queueContainer) {
+	            return;
+	        }
+	        var dragHandle = queueContainer.querySelector('.queue-drag-handle');
+	        if (!dragHandle) {
+	            return;
+	        }
+	        var isDragging = false;
+	        var currentX, currentY, initialX, initialY;
+	        var xOffset = 0, yOffset = 0;
 
         dragHandle.addEventListener('mousedown', dragStart);
         document.addEventListener('mousemove', drag);

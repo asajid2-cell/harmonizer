@@ -315,8 +315,8 @@ jgs   `-=========-`()
                         <button type="button" id="viz-minimize-btn" class="viz-button ghost" aria-pressed="false">
                             Maximize Player
                         </button>
-                        <button type="button" id="add-to-queue-btn" class="viz-button ghost">
-                            + Add to Queue
+                        <button type="button" id="add-to-queue-btn" class="viz-button ghost" aria-label="Add or view uploaded songs">
+                            + Add Songs
                         </button>
                     </div>
                     <!-- Section Sculptor Controls -->
@@ -359,24 +359,6 @@ jgs   `-=========-`()
                                     </div>
                                 </div>
                             </div>
-                            <aside id="queue-container" class="queue-container queue-window" style="display: none;">
-                                <div class="queue-header queue-drag-handle">
-                                    <div class="queue-title-bar">
-                                        <h4>Queue</h4>
-                                        <div class="queue-window-controls">
-                                            <button type="button" id="queue-minimize-btn" class="queue-window-btn" aria-label="Minimize queue">-</button>
-                                            <button type="button" id="queue-close-btn" class="queue-window-btn" aria-label="Close queue">&times;</button>
-                                        </div>
-                                    </div>
-                                    <button type="button" id="clear-queue-btn" class="viz-button ghost small">Clear All</button>
-                                </div>
-                                <div class="queue-controls">
-                                    <button type="button" id="queue-prev-btn" class="queue-control-btn" aria-label="Select previous in queue">Prev</button>
-                                    <button type="button" id="queue-play-btn" class="queue-control-btn primary" aria-label="Play selected queue track">Play</button>
-                                    <button type="button" id="queue-next-btn" class="queue-control-btn" aria-label="Select next in queue">Next</button>
-                                </div>
-                                <div id="queue-list" class="queue-list"></div>
-                            </aside>
                         </div>
                 </section>
 
@@ -495,18 +477,21 @@ jgs   `-=========-`()
                 </div>
 
                 <!-- Upload pane -->
-                <div id="queue-upload-pane" class="queue-source-pane">
-                    <label class="field">
-                        <span>Audio file</span>
-                        <div class="file-upload-wrapper">
-                            <input type="file" accept="audio/*" id="queue-audio-file-input" class="file-input-hidden">
-                            <button type="button" class="file-upload-button" id="queue-file-upload-button">
-                                Choose File
-                            </button>
-                            <span class="file-upload-name" id="queue-file-upload-name">No file chosen</span>
-                        </div>
-                    </label>
-                </div>
+	                <div id="queue-upload-pane" class="queue-source-pane">
+	                    <label class="field">
+	                        <span>Audio file</span>
+	                        <div class="file-upload-wrapper">
+	                            <input type="file" accept="audio/*" id="queue-audio-file-input" class="file-input-hidden" multiple>
+	                            <button type="button" class="file-upload-button" id="queue-file-upload-button">
+	                                Choose Files
+	                            </button>
+	                            <span class="file-upload-name" id="queue-file-upload-name">No file chosen</span>
+	                        </div>
+	                        <p class="queue-hint" style="margin-top: 6px;">
+	                            Select up to 40 audio files. They’ll upload and process in order.
+	                        </p>
+	                    </label>
+	                </div>
 
                 <!-- Drive pane -->
                 <div id="queue-drive-pane" class="queue-source-pane" style="display: none;">
@@ -529,22 +514,24 @@ jgs   `-=========-`()
     </div>
 
     <!-- Cached Songs Modal -->
-    <div id="cached-songs-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Uploaded Songs</h3>
-                <button type="button" class="modal-close" id="cached-songs-modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="cached-songs-list" style="max-height: 400px; overflow-y: auto;">
-                    <p style="color: #888; text-align: center; padding: 2rem;">Loading...</p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="viz-button ghost" id="cached-songs-modal-close-btn">Close</button>
-            </div>
-        </div>
-    </div>
+	    <div id="cached-songs-modal" class="modal" style="display: none;">
+	        <div class="modal-content">
+	            <div class="modal-header">
+	                <h3>Uploaded Songs</h3>
+	                <button type="button" class="modal-close" id="cached-songs-modal-close">&times;</button>
+	            </div>
+	            <div class="modal-body">
+	                <div id="cached-songs-list" style="max-height: 400px; overflow-y: auto;">
+	                    <p style="color: #888; text-align: center; padding: 2rem;">Loading...</p>
+	                </div>
+	            </div>
+	            <div class="modal-footer">
+	                <button type="button" class="viz-button ghost small" id="cached-songs-upload-btn">Upload Songs</button>
+	                <button type="button" class="viz-button ghost small" id="cached-songs-next-btn">Next Song</button>
+	                <button type="button" class="viz-button ghost" id="cached-songs-modal-close-btn">Close</button>
+	            </div>
+	        </div>
+	    </div>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js"></script>
@@ -2519,10 +2506,12 @@ jgs   `-=========-`()
                     if (data.tracks && data.tracks.length > 0) {
                         let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
                         data.tracks.forEach(track => {
-                            const title = track.title || 'Unknown Track';
-                            const artist = track.artist || 'Unknown Artist';
-                            const trackId = track.trackId;
-                            const duration = track.duration ? Math.floor(track.duration) : 0;
+	                            const title = track.title || 'Unknown Track';
+	                            const artist = track.artist || 'Unknown Artist';
+	                            const trackId = track.trackId;
+	                            const encTitle = encodeURIComponent(title);
+	                            const encArtist = encodeURIComponent(artist);
+	                            const duration = track.duration ? Math.floor(track.duration) : 0;
                             const minutes = Math.floor(duration / 60);
                             const seconds = duration % 60;
                             const durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -2544,27 +2533,56 @@ jgs   `-=========-`()
                                         <div style="font-size: 0.85rem; color: #888;">
                                             ${artist}${duration > 0 ? ` • ${durationStr}` : ''}
                                         </div>
-                                    </button>
-                                </li>
+	                                    </button>
+	                                    <button type="button" class="viz-button ghost small cached-song-queue-btn"
+	                                        data-track-id="${trackId}"
+	                                        data-title="${encTitle}"
+	                                        data-artist="${encArtist}"
+	                                        style="margin-top: 6px;">
+	                                        Add to Queue
+	                                    </button>
+	                                </li>
                             `;
                         });
                         html += '</ul>';
                         listContainer.innerHTML = html;
 
                         // Add click handlers to load songs
-                        document.querySelectorAll('.cached-song-item').forEach(btn => {
-                            btn.addEventListener('click', () => {
-                                const trackId = btn.getAttribute('data-track-id');
-                                // Build URL with track ID to load the visualizer
-                                const params = new URLSearchParams();
-                                params.set('trid', trackId);
-                                params.set('mode', 'canon');
-                                window.location.href = `?${params.toString()}`;
-                            });
-                        });
-                    } else {
-                        listContainer.innerHTML = '<p style="color: #888; text-align: center; padding: 2rem;">No uploaded songs found. Upload a track to get started!</p>';
-                    }
+	                        document.querySelectorAll('.cached-song-item').forEach(btn => {
+	                            btn.addEventListener('click', () => {
+	                                const trackId = btn.getAttribute('data-track-id');
+	                                // Build URL with track ID to load the visualizer
+	                                const params = new URLSearchParams();
+	                                params.set('trid', trackId);
+	                                params.set('mode', 'canon');
+	                                window.location.href = `?${params.toString()}`;
+	                            });
+	                        });
+
+	                        // Add to queue handlers
+	                        document.querySelectorAll('.cached-song-queue-btn').forEach(btn => {
+	                            btn.addEventListener('click', (e) => {
+	                                e.preventDefault();
+	                                e.stopPropagation();
+	                                const trackId = btn.getAttribute('data-track-id');
+	                                const title = decodeURIComponent(btn.getAttribute('data-title') || '') || 'Unknown Track';
+	                                const artist = decodeURIComponent(btn.getAttribute('data-artist') || '') || 'Unknown Artist';
+	                                if (typeof window.addToQueue === 'function') {
+	                                    window.addToQueue(trackId, title, artist);
+	                                    btn.textContent = 'Queued';
+	                                    btn.disabled = true;
+	                                    setTimeout(() => {
+	                                        btn.textContent = 'Add to Queue';
+	                                        btn.disabled = false;
+	                                    }, 1200);
+	                                } else {
+	                                    console.warn('[Queue] addToQueue not available');
+	                                }
+	                            });
+	                        });
+	                    } else {
+	                        listContainer.innerHTML = '<p style="color: #888; text-align: center; padding: 2rem;">No uploaded songs found. Upload a track to get started!</p>';
+	                    }
                 } catch (error) {
                     console.error('Failed to load cached songs:', error);
                     listContainer.innerHTML = '<p style="color: #f44; text-align: center; padding: 2rem;">Failed to load songs. Please try again.</p>';
@@ -2873,17 +2891,6 @@ jgs   `-=========-`()
 <script src="./js/persistent-player.js?v=2025112424" defer></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
 
 
 
