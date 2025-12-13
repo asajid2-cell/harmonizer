@@ -110,7 +110,8 @@ class CircuitBoard extends VisualizerBase {
             fragmentShader,
             uniforms: this.uniforms,
             transparent: true,
-            blending: THREE.AdditiveBlending
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
         });
 
         this.mesh = new THREE.Mesh(geometry, material);

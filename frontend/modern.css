@@ -83,6 +83,89 @@ body.experimental-corrupting::after {
     }
 }
 
+/* Persistent glitch overlay while Experimental mode is enabled. */
+#experimental-glitch-overlay {
+    position: fixed;
+    inset: -10vh -10vw;
+    pointer-events: none;
+    z-index: 99998;
+    opacity: 0;
+    display: none;
+    mix-blend-mode: screen;
+    transform: translate3d(0, 0, 0);
+}
+
+html.experimental-enabled #experimental-glitch-overlay {
+    display: block;
+    opacity: 0.14;
+}
+
+#experimental-glitch-overlay::before,
+#experimental-glitch-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+}
+
+#experimental-glitch-overlay::before {
+    background:
+        repeating-linear-gradient(0deg,
+            rgba(255, 255, 255, 0.00),
+            rgba(255, 255, 255, 0.06) 1px,
+            rgba(0, 0, 0, 0.00) 3px),
+        repeating-linear-gradient(90deg,
+            rgba(255, 47, 47, 0.00),
+            rgba(255, 47, 47, 0.06) 2px,
+            rgba(0, 0, 0, 0.00) 9px),
+        linear-gradient(0deg, rgba(230, 195, 92, 0.06), rgba(0, 0, 0, 0.00) 40%, rgba(255, 47, 47, 0.05));
+    opacity: 0.95;
+    filter: blur(0.35px) contrast(1.05);
+    animation: experimental-glitch-drift 2800ms linear infinite;
+}
+
+#experimental-glitch-overlay::after {
+    background:
+        radial-gradient(circle at 18% 42%, rgba(230, 195, 92, 0.10), rgba(0, 0, 0, 0.00) 52%),
+        radial-gradient(circle at 72% 58%, rgba(255, 47, 47, 0.08), rgba(0, 0, 0, 0.00) 56%),
+        repeating-linear-gradient(0deg,
+            rgba(0, 0, 0, 0.00),
+            rgba(0, 0, 0, 0.00) 8px,
+            rgba(255, 255, 255, 0.05) 10px,
+            rgba(0, 0, 0, 0.00) 13px);
+    opacity: 0.65;
+    filter: blur(0.6px) saturate(1.05);
+    animation: experimental-glitch-fizz 680ms steps(2, end) infinite;
+}
+
+body.experimental-glitch-burst #experimental-glitch-overlay {
+    opacity: 0.42;
+    filter: saturate(1.25) contrast(1.25);
+}
+
+body.experimental-glitch-burst #experimental-glitch-overlay::before {
+    animation-duration: 420ms;
+    filter: blur(0.2px) contrast(1.35);
+}
+
+body.experimental-glitch-burst #experimental-glitch-overlay::after {
+    opacity: 0.95;
+    animation-duration: 160ms;
+    filter: blur(0.35px) saturate(1.35);
+}
+
+@keyframes experimental-glitch-drift {
+    0% { transform: translate3d(0, 0, 0) skewX(0deg); }
+    33% { transform: translate3d(-0.8vw, 0.4vh, 0) skewX(-1.2deg); }
+    66% { transform: translate3d(0.6vw, -0.3vh, 0) skewX(1.1deg); }
+    100% { transform: translate3d(0, 0, 0) skewX(0deg); }
+}
+
+@keyframes experimental-glitch-fizz {
+    0% { transform: translate3d(0, 0, 0); opacity: 0.55; }
+    50% { transform: translate3d(0.3vw, -0.2vh, 0); opacity: 0.65; }
+    100% { transform: translate3d(-0.2vw, 0.25vh, 0); opacity: 0.55; }
+}
+
 html {
     background-color: var(--color-bg);
     color-scheme: dark;

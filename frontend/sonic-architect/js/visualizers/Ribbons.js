@@ -123,7 +123,8 @@ class Ribbons extends VisualizerBase {
                 side: THREE.DoubleSide,
                 transparent: true,
                 opacity: 0.8,
-                blending: THREE.AdditiveBlending
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
             });
 
             const mesh = new THREE.Mesh(geometry, material);

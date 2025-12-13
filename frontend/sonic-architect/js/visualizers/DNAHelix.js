@@ -169,7 +169,8 @@ class DNAHelix extends VisualizerBase {
             vertexColors: true,
             transparent: true,
             opacity: 0.8,
-            blending: THREE.AdditiveBlending
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
         });
 
         this.glowPoints = new THREE.Points(geometry, material);

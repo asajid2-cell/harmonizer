@@ -84,6 +84,25 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const PAGE_PARAMS = new URLSearchParams(location.search);
 // 3D Visualizer is standalone: it owns its own playback (even if launched from Harmonizer).
 
+// Global responsiveness tuning for visuals (make reactions obvious).
+const VIZ_REACTIVITY = 2.2;
+const VIZ_GAMMA = 0.7; // <1 boosts quieter details
+const BEAT_REACTIVITY = 2.0;
+// Vocal-focused shaping: prefer mid/presence changes over constant low-level motion.
+const VOCAL_GATE = 0.035; // ignore low-level "always on" energy
+const VOCAL_REACTIVITY = 4.0;
+const VOCAL_ATTACK = 0.35;
+const VOCAL_RELEASE = 0.88;
+const VOCAL_BASE_BLEND = 0.18; // keep a little continuous motion (avoid "dead" visuals)
+
+const reactState = {
+  avgEnergy: 0,
+  avgVocal: 0,
+  avgBass: 0,
+  envVocal: 0,
+  prevCentroid: 0,
+};
+
 // =====================================
 // THEMES + PRESETS
 // =====================================
@@ -403,7 +422,8 @@ function initThree() {
   // Keep fog subtle so zooming out doesn't black out the whole scene.
   app.scene.fog = new THREE.FogExp2(0x000000, 0.004);
 
-  app.camera = new THREE.PerspectiveCamera(70, width / height, 0.01, 1000);
+  // Use a sane near/far to avoid depth precision issues (z-fighting flicker).
+  app.camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 300);
   app.camera.position.set(0, 0, 15);
 
   app.renderer = new THREE.WebGLRenderer({
@@ -504,8 +524,19 @@ function getIdleAudioData() {
     highLevel: 0,
     bass: 0,
     mid: 0,
+    high: 0,
     treble: 0,
+    volume: 0,
+    totalEnergy: 0,
+    rmsVolume: 0,
+    vocalLevel: 0,
+    vocalPulse: 0,
   };
+}
+
+function clamp01(x) {
+  if (!isFinite(x)) return 0;
+  return Math.max(0, Math.min(1, x));
 }
 
 function createExternalAudioReceiver(enabled, sid) {
@@ -752,10 +783,74 @@ function animate() {
   if (audioEngine.isPlaying && frequencyAnalyzer.isInitialized) {
     frequencyAnalyzer.update();
     const beatState = beatDetector.update(delta * 1000);
-    audioData = frequencyAnalyzer.getAnalysis();
+    const analysis = frequencyAnalyzer.getAnalysis() || null;
+    if (analysis) {
+      // Provide both modern (0..1) + legacy (0..255) fields for all visualizers.
+      const energyRaw = clamp01(Number(analysis.totalEnergy || analysis.rmsVolume || 0));
+      reactState.avgEnergy = reactState.avgEnergy * 0.98 + energyRaw * 0.02;
+      const energy = clamp01(energyRaw * 1.25);
+      const energyBoost = 1 + energy * 1.4;
+
+      // "Vocal" emphasis: mid + highMid + presence (where vocals live).
+      const vocalRaw =
+        (Number(analysis.mid || 0) * 0.9 + Number(analysis.highMid || 0) * 1.15 + Number(analysis.presence || 0) * 1.05) /
+        (0.9 + 1.15 + 1.05);
+
+      // Add articulation from spectral centroid changes (helps syllables pop).
+      const centroid = clamp01(Number(analysis.spectralCentroid || 0));
+      const centroidDelta = Math.max(0, Math.min(1, Math.abs(centroid - (reactState.prevCentroid || 0)) * 6.0));
+      reactState.prevCentroid = centroid;
+
+      // Slow baseline so we react to *changes*, not constant sustain.
+      reactState.avgVocal = reactState.avgVocal * 0.985 + vocalRaw * 0.015;
+      const vocalAccent = Math.max(0, (vocalRaw - reactState.avgVocal) - VOCAL_GATE);
+      const vocalTarget = clamp01(Math.pow(vocalAccent + centroidDelta * 0.18, 0.75) * VOCAL_REACTIVITY);
+
+      // Envelope follower (attack/release) for clear pulses.
+      const env = reactState.envVocal || 0;
+      const nextEnv = vocalTarget > env ? env + (vocalTarget - env) * VOCAL_ATTACK : env * VOCAL_RELEASE;
+      reactState.envVocal = nextEnv < 0.02 ? 0 : nextEnv;
+
+      const baseVocal = clamp01(Math.pow(vocalRaw, VIZ_GAMMA) * energyBoost);
+      const vocalPulse = reactState.envVocal;
+
+      // Bass: keep it present but less "always twitching".
+      const bassBase = clamp01(Math.pow(Number(analysis.bassLevel || 0), 0.85) * (VIZ_REACTIVITY * 0.85) * (1 + energy * 0.9));
+      reactState.avgBass = reactState.avgBass * 0.985 + bassBase * 0.015;
+      const bassAccent = Math.max(0, bassBase - reactState.avgBass - 0.01);
+      const bassLevel = clamp01(bassBase * 0.55 + bassAccent * 2.2);
+
+      // Map vocals -> mid/high so visuals "lip-sync" instead of constant jitter.
+      const midLevel = clamp01(baseVocal * VOCAL_BASE_BLEND + vocalPulse * 1.25 + bassLevel * 0.12);
+      const highLevel = clamp01(baseVocal * (VOCAL_BASE_BLEND * 0.9) + vocalPulse * 1.1 + centroidDelta * 0.4);
+
+      audioData = Object.assign({}, analysis, {
+        bassLevel,
+        midLevel,
+        highLevel,
+        bass: Math.round(Math.max(0, Math.min(255, bassLevel * 255))),
+        mid: Math.round(Math.max(0, Math.min(255, midLevel * 255))),
+        high: Math.round(Math.max(0, Math.min(255, highLevel * 255))),
+        treble: Math.round(Math.max(0, Math.min(255, highLevel * 255))),
+        volume: clamp01(Number(analysis.rmsVolume || analysis.totalEnergy || 0) * 1.4),
+        vocalLevel: clamp01(baseVocal),
+        vocalPulse,
+      });
+    } else {
+      audioData = getIdleAudioData();
+    }
 
     if (beatState && beatState.isBeat) {
-      app.vizManager.onBeat(beatState.beatIntensity);
+      const boostedBeat = clamp01((beatState.beatIntensity || 0) * BEAT_REACTIVITY);
+      app.vizManager.onBeat(boostedBeat);
+
+      // Optional: subtle bloom "kick" on beats for more obvious motion.
+      try {
+        if (app.bloomPass && dom.fxBloomToggle?.checked) {
+          const base = Number(dom.fxBloomStrength?.value || 1.5);
+          app.bloomPass.strength = base * (1 + boostedBeat * 0.9);
+        }
+      } catch (e) {}
     }
     if (beatState && beatState.bpm) {
       app.vizManager.onBPMUpdate(beatState.bpm, beatState.bpmConfidence);
@@ -796,8 +891,6 @@ const LAUNCH_PLAYBACK_MAX_AGE_MS = 15000;
 // =====================================
 
 const HX_STORAGE_KEY = 'harmonizerHVStackFXV1';
-const HX_LAUNCH_KEY = 'harmonizerVisualizerLaunchHarmonizerV1';
-
 const SUPPORTED_ALGORITHMS = new Set([
   'canon',
   'jukebox',
@@ -807,6 +900,17 @@ const SUPPORTED_ALGORITHMS = new Set([
   'phaseshifter',
   'granularfreeze',
   'elasticvelo',
+  'mathrocker',
+  'stalker',
+  'timbresurf',
+  'chromastack',
+  'beatsort',
+  'reversebloom',
+  'barberpole',
+  'palindrome',
+  'spectralgravity',
+  'callresponse',
+  'orbitweaver',
   'autoharmonizer',
   'sculptor',
 ]);
@@ -906,61 +1010,6 @@ function loadHxState() {
 
   // Normalize URL mode for uploads/deep-links.
   currentAlgorithm = normalizeAlgorithm(currentAlgorithm);
-
-  // Pull defaults from Harmonizer page if present (and for this track).
-  try {
-    const launch = JSON.parse(localStorage.getItem(HX_LAUNCH_KEY) || 'null');
-    if (launch && typeof launch === 'object') {
-      const urlTrackId = new URLSearchParams(location.search).get('trid') || '';
-      const launchTrackId = String(launch.trackId || '');
-      const shouldApplyLaunch = !launchTrackId || !urlTrackId || launchTrackId === urlTrackId;
-
-      if (shouldApplyLaunch) {
-        // When launching from Harmonizer, prefer its settings over any saved visualizer state.
-        resetHxStateToDefaults();
-
-        // Apply playback handoff only when the payload is fresh (prevents stale seeks).
-        const savedAt = Number(launch.savedAt || 0);
-        const ageMs = Date.now() - savedAt;
-        if (savedAt > 0 && isFinite(ageMs) && ageMs >= 0 && ageMs <= LAUNCH_PLAYBACK_MAX_AGE_MS) {
-          const start = Number(launch.startTimeSeconds);
-          if (isFinite(start) && start >= 0) {
-            pendingLaunchPlayback = {
-              trackId: launchTrackId || urlTrackId || null,
-              startTimeSeconds: start,
-              wasPlaying: typeof launch.wasPlaying === 'boolean' ? launch.wasPlaying : true,
-            };
-          }
-        }
-
-        if (typeof launch.canonVoiceCount === 'number' && isFinite(launch.canonVoiceCount)) {
-          hxState.canonVoiceCount = Math.max(2, Math.min(8, Math.round(launch.canonVoiceCount)));
-        }
-        if (typeof launch.baseAudioOnly === 'boolean') {
-          hxState.baseAudioOnly = !!launch.baseAudioOnly;
-        }
-
-        // Apply stacked layers first.
-        Object.keys(hxState.layers).forEach((k) => {
-          hxState.layers[k] = false;
-        });
-        if (Array.isArray(launch.stackedLayers)) {
-          const ids = launch.stackedLayers.map((x) => String(x).toLowerCase());
-          Object.keys(hxState.layers).forEach((k) => {
-            hxState.layers[k] = ids.includes(k);
-          });
-        }
-
-        const mode = (launch.mode || '').toLowerCase();
-        if (mode) {
-          applyRequestedModeToHx(mode);
-        }
-        if (typeof launch.loopEnabled === 'boolean') {
-          hxState.loopEnd = !!launch.loopEnabled;
-        }
-      }
-    }
-  } catch (e) {}
 
   // If URL carries a specific mode and no launch payload matched, treat it as an explicit hint.
   // This makes shared links behave predictably.
@@ -1074,6 +1123,10 @@ function syncHxStateFromUi() {
   hxState.freezeRepeats = Number(dom.hxFreezeRepeats?.value || 6);
   hxState.veloBase = Number(dom.hxVeloBase?.value || 1.0);
   hxState.veloAmt = Number(dom.hxVeloAmt?.value || 0.25);
+
+  // Keep backend algorithm selection in sync with the UI.
+  // Even if playback is "Off", uploads should still produce canonical analysis.
+  currentAlgorithm = normalizeAlgorithm(requestedMode === 'off' ? 'canon' : requestedMode);
 }
 
 function buildBeatFeatures(analysis) {
@@ -1423,6 +1476,22 @@ async function ensureAnalyzers() {
   if (!beatDetector.isInitialized) {
     beatDetector.init(frequencyAnalyzer);
   }
+
+  // Make analysis/beat detection more responsive in the 3D Visualizer.
+  try {
+    frequencyAnalyzer.config.smoothing = 0.62;
+    frequencyAnalyzer.config.peakDecay = 0.965;
+    if (frequencyAnalyzer.analyser) {
+      frequencyAnalyzer.analyser.smoothingTimeConstant = frequencyAnalyzer.config.smoothing;
+    }
+  } catch (e) {}
+  try {
+    // Lower threshold + sensitivity so beats trigger more often.
+    // Keep beats from becoming constant "ticker-tape" on vocals-heavy tracks.
+    beatDetector.config.threshold = 1.18;
+    beatDetector.config.sensitivity = 0.9;
+    beatDetector.config.minBeatInterval = 170;
+  } catch (e) {}
 }
 
 async function ensureAudioUnlocked() {
@@ -2608,13 +2677,7 @@ async function init() {
   }
 
   const initialTrackId = params.get('trid');
-  if (initialTrackId) {
-    try {
-      await playTrackById(initialTrackId);
-    } catch (e) {
-      console.warn('[HV] Initial track failed to play', e);
-    }
-  }
+  // Standalone behavior: never auto-load a track on boot.
 
   animate();
 }

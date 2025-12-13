@@ -50,7 +50,8 @@ class Firework {
             vertexColors: true,
             transparent: true,
             opacity: 1,
-            blending: THREE.AdditiveBlending
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
         });
 
         this.particles = new THREE.Points(geometry, material);

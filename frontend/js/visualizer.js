@@ -922,13 +922,36 @@ function notifyStackPlaybackStateChange(meta) {
 
 var harmonizerAntiLoop = {
     tick: 0,
-    byMode: Object.create(null)
+    byMode: Object.create(null),
+    cache: {
+        trackKey: null,
+        totalSections: null
+    }
 };
 
 function harmonizerAntiLoopEnabled() {
     if (typeof window === "undefined") return true;
     // Allow users to disable via console: `window.harmonizerAntiLoopEnabled = false`.
     return window.harmonizerAntiLoopEnabled !== false;
+}
+
+function harmonizerGetTotalSections() {
+    if (!masterQs || !masterQs.length) return 0;
+    var key = masterQs.length + ":" + (curTrack && curTrack.id ? curTrack.id : "");
+    if (harmonizerAntiLoop.cache.trackKey === key && typeof harmonizerAntiLoop.cache.totalSections === "number") {
+        return harmonizerAntiLoop.cache.totalSections;
+    }
+    var maxSec = -1;
+    for (var i = 0; i < masterQs.length; i++) {
+        var q = masterQs[i];
+        if (!q) continue;
+        var s = q.section;
+        if (typeof s === "number" && isFinite(s) && s > maxSec) maxSec = s;
+    }
+    var total = Math.max(0, maxSec + 1);
+    harmonizerAntiLoop.cache.trackKey = key;
+    harmonizerAntiLoop.cache.totalSections = total;
+    return total;
 }
 
 function harmonizerGetAntiLoopState(modeName) {
@@ -940,7 +963,10 @@ function harmonizerGetAntiLoopState(modeName) {
             cooldownUntilTick: 0,
             tabooTargets: Object.create(null),
             tabooEdges: Object.create(null),
-            tabooRanges: []
+            tabooRanges: [],
+            sectionHistory: [],
+            seenSections: Object.create(null),
+            lastNewSectionTick: 0
         };
     }
     return harmonizerAntiLoop.byMode[mode];
@@ -969,6 +995,17 @@ function harmonizerIsAlternating2Cycle(seq, windowLen) {
         if (!okAB && !okBA) return false;
     }
     return okAB || okBA;
+}
+
+function harmonizerRecentUniqueCount(seq, windowLen) {
+    if (!Array.isArray(seq) || !seq.length) return 0;
+    windowLen = Math.max(1, Math.round(windowLen || 0));
+    var k = Math.min(windowLen, seq.length);
+    var uniq = Object.create(null);
+    for (var i = seq.length - k; i < seq.length; i++) {
+        uniq[seq[i]] = true;
+    }
+    return Object.keys(uniq).length;
 }
 
 function harmonizerLooksStuck(state, currentIndex, proposedIndex) {
@@ -1001,6 +1038,17 @@ function harmonizerLooksStuck(state, currentIndex, proposedIndex) {
         var uniqE = Object.create(null);
         for (var e = 0; e < eSlice.length; e++) uniqE[eSlice[e]] = true;
         if (eSlice.length >= 12 && Object.keys(uniqE).length <= EDGE_UNIQUE_MAX) return true;
+    }
+
+    // Whole-song exploration guard: if we're stuck in 1–2 sections for a long time, force a cross-section escape.
+    var totalSections = harmonizerGetTotalSections();
+    if (totalSections >= 3 && state && Array.isArray(state.sectionHistory) && state.sectionHistory.length >= 24) {
+        var recentUniqueSections = harmonizerRecentUniqueCount(state.sectionHistory, 96);
+        if (recentUniqueSections <= 1) return true;
+        if (recentUniqueSections <= 2 && state.sectionHistory.length >= 96) return true;
+        var seenCount = Object.keys(state.seenSections || {}).length;
+        var ticksSinceNewSection = harmonizerAntiLoop.tick - (state.lastNewSectionTick || 0);
+        if (seenCount > 0 && seenCount < totalSections && ticksSinceNewSection >= 160) return true;
     }
 
     return false;
@@ -1060,6 +1108,24 @@ function harmonizerPickAntiLoopEscape(meta, state) {
         return true;
     }
 
+    var totalSections = harmonizerGetTotalSections();
+    var seenSections = (state && state.seenSections) ? state.seenSections : Object.create(null);
+    var sectionCountsRecent = Object.create(null);
+    var sectionWindow = (state && Array.isArray(state.sectionHistory)) ? state.sectionHistory.slice(Math.max(0, state.sectionHistory.length - 96)) : [];
+    for (var si = 0; si < sectionWindow.length; si++) {
+        var sKey = sectionWindow[si];
+        sectionCountsRecent[sKey] = (sectionCountsRecent[sKey] || 0) + 1;
+    }
+    function sectionExploreBonusForIdx(idx) {
+        if (totalSections < 3) return 0;
+        var sec = harmonizerBeatSectionIndex(idx);
+        if (sec === null) return 0;
+        var unseen = seenSections[sec] ? 0 : 1;
+        var recentCount = sectionCountsRecent[sec] || 0;
+        var rarity = 1 - (recentCount / Math.max(1, sectionWindow.length));
+        return 0.18 * unseen + 0.06 * clamp01(rarity);
+    }
+
     function pickFromEdges(edges, sourceBias, sourceIdx) {
         if (!edges || !edges.length) return null;
         var scored = [];
@@ -1079,7 +1145,8 @@ function harmonizerPickAntiLoopEscape(meta, state) {
             var spanBonus = Math.min(0.18, span / Math.max(32, n));
             var edgeKey = (typeof sourceIdx === "number" ? sourceIdx : cur) + ":" + t;
             if (isTabooEdge(edgeKey)) continue;
-            var s = 0.65 * sim + secBonus + spanBonus + (sourceBias || 0);
+            var exploreBonus = sectionExploreBonusForIdx(t);
+            var s = 0.65 * sim + secBonus + spanBonus + exploreBonus + (sourceBias || 0);
             scored.push({ target: t, score: s });
         }
         if (!scored.length) return null;
@@ -1146,7 +1213,8 @@ function harmonizerPickAntiLoopEscape(meta, state) {
         var e01 = clamp01((energyRaw[k] - minE) / range);
         var secK = harmonizerBeatSectionIndex(k);
         var unseenSection = (secK !== null && !recentSections[secK]) ? 1 : 0;
-        var score = 0.55 * dist01 + 0.25 * e01 + 0.20 * unseenSection;
+        var exploreBonus = sectionExploreBonusForIdx(k);
+        var score = 0.50 * dist01 + 0.22 * e01 + 0.10 * unseenSection + exploreBonus;
         candidates.push({ idx: k, score: score });
     }
     if (!candidates.length) return null;
@@ -1167,6 +1235,15 @@ function harmonizerApplyAntiLoop(meta, idx) {
 
     state.visits.push(meta.currentIndex);
     if (state.visits.length > 256) state.visits.shift();
+    var secNow = harmonizerBeatSectionIndex(meta.currentIndex);
+    if (secNow !== null) {
+        state.sectionHistory.push(secNow);
+        if (state.sectionHistory.length > 256) state.sectionHistory.shift();
+        if (!state.seenSections[secNow]) {
+            state.seenSections[secNow] = true;
+            state.lastNewSectionTick = tick;
+        }
+    }
 
     var out = idx;
     if (tick >= (state.cooldownUntilTick || 0) && harmonizerLooksStuck(state, meta.currentIndex, idx)) {

@@ -121,7 +121,8 @@ class WaveformTunnel extends VisualizerBase {
                 vertexColors: true,
                 transparent: true,
                 opacity: 0.8,
-                blending: THREE.AdditiveBlending
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
             });
 
             // Create ring
