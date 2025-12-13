@@ -8,7 +8,6 @@
     <meta http-equiv="Expires" content="0">
     <title>Harmonizer Visualizer</title>
 
-    <!-- Import Maps for Three.js -->
     <script type="importmap">
         {
             "imports": {
@@ -18,20 +17,166 @@
         }
     </script>
 
-    <link rel="stylesheet" href="sonic-architect/css/harmonizer-lite.css?v=20251212">
+    <script src="app-config.js?v=20251212"></script>
+
+    <link rel="stylesheet" href="sonic-architect/css/harmonizer-visualizer.css?v=20251212">
 </head>
-<body class="sonic-lite">
-    <div id="sonic-lite-root">
-        <header id="sonic-topbar" class="sonic-topbar">
-            <div class="sonic-topbar__left">
-                <div class="sonic-title">Visualizer</div>
-                <div class="sonic-subtitle">Sonic Architect</div>
+<body class="hv-body">
+    <div id="hv-root">
+        <div id="hv-canvas-container" class="hv-canvas"></div>
+
+        <button id="hv-hide-ui-btn" class="hv-fab" type="button">Hide UI</button>
+
+        <aside id="hv-controls" class="hv-controls" aria-label="Visualizer controls">
+            <div class="hv-controls__header">
+                <div class="hv-brand">
+                    <div class="hv-title">Harmonizer Visualizer</div>
+                    <div id="hv-track-meta" class="hv-track-meta">No track loaded</div>
+                </div>
             </div>
 
-            <div class="sonic-topbar__center">
-                <label class="sonic-label">
-                    Mode
-                    <select id="sonic-viz-mode" class="sonic-select">
+            <div class="hv-controls__scroll">
+            <section class="hv-section">
+                <h2 class="hv-section__title">Track</h2>
+                <div class="hv-queue-actions">
+                    <button id="hv-choose-song-btn" class="hv-btn" type="button">Choose Song</button>
+                    <button id="hv-playpause-btn" class="hv-btn ghost" type="button">Play / Pause</button>
+                </div>
+            </section>
+
+            <section class="hv-section">
+                <h2 class="hv-section__title">Harmonizer FX</h2>
+                <div class="hv-controls-list">
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-hx-enabled" type="checkbox"> Enable Harmonizer Driver</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Mode
+                                <select id="hv-hx-mode" class="hv-select">
+                                    <option value="off">Off (linear playback)</option>
+                                    <option value="canon">Canon</option>
+                                    <option value="jukebox">Jukebox</option>
+                                    <option value="eternal">Eternal</option>
+                                    <option value="dopamine">Dopamine Miner</option>
+                                    <option value="harmonictrap">Harmonic Trap</option>
+                                    <option value="phaseshifter">Phase Shifter</option>
+                                    <option value="granularfreeze">Granular Freeze</option>
+                                    <option value="elasticvelo">Elastic Velo</option>
+                                </select>
+                            </label>
+                            <label class="hv-sublabel">Jump Probability
+                                <input id="hv-hx-jump-prob" type="range" min="0" max="1" step="0.02" value="0.55">
+                            </label>
+                            <label class="hv-sublabel">Loop At End
+                                <select id="hv-hx-loop-end" class="hv-select">
+                                    <option value="1" selected>On</option>
+                                    <option value="0">Off</option>
+                                </select>
+                            </label>
+                            <div class="hv-queue-actions">
+                                <button id="hv-hx-restart" class="hv-btn small" type="button">Restart Song</button>
+                                <button id="hv-hx-apply" class="hv-btn small ghost" type="button">Apply</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <span class="hv-control__label">Canon Voices</span>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Voices (Canon)
+                                <input id="hv-hx-canon-voices" type="range" min="2" max="8" step="1" value="2">
+                            </label>
+                            <label class="hv-sublabel">Overlay Mix
+                                <input id="hv-hx-overlay-mix" type="range" min="0" max="1" step="0.01" value="0.45">
+                            </label>
+                            <label class="hv-sublabel"><input id="hv-hx-base-audio-only" type="checkbox"> Base audio only (mute overlays)</label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-hx-layer-dopamine" type="checkbox"> Dopamine Miner</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Peak Percent
+                                <input id="hv-hx-dopamine-top" type="range" min="0.02" max="0.4" step="0.01" value="0.12">
+                            </label>
+                            <label class="hv-sublabel">Snap Window (beats)
+                                <input id="hv-hx-dopamine-window" type="range" min="4" max="128" step="1" value="48">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-hx-layer-harmonictrap" type="checkbox"> Harmonic Trap</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Window (beats)
+                                <input id="hv-hx-trap-window" type="range" min="8" max="192" step="1" value="64">
+                            </label>
+                            <label class="hv-sublabel">Strength
+                                <input id="hv-hx-trap-strength" type="range" min="0" max="1" step="0.02" value="0.55">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-hx-layer-phaseshifter" type="checkbox"> Phase Shifter</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Rate
+                                <input id="hv-hx-phase-rate" type="range" min="0" max="2" step="0.02" value="0.6">
+                            </label>
+                            <label class="hv-sublabel">Depth (beats)
+                                <input id="hv-hx-phase-depth" type="range" min="0" max="32" step="1" value="8">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-hx-layer-granularfreeze" type="checkbox"> Granular Freeze</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Chance
+                                <input id="hv-hx-freeze-chance" type="range" min="0" max="1" step="0.02" value="0.2">
+                            </label>
+                            <label class="hv-sublabel">Repeats
+                                <input id="hv-hx-freeze-repeats" type="range" min="1" max="16" step="1" value="6">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-hx-layer-elasticvelo" type="checkbox"> Elastic Velo</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Base Rate
+                                <input id="hv-hx-velo-base" type="range" min="0.5" max="1.5" step="0.01" value="1.0">
+                            </label>
+                            <label class="hv-sublabel">Amount
+                                <input id="hv-hx-velo-amt" type="range" min="0" max="1" step="0.01" value="0.25">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="hv-section">
+                <h2 class="hv-section__title">Scene</h2>
+                <label class="hv-label">Preset
+                    <select id="hv-scene-preset" class="hv-select">
+                        <option value="">Custom</option>
+                    </select>
+                </label>
+                <label class="hv-label">Visualizer Mode
+                    <select id="hv-viz-mode" class="hv-select">
                         <option value="sphere">Sphere</option>
                         <option value="galaxy">Particle Galaxy</option>
                         <option value="bars">Audio Bars 3D</option>
@@ -43,34 +188,287 @@
                         <option value="nebula">Nebula</option>
                         <option value="fireworks">Fireworks</option>
                         <option value="circuit">Circuit Board</option>
+                        <option value="crystal">Crystal Lattice</option>
+                        <option value="prism">Prism Knot</option>
+                        <option value="fractal">Raymarch Fractal</option>
+                        <option value="city">Neon Voxel City</option>
+                        <option value="metaballs">Metaballs Fluid</option>
                     </select>
                 </label>
-                <div class="sonic-fx">
-                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-bloom" checked> Bloom</label>
-                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-chromatic"> Chromatic</label>
-                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-glitch"> Glitch</label>
-                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-scanlines" checked> Scanlines</label>
-                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-vignette"> Vignette</label>
-                    <label class="sonic-toggle"><input type="checkbox" id="sonic-fx-grain"> Grain</label>
+                <div id="hv-viz-controls" class="hv-controls-list"></div>
+            </section>
+
+            <section class="hv-section">
+                <h2 class="hv-section__title">Camera</h2>
+                <div class="hv-controls-list">
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-cam-autorotate" type="checkbox"> Auto Rotate</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Rotate Speed
+                                <input id="hv-cam-autorotate-speed" type="range" min="0" max="10" step="0.1" value="2">
+                            </label>
+                            <label class="hv-sublabel">FOV
+                                <input id="hv-cam-fov" type="range" min="30" max="100" step="1" value="70">
+                            </label>
+                            <label class="hv-sublabel">Quality
+                                <select id="hv-quality" class="hv-select">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high" selected>High</option>
+                                    <option value="ultra">Ultra</option>
+                                </select>
+                            </label>
+                            <button id="hv-cam-reset" class="hv-btn small ghost" type="button">Reset Camera</button>
+                        </div>
+                    </div>
                 </div>
+            </section>
+
+            <section class="hv-section">
+                <h2 class="hv-section__title">Effects</h2>
+                <div class="hv-controls-list">
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-fx-bloom-toggle" type="checkbox" checked> Bloom</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Strength
+                                <input id="hv-fx-bloom-strength" type="range" min="0" max="3" step="0.05" value="1.5">
+                            </label>
+                            <label class="hv-sublabel">Radius
+                                <input id="hv-fx-bloom-radius" type="range" min="0" max="2" step="0.05" value="0.4">
+                            </label>
+                            <label class="hv-sublabel">Threshold
+                                <input id="hv-fx-bloom-threshold" type="range" min="0" max="1" step="0.01" value="0.85">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-fx-chromatic-toggle" type="checkbox"> Chromatic</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Intensity
+                                <input id="hv-fx-chromatic-intensity" type="range" min="0" max="2" step="0.05" value="0.4">
+                            </label>
+                            <label class="hv-sublabel">Offset
+                                <input id="hv-fx-chromatic-offset" type="range" min="0" max="0.02" step="0.0005" value="0.003">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-fx-glitch-toggle" type="checkbox"> Glitch</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Intensity
+                                <input id="hv-fx-glitch-intensity" type="range" min="0" max="2" step="0.05" value="0.3">
+                            </label>
+                            <label class="hv-sublabel">Amount
+                                <input id="hv-fx-glitch-amount" type="range" min="0" max="0.5" step="0.01" value="0.1">
+                            </label>
+                            <label class="hv-sublabel">Speed
+                                <input id="hv-fx-glitch-speed" type="range" min="0" max="3" step="0.05" value="1">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-fx-scanlines-toggle" type="checkbox" checked> Scanlines</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Intensity
+                                <input id="hv-fx-scanlines-intensity" type="range" min="0" max="0.3" step="0.005" value="0.08">
+                            </label>
+                            <label class="hv-sublabel">Density
+                                <input id="hv-fx-scanlines-density" type="range" min="200" max="2000" step="10" value="800">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-fx-colorgrade-toggle" type="checkbox"> Color Grade</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Exposure
+                                <input id="hv-fx-colorgrade-exposure" type="range" min="0" max="2" step="0.02" value="1">
+                            </label>
+                            <label class="hv-sublabel">Contrast
+                                <input id="hv-fx-colorgrade-contrast" type="range" min="0" max="2" step="0.02" value="1">
+                            </label>
+                            <label class="hv-sublabel">Saturation
+                                <input id="hv-fx-colorgrade-saturation" type="range" min="0" max="2" step="0.02" value="1">
+                            </label>
+                            <label class="hv-sublabel">Hue (deg)
+                                <input id="hv-fx-colorgrade-hue" type="range" min="-180" max="180" step="1" value="0">
+                            </label>
+                            <label class="hv-sublabel">Vibrance
+                                <input id="hv-fx-colorgrade-vibrance" type="range" min="-1" max="1" step="0.02" value="0">
+                            </label>
+                            <label class="hv-sublabel">Tint Strength
+                                <input id="hv-fx-colorgrade-tint" type="range" min="0" max="1" step="0.02" value="0">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-fx-pixelate-toggle" type="checkbox"> Pixelate</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Pixel Size
+                                <input id="hv-fx-pixelate-size" type="range" min="1" max="80" step="1" value="2">
+                            </label>
+                            <label class="hv-sublabel">Intensity
+                                <input id="hv-fx-pixelate-intensity" type="range" min="0" max="1" step="0.02" value="1">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-fx-dotmatrix-toggle" type="checkbox"> Dot Matrix</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Intensity
+                                <input id="hv-fx-dotmatrix-intensity" type="range" min="0" max="1" step="0.02" value="0.6">
+                            </label>
+                            <label class="hv-sublabel">Scale
+                                <input id="hv-fx-dotmatrix-scale" type="range" min="40" max="320" step="2" value="140">
+                            </label>
+                            <label class="hv-sublabel">Angle (deg)
+                                <input id="hv-fx-dotmatrix-angle" type="range" min="0" max="180" step="1" value="15">
+                            </label>
+                            <label class="hv-sublabel">Softness
+                                <input id="hv-fx-dotmatrix-softness" type="range" min="0.01" max="0.8" step="0.01" value="0.35">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-fx-trails-toggle" type="checkbox"> Trails</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Damp
+                                <input id="hv-fx-trails-damp" type="range" min="0.75" max="0.99" step="0.005" value="0.92">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-fx-vignette-toggle" type="checkbox"> Vignette</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Offset
+                                <input id="hv-fx-vignette-offset" type="range" min="0.5" max="2" step="0.05" value="1">
+                            </label>
+                            <label class="hv-sublabel">Darkness
+                                <input id="hv-fx-vignette-darkness" type="range" min="0" max="2" step="0.05" value="1">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hv-control">
+                        <div class="hv-control__row">
+                            <label><input id="hv-fx-grain-toggle" type="checkbox"> Film Grain</label>
+                        </div>
+                        <div class="hv-subcontrols">
+                            <label class="hv-sublabel">Intensity
+                                <input id="hv-fx-grain-intensity" type="range" min="0" max="0.5" step="0.01" value="0.05">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="hv-section">
+                <h2 class="hv-section__title">Colors</h2>
+                <label class="hv-label">Theme
+                    <select id="hv-theme-select" class="hv-select">
+                        <option value="cyber">Cyber</option>
+                        <option value="vapor">Vapor</option>
+                        <option value="matrix">Matrix</option>
+                        <option value="sunset">Sunset</option>
+                        <option value="aurora">Aurora</option>
+                        <option value="retrowave">Retrowave</option>
+                        <option value="bloodmoon">Bloodmoon</option>
+                        <option value="hologram">Hologram</option>
+                        <option value="void">Void</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </label>
+                <div class="hv-color-row">
+                    <label class="hv-color-label">Primary
+                        <input id="hv-color-primary" type="color" value="#ff00ff">
+                    </label>
+                    <label class="hv-color-label">Tertiary
+                        <input id="hv-color-tertiary" type="color" value="#ffffff">
+                    </label>
+                    <label class="hv-color-label">Secondary
+                        <input id="hv-color-secondary" type="color" value="#00ffff">
+                    </label>
+                </div>
+                <button id="hv-apply-colors" class="hv-btn" type="button">Apply Colors</button>
+            </section>
+
+            <section class="hv-section">
+                <h2 class="hv-section__title">Queue</h2>
+                <div class="hv-queue-actions">
+                    <button id="hv-add-songs-btn" class="hv-btn" type="button">Add Songs</button>
+                    <button id="hv-view-queue-btn" class="hv-btn ghost" type="button">View Queue</button>
+                    <button id="hv-next-btn" class="hv-btn" type="button">Next Song</button>
+                    <button id="hv-clear-queue-btn" class="hv-btn ghost" type="button">Clear Queue</button>
+                </div>
+            </section>
             </div>
 
-            <div class="sonic-topbar__right">
-                <button id="sonic-add-songs-btn" class="sonic-btn">Add Songs</button>
-                <button id="sonic-view-queue-btn" class="sonic-btn">View Queue</button>
-                <button id="sonic-next-btn" class="sonic-btn">Next Song</button>
-                <button id="sonic-back-btn" class="sonic-btn ghost">Back</button>
+            <div class="hv-controls__footer">
+                <button id="hv-back-btn" class="hv-btn ghost" type="button">Back</button>
             </div>
-        </header>
+        </aside>
 
-        <div id="sonic-autoplay-hint" class="sonic-hint" hidden>
+        <div id="hv-autoplay-hint" class="hv-hint" hidden>
             Click anywhere to enable audio playback.
         </div>
 
-        <div id="canvas-container" class="canvas-container"></div>
+        <div id="hv-library-modal" class="hv-modal" hidden>
+            <div class="hv-modal__content" role="dialog" aria-modal="true" aria-label="Song library">
+                <div class="hv-modal__header">
+                    <h3 class="hv-modal__title">Uploaded Songs</h3>
+                    <div class="hv-modal__tabs">
+                        <button id="hv-tab-songs" class="hv-tab active" type="button">Songs</button>
+                        <button id="hv-tab-queue" class="hv-tab" type="button">Queue</button>
+                    </div>
+                    <button id="hv-library-close" class="hv-modal__close" type="button">×</button>
+                </div>
+                <div class="hv-modal__body">
+                    <div id="hv-pane-songs">
+                        <div class="hv-pane__actions">
+                            <input id="hv-song-search" class="hv-input" type="text" placeholder="Search uploaded songs…">
+                            <button id="hv-upload-btn" class="hv-btn small" type="button">Upload Songs</button>
+                            <button id="hv-refresh-btn" class="hv-btn small ghost" type="button">Refresh</button>
+                            <input id="hv-upload-input" type="file" accept="audio/*" multiple hidden>
+                        </div>
+                        <div id="hv-upload-status" class="hv-upload-status"></div>
+                        <div id="hv-songs-list" class="hv-list"></div>
+                    </div>
+                    <div id="hv-pane-queue" hidden>
+                        <div class="hv-upload-status">Drag songs to reorder the queue.</div>
+                        <div id="hv-queue-list" class="hv-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <script type="module" src="sonic-architect/js/app-harmonizer.js?v=20251212"></script>
+    <script type="module" src="sonic-architect/js/app-harmonizer.js?v=2025121330"></script>
 </body>
 </html>
-

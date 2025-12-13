@@ -208,14 +208,22 @@ function createJRemixer(context, jquery) {
             }
         },
 
-        getPlayer : function() {
-            var speedFactor = 1.00;
-            var curQ = null;
-            var curAudioSource = null;
-            var masterGain = 0.85;
-            // Base gain for overlay voices - lower than main to stay in background
-            var overlayGain = 0.65;
-            var deltaTime = 0;
+	        getPlayer : function() {
+	            var speedFactor = 1.00;
+	            var curQ = null;
+	            var curAudioSource = null;
+	            var mainStartTime = 0;
+	            var mainStartOffset = 0;
+	            var mainStartRate = 1.0;
+	            var masterGain = 0.85;
+	            // Base gain for overlay voices - lower than main to stay in background
+	            var overlayGain = 0.65;
+	            var deltaTime = 0;
+	            // Shared analyser tap for external visualizers (routes the final mix through this node).
+	            var vizAnalyser = context.createAnalyser();
+	            vizAnalyser.fftSize = 512;
+	            vizAnalyser.smoothingTimeConstant = 0.85;
+	            vizAnalyser.connect(context.destination);
 
             // Get number of voices from window setting (default 2 for backwards compatibility)
             // Canon and eternal modes use layered voices; jukebox should be single-voice
@@ -224,12 +232,12 @@ function createJRemixer(context, jquery) {
                 : 'canon';
             var requestedVoices = window.canonVoiceCount || 2;
             var numVoices;
-            if (currentMode === 'jukebox' || currentMode === 'dopamine') {
-                // Eternal Jukebox and Dopamine Miner: single voice, no canon overlay
-                numVoices = 1;
-            } else if (currentMode === 'canon') {
-                // Autocanonizer: multi-voice canon (2–8 voices)
-                numVoices = Math.max(2, Math.min(8, requestedVoices));
+	            if (currentMode === 'jukebox' || currentMode === 'dopamine' || currentMode === 'harmonictrap' || currentMode === 'phaseshifter' || currentMode === 'granularfreeze' || currentMode === 'elasticvelo' || currentMode === 'mathrocker' || currentMode === 'stalker' || currentMode === 'timbresurf' || currentMode === 'chromastack' || currentMode === 'beatsort' || currentMode === 'reversebloom' || currentMode === 'barberpole' || currentMode === 'palindrome' || currentMode === 'spectralgravity' || currentMode === 'callresponse' || currentMode === 'orbitweaver') {
+	                // Single-voice modes: no canon overlay
+	                numVoices = 1;
+	            } else if (currentMode === 'canon') {
+                  // Autocanonizer: multi-voice canon (2-8 voices)
+                  numVoices = Math.max(2, Math.min(8, requestedVoices));
             } else {
                 // Eternal Canonizer and other modes: main + one canon voice
                 numVoices = 2;
@@ -260,9 +268,9 @@ function createJRemixer(context, jquery) {
                     // ignore failures on platforms without setter
                 }
                 mainGain.connect(mainPanner);
-                mainPanner.connect(context.destination);
+                mainPanner.connect(vizAnalyser);
             } else {
-                mainGain.connect(context.destination);
+                mainGain.connect(vizAnalyser);
             }
             mainGain.gain.value = masterGain;
 
@@ -309,9 +317,9 @@ function createJRemixer(context, jquery) {
                         // ignore
                     }
                     gainNodeToConnect.connect(voicePanner);
-                    voicePanner.connect(context.destination);
+                    voicePanner.connect(vizAnalyser);
                 } else {
-                    gainNodeToConnect.connect(context.destination);
+                    gainNodeToConnect.connect(vizAnalyser);
                 }
 
                 // Adjust gain for multiple voices - use gentler reduction to keep all voices audible
@@ -321,14 +329,17 @@ function createJRemixer(context, jquery) {
                 var adjustedGain = overlayGain * Math.max(0.5, voiceReduction);
                 voiceGain.gain.value = adjustedGain;
 
-                overlayVoices.push({
-                    gain: voiceGain,
-                    baseGain: adjustedGain,
-                    panner: voicePanner,
-                    hp: voiceHp,
-                    source: null,
-                    index: i
-                });
+	                overlayVoices.push({
+	                    gain: voiceGain,
+	                    baseGain: adjustedGain,
+	                    panner: voicePanner,
+	                    hp: voiceHp,
+	                    source: null,
+	                    startTime: 0,
+	                    startOffset: 0,
+	                    startRate: 1.0,
+	                    index: i
+	                });
                 skewDeltas.push(0);
 
                 // Initialize independent path state for this voice
@@ -435,32 +446,42 @@ function createJRemixer(context, jquery) {
                 console.log(s);
             }
 
-            function llPlay(buffer, start, duration, gain) {
-                var audioSource = context.createBufferSource();
-                audioSource.buffer = buffer;
-                audioSource.connect(gain);
-                audioSource.start(0, start, duration);
-                return audioSource;
-            }
+	            function llPlay(buffer, start, duration, gain) {
+	                var audioSource = context.createBufferSource();
+	                audioSource.buffer = buffer;
+	                try {
+	                    audioSource.playbackRate.value = speedFactor;
+	                } catch (e) {}
+	                audioSource.connect(gain);
+	                audioSource.start(0, start, duration);
+	                return audioSource;
+	            }
 
 
-            function playQ(q) {
+	            function playQ(q) {
                 // all this complexity is about click reduction.
                 // We want to continuously play as much as we can
                 // without getting out of sync
 
-                // Play main voice
-                if (curQ == null || curQ.next != q) {
-                    if (curAudioSource) {
-                        curAudioSource.stop();
-                    }
-                    var tduration = q.track.audio_summary.duration - q.start;
-                    curAudioSource = llPlay(q.track.buffer, q.start, tduration, mainGain);
-                    deltaTime = context.currentTime - q.start;
-                }
+	                // Play main voice
+	                if (curQ == null || curQ.next != q) {
+	                    if (curAudioSource) {
+	                        curAudioSource.stop();
+	                    }
+	                    var tduration = q.track.audio_summary.duration - q.start;
+	                    curAudioSource = llPlay(q.track.buffer, q.start, tduration, mainGain);
+	                    deltaTime = context.currentTime - q.start;
+	                    mainStartTime = context.currentTime;
+	                    mainStartOffset = q.start;
+	                    mainStartRate = speedFactor;
+	                }
 
-                var now = context.currentTime - deltaTime;
-                var delta = now - q.start;
+	                // Estimate how far we've moved through the buffer, accounting for playbackRate
+	                var bufferNow = mainStartOffset + (context.currentTime - mainStartTime) * mainStartRate;
+	                var delta = bufferNow - q.start;
+	                if (!isFinite(delta)) {
+	                    delta = 0;
+	                }
 
                 // Play overlay voices
                 // For 2 voices: use pre-computed q.others from canon alignment (follows main voice's loop path)
@@ -593,8 +614,11 @@ function createJRemixer(context, jquery) {
                         var baseGain = (typeof voice.baseGain === "number") ? voice.baseGain : voice.gain.gain.value;
                         // Consistent volume and pan - no per-beat breathing or LFO
                         var targetGain = baseGain;
-                        voice.source = llPlay(trackRef.buffer, otherBeat.start, oduration, voice.gain);
-                        voice.gain.gain.value = targetGain;
+	                        voice.source = llPlay(trackRef.buffer, otherBeat.start, oduration, voice.gain);
+	                        voice.startTime = context.currentTime;
+	                        voice.startOffset = otherBeat.start;
+	                        voice.startRate = speedFactor;
+	                        voice.gain.gain.value = targetGain;
 
                         // Set gain values to prevent clicks
                         try {
@@ -618,11 +642,16 @@ function createJRemixer(context, jquery) {
                     window.currentMainBeatIdx = mainBeatIdx;
                 }
 
-                curQ = q;
-                return q.duration - delta;
-            }
+	                curQ = q;
+	                var remainingBuffer = (q.duration || 0) - delta;
+	                var remainingTime = remainingBuffer / Math.max(0.01, mainStartRate || 1.0);
+	                if (!isFinite(remainingTime)) {
+	                    remainingTime = q.duration || 0.1;
+	                }
+	                return Math.max(0.02, remainingTime);
+	            }
 
-            var player = {
+	            var player = {
                 play: function(when, q, duration, gain, channel) {
                     return playQuantumWithDurationSimple(when, q, duration, gain, channel);
                 },
@@ -631,19 +660,44 @@ function createJRemixer(context, jquery) {
                     return playQ(q);
                 },
 
-                setSpeedFactor : function(factor) {
-                    speedFactor = factor;
-                },
+	                setSpeedFactor : function(factor) {
+	                    var next = (typeof factor === "number" && isFinite(factor)) ? factor : 1.0;
+	                    next = Math.max(0.05, Math.min(4.0, next));
+	                    if (next === speedFactor) {
+	                        return;
+	                    }
+	                    // Preserve continuity by updating stored offsets at the time of rate change
+	                    try {
+	                        if (curAudioSource) {
+	                            var mainNow = mainStartOffset + (context.currentTime - mainStartTime) * mainStartRate;
+	                            mainStartOffset = mainNow;
+	                            mainStartTime = context.currentTime;
+	                            mainStartRate = next;
+	                            try { curAudioSource.playbackRate.value = next; } catch (e) {}
+	                        }
+	                        if (overlayVoices && overlayVoices.length) {
+	                            overlayVoices.forEach(function(voice) {
+	                                if (!voice || !voice.source) return;
+	                                var vNow = voice.startOffset + (context.currentTime - voice.startTime) * (voice.startRate || 1.0);
+	                                voice.startOffset = vNow;
+	                                voice.startTime = context.currentTime;
+	                                voice.startRate = next;
+	                                try { voice.source.playbackRate.value = next; } catch (e) {}
+	                            });
+	                        }
+	                    } catch (e) {}
+	                    speedFactor = next;
+	                },
 
                 getSpeedFactor: function() {
                     return speedFactor;
                 },
 
-                stop: function() {
-                    if (curAudioSource) {
-                        curAudioSource.stop(0);
-                        curAudioSource = null;
-                    }
+	                stop: function() {
+	                    if (curAudioSource) {
+	                        curAudioSource.stop(0);
+	                        curAudioSource = null;
+	                    }
                     // Stop all overlay voice sources
                     if (overlayVoices && overlayVoices.length) {
                         overlayVoices.forEach(function(voice, idx) {
@@ -656,16 +710,27 @@ function createJRemixer(context, jquery) {
                             skewDeltas[idx] = 0;
                         });
                     }
-                    curQ = null;
-                    deltaTime = 0;
-                    // Reset skew tracking
-                    for (var i = 0; i < skewDeltas.length; i++) {
-                        skewDeltas[i] = 0;
-                    }
-                },
+	                    curQ = null;
+	                    deltaTime = 0;
+	                    mainStartTime = 0;
+	                    mainStartOffset = 0;
+	                    mainStartRate = 1.0;
+	                    // Reset skew tracking
+	                    for (var i = 0; i < skewDeltas.length; i++) {
+	                        skewDeltas[i] = 0;
+	                    }
+	                },
 
                 curTime: function() {
                     return context.currentTime;
+                },
+
+                getContext: function() {
+                    return context;
+                },
+
+                getVizAnalyser: function() {
+                    return vizAnalyser;
                 }
             }
             return player;

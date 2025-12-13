@@ -11,6 +11,7 @@
  */
 
 import VisualizerBase from './VisualizerBase.js';
+import * as THREE from 'three';
 
 class AudioBars3D extends VisualizerBase {
     constructor(scene, camera, renderer) {

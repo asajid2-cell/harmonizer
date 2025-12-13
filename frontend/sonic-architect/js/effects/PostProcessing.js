@@ -12,6 +12,7 @@
 
 import * as THREE from 'three';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
+import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
 
 // ==========================================
 // CHROMATIC ABERRATION PASS
@@ -481,6 +482,299 @@ export class FilmGrainPass extends Pass {
 }
 
 // ==========================================
+// COLOR GRADE PASS
+// ==========================================
+
+const ColorGradeShader = {
+    uniforms: {
+        tDiffuse: { value: null },
+        uExposure: { value: 1.0 },
+        uContrast: { value: 1.0 },
+        uSaturation: { value: 1.0 },
+        uHue: { value: 0.0 }, // radians
+        uVibrance: { value: 0.0 }, // -1..1
+        uTint: { value: new THREE.Color(1, 1, 1) },
+        uTintStrength: { value: 0.0 } // 0..1
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform float uExposure;
+        uniform float uContrast;
+        uniform float uSaturation;
+        uniform float uHue;
+        uniform float uVibrance;
+        uniform vec3 uTint;
+        uniform float uTintStrength;
+        varying vec2 vUv;
+
+        vec3 rgb2hsv(vec3 c) {
+            vec4 K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
+            vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+            vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+            float d = q.x - min(q.w, q.y);
+            float e = 1.0e-10;
+            return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+        }
+
+        vec3 hsv2rgb(vec3 c) {
+            vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+            vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+            return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+        }
+
+        vec3 applyHue(vec3 color, float hueRadians) {
+            vec3 hsv = rgb2hsv(color);
+            hsv.x = fract(hsv.x + hueRadians / (6.2831853));
+            return hsv2rgb(hsv);
+        }
+
+        void main() {
+            vec4 base = texture2D(tDiffuse, vUv);
+            vec3 color = base.rgb;
+
+            // Exposure (simple gain)
+            color *= uExposure;
+
+            // Contrast around 0.5
+            color = (color - 0.5) * uContrast + 0.5;
+
+            // Hue shift
+            if (abs(uHue) > 0.0001) {
+                color = applyHue(color, uHue);
+            }
+
+            // Saturation
+            float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+            color = mix(vec3(luma), color, uSaturation);
+
+            // Vibrance (boost low-sat colors more)
+            float sat = rgb2hsv(color).y;
+            float vib = clamp(uVibrance, -1.0, 1.0);
+            float vibStrength = (1.0 - sat) * vib;
+            color = mix(vec3(luma), color, 1.0 + vibStrength);
+
+            // Tint
+            color = mix(color, color * uTint, clamp(uTintStrength, 0.0, 1.0));
+
+            gl_FragColor = vec4(color, base.a);
+        }
+    `
+};
+
+export class ColorGradePass extends Pass {
+    constructor() {
+        super();
+        this.uniforms = THREE.UniformsUtils.clone(ColorGradeShader.uniforms);
+        this.material = new THREE.ShaderMaterial({
+            uniforms: this.uniforms,
+            vertexShader: ColorGradeShader.vertexShader,
+            fragmentShader: ColorGradeShader.fragmentShader
+        });
+        this.fsQuad = new FullScreenQuad(this.material);
+    }
+
+    render(renderer, writeBuffer, readBuffer) {
+        this.uniforms.tDiffuse.value = readBuffer.texture;
+        if (this.renderToScreen) {
+            renderer.setRenderTarget(null);
+            this.fsQuad.render(renderer);
+        } else {
+            renderer.setRenderTarget(writeBuffer);
+            if (this.clear) renderer.clear();
+            this.fsQuad.render(renderer);
+        }
+    }
+
+    setExposure(v) { this.uniforms.uExposure.value = v; }
+    setContrast(v) { this.uniforms.uContrast.value = v; }
+    setSaturation(v) { this.uniforms.uSaturation.value = v; }
+    setHueRadians(v) { this.uniforms.uHue.value = v; }
+    setVibrance(v) { this.uniforms.uVibrance.value = v; }
+    setTint(hexOrColor) {
+        this.uniforms.uTint.value = (hexOrColor && hexOrColor.isColor) ? hexOrColor : new THREE.Color(hexOrColor);
+    }
+    setTintStrength(v) { this.uniforms.uTintStrength.value = v; }
+
+    dispose() {
+        this.material.dispose();
+        this.fsQuad.dispose();
+    }
+}
+
+// ==========================================
+// PIXELATE PASS
+// ==========================================
+
+const PixelateShader = {
+    uniforms: {
+        tDiffuse: { value: null },
+        uPixelSize: { value: 2.0 },
+        uIntensity: { value: 1.0 },
+        uResolution: { value: new THREE.Vector2(1, 1) }
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform float uPixelSize;
+        uniform float uIntensity;
+        uniform vec2 uResolution;
+        varying vec2 vUv;
+
+        void main() {
+            vec2 res = max(uResolution, vec2(1.0));
+            float ps = max(1.0, uPixelSize);
+            vec2 pixel = ps / res;
+            vec2 snappedUv = (floor(vUv / pixel) + 0.5) * pixel;
+            vec4 pix = texture2D(tDiffuse, snappedUv);
+            vec4 orig = texture2D(tDiffuse, vUv);
+            gl_FragColor = mix(orig, pix, clamp(uIntensity, 0.0, 1.0));
+        }
+    `
+};
+
+export class PixelatePass extends Pass {
+    constructor(pixelSize = 2.0, intensity = 1.0) {
+        super();
+        this.uniforms = THREE.UniformsUtils.clone(PixelateShader.uniforms);
+        this.uniforms.uPixelSize.value = pixelSize;
+        this.uniforms.uIntensity.value = intensity;
+        this.material = new THREE.ShaderMaterial({
+            uniforms: this.uniforms,
+            vertexShader: PixelateShader.vertexShader,
+            fragmentShader: PixelateShader.fragmentShader
+        });
+        this.fsQuad = new FullScreenQuad(this.material);
+    }
+
+    setSize(width, height) {
+        this.uniforms.uResolution.value.set(width, height);
+    }
+
+    render(renderer, writeBuffer, readBuffer) {
+        this.uniforms.tDiffuse.value = readBuffer.texture;
+        if (this.renderToScreen) {
+            renderer.setRenderTarget(null);
+            this.fsQuad.render(renderer);
+        } else {
+            renderer.setRenderTarget(writeBuffer);
+            if (this.clear) renderer.clear();
+            this.fsQuad.render(renderer);
+        }
+    }
+
+    setPixelSize(v) { this.uniforms.uPixelSize.value = v; }
+    setIntensity(v) { this.uniforms.uIntensity.value = v; }
+
+    dispose() {
+        this.material.dispose();
+        this.fsQuad.dispose();
+    }
+}
+
+// ==========================================
+// DOT MATRIX / HALFTONE-LIKE PASS
+// ==========================================
+
+const DotMatrixShader = {
+    uniforms: {
+        tDiffuse: { value: null },
+        uScale: { value: 140.0 },
+        uAngle: { value: 0.0 },
+        uIntensity: { value: 0.0 },
+        uSoftness: { value: 0.35 }
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform float uScale;
+        uniform float uAngle;
+        uniform float uIntensity;
+        uniform float uSoftness;
+        varying vec2 vUv;
+
+        mat2 rot(float a) {
+            float c = cos(a), s = sin(a);
+            return mat2(c, -s, s, c);
+        }
+
+        void main() {
+            vec4 base = texture2D(tDiffuse, vUv);
+            float intensity = clamp(uIntensity, 0.0, 1.0);
+            if (intensity <= 0.0001) {
+                gl_FragColor = base;
+                return;
+            }
+
+            vec2 uv = vUv * uScale;
+            uv = rot(uAngle) * uv;
+            vec2 gv = fract(uv) - 0.5;
+
+            float luma = dot(base.rgb, vec3(0.2126, 0.7152, 0.0722));
+            float radius = mix(0.48, 0.05, luma);
+            float d = length(gv);
+            float dotMask = 1.0 - smoothstep(radius, radius + max(0.001, uSoftness), d);
+            vec3 halftone = base.rgb * dotMask;
+
+            gl_FragColor = vec4(mix(base.rgb, halftone, intensity), base.a);
+        }
+    `
+};
+
+export class DotMatrixPass extends Pass {
+    constructor() {
+        super();
+        this.uniforms = THREE.UniformsUtils.clone(DotMatrixShader.uniforms);
+        this.material = new THREE.ShaderMaterial({
+            uniforms: this.uniforms,
+            vertexShader: DotMatrixShader.vertexShader,
+            fragmentShader: DotMatrixShader.fragmentShader
+        });
+        this.fsQuad = new FullScreenQuad(this.material);
+    }
+
+    render(renderer, writeBuffer, readBuffer) {
+        this.uniforms.tDiffuse.value = readBuffer.texture;
+        if (this.renderToScreen) {
+            renderer.setRenderTarget(null);
+            this.fsQuad.render(renderer);
+        } else {
+            renderer.setRenderTarget(writeBuffer);
+            if (this.clear) renderer.clear();
+            this.fsQuad.render(renderer);
+        }
+    }
+
+    setScale(v) { this.uniforms.uScale.value = v; }
+    setAngleRadians(v) { this.uniforms.uAngle.value = v; }
+    setIntensity(v) { this.uniforms.uIntensity.value = v; }
+    setSoftness(v) { this.uniforms.uSoftness.value = v; }
+
+    dispose() {
+        this.material.dispose();
+        this.fsQuad.dispose();
+    }
+}
+
+// ==========================================
 // POST-PROCESSOR MANAGER
 // ==========================================
 
@@ -493,7 +787,11 @@ export class PostProcessorManager {
             glitch: false,
             scanlines: false,
             vignette: false,
-            filmGrain: false
+            filmGrain: false,
+            colorGrade: false,
+            pixelate: false,
+            dotMatrix: false,
+            trails: false
         };
     }
 
@@ -507,6 +805,10 @@ export class PostProcessorManager {
         this.passes.scanlines = new ScanlinesPass(800, 0.08);
         this.passes.vignette = new VignettePass(1.0, 1.0);
         this.passes.filmGrain = new FilmGrainPass(0.05);
+        this.passes.colorGrade = new ColorGradePass();
+        this.passes.pixelate = new PixelatePass(2.0, 1.0);
+        this.passes.dotMatrix = new DotMatrixPass();
+        this.passes.trails = new AfterimagePass();
 
         // Initially disabled
         Object.values(this.passes).forEach(pass => {

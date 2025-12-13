@@ -11,6 +11,7 @@
  */
 
 import VisualizerBase from './VisualizerBase.js';
+import * as THREE from 'three';
 
 class Ribbons extends VisualizerBase {
     constructor(scene, camera, renderer) {

@@ -196,7 +196,7 @@ class AudioEngine {
     /**
      * Load from URL or HTMLAudioElement
      */
-    async loadURL(url) {
+    async loadURL(url, { autoplay = true, startTime = null } = {}) {
         if (!this.isInitialized) await this.init();
         await this.resume();
 
@@ -224,10 +224,33 @@ class AudioEngine {
             eventBus.emit(Events.AUDIO_LOAD, this.currentTrack);
         };
 
-        // Play
-        await this.audioElement.play();
-        this.isPlaying = true;
-        eventBus.emit(Events.AUDIO_PLAY);
+        const waitForMetadata = () =>
+            new Promise((resolve) => {
+                if (!this.audioElement) return resolve();
+                if (this.audioElement.readyState >= 1) return resolve();
+                this.audioElement.addEventListener('loadedmetadata', () => resolve(), { once: true });
+            });
+
+        if (typeof startTime === 'number' && isFinite(startTime) && startTime >= 0) {
+            try {
+                await waitForMetadata();
+                if (this.audioElement) {
+                    const duration = this.audioElement.duration;
+                    const clamped = Number.isFinite(duration) ? Math.min(Math.max(0, startTime), Math.max(0, duration - 0.01)) : startTime;
+                    this.audioElement.currentTime = clamped;
+                }
+            } catch (e) {
+                // Seeking may fail before metadata is ready; ignore.
+            }
+        }
+
+        if (autoplay) {
+            await this.audioElement.play();
+            this.isPlaying = true;
+            eventBus.emit(Events.AUDIO_PLAY);
+        } else {
+            this.isPlaying = false;
+        }
     }
 
     /**

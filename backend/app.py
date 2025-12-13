@@ -553,6 +553,38 @@ def _process_audio_job(job_id, audio_path, audio_path2, track_id, track_id2, tit
             mode = "canon"
         elif algorithm == "jukebox":
             mode = "jukebox"
+        elif algorithm == "phaseshifter":
+            mode = "phaseshifter"
+        elif algorithm == "granularfreeze":
+            mode = "granularfreeze"
+        elif algorithm == "dopamine":
+            mode = "dopamine"
+        elif algorithm == "harmonictrap":
+            mode = "harmonictrap"
+        elif algorithm == "elasticvelo":
+            mode = "elasticvelo"
+        elif algorithm == "mathrocker":
+            mode = "mathrocker"
+        elif algorithm == "stalker":
+            mode = "stalker"
+        elif algorithm == "timbresurf":
+            mode = "timbresurf"
+        elif algorithm == "chromastack":
+            mode = "chromastack"
+        elif algorithm == "beatsort":
+            mode = "beatsort"
+        elif algorithm == "reversebloom":
+            mode = "reversebloom"
+        elif algorithm == "barberpole":
+            mode = "barberpole"
+        elif algorithm == "palindrome":
+            mode = "palindrome"
+        elif algorithm == "spectralgravity":
+            mode = "spectralgravity"
+        elif algorithm == "callresponse":
+            mode = "callresponse"
+        elif algorithm == "orbitweaver":
+            mode = "orbitweaver"
         elif algorithm == "sculptor":
             mode = "sculptor"
         elif algorithm == "autoharmonizer":
@@ -1024,7 +1056,7 @@ def visualizer():
     if "trid" not in request.args:
         return redirect(url_for("index"))
     mode = request.args.get("mode", "canon").lower()
-    if mode not in {"canon", "jukebox", "eternal"}:
+    if mode not in {"canon", "jukebox", "eternal", "dopamine", "harmonictrap", "phaseshifter", "granularfreeze", "elasticvelo", "mathrocker", "stalker", "timbresurf", "chromastack", "beatsort", "reversebloom", "barberpole", "palindrome", "spectralgravity", "callresponse", "orbitweaver"}:
         mode = "canon"
     redirect_url = url_for("index", trid=request.args["trid"], mode=mode)
     return redirect(redirect_url)
@@ -2371,7 +2403,7 @@ def api_process():
     if request.method == "OPTIONS":
         return ("", 204)
     algorithm = request.form.get("algorithm", "canon").lower()
-    if algorithm not in {"canon", "jukebox", "eternal", "autoharmonizer", "sculptor"}:
+    if algorithm not in {"canon", "jukebox", "eternal", "dopamine", "harmonictrap", "phaseshifter", "granularfreeze", "elasticvelo", "mathrocker", "stalker", "timbresurf", "chromastack", "beatsort", "reversebloom", "barberpole", "palindrome", "spectralgravity", "callresponse", "orbitweaver", "autoharmonizer", "sculptor"}:
         return jsonify({"error": "Unsupported algorithm selection."}), 400
 
     source = request.form.get("source", "upload").lower()
@@ -2451,11 +2483,11 @@ def api_process():
         else:
             return jsonify({"error": "Unsupported source option."}), 400
 
+        file_hash = None
         if title is None:
             title = audio_path.stem if audio_path else "Untitled"
 
         # Check cache for single audio uploads (not autoharmonizer)
-        file_hash = None
         if source == "upload" and algorithm != "autoharmonizer":
             file_hash = _compute_file_hash(audio_path)
             cached = _get_cached_track(file_hash)
@@ -2466,6 +2498,38 @@ def api_process():
                     mode = "canon"
                 elif algorithm == "jukebox":
                     mode = "jukebox"
+                elif algorithm == "phaseshifter":
+                    mode = "phaseshifter"
+                elif algorithm == "granularfreeze":
+                    mode = "granularfreeze"
+                elif algorithm == "dopamine":
+                    mode = "dopamine"
+                elif algorithm == "harmonictrap":
+                    mode = "harmonictrap"
+                elif algorithm == "elasticvelo":
+                    mode = "elasticvelo"
+                elif algorithm == "mathrocker":
+                    mode = "mathrocker"
+                elif algorithm == "stalker":
+                    mode = "stalker"
+                elif algorithm == "timbresurf":
+                    mode = "timbresurf"
+                elif algorithm == "chromastack":
+                    mode = "chromastack"
+                elif algorithm == "beatsort":
+                    mode = "beatsort"
+                elif algorithm == "reversebloom":
+                    mode = "reversebloom"
+                elif algorithm == "barberpole":
+                    mode = "barberpole"
+                elif algorithm == "palindrome":
+                    mode = "palindrome"
+                elif algorithm == "spectralgravity":
+                    mode = "spectralgravity"
+                elif algorithm == "callresponse":
+                    mode = "callresponse"
+                elif algorithm == "orbitweaver":
+                    mode = "orbitweaver"
                 elif algorithm == "sculptor":
                     mode = "sculptor"
                 else:
@@ -2491,11 +2555,13 @@ def api_process():
                         "algorithm": algorithm,
                     }
 
-                return jsonify({
-                    "jobId": job_id,
-                    "trackId": cached_track_id,
-                    "status": "cached"
-                })
+                return jsonify(
+                    {
+                        "jobId": job_id,
+                        "trackId": cached_track_id,
+                        "status": "cached",
+                    }
+                )
 
         # Create async job for audio processing
         job_id = str(uuid.uuid4())
@@ -4249,8 +4315,3 @@ if __name__ == "__main__":
             print(f"[OurSpace] Database initialization warning: {e}")
 
     app.run(debug=True, port=4000)
-
-
-
-
-

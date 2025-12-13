@@ -11,6 +11,7 @@
  */
 
 import VisualizerBase from './VisualizerBase.js';
+import * as THREE from 'three';
 
 const vertexShader = `
     uniform float uTime;
@@ -228,6 +229,11 @@ class ParticleGalaxy extends VisualizerBase {
         this.geometry.setAttribute('aSpeed', new THREE.BufferAttribute(speeds, 1));
         this.geometry.setAttribute('aArm', new THREE.BufferAttribute(arms, 1));
 
+        // This visualizer computes vertex positions entirely in the shader, so the CPU-side
+        // bounding volumes are meaningless (positions are all zeros). Force a large bounding
+        // sphere and disable frustum culling so it never disappears.
+        this.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 50);
+
         // Create shader material
         this.material = new THREE.ShaderMaterial({
             vertexShader,
@@ -249,6 +255,7 @@ class ParticleGalaxy extends VisualizerBase {
         // Create points
         this.points = new THREE.Points(this.geometry, this.material);
         this.points.name = 'galaxy-particles';
+        this.points.frustumCulled = false;
         this.container.add(this.points);
     }
 

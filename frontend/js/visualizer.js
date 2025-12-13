@@ -238,7 +238,7 @@ function clearOrbitBase() {
 }
 
 function renderOrbitBase() {
-    if ((mode !== "jukebox" && mode !== "eternal") || !paper) {
+    if (!isOrbitMode(mode) || !paper) {
         clearOrbitBase();
         return;
     }
@@ -291,8 +291,13 @@ function renderOrbitBase() {
     });
 }
 
+function isOrbitMode(modeName) {
+    var m = (modeName || "").toLowerCase();
+    return m === "jukebox" || m === "eternal" || m === "dopamine" || m === "stalker" || m === "timbresurf" || m === "barberpole" || m === "palindrome" || m === "spectralgravity" || m === "callresponse" || m === "orbitweaver";
+}
+
 function configureCanvasForMode() {
-    var usingOrbit = mode === "jukebox" || mode === "eternal";
+    var usingOrbit = isOrbitMode(mode);
     if (usingOrbit) {
         var orbitSize = measureOrbitSize();
         if (!orbitSize || orbitSize < 60) {
@@ -341,7 +346,7 @@ function applyModeLayout() {
 }
 
 function requestOrbitRedraw() {
-    if (mode !== "jukebox" && mode !== "eternal") {
+    if (!isOrbitMode(mode)) {
         return;
     }
     if (pendingOrbitRedraw) {
@@ -363,7 +368,7 @@ function syncOrbitContainerSize() {
     if (!tilesNode) {
         return;
     }
-    if (mode === "jukebox" || mode === "eternal") {
+    if (isOrbitMode(mode)) {
         var size = orbitLayout.size;
         tilesNode.style.width = size + "px";
         tilesNode.style.height = size + "px";
@@ -582,30 +587,204 @@ var ADVANCED_DEFAULTS = {
         sectionBias: 0.20,
         jumpVariance: 0.65
     },
-    dopamineMiner: {
-        peakFraction: 0.1,
-        minClusterBeats: 16,
-        clusterGapBeats: 2,
-        largestClusterOnly: 0,
-        minDwellBeats: 4,
-        maxSequentialBeats: 32,
-        minJumpSpanBeats: 8,
-        minJumpSimilarity: 0.72,
-        crossClusterBias: 0.5,
-        jumpTemperature: 0.2,
-        escapeProb: 0.03
-    },
-    sculptorConfig: {
-        durationScale: 1.0,
-        minSectionSeconds: 6,
-        maxSectionSeconds: 32,
-        previewSeconds: 4,
-        transitionOverlapSeconds: 0.5
+	    dopamineMiner: {
+	        peakFraction: 0.1,
+	        minClusterBeats: 16,
+	        clusterGapBeats: 2,
+	        largestClusterOnly: 0,
+	        minDwellBeats: 4,
+	        maxSequentialBeats: 32,
+	        minJumpSpanBeats: 8,
+	        minJumpSimilarity: 0.72,
+	        crossClusterBias: 0.5,
+	        jumpTemperature: 0.2,
+	        escapeProb: 0.03,
+	        burnoutWindowBeats: 48,
+	        burnoutUniqueRatio: 0.35,
+	        burnoutCooldownBeats: 32
+	    },
+	    harmonicTrap: {
+	        autoTarget: 1,
+	        targetPitchClass: 0,
+	        similarityThreshold: 0.78,
+	        graceBeats: 1,
+	        cooldownBeats: 8,
+	        searchTopK: 6,
+	        minJumpSpanBeats: 8,
+	        escapeProb: 0.0
+	    },
+	    phaseShifter: {
+	        rateDelta: 0.001,
+	        overlayGain: 0.65,
+	        resyncOnJump: 1,
+	        resyncThresholdBeats: 8,
+	        overlayLoop: 0
+	    },
+	    granularFreeze: {
+	        freezeChance: 0.22,
+	        minVolume: 0.12,
+	        sustainAttackMin: 0.35,
+	        sustainSegDurMin: 0.18,
+	        percussiveRatioMax: 0.55,
+	        cooldownBeats: 8,
+	        repeatMode: 1,
+	        repeatLongBias: 0.5
+	    },
+        elasticVelocity: {
+            minRate: 0.6,
+            maxRate: 1.5,
+            curve: 1.25,
+            smoothingBeats: 3,
+            maxDeltaPerBeat: 0.18
+        },
+        mathRocker: {
+            cycleBeats: 8,
+            dropBeats: 1,
+            resetOnJump: 1
+        },
+        stalker: {
+            similarityThreshold: 0.85,
+            cooldownBeats: 8,
+            armBeats: 2,
+            symmetricLookup: 1
+        },
+        timbreSurfing: {
+            topK: 5,
+            minSimilarity: 0.72,
+            minJumpSpanBeats: 8,
+            excludeNeighborBeats: 2,
+            temperature: 0.25,
+            recentWindowBeats: 24,
+            repeatPenalty: 0.25,
+            applyChance: 1.0,
+            overrideJumps: 0
+        },
+        chromaStacking: {
+            overlayGain: 0.7,
+            minChromaSimilarity: 0.86,
+            minTimbreDistance: 40,
+            excludeNeighborBeats: 2,
+            minJumpSpanBeats: 8,
+            searchTopK: 10,
+            randomSample: 48,
+            temperature: 0.2,
+            resampleBeats: 1
+        },
+        beatSorting: {
+            feature: 0,
+            direction: 1,
+            minVolume: 0.0,
+            repeatEach: 1,
+            overrideJumps: 0
+        },
+        reverseBloom: {
+            triggerThreshold: 0.75,
+            rewindBeats: 8,
+            rewindChance: 0.6,
+            cooldownBeats: 24,
+            resumeMode: 1, // 0=linear, 1=similarity hop
+            minSimilarity: 0.72,
+            bloomMinSpanBeats: 16,
+            bloomTopK: 10,
+            bloomTemperature: 0.25,
+            overrideJumps: 0
+        },
+        barberPole: {
+            feature: 0, // 0=loudness, 1=brightness, 2=pitch
+            direction: 1, // 0=down, 1=up
+            stepRanks: 6,
+            minSimilarity: 0.72,
+            minVolume: 0.0,
+            minSpanBeats: 8,
+            excludeNeighborBeats: 2,
+            topK: 12,
+            temperature: 0.25,
+            recentWindowBeats: 32,
+            repeatPenalty: 0.25,
+            applyChance: 1.0,
+            overrideJumps: 0
+        },
+        palindromeEngine: {
+            phraseBeats: 16,
+            turnMinSimilarity: 0.78,
+            turnTopK: 10,
+            turnTemperature: 0.25,
+            minTurnSpanBeats: 8,
+            excludeNeighborBeats: 2,
+            flipCooldownBeats: 8,
+            applyChance: 1.0,
+            overrideJumps: 0
+        },
+        spectralGravity: {
+            axis: 0, // 0=brightness, 1=loudness, 2=pitch
+            target: 0.5,
+            bandWidth: 0.12,
+            triggerThreshold: 0.16,
+            minSimilarity: 0.72,
+            cooldownBeats: 8,
+            minSpanBeats: 8,
+            excludeNeighborBeats: 2,
+            topK: 12,
+            temperature: 0.25,
+            recentWindowBeats: 24,
+            repeatPenalty: 0.25,
+            applyChance: 1.0,
+            overrideJumps: 0
+        },
+        callResponse: {
+            callQuantileMax: 0.35,
+            responseQuantileMin: 0.65,
+            barsPerCall: 1,
+            barsPerResponse: 1,
+            minSimilarity: 0.72,
+            topK: 12,
+            temperature: 0.25,
+            minSpanBeats: 8,
+            excludeNeighborBeats: 2,
+            recentWindowBars: 16,
+            repeatPenalty: 0.25,
+            energyBias: 0.65,
+            sameSectionBias: 0.35,
+            applyChance: 1.0,
+            overrideJumps: 0
+        },
+        orbitWeaver: {
+            anchorCount: 6,
+            spinAxis: 2, // 0=energy, 1=brightness, 2=pitch
+            barsPerAnchor: 2,
+            jumpAtBarStart: 1,
+            minSimilarity: 0.72,
+            topK: 12,
+            temperature: 0.25,
+            minSpanBeats: 8,
+            excludeNeighborBeats: 2,
+            recentWindowBeats: 32,
+            repeatPenalty: 0.25,
+            sameSectionBias: 0.25,
+            anchorPull: 0.55,
+            applyChance: 1.0,
+            overrideJumps: 0
+        },
+	    sculptorConfig: {
+	        durationScale: 1.0,
+	        minSectionSeconds: 6,
+	        maxSectionSeconds: 32,
+      previewSeconds: 4,
+      transitionOverlapSeconds: 0.5
     }
 };
 
 function cloneSettings(obj) {
     return JSON.parse(JSON.stringify(obj));
+}
+
+// Global helper: some mode/layer code needs beat energy but other helpers define it in nested scopes.
+function beatEnergy(beat) {
+    if (!beat) return 0;
+    if (typeof beat.median_volume === "number") return beat.median_volume;
+    if (typeof beat.volume === "number") return beat.volume;
+    if (typeof beat.loudness === "number") return beat.loudness;
+    return 0;
 }
 
 var advancedSettings = {
@@ -614,6 +793,21 @@ var advancedSettings = {
     jukeboxLoop: cloneSettings(ADVANCED_DEFAULTS.jukeboxLoop),
     eternalLoop: cloneSettings(ADVANCED_DEFAULTS.eternalLoop),
     dopamineMiner: cloneSettings(ADVANCED_DEFAULTS.dopamineMiner),
+    harmonicTrap: cloneSettings(ADVANCED_DEFAULTS.harmonicTrap),
+    phaseShifter: cloneSettings(ADVANCED_DEFAULTS.phaseShifter),
+    granularFreeze: cloneSettings(ADVANCED_DEFAULTS.granularFreeze),
+    elasticVelocity: cloneSettings(ADVANCED_DEFAULTS.elasticVelocity),
+    mathRocker: cloneSettings(ADVANCED_DEFAULTS.mathRocker),
+    stalker: cloneSettings(ADVANCED_DEFAULTS.stalker),
+    timbreSurfing: cloneSettings(ADVANCED_DEFAULTS.timbreSurfing),
+    chromaStacking: cloneSettings(ADVANCED_DEFAULTS.chromaStacking),
+    beatSorting: cloneSettings(ADVANCED_DEFAULTS.beatSorting),
+    reverseBloom: cloneSettings(ADVANCED_DEFAULTS.reverseBloom),
+    barberPole: cloneSettings(ADVANCED_DEFAULTS.barberPole),
+    palindromeEngine: cloneSettings(ADVANCED_DEFAULTS.palindromeEngine),
+    spectralGravity: cloneSettings(ADVANCED_DEFAULTS.spectralGravity),
+    callResponse: cloneSettings(ADVANCED_DEFAULTS.callResponse),
+    orbitWeaver: cloneSettings(ADVANCED_DEFAULTS.orbitWeaver),
     sculptorConfig: cloneSettings(ADVANCED_DEFAULTS.sculptorConfig)
 };
 
@@ -626,6 +820,21 @@ var advancedEnabled = {
     jukeboxLoop: false,
     eternalLoop: false,
     dopamineMiner: false,
+    harmonicTrap: false,
+    phaseShifter: false,
+    granularFreeze: false,
+    elasticVelocity: false,
+    mathRocker: false,
+    stalker: false,
+    timbreSurfing: false,
+    chromaStacking: false,
+    beatSorting: false,
+    reverseBloom: false,
+    barberPole: false,
+    palindromeEngine: false,
+    spectralGravity: false,
+    callResponse: false,
+    orbitWeaver: false,
     sculptorConfig: false
 };
 
@@ -664,6 +873,13 @@ function updateStackButtonLabel() {
 }
 
 function rebuildActiveStackLayers() {
+    if (activeStackLayers && activeStackLayers.length) {
+        activeStackLayers.forEach(function(layer) {
+            if (layer && typeof layer.dispose === "function") {
+                try { layer.dispose(); } catch (e) {}
+            }
+        });
+    }
     activeStackLayers = [];
     if (!stackedLayerIds.length) {
         updateStackButtonLabel();
@@ -691,6 +907,15 @@ function notifyStackOnBeat(meta) {
     activeStackLayers.forEach(function(layer) {
         if (layer && typeof layer.onBeat === "function") {
             try { layer.onBeat(meta); } catch (e) {}
+        }
+    });
+}
+
+function notifyStackPlaybackStateChange(meta) {
+    if (!activeStackLayers.length) return;
+    activeStackLayers.forEach(function(layer) {
+        if (layer && typeof layer.onPlaybackStateChange === "function") {
+            try { layer.onPlaybackStateChange(meta); } catch (e) {}
         }
     });
 }
@@ -963,7 +1188,22 @@ var ROUNDABLE_BEAT_FIELDS = {
     eternalOverlay: ["minOffsetBeats", "maxOffsetBeats", "dwellBeats"],
     jukeboxLoop: ["minLoopBeats", "maxSequentialBeats"],
     eternalLoop: ["minLoopBeats", "maxSequentialBeats"],
-    dopamineMiner: ["minClusterBeats", "clusterGapBeats", "minDwellBeats", "maxSequentialBeats", "minJumpSpanBeats"]
+    dopamineMiner: ["minClusterBeats", "clusterGapBeats", "minDwellBeats", "maxSequentialBeats", "minJumpSpanBeats", "burnoutWindowBeats", "burnoutCooldownBeats"],
+    harmonicTrap: ["graceBeats", "cooldownBeats", "minJumpSpanBeats"],
+    phaseShifter: ["resyncThresholdBeats"],
+    granularFreeze: ["cooldownBeats"],
+    elasticVelocity: ["smoothingBeats"],
+    mathRocker: ["cycleBeats", "dropBeats"],
+    stalker: ["cooldownBeats", "armBeats"],
+    timbreSurfing: ["minJumpSpanBeats", "excludeNeighborBeats", "recentWindowBeats"],
+    chromaStacking: ["excludeNeighborBeats", "minJumpSpanBeats", "searchTopK", "randomSample", "resampleBeats"],
+    beatSorting: ["repeatEach"],
+    reverseBloom: ["rewindBeats", "cooldownBeats", "bloomMinSpanBeats"],
+    barberPole: ["stepRanks", "minSpanBeats", "excludeNeighborBeats", "topK", "recentWindowBeats"],
+    palindromeEngine: ["phraseBeats", "minTurnSpanBeats", "excludeNeighborBeats", "flipCooldownBeats", "turnTopK"],
+    spectralGravity: ["cooldownBeats", "minSpanBeats", "excludeNeighborBeats", "topK", "recentWindowBeats"],
+    callResponse: ["barsPerCall", "barsPerResponse", "minSpanBeats", "excludeNeighborBeats", "topK", "recentWindowBars"],
+    orbitWeaver: ["anchorCount", "spinAxis", "barsPerAnchor", "minSpanBeats", "excludeNeighborBeats", "topK", "recentWindowBeats"]
 };
 
 (function hydrateBeatRoundingPreference() {
@@ -1127,13 +1367,11 @@ function refreshJukeboxVisualization() {
     if (!masterQs || !masterQs.length) {
         return;
     }
-    if (mode !== "jukebox" && mode !== "eternal") {
+    if (!isOrbitMode(mode)) {
         return;
     }
-    if (mode === "jukebox" || mode === "eternal") {
-        renderJukeboxBackdrop();
-        drawAllCircularLoops(masterQs);
-    }
+    renderJukeboxBackdrop();
+    drawAllCircularLoops(masterQs);
 }
 
 function applyLoopFieldToDriver(fieldKey, value) {
@@ -1354,7 +1592,7 @@ function renderOverlayChips(q) {
     }
 
     // Skip linear overlay chips for circular modes - they use updateCircularCursors instead
-    if (mode === "jukebox" || mode === "eternal") {
+    if (isOrbitMode(mode)) {
         return;
     }
 
@@ -1640,7 +1878,9 @@ function rebuildDriverForCurrentMode(shouldResume) {
         applyCanonAlignment(masterQs, curTrack.analysis.canon_alignment);
     }
 
-    driver = Driver(remixer.getPlayer());
+    var initialPlayer = remixer.getPlayer();
+    window.harmonizerActivePlayer = initialPlayer;
+    driver = Driver(initialPlayer);
     rebuildActiveStackLayers();
     if (typeof window.refreshSculptorPalette === "function") {
         try {
@@ -2503,15 +2743,15 @@ if (typeof window !== "undefined") {
             }
         }
     };
-    window.getAdvancedSettings = function(group) {
-        // If no group specified, return all settings
-        if (!group) {
-            var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop', 'sculptorConfig'];
-            var allSettings = {};
-            allGroups.forEach(function(g) {
-                allSettings[g] = {
-                    enabled: isAdvancedGroupEnabled(g),
-                    settings: cloneAdvancedState(g),
+	    window.getAdvancedSettings = function(group) {
+	        // If no group specified, return all settings
+	        if (!group) {
+	            var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop', 'dopamineMiner', 'harmonicTrap', 'phaseShifter', 'granularFreeze', 'elasticVelocity', 'mathRocker', 'stalker', 'timbreSurfing', 'chromaStacking', 'beatSorting', 'reverseBloom', 'barberPole', 'palindromeEngine', 'spectralGravity', 'callResponse', 'orbitWeaver', 'sculptorConfig'];
+	            var allSettings = {};
+	            allGroups.forEach(function(g) {
+	                allSettings[g] = {
+	                    enabled: isAdvancedGroupEnabled(g),
+                      settings: cloneAdvancedState(g),
                     defaults: cloneAdvancedDefaults(g)
                 };
             });
@@ -2526,16 +2766,16 @@ if (typeof window !== "undefined") {
         };
     };
 
-    window.setAdvancedSettings = function(allSettings) {
+	    window.setAdvancedSettings = function(allSettings) {
         if (!allSettings || typeof allSettings !== 'object') {
             throw new Error('Invalid settings object');
         }
 
-        var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop', 'sculptorConfig'];
-        allGroups.forEach(function(group) {
-            if (!allSettings[group]) {
-                return;
-            }
+	        var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop', 'dopamineMiner', 'harmonicTrap', 'phaseShifter', 'granularFreeze', 'elasticVelocity', 'mathRocker', 'stalker', 'timbreSurfing', 'chromaStacking', 'beatSorting', 'reverseBloom', 'barberPole', 'palindromeEngine', 'spectralGravity', 'callResponse', 'orbitWeaver', 'sculptorConfig'];
+	        allGroups.forEach(function(group) {
+              if (!allSettings[group]) {
+                  return;
+              }
             var groupData = allSettings[group];
 
             // Apply enabled state through the public helper so canon/eternal hooks fire
@@ -2555,46 +2795,94 @@ if (typeof window !== "undefined") {
             window.syncAllGroupsFromState();
         }
 
-        if (typeof window.applyAdvancedGroup === 'function') {
-            if (mode === "canon" && isAdvancedGroupEnabled("canonOverlay")) {
-                window.applyAdvancedGroup("canonOverlay", { source: "import" });
+	        if (typeof window.applyAdvancedGroup === 'function') {
+	            if (mode === "canon" && isAdvancedGroupEnabled("canonOverlay")) {
+	                window.applyAdvancedGroup("canonOverlay", { source: "import" });
+	            }
+	            if (mode === "eternal") {
+	                if (isAdvancedGroupEnabled("eternalOverlay")) {
+	                    window.applyAdvancedGroup("eternalOverlay", { source: "import" });
+	                }
+	                if (isAdvancedGroupEnabled("eternalLoop")) {
+	                    window.applyAdvancedGroup("eternalLoop", { source: "import" });
+	                }
+	            }
+	            if (mode === "jukebox" && isAdvancedGroupEnabled("jukeboxLoop")) {
+	                window.applyAdvancedGroup("jukeboxLoop", { source: "import" });
+	            }
+	            if (mode === "dopamine" && isAdvancedGroupEnabled("dopamineMiner")) {
+	                window.applyAdvancedGroup("dopamineMiner", { source: "import" });
+	            }
+	            if (mode === "harmonictrap" && isAdvancedGroupEnabled("harmonicTrap")) {
+	                window.applyAdvancedGroup("harmonicTrap", { source: "import" });
+	            }
+	            if (mode === "phaseshifter" && isAdvancedGroupEnabled("phaseShifter")) {
+	                window.applyAdvancedGroup("phaseShifter", { source: "import" });
+	            }
+	            if (mode === "granularfreeze" && isAdvancedGroupEnabled("granularFreeze")) {
+	                window.applyAdvancedGroup("granularFreeze", { source: "import" });
+	            }
+	            if (mode === "elasticvelo" && isAdvancedGroupEnabled("elasticVelocity")) {
+	                window.applyAdvancedGroup("elasticVelocity", { source: "import" });
+	            }
+	            if (mode === "mathrocker" && isAdvancedGroupEnabled("mathRocker")) {
+	                window.applyAdvancedGroup("mathRocker", { source: "import" });
+	            }
+	            if (mode === "stalker" && isAdvancedGroupEnabled("stalker")) {
+	                window.applyAdvancedGroup("stalker", { source: "import" });
+	            }
+	            if (mode === "timbresurf" && isAdvancedGroupEnabled("timbreSurfing")) {
+	                window.applyAdvancedGroup("timbreSurfing", { source: "import" });
+	            }
+	            if (mode === "chromastack" && isAdvancedGroupEnabled("chromaStacking")) {
+	                window.applyAdvancedGroup("chromaStacking", { source: "import" });
+	            }
+	            if (mode === "beatsort" && isAdvancedGroupEnabled("beatSorting")) {
+	                window.applyAdvancedGroup("beatSorting", { source: "import" });
+	            }
+	            if (mode === "reversebloom" && isAdvancedGroupEnabled("reverseBloom")) {
+	                window.applyAdvancedGroup("reverseBloom", { source: "import" });
+	            }
+	            if (mode === "barberpole" && isAdvancedGroupEnabled("barberPole")) {
+	                window.applyAdvancedGroup("barberPole", { source: "import" });
+	            }
+            if (mode === "palindrome" && isAdvancedGroupEnabled("palindromeEngine")) {
+                window.applyAdvancedGroup("palindromeEngine", { source: "import" });
             }
-            if (mode === "eternal") {
-                if (isAdvancedGroupEnabled("eternalOverlay")) {
-                    window.applyAdvancedGroup("eternalOverlay", { source: "import" });
-                }
-                if (isAdvancedGroupEnabled("eternalLoop")) {
-                    window.applyAdvancedGroup("eternalLoop", { source: "import" });
-                }
+            if (mode === "spectralgravity" && isAdvancedGroupEnabled("spectralGravity")) {
+                window.applyAdvancedGroup("spectralGravity", { source: "import" });
             }
-            if (mode === "jukebox" && isAdvancedGroupEnabled("jukeboxLoop")) {
-                window.applyAdvancedGroup("jukeboxLoop", { source: "import" });
+            if (mode === "callresponse" && isAdvancedGroupEnabled("callResponse")) {
+                window.applyAdvancedGroup("callResponse", { source: "import" });
+            }
+            if (mode === "orbitweaver" && isAdvancedGroupEnabled("orbitWeaver")) {
+                window.applyAdvancedGroup("orbitWeaver", { source: "import" });
             }
             if (mode === "sculptor" && isAdvancedGroupEnabled("sculptorConfig")) {
                 window.applyAdvancedGroup("sculptorConfig", { source: "import" });
             }
-        }
+	        }
 
         console.log('[Settings] Applied imported settings to all groups');
     };
 
-    window.syncAllGroupsFromState = function() {
-        if (typeof window.syncGroupFromState === 'function') {
-            var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop', 'sculptorConfig'];
-            allGroups.forEach(function(group) {
-                window.syncGroupFromState(group);
-            });
-        }
-    };
-    window.setAdvancedGroupEnabled = function(group, enabled) {
-        if (group === "canonOverlay") {
-            setCanonAdvancedEnabled(enabled);
-            return;
-        }
-        if (group === "eternalOverlay") {
-            setEternalAdvancedEnabled(enabled);
-            return;
-        }
+	    window.syncAllGroupsFromState = function() {
+	        if (typeof window.syncGroupFromState === 'function') {
+	            var allGroups = ['canonOverlay', 'eternalOverlay', 'jukeboxLoop', 'eternalLoop', 'dopamineMiner', 'harmonicTrap', 'phaseShifter', 'granularFreeze', 'elasticVelocity', 'mathRocker', 'stalker', 'timbreSurfing', 'chromaStacking', 'beatSorting', 'reverseBloom', 'barberPole', 'palindromeEngine', 'spectralGravity', 'callResponse', 'orbitWeaver', 'sculptorConfig'];
+	            allGroups.forEach(function(group) {
+	                window.syncGroupFromState(group);
+	            });
+	        }
+	    };
+  window.setAdvancedGroupEnabled = function(group, enabled) {
+          if (group === "canonOverlay") {
+              setCanonAdvancedEnabled(enabled);
+              return;
+          }
+          if (group === "eternalOverlay") {
+              setEternalAdvancedEnabled(enabled);
+              return;
+          }
         if (!enabled && queuedAdvancedApplyTimers[group]) {
             clearTimeout(queuedAdvancedApplyTimers[group]);
             queuedAdvancedApplyTimers[group] = null;
@@ -2614,29 +2902,221 @@ if (typeof window !== "undefined") {
                     refreshJukeboxVisualization();
                 }, 50);
             }
-        } else if (group === "sculptorConfig" && mode === "sculptor") {
-            if (typeof window.applySculptorSettings === "function") {
-                window.applySculptorSettings({ reason: enabled ? "enable" : "disable" });
+        } else if (group === "dopamineMiner") {
+            if (mode === "dopamine" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getDopamineMinerSettings());
             }
-        }
-    };
+            rebuildActiveStackLayers();
+	        } else if (group === "harmonicTrap") {
+	            if (mode === "harmonictrap" && driver && typeof driver.applySettings === "function") {
+	                driver.applySettings(getHarmonicTrapSettings());
+	            }
+	            rebuildActiveStackLayers();
+	        } else if (group === "phaseShifter") {
+	            if (mode === "phaseshifter" && driver && typeof driver.applySettings === "function") {
+	                driver.applySettings(getPhaseShifterSettings());
+	            }
+	            rebuildActiveStackLayers();
+          } else if (group === "granularFreeze") {
+              if (mode === "granularfreeze" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getGranularFreezeSettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "elasticVelocity") {
+              if (mode === "elasticvelo" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getElasticVelocitySettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "mathRocker") {
+              if (mode === "mathrocker" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getMathRockerSettings());
+              }
+              rebuildActiveStackLayers();
+        } else if (group === "stalker") {
+            if (mode === "stalker" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getStalkerSettings());
+            }
+            rebuildActiveStackLayers();
+          } else if (group === "timbreSurfing") {
+              if (mode === "timbresurf" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getTimbreSurfingSettings());
+              }
+              rebuildActiveStackLayers();
+            } else if (group === "chromaStacking") {
+                if (mode === "chromastack" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getChromaStackingSettings());
+                }
+                rebuildActiveStackLayers();
+            } else if (group === "beatSorting") {
+                if (mode === "beatsort" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getBeatSortingSettings());
+                }
+                rebuildActiveStackLayers();
+            } else if (group === "reverseBloom") {
+                if (mode === "reversebloom" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getReverseBloomSettings());
+                }
+                rebuildActiveStackLayers();
+            } else if (group === "barberPole") {
+                if (mode === "barberpole" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getBarberPoleSettings());
+                }
+                rebuildActiveStackLayers();
+            } else if (group === "palindromeEngine") {
+                if (mode === "palindrome" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getPalindromeEngineSettings());
+                }
+                rebuildActiveStackLayers();
+            } else if (group === "spectralGravity") {
+                if (mode === "spectralgravity" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getSpectralGravitySettings());
+                }
+                rebuildActiveStackLayers();
+            } else if (group === "callResponse") {
+                if (mode === "callresponse" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getCallResponseSettings());
+                }
+                rebuildActiveStackLayers();
+            } else if (group === "orbitWeaver") {
+                if (mode === "orbitweaver" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getOrbitWeaverSettings());
+                }
+                rebuildActiveStackLayers();
+            } else if (group === "sculptorConfig" && mode === "sculptor") {
+                if (typeof window.applySculptorSettings === "function") {
+                    window.applySculptorSettings({ reason: enabled ? "enable" : "disable" });
+                }
+            }
+	    };
     window.isAdvancedGroupEnabled = isAdvancedGroupEnabled;
-    window.updateAdvancedGroupSetting = function(group, key, value) {
-        setAdvancedGroupSettingValue(group, key, value);
+	    window.updateAdvancedGroupSetting = function(group, key, value) {
+	        setAdvancedGroupSettingValue(group, key, value);
         if (group === "canonOverlay") {
             updateCanonSetting(key, value);
             return;
         }
-        if (group === "eternalOverlay") {
-            if (mode === "eternal" && eternalAdvancedEnabled) {
-                scheduleEternalOverlayRecalc("ui");
+	        if (group === "eternalOverlay") {
+	            if (mode === "eternal" && eternalAdvancedEnabled) {
+	                scheduleEternalOverlayRecalc("ui");
+	            }
+	            return;
+	        }
+	        if (group === "phaseShifter") {
+	            if (mode === "phaseshifter" && driver && typeof driver.applySettings === "function") {
+	                driver.applySettings(getPhaseShifterSettings());
+	            }
+	            rebuildActiveStackLayers();
+	            return;
+	        }
+	        if (group === "granularFreeze") {
+	            if (mode === "granularfreeze" && driver && typeof driver.applySettings === "function") {
+	                driver.applySettings(getGranularFreezeSettings());
+	            }
+	            rebuildActiveStackLayers();
+	            return;
+	        }
+            if (group === "elasticVelocity") {
+                if (mode === "elasticvelo" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getElasticVelocitySettings());
+                }
+                rebuildActiveStackLayers();
+                return;
             }
+            if (group === "mathRocker") {
+                if (mode === "mathrocker" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getMathRockerSettings());
+                }
+                rebuildActiveStackLayers();
+                return;
+            }
+            if (group === "stalker") {
+                if (mode === "stalker" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getStalkerSettings());
+                }
+                rebuildActiveStackLayers();
+                return;
+            }
+            if (group === "timbreSurfing") {
+                if (mode === "timbresurf" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getTimbreSurfingSettings());
+                }
+                rebuildActiveStackLayers();
+                return;
+            }
+              if (group === "chromaStacking") {
+                  if (mode === "chromastack" && driver && typeof driver.applySettings === "function") {
+                      driver.applySettings(getChromaStackingSettings());
+                  }
+                  rebuildActiveStackLayers();
+                  return;
+              }
+              if (group === "beatSorting") {
+                  if (mode === "beatsort" && driver && typeof driver.applySettings === "function") {
+                      driver.applySettings(getBeatSortingSettings());
+                  }
+                  rebuildActiveStackLayers();
+                  return;
+              }
+              if (group === "reverseBloom") {
+                  if (mode === "reversebloom" && driver && typeof driver.applySettings === "function") {
+                      driver.applySettings(getReverseBloomSettings());
+                  }
+                  rebuildActiveStackLayers();
+                  return;
+              }
+              if (group === "barberPole") {
+                  if (mode === "barberpole" && driver && typeof driver.applySettings === "function") {
+                      driver.applySettings(getBarberPoleSettings());
+                  }
+                  rebuildActiveStackLayers();
+                  return;
+              }
+              if (group === "palindromeEngine") {
+                  if (mode === "palindrome" && driver && typeof driver.applySettings === "function") {
+                      driver.applySettings(getPalindromeEngineSettings());
+                  }
+                  rebuildActiveStackLayers();
+                  return;
+              }
+              if (group === "spectralGravity") {
+                  if (mode === "spectralgravity" && driver && typeof driver.applySettings === "function") {
+                      driver.applySettings(getSpectralGravitySettings());
+                  }
+                  rebuildActiveStackLayers();
+                  return;
+              }
+              if (group === "callResponse") {
+                  if (mode === "callresponse" && driver && typeof driver.applySettings === "function") {
+                      driver.applySettings(getCallResponseSettings());
+                  }
+                  rebuildActiveStackLayers();
+                  return;
+              }
+              if (group === "orbitWeaver") {
+                  if (mode === "orbitweaver" && driver && typeof driver.applySettings === "function") {
+                      driver.applySettings(getOrbitWeaverSettings());
+                  }
+                  rebuildActiveStackLayers();
+                  return;
+              }
+            if (group === "sculptorConfig") {
+                if (typeof window.applySculptorSettings === "function") {
+                    window.applySculptorSettings({ reason: "setting", field: key });
+                }
+                return;
+            }
+        if (group === "dopamineMiner") {
+            if (mode === "dopamine" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getDopamineMinerSettings());
+            }
+            rebuildActiveStackLayers();
             return;
         }
-        if (group === "sculptorConfig") {
-            if (typeof window.applySculptorSettings === "function") {
-                window.applySculptorSettings({ reason: "setting", field: key });
+        if (group === "harmonicTrap") {
+            if (mode === "harmonictrap" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getHarmonicTrapSettings());
             }
+            rebuildActiveStackLayers();
             return;
         }
         if (!isAdvancedGroupEnabled(group)) {
@@ -2673,6 +3153,46 @@ if (typeof window !== "undefined") {
             setTimeout(function() {
                 refreshJukeboxVisualization();
             }, 50);
+        } else if (group === "dopamineMiner") {
+            if (mode === "dopamine" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getDopamineMinerSettings());
+            }
+            rebuildActiveStackLayers();
+        } else if (group === "harmonicTrap") {
+            if (mode === "harmonictrap" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getHarmonicTrapSettings());
+            }
+            rebuildActiveStackLayers();
+        } else if (group === "palindromeEngine") {
+            if (mode === "palindrome" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getPalindromeEngineSettings());
+            }
+            rebuildActiveStackLayers();
+        } else if (group === "spectralGravity") {
+            if (mode === "spectralgravity" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getSpectralGravitySettings());
+            }
+            rebuildActiveStackLayers();
+        } else if (group === "callResponse") {
+            if (mode === "callresponse" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getCallResponseSettings());
+            }
+            rebuildActiveStackLayers();
+        } else if (group === "orbitWeaver") {
+            if (mode === "orbitweaver" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getOrbitWeaverSettings());
+            }
+            rebuildActiveStackLayers();
+        } else if (group === "reverseBloom") {
+            if (mode === "reversebloom" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getReverseBloomSettings());
+            }
+            rebuildActiveStackLayers();
+        } else if (group === "barberPole") {
+            if (mode === "barberpole" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getBarberPoleSettings());
+            }
+            rebuildActiveStackLayers();
         } else if (group === "sculptorConfig" && mode === "sculptor") {
             if (typeof window.applySculptorSettings === "function") {
                 window.applySculptorSettings({ reason: "reset" });
@@ -2681,21 +3201,101 @@ if (typeof window !== "undefined") {
         console.log('[resetAdvancedGroup] Reset complete, new settings:', advancedSettings[group]);
         return snapshot;
     };
-    window.applyAdvancedGroup = function(group, options) {
-        if (group === "canonOverlay") {
-            regenerateCanonMapping(Object.assign({ reason: "apply" }, options));
-        } else if (group === "eternalOverlay") {
-            regenerateEternalOverlay(Object.assign({ reason: "apply" }, options));
-        } else if (group === "jukeboxLoop" && mode === "jukebox") {
-            recomputeLoopGraphForMode("jukebox");
-        } else if (group === "eternalLoop" && mode === "eternal") {
-            recomputeLoopGraphForMode("eternal");
-        } else if (group === "sculptorConfig" && mode === "sculptor") {
-            if (typeof window.applySculptorSettings === "function") {
-                window.applySculptorSettings({ source: options && options.source });
-            }
-        }
-    };
+      window.applyAdvancedGroup = function(group, options) {
+          if (group === "canonOverlay") {
+              regenerateCanonMapping(Object.assign({ reason: "apply" }, options));
+          } else if (group === "eternalOverlay") {
+              regenerateEternalOverlay(Object.assign({ reason: "apply" }, options));
+          } else if (group === "jukeboxLoop" && mode === "jukebox") {
+              recomputeLoopGraphForMode("jukebox");
+          } else if (group === "eternalLoop" && mode === "eternal") {
+              recomputeLoopGraphForMode("eternal");
+          } else if (group === "dopamineMiner") {
+              if (mode === "dopamine" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getDopamineMinerSettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "harmonicTrap") {
+              if (mode === "harmonictrap" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getHarmonicTrapSettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "phaseShifter") {
+              if (mode === "phaseshifter" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getPhaseShifterSettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "granularFreeze") {
+              if (mode === "granularfreeze" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getGranularFreezeSettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "elasticVelocity") {
+              if (mode === "elasticvelo" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getElasticVelocitySettings());
+              }
+              rebuildActiveStackLayers();
+            } else if (group === "mathRocker") {
+                if (mode === "mathrocker" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getMathRockerSettings());
+                }
+                rebuildActiveStackLayers();
+            } else if (group === "stalker") {
+                if (mode === "stalker" && driver && typeof driver.applySettings === "function") {
+                    driver.applySettings(getStalkerSettings());
+                }
+                rebuildActiveStackLayers();
+              } else if (group === "timbreSurfing") {
+                  if (mode === "timbresurf" && driver && typeof driver.applySettings === "function") {
+                      driver.applySettings(getTimbreSurfingSettings());
+                  }
+                  rebuildActiveStackLayers();
+                } else if (group === "chromaStacking") {
+                    if (mode === "chromastack" && driver && typeof driver.applySettings === "function") {
+                        driver.applySettings(getChromaStackingSettings());
+                    }
+                    rebuildActiveStackLayers();
+          } else if (group === "beatSorting") {
+              if (mode === "beatsort" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getBeatSortingSettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "reverseBloom") {
+              if (mode === "reversebloom" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getReverseBloomSettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "barberPole") {
+              if (mode === "barberpole" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getBarberPoleSettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "palindromeEngine") {
+              if (mode === "palindrome" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getPalindromeEngineSettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "spectralGravity") {
+              if (mode === "spectralgravity" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getSpectralGravitySettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "callResponse") {
+              if (mode === "callresponse" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getCallResponseSettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "orbitWeaver") {
+              if (mode === "orbitweaver" && driver && typeof driver.applySettings === "function") {
+                  driver.applySettings(getOrbitWeaverSettings());
+              }
+              rebuildActiveStackLayers();
+          } else if (group === "sculptorConfig" && mode === "sculptor") {
+              if (typeof window.applySculptorSettings === "function") {
+                  window.applySculptorSettings({ source: options && options.source });
+              }
+          }
+          };
     window.applyImmediateAdvancedSetting = function(group, key, value) {
         if (!group || key === undefined) {
             return;
@@ -2735,12 +3335,24 @@ if (typeof window !== "undefined") {
             handled = true;
             applyLoopFieldToDriver(key, numericValue);
             scheduleEternalLoopRecalc();
-        } else if (group === "sculptorConfig" && mode === "sculptor") {
+        } else if (group === "dopamineMiner") {
             handled = true;
-            if (typeof window.applySculptorSettings === "function") {
-                window.applySculptorSettings({ source: "immediate", field: key });
+            if (mode === "dopamine" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getDopamineMinerSettings());
             }
-        }
+            rebuildActiveStackLayers();
+        } else if (group === "harmonicTrap") {
+            handled = true;
+            if (mode === "harmonictrap" && driver && typeof driver.applySettings === "function") {
+                driver.applySettings(getHarmonicTrapSettings());
+            }
+            rebuildActiveStackLayers();
+          } else if (group === "sculptorConfig" && mode === "sculptor") {
+              handled = true;
+              if (typeof window.applySculptorSettings === "function") {
+                  window.applySculptorSettings({ source: "immediate", field: key });
+              }
+          }
 
         if (!handled && typeof window.applyAdvancedGroup === "function") {
             window.applyAdvancedGroup(group, { source: "immediate" });
@@ -3418,15 +4030,21 @@ function allReady() {
     rebuildDriverForCurrentMode(false);
     pulseNotes(baseNoteStrength);
     var modePillText = "Autocanonizer";
-    if (mode === "jukebox") {
-        modePillText = "Eternal Jukebox";
-    } else if (mode === "eternal") {
-        modePillText = "Eternal Canonizer";
-    } else if (mode === "dopamine") {
-        modePillText = "Dopamine Miner";
-    } else if (mode === "autoharmonizer") {
-        modePillText = "Autoharmonizer";
-    } else if (mode === "sculptor") {
+	    if (mode === "jukebox") {
+	        modePillText = "Eternal Jukebox";
+	    } else if (mode === "eternal") {
+	        modePillText = "Eternal Canonizer";
+	    } else if (mode === "dopamine") {
+	        modePillText = "Dopamine Miner";
+	    } else if (mode === "phaseshifter") {
+	        modePillText = "Phase Shifter";
+	    } else if (mode === "granularfreeze") {
+	        modePillText = "Granular Freeze";
+	    } else if (mode === "harmonictrap") {
+	        modePillText = "Harmonic Trap";
+	    } else if (mode === "autoharmonizer") {
+	        modePillText = "Autoharmonizer";
+	    } else if (mode === "sculptor") {
         modePillText = "Section Sculptor";
     }
     $("#mode-pill").text(modePillText);
@@ -3549,7 +4167,7 @@ function setDisplayMode() {
 }
 
 function setPlayingClass(modeName) {
-    document.body.classList.remove("playing-canon", "playing-jukebox", "playing-eternal", "playing-autoharmonizer", "playing-sculptor");
+    document.body.classList.remove("playing-canon", "playing-jukebox", "playing-eternal", "playing-autoharmonizer", "playing-sculptor", "playing-phaseshifter", "playing-granularfreeze", "playing-elasticvelo", "playing-mathrocker", "playing-stalker", "playing-timbresurf", "playing-chromastack", "playing-beatsort", "playing-reversebloom", "playing-barberpole", "playing-palindrome", "playing-spectralgravity", "playing-callresponse", "playing-orbitweaver");
     if (modeName === "canon") {
         document.body.classList.add("playing-canon");
         baseNoteStrength = 0.05;
@@ -3561,6 +4179,60 @@ function setPlayingClass(modeName) {
         document.body.classList.add("playing-jukebox");
         document.body.classList.add("playing-eternal");
         baseNoteStrength = 0.1;
+        renderJukeboxBackdrop(modeName);
+    } else if (modeName === "phaseshifter") {
+        document.body.classList.add("playing-phaseshifter");
+        baseNoteStrength = 0.07;
+    } else if (modeName === "granularfreeze") {
+        document.body.classList.add("playing-granularfreeze");
+        baseNoteStrength = 0.07;
+    } else if (modeName === "elasticvelo") {
+        document.body.classList.add("playing-elasticvelo");
+        baseNoteStrength = 0.07;
+    } else if (modeName === "mathrocker") {
+        document.body.classList.add("playing-mathrocker");
+        baseNoteStrength = 0.07;
+    } else if (modeName === "stalker") {
+        document.body.classList.add("playing-stalker");
+        baseNoteStrength = 0.08;
+        renderJukeboxBackdrop(modeName);
+    } else if (modeName === "timbresurf") {
+        document.body.classList.add("playing-timbresurf");
+        baseNoteStrength = 0.08;
+        renderJukeboxBackdrop(modeName);
+    } else if (modeName === "chromastack") {
+        document.body.classList.add("playing-chromastack");
+        baseNoteStrength = 0.08;
+    } else if (modeName === "beatsort") {
+        document.body.classList.add("playing-beatsort");
+        baseNoteStrength = 0.06;
+    } else if (modeName === "reversebloom") {
+        document.body.classList.add("playing-reversebloom");
+        baseNoteStrength = 0.07;
+        renderJukeboxBackdrop(modeName);
+    } else if (modeName === "barberpole") {
+        document.body.classList.add("playing-barberpole");
+        baseNoteStrength = 0.07;
+        renderJukeboxBackdrop(modeName);
+    } else if (modeName === "palindrome") {
+        document.body.classList.add("playing-jukebox");
+        document.body.classList.add("playing-palindrome");
+        baseNoteStrength = 0.08;
+        renderJukeboxBackdrop(modeName);
+    } else if (modeName === "spectralgravity") {
+        document.body.classList.add("playing-jukebox");
+        document.body.classList.add("playing-spectralgravity");
+        baseNoteStrength = 0.08;
+        renderJukeboxBackdrop(modeName);
+    } else if (modeName === "callresponse") {
+        document.body.classList.add("playing-jukebox");
+        document.body.classList.add("playing-callresponse");
+        baseNoteStrength = 0.08;
+        renderJukeboxBackdrop(modeName);
+    } else if (modeName === "orbitweaver") {
+        document.body.classList.add("playing-jukebox");
+        document.body.classList.add("playing-orbitweaver");
+        baseNoteStrength = 0.08;
         renderJukeboxBackdrop(modeName);
     } else if (modeName === "autoharmonizer") {
         document.body.classList.add("playing-autoharmonizer");
@@ -3581,10 +4253,16 @@ function setPlayingClass(modeName) {
     rootStyle.setProperty("--note-strength", baseNoteStrength.toFixed(3));
     var baseAlpha = 0.12 + 0.35 * baseNoteStrength;
     rootStyle.setProperty("--note-alpha", baseAlpha.toFixed(3));
+    if (!modeName) {
+        notifyStackPlaybackStateChange({
+            playing: false,
+            mode: (mode || "canon").toLowerCase()
+        });
+    }
     // Only clear backdrop when explicitly switching away from jukebox/eternal modes
     // Don't clear when just stopping playback (modeName=null but still in those modes)
     var effectiveMode = modeName || mode;
-    if (effectiveMode !== "jukebox" && effectiveMode !== "eternal") {
+    if (!isOrbitMode(effectiveMode)) {
         clearJukeboxBackdrop();
     }
 }
@@ -3601,7 +4279,7 @@ function pulseNotes(strength) {
     if (notePulseTimer) {
         clearTimeout(notePulseTimer);
     }
-    var decayDelay = (mode === "jukebox" || mode === "eternal") ? 180 : 280;
+    var decayDelay = isOrbitMode(mode) ? 180 : 280;
     notePulseTimer = setTimeout(function() {
         rootStyle.setProperty("--note-strength", baseNoteStrength.toFixed(3));
         var baseAlpha = 0.12 + 0.35 * baseNoteStrength;
@@ -3699,7 +4377,9 @@ function init() {
         var initialTrid = processParams();
         applyModeLayout();
         remixer = createJRemixer(context, $);
-        driver = Driver(remixer.getPlayer());
+        var playerForDriver = remixer.getPlayer();
+        window.harmonizerActivePlayer = playerForDriver;
+        driver = Driver(playerForDriver);
 
 	        // Load playlist queue from sessionStorage if available
 	        loadPlaylistQueue();
@@ -4542,20 +5222,390 @@ $(document).ready(function() {
 		        }
 		    });
 
-		    // Visualize This button handler: open Sonic Architect for current track
+		    // Visualize This button handler: open external visualizer (no separate playback)
 		    $("#visualize-this-btn").click(function() {
 		        var trackId = (window.curTrack && window.curTrack.id) ? window.curTrack.id : null;
 		        if (!trackId) {
 		            alert("No track loaded yet.");
 		            return;
 		        }
-		        var params = new URLSearchParams();
-		        params.set("trid", trackId);
-		        if (mode) {
-		            params.set("mode", mode);
+		        var sid = "viz-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
+		        var baseVizUrl;
+		        try {
+		            baseVizUrl = new URL("sonic-architect.html", window.location.href).toString();
+		        } catch (e) {
+		            baseVizUrl = "sonic-architect.html";
 		        }
-		        var targetUrl = resolveApiUrl("sonic-architect.html", false);
-		        window.location.href = targetUrl + "?" + params.toString();
+		        var targetUrl =
+		            baseVizUrl +
+		            (baseVizUrl.indexOf("?") === -1 ? "?" : "&") +
+		            "src=harmonizer&sid=" +
+		            encodeURIComponent(sid) +
+		            "&trid=" + encodeURIComponent(trackId) +
+		            "&mode=" + encodeURIComponent(mode || "") +
+		            "&v=2025121330";
+		        var vizWindow = window.open(targetUrl, "_blank");
+		        if (!vizWindow) {
+		            alert("Popup blocked — allow popups for this site to open the visualizer.");
+		            return;
+		        }
+
+		        if (window.__harmonizerVizPump && typeof window.__harmonizerVizPump.stop === "function") {
+		            try { window.__harmonizerVizPump.stop(); } catch (e) {}
+		        }
+
+		        window.__harmonizerVizPump = (function createVizPump(winRef) {
+		            var audioCtx = null;
+		            var analyser = null;
+		            var outputGain = null;
+		            var intervalId = null;
+		            var boundTimeUpdate = null;
+		            var currentAudioEl = null;
+		            var currentSource = null;
+		            var currentSourceKind = null; // "capture" | "element"
+		            var elementSourceMap = typeof WeakMap !== "undefined" ? new WeakMap() : null;
+		            var elementStreamMap = typeof WeakMap !== "undefined" ? new WeakMap() : null;
+		            var elementReroutedSet = typeof WeakSet !== "undefined" ? new WeakSet() : null;
+		            // Use wildcard origin to avoid mismatches across dev/prod (and file:// origins).
+		            var targetOrigin = "*";
+		            var receiverReady = false;
+		            var onMessage = null;
+		            var channels = [];
+		            try {
+		                if (typeof BroadcastChannel !== "undefined") {
+		                    channels.push(new BroadcastChannel("harmonizer-viz-" + sid));
+		                    channels.push(new BroadcastChannel("harmonizer-viz-default"));
+		                }
+		            } catch (e) {
+		                channels = [];
+		            }
+
+		            function getPrimaryAnalyser() {
+		                try {
+		                    var pl = window.harmonizerActivePlayer || null;
+		                    if (pl && typeof pl.getVizAnalyser === "function") {
+		                        return pl.getVizAnalyser();
+		                    }
+		                } catch (e) {}
+		                return null;
+		            }
+
+		            function getPrimaryAudio() {
+		                try {
+		                    var pl = window.harmonizerActivePlayer || null;
+		                    if (pl && pl.audio) {
+		                        return pl.audio;
+		                    }
+		                } catch (e) {}
+		                return null;
+		            }
+
+		            function ensureAudioContext() {
+		                if (audioCtx) return;
+		                var AC = window.AudioContext || window.webkitAudioContext;
+		                if (!AC) return;
+		                audioCtx = new AC();
+		                analyser = audioCtx.createAnalyser();
+		                analyser.fftSize = 512;
+		                analyser.smoothingTimeConstant = 0.85;
+		                outputGain = audioCtx.createGain();
+		                outputGain.gain.value = 1;
+		                outputGain.connect(audioCtx.destination);
+		            }
+
+		            function detachSource(keepOutputIfElementSource) {
+		                if (!currentSource) {
+		                    currentSource = null;
+		                    currentSourceKind = null;
+		                    return;
+		                }
+		                var keepOutput = !!keepOutputIfElementSource;
+		                if (currentSourceKind === "element" && keepOutput) {
+		                    // MediaElementSource reroutes audio through the AudioContext, so do NOT fully disconnect it,
+		                    // otherwise it will mute the main playback. Only detach the analyser tap.
+		                    if (analyser) {
+		                        try { currentSource.disconnect(analyser); } catch (e) {}
+		                    }
+		                } else {
+		                    if (typeof currentSource.disconnect === "function") {
+		                        try { currentSource.disconnect(); } catch (e) {}
+		                    }
+		                }
+		                currentSource = null;
+		                currentSourceKind = null;
+		            }
+
+		            function getOrCreateElementSource(el) {
+		                if (!elementSourceMap) {
+		                    return audioCtx.createMediaElementSource(el);
+		                }
+		                var existing = elementSourceMap.get(el);
+		                if (existing) return existing;
+		                var created = audioCtx.createMediaElementSource(el);
+		                elementSourceMap.set(el, created);
+		                return created;
+		            }
+
+		            function getOrCreateCaptureSource(el) {
+		                if (typeof el.captureStream !== "function") return null;
+		                var stream = null;
+		                if (elementStreamMap) {
+		                    stream = elementStreamMap.get(el) || null;
+		                }
+		                if (!stream) {
+		                    try {
+		                        stream = el.captureStream();
+		                    } catch (e) {
+		                        stream = null;
+		                    }
+		                    if (stream && elementStreamMap) {
+		                        elementStreamMap.set(el, stream);
+		                    }
+		                }
+		                if (!stream) return null;
+		                try {
+		                    return audioCtx.createMediaStreamSource(stream);
+		                } catch (e) {
+		                    return null;
+		                }
+		            }
+
+		            function ensureGraphForAudioEl(audioEl) {
+		                if (!audioEl) return false;
+		                ensureAudioContext();
+		                if (!audioCtx || !analyser) return false;
+		                if (audioCtx.state === "suspended") {
+		                    try { audioCtx.resume(); } catch (e) {}
+		                }
+		                if (audioEl === currentAudioEl && currentSource) return true;
+
+		                // Switching audio elements: safe to fully detach old routing.
+		                detachSource(false);
+		                currentAudioEl = audioEl;
+
+		                // Prefer captureStream so we don't reroute the element audio.
+		                var shouldTryCapture = !elementReroutedSet || !elementReroutedSet.has(audioEl);
+		                var captureSource = shouldTryCapture ? getOrCreateCaptureSource(audioEl) : null;
+		                if (captureSource) {
+		                    currentSource = captureSource;
+		                    currentSourceKind = "capture";
+		                    try { currentSource.connect(analyser); } catch (e) {}
+		                    return true;
+		                }
+
+		                // Fallback: media element source (must route audio to destination).
+		                var elementSource = null;
+		                try {
+		                    elementSource = getOrCreateElementSource(audioEl);
+		                } catch (e) {
+		                    console.warn("[VizPump] Unable to attach media element source", e);
+		                    return false;
+		                }
+		                currentSource = elementSource;
+		                currentSourceKind = "element";
+		                if (elementReroutedSet) {
+		                    try { elementReroutedSet.add(audioEl); } catch (e) {}
+		                }
+		                // Avoid duplicate connections when reusing a cached MediaElementSource node.
+		                try { currentSource.disconnect(analyser); } catch (e) {}
+		                try { currentSource.disconnect(outputGain); } catch (e) {}
+		                try { currentSource.connect(analyser); } catch (e) {}
+		                try { currentSource.connect(outputGain); } catch (e) {}
+		                return true;
+		            }
+
+		            function sendFrame() {
+		                if (!winRef || winRef.closed) {
+		                    stop();
+		                    return;
+		                }
+		                var primaryAnalyser = getPrimaryAnalyser();
+		                if (primaryAnalyser && typeof primaryAnalyser.getByteFrequencyData === "function") {
+		                    var freqA = new Uint8Array(primaryAnalyser.frequencyBinCount || 256);
+		                    primaryAnalyser.getByteFrequencyData(freqA);
+		                    var curIdA = (window.curTrack && window.curTrack.id) ? window.curTrack.id : null;
+		                    var pausedA = false;
+		                    try {
+		                        pausedA = !(driver && typeof driver.isRunning === "function" && driver.isRunning());
+		                    } catch (e) {
+		                        pausedA = false;
+		                    }
+		                    try {
+		                        if (channels && channels.length) {
+		                            channels.forEach(function(ch) {
+		                                try {
+		                                    ch.postMessage({
+		                                        type: "frame",
+		                                        freq: Array.from(freqA),
+		                                        currentTime: 0,
+		                                        paused: pausedA,
+		                                        trackId: curIdA,
+		                                        mode: mode || null,
+		                                        canonVoices: (typeof window.canonVoiceCount === "number" ? window.canonVoiceCount : null)
+		                                    });
+		                                } catch (e) {}
+		                            });
+		                        }
+		                        winRef.postMessage(
+		                            {
+		                                type: "HARMONIZER_VIZ_FRAME",
+		                                freq: Array.from(freqA),
+		                                currentTime: 0,
+		                                paused: pausedA,
+		                                trackId: curIdA,
+		                                mode: mode || null,
+		                                canonVoices: (typeof window.canonVoiceCount === "number" ? window.canonVoiceCount : null)
+		                            },
+		                            targetOrigin
+		                        );
+		                    } catch (e) {}
+		                    return;
+		                }
+		                var audioEl = getPrimaryAudio();
+		                var ok = ensureGraphForAudioEl(audioEl);
+		                if (!ok || !analyser) {
+		                    return;
+		                }
+		                var freq = new Uint8Array(analyser.frequencyBinCount);
+		                analyser.getByteFrequencyData(freq);
+		                var curId = (window.curTrack && window.curTrack.id) ? window.curTrack.id : null;
+		                var nowTime = 0;
+		                var paused = true;
+		                try {
+		                    if (audioEl) {
+		                        nowTime = audioEl.currentTime || 0;
+		                        paused = !!audioEl.paused;
+		                    }
+		                } catch (e) {}
+		                try {
+		                    // Send as a plain array to avoid cross-origin transfer-list quirks.
+		                    if (channels && channels.length) {
+		                        channels.forEach(function(ch) {
+		                            try {
+		                                ch.postMessage({
+		                                    type: "frame",
+		                                    freq: Array.from(freq),
+		                                    currentTime: nowTime,
+		                                    paused: paused,
+		                                    trackId: curId,
+		                                    mode: mode || null,
+		                                    canonVoices: (typeof window.canonVoiceCount === "number" ? window.canonVoiceCount : null)
+		                                });
+		                            } catch (e) {}
+		                        });
+		                    }
+		                    winRef.postMessage(
+		                        {
+		                            type: "HARMONIZER_VIZ_FRAME",
+		                            freq: Array.from(freq),
+		                            currentTime: nowTime,
+		                            paused: paused,
+		                            trackId: curId,
+		                            mode: mode || null,
+		                            canonVoices: (typeof window.canonVoiceCount === "number" ? window.canonVoiceCount : null)
+		                        },
+		                        targetOrigin
+		                    );
+		                } catch (e) {
+		                    // Ignore postMessage failures (e.g., navigation).
+		                }
+		            }
+
+		            function start() {
+		                // Only create a new AudioContext if we need the HTMLAudioElement fallback path.
+		                try {
+		                    var a = getPrimaryAnalyser();
+		                    if (!a) {
+		                        ensureAudioContext();
+		                        if (audioCtx && audioCtx.state === "suspended") {
+		                            audioCtx.resume();
+		                        }
+		                    }
+		                } catch (e) {}
+		                // Wait for the visualizer window to confirm it is listening (avoids dropped messages).
+		                onMessage = function(e) {
+		                    try {
+		                        if (!e || e.source !== winRef) return;
+		                        var msg = e.data;
+		                        if (msg && typeof msg === "object" && msg.type === "HARMONIZER_VIZ_READY") {
+		                            receiverReady = true;
+		                        }
+		                    } catch (err) {}
+		                };
+		                try { window.addEventListener("message", onMessage); } catch (e) {}
+		                // Fallback: if READY never arrives (e.g. opener is null), start sending anyway.
+		                setTimeout(function() {
+		                    receiverReady = true;
+		                }, 800);
+		                // Send INIT immediately and periodically until we hear READY.
+		                try {
+		                    if (channels && channels.length) {
+		                        channels.forEach(function(ch) {
+		                            try { ch.postMessage({ type: "init" }); } catch (e) {}
+		                        });
+		                    }
+		                } catch (e) {}
+		                try { winRef.postMessage({ type: "HARMONIZER_VIZ_INIT" }, targetOrigin); } catch (e) {}
+		                if (intervalId) clearInterval(intervalId);
+		                intervalId = setInterval(function() {
+		                    if (!receiverReady) {
+		                        try {
+		                            if (channels && channels.length) {
+		                                channels.forEach(function(ch) {
+		                                    try { ch.postMessage({ type: "init" }); } catch (e) {}
+		                                });
+		                            }
+		                        } catch (e) {}
+		                        try { winRef.postMessage({ type: "HARMONIZER_VIZ_INIT" }, targetOrigin); } catch (e) {}
+		                        return;
+		                    }
+		                    sendFrame();
+		                }, 50);
+		                // Also hook timeupdate so we still tick when this tab is backgrounded (rAF pauses in bg tabs).
+		                try {
+		                    var el = getPrimaryAudio();
+		                    if (el) {
+		                        boundTimeUpdate = function() { sendFrame(); };
+		                        el.addEventListener("timeupdate", boundTimeUpdate);
+		                    }
+		                } catch (e) {}
+		                // Prime once.
+		                setTimeout(function() {
+		                    if (receiverReady) sendFrame();
+		                }, 0);
+		            }
+
+		            function stop() {
+		                if (intervalId) {
+		                    clearInterval(intervalId);
+		                    intervalId = null;
+		                }
+		                try {
+		                    if (boundTimeUpdate && currentAudioEl) {
+		                        currentAudioEl.removeEventListener("timeupdate", boundTimeUpdate);
+		                    }
+		                } catch (e) {}
+		                try {
+		                    if (onMessage) window.removeEventListener("message", onMessage);
+		                } catch (e) {}
+		                onMessage = null;
+		                try {
+		                    if (channels && channels.length) {
+		                        channels.forEach(function(ch) {
+		                            try { ch.close(); } catch (e) {}
+		                        });
+		                    }
+		                } catch (e) {}
+		                channels = [];
+		                boundTimeUpdate = null;
+		                // Do not mute main playback if we had to reroute via MediaElementSource.
+		                detachSource(true);
+		                currentAudioEl = null;
+		            }
+
+		            start();
+		            return { stop: stop };
+		        })(vizWindow);
 		    });
 
 		    function openQueueUploadModal() {
@@ -5016,7 +6066,7 @@ function processParams() {
     if (requestedMode) {
         requestedMode = requestedMode.toLowerCase();
     }
-    if (requestedMode === "jukebox" || requestedMode === "canon" || requestedMode === "eternal" || requestedMode === "autoharmonizer" || requestedMode === "sculptor") {
+    if (requestedMode === "jukebox" || requestedMode === "canon" || requestedMode === "eternal" || requestedMode === "dopamine" || requestedMode === "harmonictrap" || requestedMode === "phaseshifter" || requestedMode === "granularfreeze" || requestedMode === "elasticvelo" || requestedMode === "mathrocker" || requestedMode === "stalker" || requestedMode === "timbresurf" || requestedMode === "chromastack" || requestedMode === "beatsort" || requestedMode === "reversebloom" || requestedMode === "barberpole" || requestedMode === "palindrome" || requestedMode === "spectralgravity" || requestedMode === "callresponse" || requestedMode === "orbitweaver" || requestedMode === "autoharmonizer" || requestedMode === "sculptor") {
         mode = requestedMode;
     }
     var trid = params.get("trid");
@@ -5077,21 +6127,35 @@ var tilePrototype = {
         this.rect.attr("fill", "#FF9");
     },
 
-    normal: function() {
-        this.rect.attr("fill", this.normalColor);
-        this.rect.attr("stroke", this.normalColor);
-    },
+      normal: function() {
+          this.rect.attr("fill", this.normalColor);
+          this.rect.attr("stroke", this.normalColor);
+          if (this._stalkerTarget) {
+              this.rect.attr("stroke", "rgba(255,255,255,0.92)");
+              this.rect.attr("stroke-width", 4);
+          } else {
+              this.rect.attr("stroke-width", 1);
+          }
+      },
 
-    highlight: function() {
-        this.rect.attr("fill", masterColor);
-        this.rect.attr("stroke", masterColor);
-    },
+      highlight: function() {
+          this.rect.attr("fill", masterColor);
+          this.rect.attr("stroke", masterColor);
+          if (this._stalkerTarget) {
+              this.rect.attr("stroke", "rgba(255,255,255,0.92)");
+              this.rect.attr("stroke-width", 4);
+          }
+      },
 
-    highlight2: function(color) {
-        var fill = color || otherColor;
-        this.rect.attr("fill", fill);
-        this.rect.attr("stroke", fill);
-    },
+      highlight2: function(color) {
+          var fill = color || otherColor;
+          this.rect.attr("fill", fill);
+          this.rect.attr("stroke", fill);
+          if (this._stalkerTarget) {
+              this.rect.attr("stroke", "rgba(255,255,255,0.92)");
+              this.rect.attr("stroke-width", 4);
+          }
+      },
 
     unplay: function() {
         this.normal();
@@ -5107,6 +6171,15 @@ var tilePrototype = {
         var that = this;
         this.rect.mousedown(async function(event) {
             event.preventDefault();
+            try {
+                var stacked = (typeof window.getStackedLayers === "function") ? window.getStackedLayers() : [];
+                var hasStalkerLayer = Array.isArray(stacked) && stacked.indexOf("stalker") !== -1;
+                if (mode === "stalker" || hasStalkerLayer) {
+                    if (typeof window.setStalkerTargetIndex === "function") {
+                        window.setStalkerTargetIndex(that.q.which, { source: "click" });
+                    }
+                }
+            } catch (e) {}
             if (driver && typeof driver.setNextQ === "function") {
                 driver.setNextQ(that.q);
             }
@@ -5125,6 +6198,86 @@ var tilePrototype = {
         });
     }
 }
+
+// ===== Stalker target selection (shared by base + stack) =====
+var stalkerTargetIndex = null;
+var stalkerTargetTile = null;
+var stalkerChromaVectors = null;
+var stalkerChromaSignature = null;
+
+function getStalkerChromaVectors() {
+    if (!masterQs || !masterQs.length) return null;
+    var trackSig = "";
+    try {
+        trackSig =
+            (curTrack && (curTrack.id || (curTrack.info && curTrack.info.url))) ||
+            (masterQs[0] && masterQs[0].track && (masterQs[0].track.id || (masterQs[0].track.info && masterQs[0].track.info.url))) ||
+            "";
+    } catch (e) {
+        trackSig = "";
+    }
+    var sig = masterQs.length + ":" + trackSig;
+    if (stalkerChromaVectors && stalkerChromaSignature === sig) {
+        return stalkerChromaVectors;
+    }
+    stalkerChromaVectors = computeBeatChromaVectors(masterQs);
+    stalkerChromaSignature = sig;
+    return stalkerChromaVectors;
+}
+
+function clearStalkerTargetMarker() {
+    if (stalkerTargetTile && stalkerTargetTile.rect) {
+        try {
+            stalkerTargetTile._stalkerTarget = false;
+            stalkerTargetTile.rect.attr("stroke-width", 1);
+            stalkerTargetTile.rect.attr("stroke", stalkerTargetTile.normalColor || stalkerTargetTile.rect.attr("fill"));
+        } catch (e) {}
+    }
+    stalkerTargetTile = null;
+}
+
+function applyStalkerTargetMarker(idx) {
+    if (!masterQs || !masterQs.length) return;
+    if (typeof idx !== "number" || !isFinite(idx)) return;
+    idx = Math.max(0, Math.min(masterQs.length - 1, Math.round(idx)));
+    var q = masterQs[idx];
+    var tile = q && q.tile ? q.tile : null;
+    if (!tile || !tile.rect) return;
+
+    clearStalkerTargetMarker();
+    stalkerTargetTile = tile;
+    tile._stalkerTarget = true;
+    try {
+        tile.rect.attr({
+            stroke: "rgba(255,255,255,0.92)",
+            "stroke-width": 4
+        });
+    } catch (e) {}
+}
+
+function setStalkerTargetIndexInternal(idx, options) {
+    if (!masterQs || !masterQs.length) return null;
+    if (typeof idx !== "number" || !isFinite(idx)) return stalkerTargetIndex;
+    idx = Math.max(0, Math.min(masterQs.length - 1, Math.round(idx)));
+    stalkerTargetIndex = idx;
+    applyStalkerTargetMarker(idx);
+    // Keep chroma cache in sync with new tracks/tiles.
+    if (stalkerChromaVectors && stalkerChromaVectors.length !== masterQs.length) {
+        stalkerChromaVectors = null;
+        stalkerChromaSignature = null;
+    }
+    if (options && options.source) {
+        try { console.log("[Stalker] Target set to beat", idx, "source:", options.source); } catch (e) {}
+    }
+    return stalkerTargetIndex;
+}
+
+window.getStalkerTargetIndex = function() {
+    return stalkerTargetIndex;
+};
+window.setStalkerTargetIndex = function(idx, options) {
+    return setStalkerTargetIndexInternal(idx, options);
+};
 
 
 function normalizeColor() {
@@ -5212,7 +6365,9 @@ function getSegmentColor(seg) {
 
 function resetTileColors(qlist) {
     _.each(qlist, function(q) {
-        q.tile.normal();
+        if (q && q.tile && typeof q.tile.normal === "function") {
+            q.tile.normal();
+        }
     });
 }
 
@@ -5541,7 +6696,7 @@ function drawJumpArcHighlight(fromIdx, toIdx, isOverlay) {
     var pathString;
 
     // Use circular visualizer for jukebox/eternal, linear for canon
-    if (mode === "jukebox" || mode === "eternal") {
+    if (isOrbitMode(mode)) {
         // Circular arc
         var radius = getCircularRadius();
         var centerPoint = getCircularCenter();
@@ -5642,7 +6797,7 @@ function removeJukeboxBackdrop() {
 
 function clearJukeboxBackdrop() {
     removeJukeboxBackdrop();
-    if (mode !== "jukebox" && mode !== "eternal") {
+    if (!isOrbitMode(mode)) {
         clearOrbitBase();
     }
 }
@@ -5650,7 +6805,7 @@ function clearJukeboxBackdrop() {
 function renderJukeboxBackdrop(targetMode) {
     removeJukeboxBackdrop();
     var currentMode = targetMode || mode;
-    if (currentMode !== "jukebox" && currentMode !== "eternal") {
+    if (!isOrbitMode(currentMode)) {
         return;
     }
     var layout = orbitLayout;
@@ -5709,7 +6864,7 @@ var vPad = 20;
 var hPad = 20;
 
 function getCircularCenter() {
-    if (mode === "jukebox" || mode === "eternal") {
+    if (isOrbitMode(mode)) {
         return orbitLayout.center;
     }
     var topOffset = Math.min(H * 0.45, 160);
@@ -5720,7 +6875,7 @@ function getCircularCenter() {
 }
 
 function getCircularRadius() {
-    if (mode === "jukebox" || mode === "eternal") {
+    if (isOrbitMode(mode)) {
         return orbitLayout.baseRadius;
     }
     var base = Math.min(W, H * 1.2) / 2;
@@ -5771,7 +6926,7 @@ function shortestAngleBetween(a, b) {
 }
 
 function createTiles(qlist) {
-    if (mode === "jukebox" || mode === "eternal") {
+    if (isOrbitMode(mode)) {
         return createCircularTiles(qlist);
     }
     if (mode === "autoharmonizer") {
@@ -6236,7 +7391,7 @@ function updateCursors(q) {
     if (!q) {
         return;
     }
-    if (mode === "jukebox" || mode === "eternal") {
+    if (isOrbitMode(mode)) {
         updateCircularCursors(q);
         return;
     }
@@ -7125,8 +8280,8 @@ function createCanonDriver(player) {
                 nextQ._overlayLimit = null;
                 nextQ._pocketGate = null;
             }
-            var delay = player.playQ(nextQ);
             notifyStackOnBeat({ mode: "canon", currentIndex: currentIndex, beat: nextQ });
+            var delay = player.playQ(nextQ);
             renderOverlayChips(nextQ);
             var choice = chooseCanonNextIndex(currentIndex);
             var stackedIndex = applyStackedNextIndex({
@@ -8593,7 +9748,30 @@ function createJukeboxDriver(player, options) {
             beat: prevBeat,
             proposedReason: "sequential"
         });
+        var didStackJump = stacked !== proposed;
         currentIndex = stacked;
+        if (didStackJump) {
+            registerJumpBubble(stacked);
+            highlightJumpArc(prevIndex, stacked);
+            var sourceBeat = masterQs[prevIndex];
+            var targetBeat = masterQs[stacked];
+            beatsSinceJump = 0;
+            emitJumpLog({
+                reason: "stack",
+                source: prevIndex,
+                target: stacked,
+                similarity: null,
+                span: null,
+                sameSection: null,
+                beatsUntilJump: beatsUntilJump,
+                bubbleRadius: getCurrentJumpBubbleRadius(),
+                source_time: sourceBeat ? sourceBeat.start : null,
+                target_time: targetBeat ? targetBeat.start : null,
+                quality_score: null,
+            });
+            scheduleNextJump(false);
+            return;
+        }
         if (currentIndex >= masterQs.length) {
             var reentry = fallbackReentryTarget();
             currentIndex = Math.max(0, Math.min(masterQs.length - 1, reentry));
@@ -8635,20 +9813,28 @@ function createJukeboxDriver(player, options) {
             if (currentIndex >= retreatPoint.source || beatsUntilJump <= 2) {
                 console.log('[advanceIndex] Using retreat point:', currentIndex, 'Ã¢â€ â€™', retreatPoint.target);
                 var retreatSourceIndex = currentIndex;
-                loopHistory.push({ source: currentIndex, target: retreatPoint.target });
+                var sourceBeat = masterQs[retreatSourceIndex];
+                var proposedTarget = retreatPoint.target;
+                var stackedTarget = applyStackedNextIndex({
+                    mode: modeName,
+                    currentIndex: retreatSourceIndex,
+                    proposedIndex: proposedTarget,
+                    beat: sourceBeat,
+                    proposedReason: "retreat"
+                });
+                loopHistory.push({ source: retreatSourceIndex, target: stackedTarget });
                 if (loopHistory.length > LOOP_HISTORY_LIMIT) {
                     loopHistory.shift();
                 }
-                currentIndex = retreatPoint.target;
-                registerJumpBubble(retreatPoint.target);
-                highlightJumpArc(retreatSourceIndex, retreatPoint.target);
-                var sourceBeat = masterQs[retreatSourceIndex];
-                var targetBeat = masterQs[retreatPoint.target];
+                currentIndex = stackedTarget;
+                registerJumpBubble(stackedTarget);
+                highlightJumpArc(retreatSourceIndex, stackedTarget);
+                var targetBeat = masterQs[stackedTarget];
                 beatsSinceJump = 0;
                 emitJumpLog({
                     reason: "retreat",
                     source: retreatSourceIndex,
-                    target: retreatPoint.target,
+                    target: stackedTarget,
                     similarity: retreatPoint.similarity,
                     beatsUntilJump: beatsUntilJump,
                     bubbleRadius: getCurrentJumpBubbleRadius(),
@@ -8674,12 +9860,21 @@ function createJukeboxDriver(player, options) {
             if (jump) {
                 console.log('[advanceIndex] JUMP!', currentIndex, '->', jump.target);
                 var jumpSourceIndex = currentIndex;
-                loopHistory.push({ source: currentIndex, target: jump.target });
+                var sourceBeat = masterQs[jumpSourceIndex];
+                var proposedTarget = jump.target;
+                var stackedTarget = applyStackedNextIndex({
+                    mode: modeName,
+                    currentIndex: jumpSourceIndex,
+                    proposedIndex: proposedTarget,
+                    beat: sourceBeat,
+                    proposedReason: "scheduled"
+                });
+                loopHistory.push({ source: jumpSourceIndex, target: stackedTarget });
                 if (loopHistory.length > LOOP_HISTORY_LIMIT) {
                     loopHistory.shift();
                 }
                 // Track edge usage for variety (penalize overused edges)
-                var edgeKey = jumpSourceIndex + ":" + jump.target;
+                var edgeKey = jumpSourceIndex + ":" + stackedTarget;
                 edgeUsage[edgeKey] = (edgeUsage[edgeKey] || 0) + 1;
                 jumpsSinceReset += 1;
                 if (jumpsSinceReset >= JUMP_RESET_INTERVAL) {
@@ -8688,17 +9883,16 @@ function createJukeboxDriver(player, options) {
                     jumpsSinceReset = 0;
                 }
 
-                currentIndex = jump.target;
-                registerJumpBubble(jump.target);
-                highlightJumpArc(jumpSourceIndex, jump.target);
-                var sourceBeat = masterQs[jumpSourceIndex];
-                var targetBeat = masterQs[jump.target];
+                currentIndex = stackedTarget;
+                registerJumpBubble(stackedTarget);
+                highlightJumpArc(jumpSourceIndex, stackedTarget);
+                var targetBeat = masterQs[stackedTarget];
                 beatsSinceJump = 0;
                 modeState = jump.direction === "backward" ? "looping" : "explore";
                 emitJumpLog({
                     reason: "scheduled",
                     source: jumpSourceIndex,
-                    target: jump.target,
+                    target: stackedTarget,
                     similarity: jump.similarity,
                     span: jump.span,
                     sameSection: jump.sameSection,
@@ -8726,6 +9920,7 @@ function createJukeboxDriver(player, options) {
         incrementBeatCount();
         trackJukeboxBeat(currentIndex);
         maybeResetJukeboxIfStuck();
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q });
         var delay = player.playQ(q);
         q.tile.highlight();
         // Highlight overlays for multi-voice canon
@@ -8944,6 +10139,18 @@ function sanitizeDopamineMinerSettings(input, defaults) {
     if (escape === null) escape = defaults.escapeProb;
     out.escapeProb = clampNumber(escape, 0, 0.4);
 
+    var burnoutWindow = coerceNumber(input.burnoutWindowBeats);
+    if (burnoutWindow === null) burnoutWindow = defaults.burnoutWindowBeats;
+    out.burnoutWindowBeats = clampNumber(Math.round(burnoutWindow), 8, 256);
+
+    var burnoutRatio = coerceNumber(input.burnoutUniqueRatio);
+    if (burnoutRatio === null) burnoutRatio = defaults.burnoutUniqueRatio;
+    out.burnoutUniqueRatio = clampNumber(burnoutRatio, 0.05, 0.9);
+
+    var burnoutCooldown = coerceNumber(input.burnoutCooldownBeats);
+    if (burnoutCooldown === null) burnoutCooldown = defaults.burnoutCooldownBeats;
+    out.burnoutCooldownBeats = clampNumber(Math.round(burnoutCooldown), 0, 256);
+
     return out;
 }
 
@@ -9090,14 +10297,287 @@ function createDopamineMinerDriver(player, options) {
     var sequentialCount = 0;
     var recentTargets = [];
     var RECENT_LIMIT = 18;
+    var visitHistory = [];
+    var pathHistory = [];
+    var PATH_LIMIT = 96;
+    var clusterHistory = [];
+    var CLUSTER_HISTORY_LIMIT = 12;
+    var edgeWindow = [];
+    var edgeCounts = Object.create(null);
+    var EDGE_WINDOW_LIMIT = 96;
+    var burnoutCooldownLeft = 0;
 
     var settings = sanitizeDopamineMinerSettings(options, ADVANCED_DEFAULTS.dopamineMiner);
     var peakData = null;
+    var clusterPeakBeatById = Object.create(null);
+    var stuckLocalNow = false;
+    var stepCounter = 0;
+    var tabooUntil = Object.create(null);
+    var tabooEdgeUntil = Object.create(null);
 
     function clearProcessTimer() {
         if (processTimer) {
             clearTimeout(processTimer);
             processTimer = null;
+        }
+    }
+
+    function addTaboo(idx, ttlBeats) {
+        if (typeof idx !== "number" || !isFinite(idx)) return;
+        var ttl = Math.max(1, Math.round(ttlBeats || 0));
+        var until = stepCounter + ttl;
+        var prev = tabooUntil[idx];
+        tabooUntil[idx] = (prev !== undefined && prev > until) ? prev : until;
+    }
+
+    function isTaboo(idx) {
+        if (typeof idx !== "number" || !isFinite(idx)) return false;
+        var until = tabooUntil[idx];
+        return until !== undefined && stepCounter < until;
+    }
+
+    function edgeKey(src, dst) {
+        return src + ">" + dst;
+    }
+
+    function addEdgeTaboo(src, dst, ttlBeats) {
+        if (typeof src !== "number" || typeof dst !== "number") return;
+        if (!isFinite(src) || !isFinite(dst)) return;
+        var ttl = Math.max(1, Math.round(ttlBeats || 0));
+        var until = stepCounter + ttl;
+        var key = edgeKey(src, dst);
+        var prev = tabooEdgeUntil[key];
+        tabooEdgeUntil[key] = (prev !== undefined && prev > until) ? prev : until;
+    }
+
+    function isEdgeTaboo(src, dst) {
+        var until = tabooEdgeUntil[edgeKey(src, dst)];
+        return until !== undefined && stepCounter < until;
+    }
+
+    function rebuildClusterMeta() {
+        clusterPeakBeatById = Object.create(null);
+        if (!peakData || !peakData.clusters || !peakData.clusters.length) return;
+        peakData.clusters.forEach(function(cl) {
+            var best = cl.start;
+            var bestEnergy = -Infinity;
+            if (cl.beats && cl.beats.length && peakData.energies && peakData.energies.length) {
+                for (var i = 0; i < cl.beats.length; i++) {
+                    var b = cl.beats[i];
+                    var e = peakData.energies[b];
+                    if (typeof e !== "number" || !isFinite(e)) e = 0;
+                    if (e > bestEnergy) {
+                        bestEnergy = e;
+                        best = b;
+                    }
+                }
+            }
+            clusterPeakBeatById[cl.id] = best;
+        });
+    }
+
+    function splitPeakClustersBySection(data, minClusterBeats) {
+        if (!data || !data.clusters || !data.clusters.length) return data;
+        var outClusters = [];
+        var clusterByBeat = new Array(masterQs.length);
+        for (var i = 0; i < clusterByBeat.length; i++) clusterByBeat[i] = null;
+        var nextId = 0;
+
+        function closeCluster(startIdx, endIdx, beatsList) {
+            if (!beatsList || beatsList.length < Math.max(1, minClusterBeats)) return;
+            var sum = 0;
+            for (var k = 0; k < beatsList.length; k++) {
+                var e = (data.energies && typeof data.energies[beatsList[k]] === "number") ? data.energies[beatsList[k]] : 0;
+                sum += (isFinite(e) ? e : 0);
+            }
+            var avg = beatsList.length ? (sum / beatsList.length) : 0;
+            var id = nextId++;
+            outClusters.push({ id: id, start: startIdx, end: endIdx, beats: beatsList.slice(), avgEnergy: avg });
+            for (var b = 0; b < beatsList.length; b++) {
+                clusterByBeat[beatsList[b]] = id;
+            }
+        }
+
+        data.clusters.forEach(function(cl) {
+            var start = null;
+            var lastSection = null;
+            var beatsList = [];
+            for (var idx = cl.start; idx <= cl.end; idx++) {
+                if (!data.peakSet[idx]) {
+                    if (start !== null) {
+                        closeCluster(start, beatsList[beatsList.length - 1], beatsList);
+                        start = null;
+                        lastSection = null;
+                        beatsList = [];
+                    }
+                    continue;
+                }
+                var sec = masterQs[idx] ? masterQs[idx].section : null;
+                if (start === null) {
+                    start = idx;
+                    lastSection = sec;
+                    beatsList = [idx];
+                    continue;
+                }
+                if (sec !== lastSection) {
+                    closeCluster(start, beatsList[beatsList.length - 1], beatsList);
+                    start = idx;
+                    lastSection = sec;
+                    beatsList = [idx];
+                    continue;
+                }
+                beatsList.push(idx);
+            }
+            if (start !== null) {
+                closeCluster(start, beatsList[beatsList.length - 1], beatsList);
+            }
+        });
+
+        if (!outClusters.length) return data;
+        return Object.assign({}, data, { clusters: outClusters, clusterByBeat: clusterByBeat });
+    }
+
+    function splitLongClustersByWindow(data, minClusterBeats) {
+        if (!data || !data.clusters || data.clusters.length !== 1) return data;
+        var cl = data.clusters[0];
+        if (!cl || !cl.beats || cl.beats.length < Math.max(1, minClusterBeats * 3)) return data;
+
+        var beats = cl.beats.slice().sort(function(a, b) { return a - b; });
+        var targetSegments = 4;
+        var windowSize = Math.max(minClusterBeats, Math.round(beats.length / targetSegments));
+
+        var outClusters = [];
+        var clusterByBeat = new Array(masterQs.length);
+        for (var i = 0; i < clusterByBeat.length; i++) clusterByBeat[i] = null;
+        var nextId = 0;
+
+        for (var startIdx = 0; startIdx < beats.length; startIdx += windowSize) {
+            var slice = beats.slice(startIdx, Math.min(beats.length, startIdx + windowSize));
+            if (slice.length < minClusterBeats) continue;
+            var startBeat = slice[0];
+            var endBeat = slice[slice.length - 1];
+            var sum = 0;
+            for (var k = 0; k < slice.length; k++) {
+                var e = (data.energies && typeof data.energies[slice[k]] === "number") ? data.energies[slice[k]] : 0;
+                sum += (isFinite(e) ? e : 0);
+            }
+            var avg = slice.length ? (sum / slice.length) : 0;
+            var id = nextId++;
+            outClusters.push({ id: id, start: startBeat, end: endBeat, beats: slice, avgEnergy: avg });
+            for (var b = 0; b < slice.length; b++) clusterByBeat[slice[b]] = id;
+        }
+
+        if (outClusters.length < 2) return data;
+        return Object.assign({}, data, { clusters: outClusters, clusterByBeat: clusterByBeat });
+    }
+
+    function splitClustersToMinCount(data, minClusterBeats, targetMinClusters) {
+        if (!data || !data.clusters || !data.clusters.length) return data;
+        targetMinClusters = Math.max(1, Math.round(targetMinClusters || 0));
+        minClusterBeats = Math.max(1, Math.round(minClusterBeats || 0));
+        if (data.clusters.length >= targetMinClusters) return data;
+
+        var clusters = data.clusters.map(function(c) {
+            var beats = (c && c.beats) ? c.beats.slice().sort(function(a, b) { return a - b; }) : [];
+            return Object.assign({}, c, { beats: beats });
+        });
+
+        function avgEnergy(beatsList) {
+            var sum = 0;
+            for (var i = 0; i < beatsList.length; i++) {
+                var e = (data.energies && typeof data.energies[beatsList[i]] === "number") ? data.energies[beatsList[i]] : 0;
+                sum += (isFinite(e) ? e : 0);
+            }
+            return beatsList.length ? (sum / beatsList.length) : 0;
+        }
+
+        while (clusters.length < targetMinClusters) {
+            clusters.sort(function(a, b) { return (b.beats.length || 0) - (a.beats.length || 0); });
+            var biggest = clusters[0];
+            if (!biggest || !biggest.beats || biggest.beats.length < minClusterBeats * 2) {
+                break;
+            }
+            clusters.shift();
+
+            var beats = biggest.beats;
+            var mid = Math.floor(beats.length / 2);
+            var left = beats.slice(0, mid);
+            var right = beats.slice(mid);
+            if (left.length < minClusterBeats || right.length < minClusterBeats) {
+                clusters.unshift(biggest);
+                break;
+            }
+
+            clusters.push({
+                id: null,
+                start: left[0],
+                end: left[left.length - 1],
+                beats: left,
+                avgEnergy: avgEnergy(left)
+            });
+            clusters.push({
+                id: null,
+                start: right[0],
+                end: right[right.length - 1],
+                beats: right,
+                avgEnergy: avgEnergy(right)
+            });
+        }
+
+        if (clusters.length <= data.clusters.length) return data;
+
+        var clusterByBeat = new Array(masterQs.length);
+        for (var j = 0; j < clusterByBeat.length; j++) clusterByBeat[j] = null;
+
+        for (var k = 0; k < clusters.length; k++) {
+            clusters[k].id = k;
+            for (var b = 0; b < clusters[k].beats.length; b++) {
+                clusterByBeat[clusters[k].beats[b]] = k;
+            }
+        }
+
+        return Object.assign({}, data, { clusters: clusters, clusterByBeat: clusterByBeat });
+    }
+
+    function buildPeakDataWithOverrides(override) {
+        override = override || {};
+        var s = Object.assign({}, settings, override);
+        var data = buildPeakClusters(masterQs, s);
+        if (!data) return data;
+        var minClusterBeats = Math.max(4, Math.min(24, Math.round(s.minClusterBeats || 16)));
+        data = splitPeakClustersBySection(data, minClusterBeats);
+        data = splitLongClustersByWindow(data, minClusterBeats);
+        data = splitClustersToMinCount(data, minClusterBeats, 4);
+        return data;
+    }
+
+    function ensureExplorablePeakData() {
+        ensurePeakData();
+        if (!peakData || !peakData.clusters || !peakData.clusters.length) return;
+        if (peakData.clusters.length >= 4) return;
+
+        // Try progressively expanding the peak set (more inclusive threshold) and splitting by section.
+        var basePf = Math.max(0.02, Math.min(0.6, settings.peakFraction || 0.1));
+        var attempts = [
+            { peakFraction: Math.min(0.6, basePf * 1.8), clusterGapBeats: 0, minClusterBeats: Math.max(8, Math.round((settings.minClusterBeats || 16) / 2)) },
+            { peakFraction: Math.min(0.6, basePf * 2.6), clusterGapBeats: 0, minClusterBeats: Math.max(6, Math.round((settings.minClusterBeats || 16) / 3)) },
+            { peakFraction: Math.min(0.6, basePf * 3.6), clusterGapBeats: 0, minClusterBeats: 4 }
+        ];
+
+        for (var i = 0; i < attempts.length; i++) {
+            var candidate = buildPeakDataWithOverrides(attempts[i]);
+            if (candidate && candidate.clusters && candidate.clusters.length >= 4) {
+                peakData = candidate;
+                rebuildClusterMeta();
+                return;
+            }
+        }
+    }
+
+    function ensurePeakData() {
+        if (!peakData) {
+            peakData = buildPeakDataWithOverrides(null);
+            rebuildClusterMeta();
         }
     }
 
@@ -9113,6 +10593,358 @@ function createDopamineMinerDriver(player, options) {
         return false;
     }
 
+    function countRecentVisits(idx) {
+        var count = 0;
+        for (var i = visitHistory.length - 1; i >= 0; i--) {
+            if (visitHistory[i] === idx) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    function recordEdge(src, dst) {
+        if (typeof src !== "number" || typeof dst !== "number") return;
+        var key = src + ">" + dst;
+        edgeWindow.push(key);
+        edgeCounts[key] = (edgeCounts[key] || 0) + 1;
+        if (edgeWindow.length > EDGE_WINDOW_LIMIT) {
+            var old = edgeWindow.shift();
+            if (edgeCounts[old] !== undefined) {
+                edgeCounts[old] -= 1;
+                if (edgeCounts[old] <= 0) delete edgeCounts[old];
+            }
+        }
+    }
+
+    function getEdgeRepeatCount(src, dst) {
+        return edgeCounts[(src + ">" + dst)] || 0;
+    }
+
+    function pushCapped(arr, value, limit) {
+        arr.push(value);
+        if (arr.length > limit) arr.shift();
+    }
+
+    function noteVisit(idx) {
+        stepCounter += 1;
+        visitHistory.push(idx);
+        var maxWindow = Math.max(8, Math.round(settings.burnoutWindowBeats || 0));
+        if (visitHistory.length > maxWindow) {
+            visitHistory.shift();
+        }
+        pushCapped(pathHistory, idx, PATH_LIMIT);
+        if (peakData && peakData.clusterByBeat && idx >= 0 && idx < peakData.clusterByBeat.length) {
+            var cid = peakData.clusterByBeat[idx];
+            if (cid !== null && cid !== undefined) {
+                pushCapped(clusterHistory, cid, CLUSTER_HISTORY_LIMIT);
+            }
+        }
+        if (burnoutCooldownLeft > 0) {
+            burnoutCooldownLeft -= 1;
+        }
+    }
+
+    function recentUniqueRatio(windowSize) {
+        windowSize = Math.max(1, Math.round(windowSize || 0));
+        if (!pathHistory.length) return 1;
+        var k = Math.min(windowSize, pathHistory.length);
+        var uniq = Object.create(null);
+        for (var i = pathHistory.length - k; i < pathHistory.length; i++) {
+            uniq[pathHistory[i]] = true;
+        }
+        return Object.keys(uniq).length / Math.max(1, k);
+    }
+
+    function detectAnchorBeats(windowSize, minFrac) {
+        windowSize = Math.max(8, Math.round(windowSize || 0));
+        minFrac = Math.max(0.05, Math.min(0.95, (typeof minFrac === "number" ? minFrac : 0.35)));
+        if (!pathHistory.length) return null;
+        var k = Math.min(windowSize, pathHistory.length);
+        var counts = Object.create(null);
+        for (var i = pathHistory.length - k; i < pathHistory.length; i++) {
+            var idx = pathHistory[i];
+            counts[idx] = (counts[idx] || 0) + 1;
+        }
+        var bestA = null, bestAC = 0;
+        var bestB = null, bestBC = 0;
+        for (var key in counts) {
+            if (!Object.prototype.hasOwnProperty.call(counts, key)) continue;
+            var c = counts[key];
+            var n = parseInt(key, 10);
+            if (!isFinite(n)) continue;
+            if (c > bestAC) {
+                bestB = bestA; bestBC = bestAC;
+                bestA = n; bestAC = c;
+            } else if (c > bestBC) {
+                bestB = n; bestBC = c;
+            }
+        }
+        if (bestA === null) return null;
+        var fracA = bestAC / Math.max(1, k);
+        if (fracA < minFrac) return null;
+        var out = { a: bestA, aCount: bestAC, fracA: fracA };
+        var fracB = bestBC / Math.max(1, k);
+        if (bestB !== null && bestB !== bestA && fracB >= minFrac) {
+            out.b = bestB;
+            out.bCount = bestBC;
+            out.fracB = fracB;
+        }
+        return out;
+    }
+
+    function recentIndexSpan(windowSize) {
+        windowSize = Math.max(1, Math.round(windowSize || 0));
+        if (!pathHistory.length) return Infinity;
+        var k = Math.min(windowSize, pathHistory.length);
+        var minIdx = Infinity;
+        var maxIdx = -Infinity;
+        for (var i = pathHistory.length - k; i < pathHistory.length; i++) {
+            var v = pathHistory[i];
+            if (typeof v !== "number" || !isFinite(v)) continue;
+            if (v < minIdx) minIdx = v;
+            if (v > maxIdx) maxIdx = v;
+        }
+        if (!isFinite(minIdx) || !isFinite(maxIdx)) return Infinity;
+        return maxIdx - minIdx;
+    }
+
+    function detectCyclePeriod(maxPeriod) {
+        maxPeriod = Math.max(1, Math.round(maxPeriod || 10));
+        var n = pathHistory.length;
+        for (var p = 1; p <= maxPeriod; p++) {
+            if (n < 3 * p) continue;
+            var ok = true;
+            for (var i = 1; i <= p; i++) {
+                var a0 = pathHistory[n - i];
+                var a1 = pathHistory[n - i - p];
+                var a2 = pathHistory[n - i - 2 * p];
+                if (a0 !== a1 || a1 !== a2) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (ok) return p;
+        }
+        return null;
+    }
+
+    function isTinyLooping() {
+        // Fast exits to avoid false positives early.
+        if (pathHistory.length < 18) return false;
+        var p = detectCyclePeriod(10);
+        if (p !== null && p <= 10) return true;
+        // Diversity collapse in a small window (even before burnoutWindow fills).
+        return recentUniqueRatio(24) < 0.55;
+    }
+
+    function isStuckLocal() {
+        if (pathHistory.length < 18) return false;
+        if (isTinyLooping()) return true;
+        // Range-collapse: bouncing within a narrow index band is a "tiny loop"
+        // even if the exact pattern isn't periodic.
+        var span = recentIndexSpan(32);
+        var uniq32 = recentUniqueRatio(32);
+        if (isFinite(span) && span <= 32 && uniq32 < 0.78) return true;
+        // Secondary: low diversity in a slightly larger window.
+        return recentUniqueRatio(32) < 0.6;
+    }
+
+    function detectPingPong(windowSize) {
+        windowSize = Math.max(6, Math.round(windowSize || 0));
+        if (pathHistory.length < windowSize) return null;
+        var a = pathHistory[pathHistory.length - 1];
+        var b = pathHistory[pathHistory.length - 2];
+        if (a === b) return null;
+        for (var i = 0; i < windowSize; i++) {
+            var expected = (i % 2 === 0) ? a : b;
+            if (pathHistory[pathHistory.length - 1 - i] !== expected) return null;
+        }
+        return { a: a, b: b };
+    }
+
+    function recentClusterSet(maxItems) {
+        maxItems = Math.max(1, Math.round(maxItems || 6));
+        var set = Object.create(null);
+        var seen = 0;
+        for (var i = clusterHistory.length - 1; i >= 0 && seen < maxItems; i--) {
+            var cid = clusterHistory[i];
+            set[cid] = true;
+            seen += 1;
+        }
+        return set;
+    }
+
+    function isBurnedOut() {
+        var windowSize = Math.max(8, Math.round(settings.burnoutWindowBeats || 0));
+        if (visitHistory.length < windowSize) {
+            return false;
+        }
+        var uniq = Object.create(null);
+        for (var i = 0; i < visitHistory.length; i++) {
+            uniq[visitHistory[i]] = true;
+        }
+        var uniqueCount = Object.keys(uniq).length;
+        var ratio = uniqueCount / Math.max(1, visitHistory.length);
+        return ratio < (settings.burnoutUniqueRatio || 0.35);
+    }
+
+    function chooseBurnoutTarget(currentClusterId) {
+        var forced = chooseDifferentClusterTarget(currentClusterId);
+        if (forced !== null && forced !== currentIndex) return forced;
+        var cl = null;
+        if (peakData && currentClusterId !== null && peakData.clusters && peakData.clusters.length) {
+            cl = peakData.clusters.filter(function(c) { return c.id === currentClusterId; })[0] || null;
+        }
+        if (cl && cl.beats && cl.beats.length) {
+            var best = null;
+            var bestDist = -1;
+            cl.beats.forEach(function(bIdx) {
+                if (bIdx === currentIndex) return;
+                if (isRecentlyVisited(bIdx)) return;
+                var d = Math.abs(bIdx - currentIndex);
+                if (d > bestDist) {
+                    bestDist = d;
+                    best = bIdx;
+                }
+            });
+            if (best !== null) {
+                return best;
+            }
+            return cl.beats[Math.floor(Math.random() * cl.beats.length)];
+        }
+        return findNearestPeak(currentIndex);
+    }
+
+    function chooseDifferentClusterTarget(excludeClusterId) {
+        if (!peakData || !peakData.clusters.length) return null;
+        var pool = peakData.clusters.filter(function(c) { return c.id !== excludeClusterId; });
+        if (!pool.length) return null;
+        var total = 0;
+        var weights = pool.map(function(c) {
+            var w = Math.max(0.01, c.avgEnergy || 0.01) * Math.sqrt(c.beats.length);
+            total += w;
+            return w;
+        });
+        var r = Math.random() * total;
+        for (var i = 0; i < pool.length; i++) {
+            r -= weights[i];
+            if (r <= 0) return clusterPeakBeatById[pool[i].id] !== undefined ? clusterPeakBeatById[pool[i].id] : pool[i].start;
+        }
+        return clusterPeakBeatById[pool[0].id] !== undefined ? clusterPeakBeatById[pool[0].id] : pool[0].start;
+    }
+
+    function chooseDifferentClusterTargetAvoidingRecent(excludeClusterId) {
+        if (!peakData || !peakData.clusters.length) return null;
+        var recent = recentClusterSet(6);
+        var pool = peakData.clusters.filter(function(c) {
+            return c.id !== excludeClusterId && !recent[c.id];
+        });
+        if (!pool.length) {
+            pool = peakData.clusters.filter(function(c) { return c.id !== excludeClusterId; });
+        }
+        if (!pool.length) return null;
+        var total = 0;
+        var weights = pool.map(function(c) {
+            var w = Math.max(0.01, c.avgEnergy || 0.01) * Math.sqrt(c.beats.length);
+            total += w;
+            return w;
+        });
+        var r = Math.random() * total;
+        for (var i = 0; i < pool.length; i++) {
+            r -= weights[i];
+            if (r <= 0) return clusterPeakBeatById[pool[i].id] !== undefined ? clusterPeakBeatById[pool[i].id] : pool[i].start;
+        }
+        return clusterPeakBeatById[pool[0].id] !== undefined ? clusterPeakBeatById[pool[0].id] : pool[0].start;
+    }
+
+    function chooseFarBeatInCluster(currentClusterId) {
+        var cl = null;
+        if (peakData && currentClusterId !== null && peakData.clusters && peakData.clusters.length) {
+            cl = peakData.clusters.filter(function(c) { return c.id === currentClusterId; })[0] || null;
+        }
+        if (!cl || !cl.beats || !cl.beats.length) return null;
+
+        var recent = Object.create(null);
+        var k = Math.min(24, pathHistory.length);
+        for (var i = pathHistory.length - k; i < pathHistory.length; i++) {
+            recent[pathHistory[i]] = true;
+        }
+
+        var bestForward = null;
+        var bestForwardDist = -1;
+        var bestAny = null;
+        var bestAnyDist = -1;
+        for (var j = 0; j < cl.beats.length; j++) {
+            var bIdx = cl.beats[j];
+            if (bIdx === currentIndex) continue;
+            if (isTaboo(bIdx)) continue;
+            var d = Math.abs(bIdx - currentIndex);
+            if (!recent[bIdx] && bIdx > currentIndex && d > bestForwardDist) {
+                bestForwardDist = d;
+                bestForward = bIdx;
+            }
+            if (!recent[bIdx] && d > bestAnyDist) {
+                bestAnyDist = d;
+                bestAny = bIdx;
+            }
+        }
+        if (bestForward !== null) return bestForward;
+        if (bestAny !== null) return bestAny;
+
+        // If everything is recent, still jump as far as possible.
+        for (var t = 0; t < cl.beats.length; t++) {
+            var cand = cl.beats[t];
+            if (cand === currentIndex) continue;
+            if (isTaboo(cand)) continue;
+            var dist = Math.abs(cand - currentIndex);
+            if (dist > bestAnyDist) {
+                bestAnyDist = dist;
+                bestAny = cand;
+            }
+        }
+        return bestAny;
+    }
+
+    function chooseBeatInClusterAvoidingTaboo(cl, fromIdx) {
+        if (!cl || !cl.beats || !cl.beats.length) return null;
+        var peakBeat = (clusterPeakBeatById && clusterPeakBeatById[cl.id] !== undefined) ? clusterPeakBeatById[cl.id] : cl.start;
+        if (!isTaboo(peakBeat)) return peakBeat;
+        var best = null;
+        var bestDist = -1;
+        for (var i = 0; i < cl.beats.length; i++) {
+            var bIdx = cl.beats[i];
+            if (bIdx === fromIdx) continue;
+            if (isTaboo(bIdx)) continue;
+            var d = Math.abs(bIdx - fromIdx);
+            if (d > bestDist) {
+                bestDist = d;
+                best = bIdx;
+            }
+        }
+        return best;
+    }
+
+    function chooseTeleportTarget(currentClusterId) {
+        if (!peakData || !peakData.clusters || !peakData.clusters.length) return null;
+        if (peakData.clusters.length > 1) {
+            var pool = peakData.clusters.filter(function(c) { return c.id !== currentClusterId; });
+            if (!pool.length) pool = peakData.clusters.slice(0);
+            var recent = recentClusterSet(6);
+            pool.sort(function(a, b) {
+                var ar = recent[a.id] ? 1 : 0;
+                var br = recent[b.id] ? 1 : 0;
+                if (ar !== br) return ar - br;
+                return (b.avgEnergy || 0) - (a.avgEnergy || 0);
+            });
+            for (var i = 0; i < pool.length; i++) {
+                var pick = chooseBeatInClusterAvoidingTaboo(pool[i], currentIndex);
+                if (pick !== null && pick !== currentIndex) return pick;
+            }
+        }
+        return chooseFarBeatInCluster(currentClusterId);
+    }
+
     function chooseClusterTarget(excludeClusterId) {
         if (!peakData || !peakData.clusters.length) return null;
         var pool = peakData.clusters.filter(function(c) { return c.id !== excludeClusterId; });
@@ -9126,9 +10958,9 @@ function createDopamineMinerDriver(player, options) {
         var r = Math.random() * total;
         for (var i = 0; i < pool.length; i++) {
             r -= weights[i];
-            if (r <= 0) return pool[i].start;
+            if (r <= 0) return clusterPeakBeatById[pool[i].id] !== undefined ? clusterPeakBeatById[pool[i].id] : pool[i].start;
         }
-        return pool[0].start;
+        return clusterPeakBeatById[pool[0].id] !== undefined ? clusterPeakBeatById[pool[0].id] : pool[0].start;
     }
 
     function findNearestPeak(fromIdx) {
@@ -9162,7 +10994,17 @@ function createDopamineMinerDriver(player, options) {
         if (peakData && peakData.energies && peakData.energies[edge.target] !== undefined) {
             targetEnergy = peakData.energies[edge.target];
         }
-        var energyBonus = clamp01(targetEnergy) * 0.3;
+        // When we're stuck locally, stop over-rewarding the absolute peak beat;
+        // otherwise the miner keeps snapping back to the same hotspot.
+        var energyScale = stuckLocalNow ? 0.12 : 0.3;
+        var energyBonus = clamp01(targetEnergy) * energyScale;
+        var anchorPenalty = 0;
+        if (stuckLocalNow && clusterPeakBeatById && currentClusterId !== null) {
+            var peakBeat = clusterPeakBeatById[currentClusterId];
+            if (peakBeat !== undefined && edge.target === peakBeat) {
+                anchorPenalty = 0.35;
+            }
+        }
 
         var targetCluster = peakData ? peakData.clusterByBeat[edge.target] : null;
         var crossBonus =
@@ -9173,23 +11015,38 @@ function createDopamineMinerDriver(player, options) {
                 : 0;
 
         var recentPenalty = isRecentlyVisited(edge.target) ? 0.35 : 0;
+        var repeatCount = countRecentVisits(edge.target);
+        var burnoutPenalty = repeatCount > 0 ? Math.min(0.6, repeatCount * 0.1) : 0;
+        var edgeRepeat = getEdgeRepeatCount(currentIndex, edge.target);
+        var edgeRepeatPenalty = edgeRepeat > 0 ? Math.min(0.9, edgeRepeat * 0.18) : 0;
+        var backwardPenalty = (edge.target < currentIndex && absSpan < Math.max(16, settings.minJumpSpanBeats * 2)) ? 0.18 : 0;
 
         var jitter = (Math.random() - 0.5) * settings.jumpTemperature * 0.25;
-        return simScore + spanBonus + energyBonus + crossBonus + jitter - recentPenalty;
+        var stuckRepeatBoost = stuckLocalNow ? Math.min(1.4, repeatCount * 0.16) : 0;
+        return simScore + spanBonus + energyBonus + crossBonus + jitter - recentPenalty - burnoutPenalty - edgeRepeatPenalty - backwardPenalty - anchorPenalty - stuckRepeatBoost;
     }
 
-    function selectJumpCandidate(currentClusterId) {
+    function selectJumpCandidate(currentClusterId, opts) {
+        opts = opts || {};
         if (!serverLoopCandidateMap || !serverLoopCandidateMap[currentIndex]) return null;
         var edges = serverLoopCandidateMap[currentIndex] || [];
+        var minSpan = Math.max(settings.minJumpSpanBeats, Math.round(opts.minSpan || 0));
+        var preferCross = !!opts.preferCrossCluster;
+        var preferForward = !!opts.preferForward;
         var filtered = edges.filter(function(edge) {
             if (!edge || typeof edge.target !== "number") return false;
+            if (edge.target === currentIndex) return false;
+            if (isTaboo(edge.target)) return false;
+            if (isEdgeTaboo(currentIndex, edge.target)) return false;
             if (!peakData.peakSet[edge.target]) return false;
             if ((edge.similarity || 0) < settings.minJumpSimilarity) return false;
             var absSpan =
                 (typeof edge.abs_span === "number" && isFinite(edge.abs_span))
                     ? edge.abs_span
                     : Math.abs(edge.target - currentIndex);
-            if (absSpan < settings.minJumpSpanBeats) return false;
+            if (absSpan < minSpan) return false;
+            if (preferCross && peakData.clusterByBeat && peakData.clusterByBeat[edge.target] === currentClusterId) return false;
+            if (preferForward && edge.target < currentIndex && absSpan < Math.max(16, minSpan * 2)) return false;
             return true;
         });
         if (!filtered.length) return null;
@@ -9218,7 +11075,7 @@ function createDopamineMinerDriver(player, options) {
     }
 
     function computeNextIndex() {
-        if (!peakData) peakData = buildPeakClusters(masterQs, settings);
+        ensurePeakData();
         if (!peakData || !peakData.clusters.length) {
             return Math.min(masterQs.length - 1, currentIndex + 1);
         }
@@ -9231,6 +11088,65 @@ function createDopamineMinerDriver(player, options) {
         var currentCluster = peakData.clusters.filter(function(c) { return c.id === currentClusterId; })[0];
         var nextLinear = currentIndex + 1;
         var wouldExitPeak = !peakData.peakSet[nextLinear] || (currentCluster && nextLinear > currentCluster.end);
+        var hitSeqCap = sequentialCount >= settings.maxSequentialBeats;
+        var tinyLoop = isTinyLooping();
+        var stuckLocal = isStuckLocal();
+        stuckLocalNow = stuckLocal || tinyLoop;
+        var pingpong = detectPingPong(8);
+
+        if (burnoutCooldownLeft <= 0 && stuckLocalNow) {
+            var anchors = detectAnchorBeats(32, 0.32);
+            if (anchors) {
+                // If one/two beats are acting like "gravity wells", taboo them so the miner is forced
+                // to route through other peaks instead of repeatedly returning to the same line(s).
+                addTaboo(anchors.a, 26);
+                if (anchors.b !== undefined) addTaboo(anchors.b, 26);
+                ensureExplorablePeakData();
+                var teleA = chooseTeleportTarget(currentClusterId);
+                if (teleA !== null && teleA !== currentIndex && !isTaboo(teleA)) {
+                    burnoutCooldownLeft = Math.max(settings.burnoutCooldownBeats || 0, 18);
+                    return teleA;
+                }
+            }
+        }
+
+        if (burnoutCooldownLeft <= 0 && pingpong) {
+            // Hard break for A<->B ping-pong loops.
+            addTaboo(pingpong.a, 28);
+            addTaboo(pingpong.b, 28);
+            addEdgeTaboo(pingpong.a, pingpong.b, 64);
+            addEdgeTaboo(pingpong.b, pingpong.a, 64);
+            ensureExplorablePeakData();
+            var tele = chooseTeleportTarget(currentClusterId);
+            if (tele !== null && tele !== currentIndex) {
+                burnoutCooldownLeft = Math.max(settings.burnoutCooldownBeats || 0, 20);
+                return tele;
+            }
+        }
+
+        // Break short deterministic cycles aggressively before they become "burnout".
+        if (burnoutCooldownLeft <= 0 && (tinyLoop || stuckLocal)) {
+            // If peak clustering collapsed into one giant cluster, rebuild a more explorable set.
+            ensureExplorablePeakData();
+            var loopEscape = null;
+            if (peakData.clusters.length > 1) {
+                loopEscape = chooseDifferentClusterTargetAvoidingRecent(currentClusterId);
+            } else {
+                loopEscape = chooseFarBeatInCluster(currentClusterId);
+            }
+            if (loopEscape !== null && loopEscape !== currentIndex) {
+                burnoutCooldownLeft = Math.max(settings.burnoutCooldownBeats || 0, Math.round((settings.burnoutWindowBeats || 48) / 2));
+                return loopEscape;
+            }
+        }
+
+        if (burnoutCooldownLeft <= 0 && isBurnedOut()) {
+            var burnoutTarget = chooseBurnoutTarget(currentClusterId);
+            if (burnoutTarget !== null && burnoutTarget !== currentIndex) {
+                burnoutCooldownLeft = settings.burnoutCooldownBeats || 0;
+                return burnoutTarget;
+            }
+        }
 
         if (Math.random() < settings.escapeProb) {
             var wild = chooseClusterTarget(currentClusterId);
@@ -9241,8 +11157,32 @@ function createDopamineMinerDriver(player, options) {
             return nextLinear;
         }
 
-        var jumpTarget = selectJumpCandidate(currentClusterId);
+        // If we just hit the sequential cap, strongly prefer escaping to a different peak cluster
+        // instead of jumping backward within the same cluster (which tends to form short loops).
+        if (hitSeqCap) {
+            var forcedCross = chooseDifferentClusterTarget(currentClusterId);
+            if (forcedCross !== null && forcedCross !== currentIndex) {
+                return forcedCross;
+            }
+            if (peakData.clusters.length <= 1) {
+                var intra = chooseBurnoutTarget(currentClusterId);
+                if (intra !== null && intra !== currentIndex) return intra;
+            }
+        }
+
+        var jumpTarget = selectJumpCandidate(currentClusterId, {
+            preferCrossCluster: (peakData.clusters.length > 1) && (hitSeqCap || tinyLoop),
+            minSpan: (tinyLoop || stuckLocal) ? Math.max(16, Math.round(settings.minJumpSpanBeats * 2)) : 0,
+            preferForward: (tinyLoop || stuckLocal)
+        });
         if (jumpTarget !== null) {
+            if (hitSeqCap && peakData.clusters.length > 1) {
+                var jtCluster = peakData.clusterByBeat[jumpTarget];
+                if (jtCluster === currentClusterId) {
+                    var forced = chooseDifferentClusterTarget(currentClusterId);
+                    if (forced !== null && forced !== currentIndex) return forced;
+                }
+            }
             return jumpTarget;
         }
 
@@ -9250,7 +11190,12 @@ function createDopamineMinerDriver(player, options) {
             return nextLinear;
         }
         var fallback = chooseClusterTarget(currentClusterId);
-        return fallback !== null ? fallback : findNearestPeak(currentIndex);
+        if (fallback === null) return findNearestPeak(currentIndex);
+        if (fallback === currentIndex) {
+            var far = chooseFarBeatInCluster(currentClusterId);
+            if (far !== null && far !== currentIndex) return far;
+        }
+        return fallback;
     }
 
     function scheduleNext(delaySeconds) {
@@ -9274,9 +11219,11 @@ function createDopamineMinerDriver(player, options) {
         updateCursors(q);
         mtime.text(fmtTime(q.start));
         pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+        ensurePeakData();
+        noteVisit(currentIndex);
 
-        var delay = player.playQ(q);
         notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q, driver: this });
+        var delay = player.playQ(q);
 
         var proposed = computeNextIndex();
         var nextIdx = applyStackedNextIndex({
@@ -9287,6 +11234,27 @@ function createDopamineMinerDriver(player, options) {
             proposedReason: "dopamine"
         });
 
+        // Guard against pathological "no-op" moves (can happen if a stack layer snaps back).
+        if (nextIdx === currentIndex) {
+            var cId = peakData && peakData.clusterByBeat ? peakData.clusterByBeat[currentIndex] : null;
+            if (cId !== null && cId !== undefined) {
+                var forcedMove = chooseFarBeatInCluster(cId);
+                if (forcedMove !== null && forcedMove !== currentIndex) {
+                    nextIdx = forcedMove;
+                }
+            }
+        }
+        if (isTaboo(nextIdx)) {
+            var cId2 = peakData && peakData.clusterByBeat ? peakData.clusterByBeat[currentIndex] : null;
+            if (cId2 !== null && cId2 !== undefined) {
+                var forced = chooseTeleportTarget(cId2);
+                if (forced !== null && forced !== currentIndex) {
+                    nextIdx = forced;
+                }
+            }
+        }
+
+        recordEdge(currentIndex, nextIdx);
         if (nextIdx === currentIndex + 1) {
             sequentialCount += 1;
         } else {
@@ -9327,8 +11295,18 @@ function createDopamineMinerDriver(player, options) {
 
     function rebuildFromSettings(customSettings) {
         settings = sanitizeDopamineMinerSettings(customSettings, ADVANCED_DEFAULTS.dopamineMiner);
-        peakData = buildPeakClusters(masterQs, settings);
+        peakData = buildPeakDataWithOverrides(null);
+        rebuildClusterMeta();
         recentTargets = [];
+        visitHistory = [];
+        pathHistory = [];
+        clusterHistory = [];
+        edgeWindow = [];
+        edgeCounts = Object.create(null);
+        stepCounter = 0;
+        tabooUntil = Object.create(null);
+        tabooEdgeUntil = Object.create(null);
+        burnoutCooldownLeft = 0;
         sequentialCount = 0;
         beatsSinceJump = 0;
     }
@@ -9366,6 +11344,7 @@ function createDopamineMinerDriver(player, options) {
         stop: stop,
         pause: pausePlayback,
         isRunning: function() { return running; },
+        player: player,
 
         setNextQ: function(q) {
             if (!q || typeof q.which !== "number") return;
@@ -9432,6 +11411,7056 @@ registerStackLayer({
                 if (data.peakSet[proposed]) return null;
                 var snapped = snapToNearestPeak(proposed, meta.currentIndex);
                 return { index: snapped };
+            }
+        };
+    }
+});
+
+// ===== Harmonic Trap (Modal Locking) =====
+function sanitizeHarmonicTrapSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.harmonicTrap || {};
+    var out = cloneSettings(defaults);
+
+    var autoTarget = coerceNumber(input.autoTarget);
+    if (autoTarget === null) autoTarget = defaults.autoTarget;
+    out.autoTarget = autoTarget >= 1 ? 1 : 0;
+
+    var pc = coerceNumber(input.targetPitchClass);
+    if (pc === null) pc = defaults.targetPitchClass;
+    out.targetPitchClass = clampNumber(Math.round(pc), 0, 11);
+
+    var thr = coerceNumber(input.similarityThreshold);
+    if (thr === null) thr = defaults.similarityThreshold;
+    out.similarityThreshold = clampNumber(thr, 0.05, 0.99);
+
+    var grace = coerceNumber(input.graceBeats);
+    if (grace === null) grace = defaults.graceBeats;
+    out.graceBeats = clampNumber(Math.round(grace), 0, 16);
+
+    var cooldown = coerceNumber(input.cooldownBeats);
+    if (cooldown === null) cooldown = defaults.cooldownBeats;
+    out.cooldownBeats = clampNumber(Math.round(cooldown), 0, 256);
+
+    var topK = coerceNumber(input.searchTopK);
+    if (topK === null) topK = defaults.searchTopK;
+    out.searchTopK = clampNumber(Math.round(topK), 1, 32);
+
+    var minSpan = coerceNumber(input.minJumpSpanBeats);
+    if (minSpan === null) minSpan = defaults.minJumpSpanBeats;
+    out.minJumpSpanBeats = clampNumber(Math.round(minSpan), 1, 128);
+
+    var escape = coerceNumber(input.escapeProb);
+    if (escape === null) escape = defaults.escapeProb;
+    out.escapeProb = clampNumber(escape, 0, 0.4);
+
+    return out;
+}
+
+function normalizeChromaVector(vec) {
+    if (!vec || vec.length !== 12) return new Array(12).fill(0);
+    var sumSq = 0;
+    for (var i = 0; i < 12; i++) {
+        var v = vec[i] || 0;
+        sumSq += v * v;
+    }
+    if (sumSq <= 0) return new Array(12).fill(0);
+    var inv = 1 / Math.sqrt(sumSq);
+    var out = new Array(12);
+    for (var j = 0; j < 12; j++) {
+        out[j] = (vec[j] || 0) * inv;
+    }
+    return out;
+}
+
+function chromaDotSimilarity(a, b) {
+    if (!a || !b) return 0;
+    var dot = 0;
+    for (var i = 0; i < 12; i++) {
+        dot += (a[i] || 0) * (b[i] || 0);
+    }
+    return dot;
+}
+
+function dominantPitchClass(vec) {
+    var best = 0;
+    var bestVal = -Infinity;
+    for (var i = 0; i < 12; i++) {
+        var v = vec[i] || 0;
+        if (v > bestVal) {
+            bestVal = v;
+            best = i;
+        }
+    }
+    return best;
+}
+
+function computeBeatTimbreVectors(beats) {
+    if (!beats || !beats.length) return [];
+    var timbres = new Array(beats.length);
+    for (var i = 0; i < beats.length; i++) {
+        var beat = beats[i];
+        var segs =
+            (beat && beat.overlappingSegments && beat.overlappingSegments.length)
+                ? beat.overlappingSegments
+                : (beat && beat.oseg ? [beat.oseg] : []);
+        var acc = new Array(12).fill(0);
+        var count = 0;
+        for (var s = 0; s < segs.length; s++) {
+            var seg = segs[s];
+            if (!seg || !seg.timbre || seg.timbre.length < 12) continue;
+            for (var t = 0; t < 12; t++) {
+                acc[t] += seg.timbre[t] || 0;
+            }
+            count += 1;
+        }
+        if (count > 0) {
+            for (var k = 0; k < 12; k++) {
+                acc[k] /= count;
+            }
+        }
+        timbres[i] = acc;
+    }
+    return timbres;
+}
+
+function computeBeatChromaVectors(beats) {
+    if (!beats || !beats.length) return [];
+    var chromas = new Array(beats.length);
+    for (var i = 0; i < beats.length; i++) {
+        var beat = beats[i];
+        var segs = (beat && beat.overlappingSegments && beat.overlappingSegments.length)
+            ? beat.overlappingSegments
+            : (beat && beat.oseg ? [beat.oseg] : []);
+        var acc = new Array(12).fill(0);
+        var count = 0;
+        for (var s = 0; s < segs.length; s++) {
+            var seg = segs[s];
+            if (!seg || !seg.pitches || seg.pitches.length < 12) continue;
+            for (var p = 0; p < 12; p++) {
+                acc[p] += seg.pitches[p] || 0;
+            }
+            count += 1;
+        }
+        if (count > 0) {
+            for (var k = 0; k < 12; k++) {
+                acc[k] /= count;
+            }
+        }
+        chromas[i] = normalizeChromaVector(acc);
+    }
+    return chromas;
+}
+
+function buildHarmonicTrapState(beats, settings) {
+    beats = beats || [];
+    settings = settings || ADVANCED_DEFAULTS.harmonicTrap;
+    var chromas = computeBeatChromaVectors(beats);
+    if (!chromas.length) {
+        return {
+            chromas: [],
+            targetPitchClass: settings.targetPitchClass,
+            targetChroma: normalizeChromaVector(new Array(12).fill(0)),
+            compatible: [],
+            compatibleSet: {}
+        };
+    }
+
+    var globalAcc = new Array(12).fill(0);
+    for (var i = 0; i < chromas.length; i++) {
+        var v = chromas[i];
+        for (var p = 0; p < 12; p++) globalAcc[p] += v[p] || 0;
+    }
+    var globalChroma = normalizeChromaVector(globalAcc);
+
+    var targetPC = settings.targetPitchClass;
+    if (settings.autoTarget >= 1) {
+        targetPC = dominantPitchClass(globalChroma);
+    }
+
+    var targetAcc = new Array(12).fill(0);
+    var targetCount = 0;
+    for (var j = 0; j < chromas.length; j++) {
+        if (dominantPitchClass(chromas[j]) === targetPC) {
+            for (var q = 0; q < 12; q++) targetAcc[q] += chromas[j][q] || 0;
+            targetCount += 1;
+        }
+    }
+    var targetChroma;
+    if (targetCount >= 4) {
+        for (var t = 0; t < 12; t++) targetAcc[t] /= targetCount;
+        targetChroma = normalizeChromaVector(targetAcc);
+    } else {
+        var oneHot = new Array(12).fill(0);
+        oneHot[targetPC] = 1;
+        targetChroma = normalizeChromaVector(oneHot);
+    }
+
+    var compatible = new Array(chromas.length);
+    var compatibleSet = {};
+    var simToTarget = new Array(chromas.length);
+    var compatibleCount = 0;
+    for (var bIdx = 0; bIdx < chromas.length; bIdx++) {
+        var sim = chromaDotSimilarity(chromas[bIdx], targetChroma);
+        simToTarget[bIdx] = sim;
+        compatible[bIdx] = sim >= settings.similarityThreshold;
+        if (compatible[bIdx]) {
+            compatibleSet[bIdx] = true;
+            compatibleCount += 1;
+        }
+    }
+
+    // Safeguard: if the threshold yields zero compatible beats (common when pitch data is sparse),
+    // fall back to allowing the top-N closest beats so the mode can still function.
+    if (compatibleCount === 0 && chromas.length) {
+        var minKeep = Math.min(chromas.length, Math.max(8, Math.round(chromas.length * 0.05)));
+        var ranked = [];
+        for (var i2 = 0; i2 < simToTarget.length; i2++) {
+            ranked.push({ idx: i2, sim: simToTarget[i2] || 0 });
+        }
+        ranked.sort(function(a, b) { return b.sim - a.sim; });
+        for (var k2 = 0; k2 < minKeep; k2++) {
+            var idxKeep = ranked[k2].idx;
+            compatible[idxKeep] = true;
+            compatibleSet[idxKeep] = true;
+        }
+    }
+
+    return {
+        chromas: chromas,
+        targetPitchClass: targetPC,
+        targetChroma: targetChroma,
+        simToTarget: simToTarget,
+        compatible: compatible,
+        compatibleSet: compatibleSet
+    };
+}
+
+function getHarmonicTrapSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("harmonicTrap");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("harmonicTrap") : cloneAdvancedDefaults("harmonicTrap");
+    return sanitizeHarmonicTrapSettings(settings, ADVANCED_DEFAULTS.harmonicTrap);
+}
+
+function createHarmonicTrapDriver(player, options) {
+    options = options || {};
+    var modeName = "harmonictrap";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+    var currentIndex = 0;
+    var outOfKeyStreak = 0;
+    var cooldownLeft = 0;
+    var state = null;
+    var settings = sanitizeHarmonicTrapSettings(options, ADVANCED_DEFAULTS.harmonicTrap);
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function findNearestCompatible(fromIdx) {
+        if (!state || !state.compatible || !state.compatible.length) return fromIdx;
+        var n = state.compatible.length;
+        for (var radius = 1; radius < n; radius++) {
+            var fwd = fromIdx + radius;
+            if (fwd < n && state.compatible[fwd]) return fwd;
+            var back = fromIdx - radius;
+            if (back >= 0 && state.compatible[back]) return back;
+        }
+        return fromIdx;
+    }
+
+    function selectTargetFromEdges(fromIdx) {
+        if (!serverLoopCandidateMap || !serverLoopCandidateMap[fromIdx]) return null;
+        var edges = serverLoopCandidateMap[fromIdx] || [];
+        var pool = [];
+        for (var i = 0; i < edges.length; i++) {
+            var edge = edges[i];
+            if (!edge || typeof edge.target !== "number") continue;
+            if (!state.compatibleSet[edge.target]) continue;
+            var absSpan =
+                (typeof edge.abs_span === "number" && isFinite(edge.abs_span))
+                    ? edge.abs_span
+                    : Math.abs(edge.target - fromIdx);
+            if (absSpan < settings.minJumpSpanBeats) continue;
+            pool.push(edge);
+            if (pool.length >= settings.searchTopK) break;
+        }
+        if (!pool.length) return null;
+        return pool[Math.floor(Math.random() * pool.length)].target;
+    }
+
+    function computeNextIndex() {
+        if (!state) state = buildHarmonicTrapState(masterQs, settings);
+        if (!state || !state.chromas.length) {
+            return currentIndex + 1;
+        }
+
+        var currentChroma = state.chromas[currentIndex] || null;
+        var simNow = currentChroma ? chromaDotSimilarity(currentChroma, state.targetChroma) : 0;
+        var isCompatible = simNow >= settings.similarityThreshold;
+
+        if (!isCompatible && Math.random() >= settings.escapeProb) {
+            outOfKeyStreak += 1;
+        } else {
+            outOfKeyStreak = 0;
+        }
+
+        if (cooldownLeft > 0) cooldownLeft -= 1;
+
+        if (outOfKeyStreak > settings.graceBeats && cooldownLeft <= 0) {
+            var target = selectTargetFromEdges(currentIndex);
+            if (target === null) {
+                target = findNearestCompatible(currentIndex);
+            }
+            if (target !== null && target !== currentIndex) {
+                outOfKeyStreak = 0;
+                cooldownLeft = settings.cooldownBeats;
+                return target;
+            }
+        }
+
+        return currentIndex + 1;
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+        if (currentIndex >= masterQs.length) {
+            if (window.harmonizerLoopEnabled) {
+                currentIndex = 0;
+                outOfKeyStreak = 0;
+                cooldownLeft = 0;
+            } else if (autoPlayNext && playNextInQueue()) {
+                return;
+            } else {
+                stop();
+                return;
+            }
+        }
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q });
+        var delay = player.playQ(q);
+
+        var proposed = computeNextIndex();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: "harmonic"
+        });
+
+        if (nextIdx !== currentIndex + 1 && nextIdx !== currentIndex) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeHarmonicTrapSettings(customSettings, ADVANCED_DEFAULTS.harmonicTrap);
+        state = buildHarmonicTrapState(masterQs, settings);
+        outOfKeyStreak = 0;
+        cooldownLeft = 0;
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getHarmonicTrapSettings());
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            if (!state) {
+                rebuildFromSettings(getHarmonicTrapSettings());
+            }
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            outOfKeyStreak = 0;
+            cooldownLeft = 0;
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+// Register Harmonic Trap as a stackable harmonic gate.
+registerStackLayer({
+    id: "harmonictrap",
+    label: "Harmonic Trap",
+    description: "Snap playback to beats matching a target chord/key.",
+    factory: function(ctx) {
+        if (!ctx || !ctx.beats || !ctx.beats.length) return null;
+        var settings = getHarmonicTrapSettings();
+        var data = buildHarmonicTrapState(ctx.beats, settings);
+        if (!data || !data.chromas.length) return null;
+
+        function snapToCompatible(idx, fallbackIdx) {
+            if (data.compatibleSet[idx]) return idx;
+            var n = data.compatible.length;
+            for (var r = 1; r < n; r++) {
+                var fwd = idx + r;
+                if (fwd < n && data.compatibleSet[fwd]) return fwd;
+                var back = idx - r;
+                if (back >= 0 && data.compatibleSet[back]) return back;
+            }
+            return typeof fallbackIdx === "number" ? fallbackIdx : idx;
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.proposedIndex !== "number") return null;
+                if (meta.mode === "harmonictrap") return null;
+                var proposed = meta.proposedIndex;
+                if (data.compatibleSet[proposed]) return null;
+                var snapped = snapToCompatible(proposed, meta.currentIndex);
+                return { index: snapped };
+            }
+        };
+    }
+});
+
+// ===== Phase Shifter (Steve Reich Effect) =====
+function sanitizePhaseShifterSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.phaseShifter || {};
+    var out = cloneSettings(defaults);
+
+    var rateDelta = coerceNumber(input.rateDelta);
+    if (rateDelta === null) rateDelta = defaults.rateDelta;
+    out.rateDelta = clampNumber(rateDelta, 0, 0.02);
+
+    var overlayGain = coerceNumber(input.overlayGain);
+    if (overlayGain === null) overlayGain = defaults.overlayGain;
+    out.overlayGain = clamp01(overlayGain);
+
+    var resyncOnJump = coerceNumber(input.resyncOnJump);
+    if (resyncOnJump === null) resyncOnJump = defaults.resyncOnJump;
+    out.resyncOnJump = resyncOnJump >= 1 ? 1 : 0;
+
+    var resyncThresholdBeats = coerceNumber(input.resyncThresholdBeats);
+    if (resyncThresholdBeats === null) resyncThresholdBeats = defaults.resyncThresholdBeats;
+    out.resyncThresholdBeats = clampNumber(Math.round(resyncThresholdBeats), 1, 256);
+
+    var overlayLoop = coerceNumber(input.overlayLoop);
+    if (overlayLoop === null) overlayLoop = defaults.overlayLoop;
+    out.overlayLoop = overlayLoop >= 1 ? 1 : 0;
+
+    return out;
+}
+
+function getPhaseShifterSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("phaseShifter");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("phaseShifter") : cloneAdvancedDefaults("phaseShifter");
+    return sanitizePhaseShifterSettings(settings, ADVANCED_DEFAULTS.phaseShifter);
+}
+
+function createPhaseOverlayHead(player, track, options) {
+    var settings = sanitizePhaseShifterSettings(options, ADVANCED_DEFAULTS.phaseShifter);
+    var source = null;
+    var gainNode = null;
+    var panner = null;
+    var started = false;
+
+    function getContext() {
+        if (!player || typeof player.getContext !== "function") {
+            return null;
+        }
+        return player.getContext();
+    }
+
+    function getBuffer() {
+        if (track && track.buffer) {
+            return track.buffer;
+        }
+        if (masterQs && masterQs.length && masterQs[0] && masterQs[0].track && masterQs[0].track.buffer) {
+            return masterQs[0].track.buffer;
+        }
+        return null;
+    }
+
+    function ensureNodes() {
+        var ctx = getContext();
+        if (!ctx) {
+            return false;
+        }
+        if (!gainNode) {
+            gainNode = ctx.createGain();
+            gainNode.gain.value = settings.overlayGain;
+            if (typeof ctx.createStereoPanner === "function") {
+                panner = ctx.createStereoPanner();
+                try { panner.pan.value = 0; } catch (e) {}
+                gainNode.connect(panner);
+                panner.connect(ctx.destination);
+            } else {
+                gainNode.connect(ctx.destination);
+            }
+        }
+        return true;
+    }
+
+    function stopSource() {
+        if (source) {
+            try { source.onended = null; } catch (e) {}
+            try { source.stop(0); } catch (e) {}
+            try { source.disconnect(); } catch (e) {}
+            source = null;
+        }
+    }
+
+    function normalizedOffset(offsetSeconds, buffer) {
+        var dur = buffer && typeof buffer.duration === "number" ? buffer.duration : null;
+        if (!dur || !isFinite(dur) || dur <= 0) {
+            return Math.max(0, offsetSeconds || 0);
+        }
+        var raw = offsetSeconds || 0;
+        raw = raw % dur;
+        if (raw < 0) raw += dur;
+        return raw;
+    }
+
+    function startAt(offsetSeconds) {
+        var ctx = getContext();
+        var buffer = getBuffer();
+        if (!ctx || !buffer) {
+            return false;
+        }
+        if (!ensureNodes()) {
+            return false;
+        }
+        stopSource();
+        var src = ctx.createBufferSource();
+        src.buffer = buffer;
+        var rate = 1 + (settings.rateDelta || 0);
+        try { src.playbackRate.value = rate; } catch (e) {}
+        if (settings.overlayLoop >= 1) {
+            src.loop = true;
+        }
+        src.connect(gainNode);
+        var offset = normalizedOffset(offsetSeconds, buffer);
+        try {
+            src.start(0, offset);
+        } catch (e) {
+            try { src.start(0); } catch (ee) {}
+        }
+        src.onended = function() {
+            if (source === src) {
+                source = null;
+                started = false;
+            }
+        };
+        source = src;
+        started = true;
+        return true;
+    }
+
+    function applySettings(nextSettings) {
+        settings = sanitizePhaseShifterSettings(nextSettings, ADVANCED_DEFAULTS.phaseShifter);
+        if (gainNode && gainNode.gain) {
+            try { gainNode.gain.value = settings.overlayGain; } catch (e) {}
+        }
+        if (source && source.playbackRate) {
+            try { source.playbackRate.value = 1 + (settings.rateDelta || 0); } catch (e) {}
+        }
+    }
+
+    function stop() {
+        stopSource();
+        started = false;
+    }
+
+    return {
+        startAt: startAt,
+        stop: stop,
+        applySettings: applySettings,
+        isStarted: function() { return started; }
+    };
+}
+
+function createPhaseShifterDriver(player, options) {
+    options = options || {};
+    var modeName = "phaseshifter";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+    var currentIndex = 0;
+    var settings = sanitizePhaseShifterSettings(options, ADVANCED_DEFAULTS.phaseShifter);
+    var phaseHead = createPhaseOverlayHead(player, curTrack, settings);
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        if (phaseHead) {
+            phaseHead.stop();
+        }
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        if (phaseHead) {
+            phaseHead.stop();
+        }
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+
+        if (currentIndex >= masterQs.length) {
+            if (window.harmonizerLoopEnabled) {
+                currentIndex = 0;
+            } else if (autoPlayNext && playNextInQueue()) {
+                return;
+            } else {
+                stop();
+                return;
+            }
+        }
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        if (phaseHead && !phaseHead.isStarted()) {
+            phaseHead.startAt(q.start || 0);
+        }
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q });
+        var delay = player.playQ(q);
+
+        var proposed = currentIndex + 1;
+        if (proposed >= masterQs.length) {
+            proposed = window.harmonizerLoopEnabled ? 0 : proposed;
+        }
+
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: "phase"
+        });
+
+        if (
+            phaseHead &&
+            settings.resyncOnJump >= 1 &&
+            typeof nextIdx === "number" &&
+            Math.abs(nextIdx - currentIndex) >= (settings.resyncThresholdBeats || 8)
+        ) {
+            var targetBeat = masterQs[nextIdx];
+            if (targetBeat) {
+                phaseHead.startAt(targetBeat.start || 0);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizePhaseShifterSettings(customSettings, ADVANCED_DEFAULTS.phaseShifter);
+        if (phaseHead) {
+            phaseHead.applySettings(settings);
+        }
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getPhaseShifterSettings());
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getPhaseShifterSettings());
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            if (phaseHead) {
+                phaseHead.startAt(q.start || 0);
+            }
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+// Register Phase Shifter as a stackable drifting playhead.
+registerStackLayer({
+    id: "phaseshifter",
+    label: "Phase Shifter",
+    description: "Add a second drifting playhead (Reich phasing).",
+    factory: function(ctx) {
+        if (!ctx || !ctx.beats || !ctx.beats.length) return null;
+        var player = driver && driver.player ? driver.player : null;
+        var settings = getPhaseShifterSettings();
+        var trackRef = ctx.track || (ctx.beats[0] ? ctx.beats[0].track : null);
+        if (!player || typeof player.getContext !== "function") {
+            return null;
+        }
+        var phaseHead = createPhaseOverlayHead(player, trackRef, settings);
+        var lastIndex = null;
+
+        return {
+            onBeat: function(meta) {
+                if (!meta || !meta.beat) return;
+                if (meta.mode === "phaseshifter") return;
+                var idx = typeof meta.currentIndex === "number" ? meta.currentIndex : null;
+                if (!phaseHead.isStarted()) {
+                    phaseHead.startAt(meta.beat.start || 0);
+                    lastIndex = idx;
+                    return;
+                }
+                if (
+                    settings.resyncOnJump >= 1 &&
+                    idx !== null &&
+                    lastIndex !== null &&
+                    Math.abs(idx - lastIndex) >= (settings.resyncThresholdBeats || 8)
+                ) {
+                    phaseHead.startAt(meta.beat.start || 0);
+                }
+                lastIndex = idx;
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    phaseHead.stop();
+                }
+            },
+            dispose: function() {
+                phaseHead.stop();
+            }
+        };
+    }
+});
+
+// ===== Granular Freeze (Chopped & Screwed Auto-Mode) =====
+function sanitizeGranularFreezeSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.granularFreeze || {};
+    var out = cloneSettings(defaults);
+
+    var chance = coerceNumber(input.freezeChance);
+    if (chance === null) chance = defaults.freezeChance;
+    out.freezeChance = clampNumber(chance, 0, 1);
+
+    var minVol = coerceNumber(input.minVolume);
+    if (minVol === null) minVol = defaults.minVolume;
+    out.minVolume = clampNumber(minVol, 0, 1);
+
+    var attackMin = coerceNumber(input.sustainAttackMin);
+    if (attackMin === null) attackMin = defaults.sustainAttackMin;
+    out.sustainAttackMin = clampNumber(attackMin, 0, 1);
+
+    var segDurMin = coerceNumber(input.sustainSegDurMin);
+    if (segDurMin === null) segDurMin = defaults.sustainSegDurMin;
+    out.sustainSegDurMin = clampNumber(segDurMin, 0.02, 2.5);
+
+    var percMax = coerceNumber(input.percussiveRatioMax);
+    if (percMax === null) percMax = defaults.percussiveRatioMax;
+    out.percussiveRatioMax = clampNumber(percMax, 0.05, 1);
+
+    var cooldown = coerceNumber(input.cooldownBeats);
+    if (cooldown === null) cooldown = defaults.cooldownBeats;
+    out.cooldownBeats = clampNumber(Math.round(cooldown), 0, 256);
+
+    var repeatMode = coerceNumber(input.repeatMode);
+    if (repeatMode === null) repeatMode = defaults.repeatMode;
+    out.repeatMode = clampNumber(Math.round(repeatMode), 0, 2);
+
+    var longBias = coerceNumber(input.repeatLongBias);
+    if (longBias === null) longBias = defaults.repeatLongBias;
+    out.repeatLongBias = clampNumber(longBias, 0, 1);
+
+    return out;
+}
+
+function getGranularFreezeSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("granularFreeze");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("granularFreeze") : cloneAdvancedDefaults("granularFreeze");
+    return sanitizeGranularFreezeSettings(settings, ADVANCED_DEFAULTS.granularFreeze);
+}
+
+function pickGranularRepeatCount(settings) {
+    settings = settings || ADVANCED_DEFAULTS.granularFreeze;
+    var mode = settings.repeatMode || 1;
+    var options = mode === 0 ? [2, 4, 8] : mode === 2 ? [8, 16, 32] : [4, 8, 16];
+    var bias = clampNumber(settings.repeatLongBias || 0.5, 0, 1);
+    var center = (options.length - 1) / 2;
+    var strength = (bias - 0.5) * 2.0;
+    var weights = [];
+    var total = 0;
+    for (var i = 0; i < options.length; i++) {
+        var w = Math.exp((i - center) * strength * 1.25);
+        weights[i] = w;
+        total += w;
+    }
+    var r = Math.random() * total;
+    for (var j = 0; j < options.length; j++) {
+        r -= weights[j];
+        if (r <= 0) return options[j];
+    }
+    return options[options.length - 1];
+}
+
+function buildGranularFreezeState(beats, settings) {
+    settings = sanitizeGranularFreezeSettings(settings, ADVANCED_DEFAULTS.granularFreeze);
+    if (!beats || !beats.length) {
+        return { eligible: [], eligibleSet: {}, strength: [] };
+    }
+
+    var n = beats.length;
+    var eligible = new Array(n);
+    var eligibleSet = {};
+    var strength = new Array(n);
+
+    for (var i = 0; i < n; i++) {
+        var b = beats[i];
+        var vol =
+            (b && typeof b.median_volume === "number") ? b.median_volume :
+            (b && typeof b.volume === "number") ? b.volume :
+            (b && typeof b.loudness === "number") ? b.loudness : 0;
+        if (!isFinite(vol)) vol = 0;
+
+        var segs = (b && b.overlappingSegments && b.overlappingSegments.length) ? b.overlappingSegments : [];
+        if (!segs.length || vol < settings.minVolume) {
+            eligible[i] = false;
+            strength[i] = 0;
+            continue;
+        }
+
+        var sumAttackRatio = 0;
+        var maxDur = 0;
+        var percussiveCount = 0;
+        for (var s = 0; s < segs.length; s++) {
+            var seg = segs[s];
+            if (!seg) continue;
+            var dur = (typeof seg.duration === "number" && isFinite(seg.duration)) ? seg.duration : 0;
+            if (dur > maxDur) maxDur = dur;
+            var atk = (typeof seg.loudness_max_time === "number" && isFinite(seg.loudness_max_time)) ? seg.loudness_max_time : 0;
+            var ratio = dur > 0.001 ? (atk / dur) : 0;
+            sumAttackRatio += ratio;
+            if (dur < 0.085 || ratio < 0.14) {
+                percussiveCount += 1;
+            }
+        }
+        var count = segs.length;
+        var avgAttackRatio = sumAttackRatio / Math.max(1, count);
+        var percussiveRatio = percussiveCount / Math.max(1, count);
+
+        var ok =
+            avgAttackRatio >= settings.sustainAttackMin &&
+            maxDur >= settings.sustainSegDurMin &&
+            percussiveRatio <= settings.percussiveRatioMax;
+        eligible[i] = ok;
+        if (ok) {
+            eligibleSet[i] = true;
+        }
+
+        var attackStrength = clamp01((avgAttackRatio - settings.sustainAttackMin) / 0.45);
+        var durStrength = clamp01((maxDur - settings.sustainSegDurMin) / 0.55);
+        var percStrength = clamp01((settings.percussiveRatioMax - percussiveRatio) / Math.max(0.05, settings.percussiveRatioMax));
+        strength[i] = clamp01(0.52 * attackStrength + 0.28 * durStrength + 0.2 * percStrength);
+    }
+
+    return { eligible: eligible, eligibleSet: eligibleSet, strength: strength };
+}
+
+function createGranularFreezeDriver(player, options) {
+    options = options || {};
+    var modeName = "granularfreeze";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+    var currentIndex = 0;
+    var repeatsLeft = 0;
+    var cooldownLeft = 0;
+
+    var settings = sanitizeGranularFreezeSettings(options, ADVANCED_DEFAULTS.granularFreeze);
+    var state = null;
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function shouldFreeze(idx) {
+        if (!state || !state.eligibleSet || !state.strength) return false;
+        if (!state.eligibleSet[idx]) return false;
+        var st = state.strength[idx] || 0;
+        var chance = clamp01(settings.freezeChance * (0.35 + 0.65 * st));
+        return Math.random() < chance;
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function computeProposedNext() {
+        if (repeatsLeft > 0) {
+            repeatsLeft -= 1;
+            return currentIndex;
+        }
+        if (cooldownLeft > 0) {
+            cooldownLeft -= 1;
+        }
+        if (cooldownLeft <= 0 && shouldFreeze(currentIndex)) {
+            var totalPlays = Math.max(2, pickGranularRepeatCount(settings));
+            repeatsLeft = totalPlays - 1;
+            cooldownLeft = settings.cooldownBeats || 0;
+            return currentIndex;
+        }
+        var nextLinear = currentIndex + 1;
+        if (nextLinear >= masterQs.length) {
+            return window.harmonizerLoopEnabled ? 0 : nextLinear;
+        }
+        return nextLinear;
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+
+        if (currentIndex >= masterQs.length) {
+            if (autoPlayNext && playNextInQueue()) {
+                return;
+            }
+            stop();
+            return;
+        }
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q });
+        var delay = player.playQ(q);
+
+        var proposed = computeProposedNext();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: proposed === currentIndex ? "freeze" : "sequential"
+        });
+
+        if (proposed === currentIndex && nextIdx !== currentIndex) {
+            repeatsLeft = 0;
+        }
+
+        if (nextIdx !== currentIndex + 1 && nextIdx !== currentIndex) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeGranularFreezeSettings(customSettings, ADVANCED_DEFAULTS.granularFreeze);
+        state = buildGranularFreezeState(masterQs, settings);
+        repeatsLeft = 0;
+        cooldownLeft = 0;
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getGranularFreezeSettings());
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            if (!state) {
+                rebuildFromSettings(getGranularFreezeSettings());
+            }
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            repeatsLeft = 0;
+            cooldownLeft = 0;
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+// Register Granular Freeze as a stackable stutter/loop layer.
+registerStackLayer({
+    id: "granularfreeze",
+    label: "Granular Freeze",
+    description: "On sustain beats, loop 4/8/16x for vaporwave stutters.",
+    factory: function(ctx) {
+        if (!ctx || !ctx.beats || !ctx.beats.length) return null;
+        var settings = getGranularFreezeSettings();
+        var state = buildGranularFreezeState(ctx.beats, settings);
+        if (!state || !state.eligibleSet) return null;
+
+        var repeatsLeft = 0;
+        var cooldownLeft = 0;
+
+        function shouldFreeze(idx) {
+            if (!state.eligibleSet[idx]) return false;
+            var st = state.strength[idx] || 0;
+            var chance = clamp01(settings.freezeChance * (0.35 + 0.65 * st));
+            return Math.random() < chance;
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.currentIndex !== "number") return null;
+                var idx = meta.currentIndex;
+
+                if (repeatsLeft > 0) {
+                    repeatsLeft -= 1;
+                    return { index: idx };
+                }
+                if (cooldownLeft > 0) {
+                    cooldownLeft -= 1;
+                }
+                if (cooldownLeft <= 0 && shouldFreeze(idx)) {
+                    var totalPlays = Math.max(2, pickGranularRepeatCount(settings));
+                    repeatsLeft = totalPlays - 1;
+                    cooldownLeft = settings.cooldownBeats || 0;
+                    return { index: idx };
+                }
+                return null;
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    repeatsLeft = 0;
+                    cooldownLeft = 0;
+                }
+            },
+            dispose: function() {
+                repeatsLeft = 0;
+                cooldownLeft = 0;
+            }
+        };
+    }
+});
+
+// ===== Elastic Velo (Energy-linked playbackRate) =====
+function sanitizeElasticVelocitySettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.elasticVelocity || {};
+    var out = cloneSettings(defaults);
+
+    var minRate = coerceNumber(input.minRate);
+    if (minRate === null) minRate = defaults.minRate;
+    out.minRate = clampNumber(minRate, 0.25, 2.5);
+
+    var maxRate = coerceNumber(input.maxRate);
+    if (maxRate === null) maxRate = defaults.maxRate;
+    out.maxRate = clampNumber(maxRate, 0.25, 3.0);
+
+    if (out.maxRate < out.minRate) {
+        var tmp = out.maxRate;
+        out.maxRate = out.minRate;
+        out.minRate = tmp;
+    }
+
+    var curve = coerceNumber(input.curve);
+    if (curve === null) curve = defaults.curve;
+    out.curve = clampNumber(curve, 0.25, 4.0);
+
+    var smoothingBeats = coerceNumber(input.smoothingBeats);
+    if (smoothingBeats === null) smoothingBeats = defaults.smoothingBeats;
+    out.smoothingBeats = clampNumber(Math.round(smoothingBeats), 0, 32);
+
+    var maxDelta = coerceNumber(input.maxDeltaPerBeat);
+    if (maxDelta === null) maxDelta = defaults.maxDeltaPerBeat;
+    out.maxDeltaPerBeat = clampNumber(maxDelta, 0.0, 1.0);
+
+    return out;
+}
+
+function getElasticVelocitySettings() {
+    var useAdvanced = isAdvancedGroupEnabled("elasticVelocity");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("elasticVelocity") : cloneAdvancedDefaults("elasticVelocity");
+    return sanitizeElasticVelocitySettings(settings, ADVANCED_DEFAULTS.elasticVelocity);
+}
+
+function elasticVelocityEnergy01(beat) {
+    if (!beat) return 0;
+    if (typeof beat.median_volume === "number" && isFinite(beat.median_volume)) {
+        return clamp01(beat.median_volume);
+    }
+    if (typeof beat.volume === "number" && isFinite(beat.volume)) {
+        return clamp01(beat.volume);
+    }
+    if (typeof beat.loudness === "number" && isFinite(beat.loudness)) {
+        return clamp01((beat.loudness + 60) / 60);
+    }
+    return 0;
+}
+
+function elasticVelocityMapRate(energy01, settings) {
+    settings = settings || ADVANCED_DEFAULTS.elasticVelocity;
+    var e = clamp01(energy01);
+    var curve = (settings && typeof settings.curve === "number") ? settings.curve : 1.0;
+    var t = Math.pow(e, Math.max(0.01, curve));
+    var minRate = (settings && typeof settings.minRate === "number") ? settings.minRate : 0.6;
+    var maxRate = (settings && typeof settings.maxRate === "number") ? settings.maxRate : 1.5;
+    return minRate + (maxRate - minRate) * t;
+}
+
+function createElasticVeloDriver(player, options) {
+    options = options || {};
+    var modeName = "elasticvelo";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+    var currentIndex = 0;
+
+    var settings = sanitizeElasticVelocitySettings(options, ADVANCED_DEFAULTS.elasticVelocity);
+    var smoothRate = null;
+    var lastRate = 1.0;
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function resetRateState() {
+        smoothRate = null;
+        lastRate = 1.0;
+        if (player && typeof player.setSpeedFactor === "function") {
+            try { player.setSpeedFactor(1.0); } catch (e) {}
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        resetRateState();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        resetRateState();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function computeRateForBeat(beat) {
+        var energy = elasticVelocityEnergy01(beat);
+        var target = elasticVelocityMapRate(energy, settings);
+
+        var smoothingBeats = settings.smoothingBeats || 0;
+        var alpha = smoothingBeats <= 0 ? 1.0 : (1.0 / (1.0 + smoothingBeats));
+        if (smoothRate === null || !isFinite(smoothRate)) {
+            smoothRate = target;
+        } else {
+            smoothRate = smoothRate + alpha * (target - smoothRate);
+        }
+
+        var rate = smoothRate;
+        var maxDelta = settings.maxDeltaPerBeat || 0;
+        if (maxDelta > 0 && isFinite(lastRate)) {
+            rate = clampNumber(rate, lastRate - maxDelta, lastRate + maxDelta);
+        }
+        rate = clampNumber(rate, settings.minRate, settings.maxRate);
+        lastRate = rate;
+        return rate;
+    }
+
+    function computeProposedNext() {
+        var nextLinear = currentIndex + 1;
+        if (nextLinear >= masterQs.length) {
+            return window.harmonizerLoopEnabled ? 0 : nextLinear;
+        }
+        return nextLinear;
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+
+        if (currentIndex >= masterQs.length) {
+            if (autoPlayNext && playNextInQueue()) {
+                return;
+            }
+            stop();
+            return;
+        }
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        var rate = computeRateForBeat(q);
+        if (player && typeof player.setSpeedFactor === "function") {
+            try { player.setSpeedFactor(rate); } catch (e) {}
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q, rate: rate });
+        var delay = player.playQ(q);
+
+        var proposed = computeProposedNext();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: "elastic"
+        });
+
+        if (nextIdx !== currentIndex + 1) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeElasticVelocitySettings(customSettings, ADVANCED_DEFAULTS.elasticVelocity);
+        smoothRate = null;
+        lastRate = 1.0;
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getElasticVelocitySettings());
+            resetRateState();
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            if (!settings) {
+                rebuildFromSettings(getElasticVelocitySettings());
+            }
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            smoothRate = null;
+            lastRate = 1.0;
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+// ===== The Math Rocker (Time Signature Butcher) =====
+function sanitizeMathRockerSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.mathRocker || {};
+    var out = cloneSettings(defaults);
+
+    var cycleBeats = coerceNumber(input.cycleBeats);
+    if (cycleBeats === null) cycleBeats = defaults.cycleBeats;
+    out.cycleBeats = clampNumber(Math.round(cycleBeats), 2, 64);
+
+    var dropBeats = coerceNumber(input.dropBeats);
+    if (dropBeats === null) dropBeats = defaults.dropBeats;
+    out.dropBeats = clampNumber(Math.round(dropBeats), 1, out.cycleBeats - 1);
+
+    var resetOnJump = coerceNumber(input.resetOnJump);
+    if (resetOnJump === null) resetOnJump = defaults.resetOnJump;
+    out.resetOnJump = resetOnJump >= 1 ? 1 : 0;
+
+    return out;
+}
+
+function getMathRockerSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("mathRocker");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("mathRocker") : cloneAdvancedDefaults("mathRocker");
+    return sanitizeMathRockerSettings(settings, ADVANCED_DEFAULTS.mathRocker);
+}
+
+function createMathRockerDriver(player, options) {
+    options = options || {};
+    var modeName = "mathrocker";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+    var currentIndex = 0;
+
+    var settings = sanitizeMathRockerSettings(options, ADVANCED_DEFAULTS.mathRocker);
+    var anchorIndex = 0;
+    var hiccupLeft = 0;
+    var hiccupIndex = null;
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function cyclePosFor(idx) {
+        var cycle = Math.max(2, settings.cycleBeats || 8);
+        var delta = idx - anchorIndex;
+        var pos = delta % cycle;
+        if (pos < 0) pos += cycle;
+        return pos;
+    }
+
+    function computeProposedNext() {
+        var cycle = Math.max(2, settings.cycleBeats || 8);
+        var drop = clampNumber(settings.dropBeats || 1, 1, cycle - 1);
+        var kept = Math.max(1, cycle - drop);
+        var pos = cyclePosFor(currentIndex);
+
+        // If we landed inside the "dropped" region (due to a jump), snap forward to the next cycle start.
+        if (pos >= kept) {
+            hiccupLeft = 0;
+            hiccupIndex = null;
+            var toNextCycle = cycle - pos;
+            return currentIndex + toNextCycle;
+        }
+
+        // When we hit the last kept beat, skip the next `drop` beats.
+        if (pos === kept - 1) {
+            // Add a short "hiccup" (repeat) right before the drop so the groove is more obvious.
+            // Scales with drop size: drop=1 repeats once, larger drops repeat twice.
+            if (hiccupIndex !== currentIndex) {
+                hiccupIndex = currentIndex;
+                hiccupLeft = Math.max(0, Math.min(2, drop));
+            }
+            if (hiccupLeft > 0) {
+                hiccupLeft -= 1;
+                return currentIndex;
+            }
+            return currentIndex + 1 + drop;
+        }
+
+        return currentIndex + 1;
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+
+        if (currentIndex >= masterQs.length) {
+            if (window.harmonizerLoopEnabled) {
+                currentIndex = 0;
+                anchorIndex = 0;
+            } else if (autoPlayNext && playNextInQueue()) {
+                return;
+            } else {
+                stop();
+                return;
+            }
+        }
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        var cycle = Math.max(2, settings.cycleBeats || 8);
+        var drop = clampNumber(settings.dropBeats || 1, 1, cycle - 1);
+        var kept = Math.max(1, cycle - drop);
+        var pos = cyclePosFor(currentIndex);
+        notifyStackOnBeat({
+            mode: modeName,
+            currentIndex: currentIndex,
+            beat: q,
+            cycleBeats: cycle,
+            dropBeats: drop,
+            keptBeats: kept,
+            cyclePos: pos
+        });
+        var delay = player.playQ(q);
+
+        var proposed = computeProposedNext();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: (proposed === currentIndex + 1) ? "sequential" : "drop"
+        });
+
+        if (nextIdx >= masterQs.length) {
+            if (window.harmonizerLoopEnabled) {
+                nextIdx = nextIdx % masterQs.length;
+                anchorIndex = 0;
+                hiccupLeft = 0;
+                hiccupIndex = null;
+            }
+        }
+
+        if (nextIdx !== currentIndex + 1) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeMathRockerSettings(customSettings, ADVANCED_DEFAULTS.mathRocker);
+        hiccupLeft = 0;
+        hiccupIndex = null;
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getMathRockerSettings());
+            currentIndex = 0;
+            anchorIndex = 0;
+            hiccupLeft = 0;
+            hiccupIndex = null;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            anchorIndex = currentIndex;
+            hiccupLeft = 0;
+            hiccupIndex = null;
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+// Register Math Rocker as a stackable beat-drop layer.
+registerStackLayer({
+    id: "mathrocker",
+    label: "Math Rocker",
+    description: "Drop beats on a cycle to force odd-meter grooves.",
+    factory: function(ctx) {
+        var settings = getMathRockerSettings();
+        var anchorIndex = 0;
+        var lastIndex = null;
+        var hiccupLeft = 0;
+        var hiccupIndex = null;
+
+        function cyclePos(idx) {
+            var cycle = Math.max(2, settings.cycleBeats || 8);
+            var delta = idx - anchorIndex;
+            var pos = delta % cycle;
+            if (pos < 0) pos += cycle;
+            return pos;
+        }
+
+        function onJumpDetected(idx) {
+            if (settings.resetOnJump >= 1) {
+                anchorIndex = idx;
+            }
+            hiccupLeft = 0;
+            hiccupIndex = null;
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.currentIndex !== "number" || typeof meta.proposedIndex !== "number") return null;
+                if ((meta.mode || "").toLowerCase() === "mathrocker") return null;
+
+                var cur = meta.currentIndex;
+                var proposed = meta.proposedIndex;
+                if (lastIndex !== null && Math.abs(cur - lastIndex) > 1) {
+                    onJumpDetected(cur);
+                }
+                lastIndex = cur;
+
+                var cycle = Math.max(2, settings.cycleBeats || 8);
+                var drop = clampNumber(settings.dropBeats || 1, 1, cycle - 1);
+                var kept = Math.max(1, cycle - drop);
+                var pos = cyclePos(cur);
+
+                // If we're currently inside the "dropped" region, snap forward to next cycle start.
+                if (pos >= kept) {
+                    hiccupLeft = 0;
+                    hiccupIndex = null;
+                    var toNext = cycle - pos;
+                    return { index: cur + toNext };
+                }
+
+                // Only butcher sequential movement; leave explicit jumps alone.
+                if (proposed !== cur + 1) {
+                    hiccupLeft = 0;
+                    hiccupIndex = null;
+                    return null;
+                }
+
+                // If the next beat would be the first "dropped" beat, skip forward by `drop`.
+                if (pos === kept - 1) {
+                    if (hiccupIndex !== cur) {
+                        hiccupIndex = cur;
+                        hiccupLeft = Math.max(0, Math.min(2, drop));
+                    }
+                    if (hiccupLeft > 0) {
+                        hiccupLeft -= 1;
+                        return { index: cur };
+                    }
+                    return { index: cur + 1 + drop };
+                }
+
+                return null;
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    anchorIndex = 0;
+                    lastIndex = null;
+                    hiccupLeft = 0;
+                    hiccupIndex = null;
+                }
+            },
+            dispose: function() {
+                anchorIndex = 0;
+                lastIndex = null;
+                hiccupLeft = 0;
+                hiccupIndex = null;
+            }
+        };
+    }
+});
+
+// ===== The Stalker (Targeted Gravity) =====
+function sanitizeStalkerSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.stalker || {};
+    var out = cloneSettings(defaults);
+
+    var threshold = coerceNumber(input.similarityThreshold);
+    if (threshold === null) threshold = defaults.similarityThreshold;
+    out.similarityThreshold = clampNumber(threshold, 0.3, 0.999);
+
+    var cooldownBeats = coerceNumber(input.cooldownBeats);
+    if (cooldownBeats === null) cooldownBeats = defaults.cooldownBeats;
+    out.cooldownBeats = clampNumber(Math.round(cooldownBeats), 0, 256);
+
+    var armBeats = coerceNumber(input.armBeats);
+    if (armBeats === null) armBeats = defaults.armBeats;
+    out.armBeats = clampNumber(Math.round(armBeats), 0, 64);
+
+    var symmetric = coerceNumber(input.symmetricLookup);
+    if (symmetric === null) symmetric = defaults.symmetricLookup;
+    out.symmetricLookup = symmetric >= 1 ? 1 : 0;
+
+    return out;
+}
+
+function getStalkerSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("stalker");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("stalker") : cloneAdvancedDefaults("stalker");
+    return sanitizeStalkerSettings(settings, ADVANCED_DEFAULTS.stalker);
+}
+
+function stalkerLookupSimilarity(srcIdx, targetIdx, settings) {
+    if (typeof srcIdx !== "number" || typeof targetIdx !== "number") return 0;
+    if (!isFinite(srcIdx) || !isFinite(targetIdx)) return 0;
+    if (srcIdx === targetIdx) return 1;
+    // Prefer explicit loop-candidate similarity when available.
+    // Fallback to chroma similarity so Stalker still works even when there is
+    // no direct edge between src and target (common with sparse candidate maps).
+    var best = 0;
+    if (serverLoopCandidateMap) {
+        var edges = serverLoopCandidateMap[srcIdx] || [];
+        for (var i = 0; i < edges.length; i++) {
+            var e = edges[i];
+            if (e && e.target === targetIdx) {
+                var s = (typeof e.similarity === "number") ? e.similarity : 0;
+                if (s > best) best = s;
+                break;
+            }
+        }
+    }
+    if (best > 0 && (!settings || settings.symmetricLookup < 1)) {
+        return best;
+    }
+    if (settings && settings.symmetricLookup >= 1) {
+        if (serverLoopCandidateMap) {
+            var rev = serverLoopCandidateMap[targetIdx] || [];
+            for (var j = 0; j < rev.length; j++) {
+                var r = rev[j];
+                if (r && r.target === srcIdx) {
+                    var sr = (typeof r.similarity === "number") ? r.similarity : 0;
+                    if (sr > best) best = sr;
+                    break;
+                }
+            }
+        }
+    }
+    if (best > 0) {
+        return best;
+    }
+
+    var chromas = getStalkerChromaVectors();
+    if (!chromas || !chromas.length) return 0;
+    var a = chromas[srcIdx];
+    var b = chromas[targetIdx];
+    if (!a || !b) return 0;
+    return chromaDotSimilarity(a, b);
+}
+
+function ensureStalkerTarget(currentIndex) {
+    if (typeof stalkerTargetIndex === "number" && isFinite(stalkerTargetIndex)) {
+        return Math.max(0, Math.min(masterQs.length - 1, Math.round(stalkerTargetIndex)));
+    }
+    return setStalkerTargetIndexInternal(typeof currentIndex === "number" ? currentIndex : 0, { source: "auto" });
+}
+
+function createStalkerDriver(player, options) {
+    options = options || {};
+    var modeName = "stalker";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+    var currentIndex = 0;
+    var cooldownLeft = 0;
+    var beatsAway = 0;
+    var simStreak = 0;
+    var pullStepsLeft = 0;
+    var pullDestIndex = null;
+
+    var settings = sanitizeStalkerSettings(options, ADVANCED_DEFAULTS.stalker);
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function absDistance(a, b) {
+        return Math.abs((a || 0) - (b || 0));
+    }
+
+    function computeReentryIndex(targetIdx) {
+        // Slight pre-roll so it feels like a pull into the anchor, not a hard snap to it.
+        var preRoll = 4;
+        return Math.max(0, Math.min(masterQs.length - 1, Math.round(targetIdx) - preRoll));
+    }
+
+    function startPullSequence(destIdx, strength) {
+        pullDestIndex = destIdx;
+        var steps = 2 + Math.floor(clamp01(strength) * 5); // 2..7
+        pullStepsLeft = clampNumber(steps, 2, 8);
+    }
+
+    function pullStepToward(destIdx) {
+        if (typeof destIdx !== "number" || !isFinite(destIdx)) return null;
+        var dist = absDistance(currentIndex, destIdx);
+        if (dist <= 2) return null;
+
+        // Prefer an edge that moves closer to the destination (stuttery "suction").
+        var candidate = choosePullTarget(currentIndex, destIdx);
+        if (candidate !== null && absDistance(candidate, destIdx) < dist) {
+            return candidate;
+        }
+
+        // Fallback: nudge toward the destination in a few steps.
+        var dir = destIdx > currentIndex ? 1 : -1;
+        var stepSize = Math.round(dist / Math.max(2, pullStepsLeft + 1));
+        stepSize = clampNumber(stepSize, 4, 18);
+        var next = currentIndex + dir * stepSize;
+        // Avoid overshooting into/through the destination so it feels like tightening spirals.
+        if (dir > 0) next = Math.min(next, destIdx);
+        else next = Math.max(next, destIdx);
+        return Math.max(0, Math.min(masterQs.length - 1, Math.round(next)));
+    }
+
+    function choosePullTarget(fromIdx, targetIdx) {
+        if (!serverLoopCandidateMap || !masterQs || !masterQs.length) return null;
+        var best = null;
+        var bestScore = -Infinity;
+        var baseDist = absDistance(fromIdx, targetIdx);
+        var searchRadius = 3;
+        for (var off = 0; off <= searchRadius; off++) {
+            var src = fromIdx + off;
+            if (src >= 0 && src < masterQs.length) {
+                var edges = serverLoopCandidateMap[src] || [];
+                for (var i = 0; i < edges.length; i++) {
+                    var e = edges[i];
+                    if (!e || typeof e.target !== "number") continue;
+                    var cand = e.target;
+                    if (cand === fromIdx) continue;
+                    var absSpan =
+                        (typeof e.abs_span === "number" && isFinite(e.abs_span))
+                            ? e.abs_span
+                            : Math.abs(cand - src);
+                    if (absSpan < 8) continue;
+                    var simToAnchor = stalkerLookupSimilarity(cand, targetIdx, settings);
+                    var edgeSim = (typeof e.similarity === "number") ? e.similarity : 0;
+                    var newDist = absDistance(cand, targetIdx);
+                    var distImprove = clamp01((baseDist - newDist) / 32);
+                    var score = 0.65 * simToAnchor + 0.25 * edgeSim + 0.1 * distImprove;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        best = cand;
+                    }
+                }
+            }
+            if (off > 0) {
+                src = fromIdx - off;
+                if (src >= 0 && src < masterQs.length) {
+                    var edgesBack = serverLoopCandidateMap[src] || [];
+                    for (var j = 0; j < edgesBack.length; j++) {
+                        var eb = edgesBack[j];
+                        if (!eb || typeof eb.target !== "number") continue;
+                        var candb = eb.target;
+                        if (candb === fromIdx) continue;
+                        var absSpanB =
+                            (typeof eb.abs_span === "number" && isFinite(eb.abs_span))
+                                ? eb.abs_span
+                                : Math.abs(candb - src);
+                        if (absSpanB < 8) continue;
+                        var simToAnchorB = stalkerLookupSimilarity(candb, targetIdx, settings);
+                        var edgeSimB = (typeof eb.similarity === "number") ? eb.similarity : 0;
+                        var newDistB = absDistance(candb, targetIdx);
+                        var distImproveB = clamp01((baseDist - newDistB) / 32);
+                        var scoreB = 0.65 * simToAnchorB + 0.25 * edgeSimB + 0.1 * distImproveB;
+                        if (scoreB > bestScore) {
+                            bestScore = scoreB;
+                            best = candb;
+                        }
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    function computeProposedNext(targetIdx) {
+        var nextLinear = currentIndex + 1;
+        if (nextLinear >= masterQs.length) {
+            return window.harmonizerLoopEnabled ? 0 : nextLinear;
+        }
+
+        // If we're currently being pulled, keep stepping toward the destination.
+        if (pullStepsLeft > 0 && typeof pullDestIndex === "number") {
+            var step = pullStepToward(pullDestIndex);
+            pullStepsLeft -= 1;
+            if (step !== null && step !== currentIndex) {
+                return step;
+            }
+            // If we can't find a step (or we're already there), end the pull.
+            pullStepsLeft = 0;
+            pullDestIndex = null;
+        }
+
+        if (cooldownLeft > 0) {
+            cooldownLeft -= 1;
+            return nextLinear;
+        }
+
+        if (currentIndex === targetIdx) {
+            beatsAway = 0;
+            simStreak = 0;
+            pullStepsLeft = 0;
+            pullDestIndex = null;
+            return nextLinear;
+        }
+
+        beatsAway += 1;
+        if (beatsAway < (settings.armBeats || 0)) {
+            return nextLinear;
+        }
+
+        // Don't yank back immediately; require some real distance from the anchor first.
+        var minDistance = Math.max(12, Math.round((settings.armBeats || 0) * 4));
+        if (absDistance(currentIndex, targetIdx) < minDistance) {
+            return nextLinear;
+        }
+
+        var threshold = settings.similarityThreshold || 0.85;
+        var sim = stalkerLookupSimilarity(currentIndex, targetIdx, settings);
+        if (sim >= threshold) {
+            simStreak += 1;
+        } else {
+            simStreak = 0;
+        }
+
+        // Require sustained similarity before applying pull.
+        if (simStreak < 3) {
+            return nextLinear;
+        }
+
+        var strength = clamp01((sim - threshold) / Math.max(0.001, (1 - threshold)));
+        // Ramp pull chance up with time away, but keep it subtle.
+        var awayFactor = clamp01((beatsAway - (settings.armBeats || 0)) / 24);
+        var pullProb = Math.min(0.3, 0.06 + 0.18 * strength * (0.35 + 0.65 * awayFactor));
+        if (Math.random() > pullProb) {
+            return nextLinear;
+        }
+
+        // Start a multi-step suction sequence toward a pre-roll near the anchor.
+        var destIdx = computeReentryIndex(targetIdx);
+        startPullSequence(destIdx, strength);
+        var first = pullStepToward(destIdx);
+        if (first !== null && first !== currentIndex) {
+            // Only start cooldown once we've committed to a pull.
+            cooldownLeft = settings.cooldownBeats || 0;
+            beatsAway = 0;
+            simStreak = 0;
+            pullStepsLeft = Math.max(0, pullStepsLeft - 1);
+            return first;
+        } else {
+            pullStepsLeft = 0;
+            pullDestIndex = null;
+        }
+        return nextLinear;
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+
+        if (currentIndex >= masterQs.length) {
+            if (autoPlayNext && playNextInQueue()) {
+                return;
+            }
+            stop();
+            return;
+        }
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        var targetIdx = ensureStalkerTarget(currentIndex);
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        var simNow = stalkerLookupSimilarity(currentIndex, targetIdx, settings);
+        notifyStackOnBeat({
+            mode: modeName,
+            currentIndex: currentIndex,
+            beat: q,
+            targetIndex: targetIdx,
+            similarityToTarget: simNow
+        });
+        var delay = player.playQ(q);
+
+        var proposed = computeProposedNext(targetIdx);
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: proposed === targetIdx ? "gravity" : "sequential"
+        });
+
+        if (nextIdx !== currentIndex + 1) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeStalkerSettings(customSettings, ADVANCED_DEFAULTS.stalker);
+        cooldownLeft = 0;
+        beatsAway = 0;
+        simStreak = 0;
+        pullStepsLeft = 0;
+        pullDestIndex = null;
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getStalkerSettings());
+            currentIndex = 0;
+            ensureStalkerTarget(currentIndex);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            ensureStalkerTarget(currentIndex);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            ensureStalkerTarget(currentIndex);
+            cooldownLeft = 0;
+            beatsAway = 0;
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+// ===== Timbre Surfing (The Texture Drone) =====
+function sanitizeTimbreSurfingSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.timbreSurfing || {};
+    var out = cloneSettings(defaults);
+
+    var topK = coerceNumber(input.topK);
+    if (topK === null) topK = defaults.topK;
+    out.topK = clampNumber(Math.round(topK), 1, 16);
+
+    var minSim = coerceNumber(input.minSimilarity);
+    if (minSim === null) minSim = defaults.minSimilarity;
+    out.minSimilarity = clampNumber(minSim, 0.0, 0.999);
+
+    var minSpan = coerceNumber(input.minJumpSpanBeats);
+    if (minSpan === null) minSpan = defaults.minJumpSpanBeats;
+    out.minJumpSpanBeats = clampNumber(Math.round(minSpan), 0, 256);
+
+    var excl = coerceNumber(input.excludeNeighborBeats);
+    if (excl === null) excl = defaults.excludeNeighborBeats;
+    out.excludeNeighborBeats = clampNumber(Math.round(excl), 0, 32);
+
+    var temp = coerceNumber(input.temperature);
+    if (temp === null) temp = defaults.temperature;
+    out.temperature = clampNumber(temp, 0.03, 1.5);
+
+    var recent = coerceNumber(input.recentWindowBeats);
+    if (recent === null) recent = defaults.recentWindowBeats;
+    out.recentWindowBeats = clampNumber(Math.round(recent), 0, 512);
+
+    var penalty = coerceNumber(input.repeatPenalty);
+    if (penalty === null) penalty = defaults.repeatPenalty;
+    out.repeatPenalty = clampNumber(penalty, 0.0, 1.0);
+
+    var applyChance = coerceNumber(input.applyChance);
+    if (applyChance === null) applyChance = defaults.applyChance;
+    out.applyChance = clampNumber(applyChance, 0.0, 1.0);
+
+    var overrideJumps = coerceNumber(input.overrideJumps);
+    if (overrideJumps === null) overrideJumps = defaults.overrideJumps;
+    out.overrideJumps = overrideJumps >= 1 ? 1 : 0;
+
+    return out;
+}
+
+function getTimbreSurfingSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("timbreSurfing");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("timbreSurfing") : cloneAdvancedDefaults("timbreSurfing");
+    return sanitizeTimbreSurfingSettings(settings, ADVANCED_DEFAULTS.timbreSurfing);
+}
+
+function timbreSurfChooseNextIndex(currentIndex, settings, history) {
+    settings = sanitizeTimbreSurfingSettings(settings, ADVANCED_DEFAULTS.timbreSurfing);
+    history = Array.isArray(history) ? history : [];
+    if (!masterQs || !masterQs.length) return null;
+    if (!serverLoopCandidateMap) return null;
+
+    var edges = serverLoopCandidateMap[currentIndex] || [];
+    if (!edges.length) return null;
+
+    var excludeNeighbors = settings.excludeNeighborBeats || 0;
+    var minSpan = settings.minJumpSpanBeats || 0;
+    var minSim = settings.minSimilarity || 0;
+    var topK = settings.topK || 5;
+    var recentWindow = settings.recentWindowBeats || 0;
+    var repeatPenalty = settings.repeatPenalty || 0;
+
+    var recentCounts = Object.create(null);
+    if (recentWindow > 0 && history.length) {
+        var windowSlice = history.slice(Math.max(0, history.length - recentWindow));
+        for (var h = 0; h < windowSlice.length; h++) {
+            var idx = windowSlice[h];
+            recentCounts[idx] = (recentCounts[idx] || 0) + 1;
+        }
+    }
+
+    var scored = [];
+    for (var i = 0; i < edges.length; i++) {
+        var e = edges[i];
+        if (!e) continue;
+        var target = e.target;
+        if (typeof target !== "number" || !isFinite(target)) continue;
+        if (target < 0 || target >= masterQs.length) continue;
+
+        var sim = (typeof e.similarity === "number") ? e.similarity : 0;
+        if (sim < minSim) continue;
+        var span = Math.abs(target - currentIndex);
+        if (span < minSpan) continue;
+        if (excludeNeighbors > 0 && span <= excludeNeighbors) continue;
+
+        var s = sim;
+        if (repeatPenalty > 0 && recentCounts[target]) {
+            s = s - (recentCounts[target] * repeatPenalty);
+        }
+        scored.push({ target: target, similarity: sim, score: s });
+    }
+
+    if (!scored.length) return null;
+    scored.sort(function(a, b) {
+        if (b.score !== a.score) return b.score - a.score;
+        return b.similarity - a.similarity;
+    });
+    var pool = scored.slice(0, Math.max(1, Math.min(topK, scored.length)));
+    if (pool.length === 1) return pool[0].target;
+
+    // Softmax pick among topK.
+    var temperature = settings.temperature || 0.25;
+    var maxScore = pool[0].score;
+    var weights = [];
+    var totalWeight = 0;
+    for (var wIdx = 0; wIdx < pool.length; wIdx++) {
+        var w = Math.exp((pool[wIdx].score - maxScore) / temperature);
+        weights[wIdx] = w;
+        totalWeight += w;
+    }
+    var r = Math.random() * totalWeight;
+    for (var cIdx = 0; cIdx < pool.length; cIdx++) {
+        r -= weights[cIdx];
+        if (r <= 0) {
+            return pool[cIdx].target;
+        }
+    }
+    return pool[0].target;
+}
+
+function createTimbreSurfDriver(player, options) {
+    options = options || {};
+    var modeName = "timbresurf";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+    var currentIndex = 0;
+    var history = [];
+
+    var settings = sanitizeTimbreSurfingSettings(options, ADVANCED_DEFAULTS.timbreSurfing);
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function computeProposedNext() {
+        var nextLinear = currentIndex + 1;
+        if (nextLinear >= masterQs.length) {
+            return window.harmonizerLoopEnabled ? 0 : nextLinear;
+        }
+        return nextLinear;
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+
+        if (currentIndex >= masterQs.length) {
+            if (autoPlayNext && playNextInQueue()) {
+                return;
+            }
+            stop();
+            return;
+        }
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q });
+        var delay = player.playQ(q);
+
+        history.push(currentIndex);
+        if (history.length > 1024) history.shift();
+
+        var proposed = computeProposedNext();
+        var nextIdx = proposed;
+        var usedSurf = false;
+        if (Math.random() < (settings.applyChance || 1.0)) {
+            var surfIdx = timbreSurfChooseNextIndex(currentIndex, settings, history);
+            if (typeof surfIdx === "number" && isFinite(surfIdx)) {
+                nextIdx = surfIdx;
+                usedSurf = true;
+            }
+        }
+
+        nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: nextIdx,
+            beat: q,
+            proposedReason: usedSurf ? "timbre" : "sequential"
+        });
+
+        if (nextIdx !== currentIndex + 1) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeTimbreSurfingSettings(customSettings, ADVANCED_DEFAULTS.timbreSurfing);
+        history = [];
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getTimbreSurfingSettings());
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            history = [];
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+// Register The Stalker as a stackable gravity layer.
+registerStackLayer({
+    id: "stalker",
+    label: "The Stalker",
+    description: "When the song reminds you of the target, it snaps back.",
+    factory: function(ctx) {
+        var settings = getStalkerSettings();
+        var cooldownLeft = 0;
+        var beatsAway = 0;
+        var simStreak = 0;
+        var pullStepsLeft = 0;
+        var pullDestIndex = null;
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.currentIndex !== "number" || typeof meta.proposedIndex !== "number") return null;
+                if ((meta.mode || "").toLowerCase() === "stalker") return null;
+
+                if (!masterQs || !masterQs.length) return null;
+                var targetIdx = ensureStalkerTarget(meta.currentIndex);
+                if (cooldownLeft > 0) {
+                    cooldownLeft -= 1;
+                    return null;
+                }
+                if (meta.currentIndex === targetIdx) {
+                    beatsAway = 0;
+                    simStreak = 0;
+                    pullStepsLeft = 0;
+                    pullDestIndex = null;
+                    return null;
+                }
+                beatsAway += 1;
+                if (beatsAway < (settings.armBeats || 0)) {
+                    return null;
+                }
+
+                // Only apply subtle gravity to sequential movement; don't override other explicit jumps.
+                if (meta.proposedIndex !== meta.currentIndex + 1) {
+                    return null;
+                }
+
+                // If we're currently being pulled, keep stepping toward the destination.
+                if (pullStepsLeft > 0 && typeof pullDestIndex === "number") {
+                    pullStepsLeft -= 1;
+                    var dist = Math.abs(meta.currentIndex - pullDestIndex);
+                    if (dist <= 2) {
+                        pullStepsLeft = 0;
+                        pullDestIndex = null;
+                        return null;
+                    }
+                    // Prefer a candidate edge that moves closer.
+                    var best = null;
+                    var bestScore = -Infinity;
+                    if (serverLoopCandidateMap) {
+                        var edges = serverLoopCandidateMap[meta.currentIndex] || [];
+                        for (var ei = 0; ei < edges.length; ei++) {
+                            var e = edges[ei];
+                            if (!e || typeof e.target !== "number") continue;
+                            var cand = e.target;
+                            if (cand === meta.currentIndex) continue;
+                            var newDist = Math.abs(cand - pullDestIndex);
+                            if (newDist >= dist) continue;
+                            var simToAnchor = stalkerLookupSimilarity(cand, targetIdx, settings);
+                            var edgeSim = (typeof e.similarity === "number") ? e.similarity : 0;
+                            var score = 0.7 * simToAnchor + 0.3 * edgeSim;
+                            if (score > bestScore) {
+                                bestScore = score;
+                                best = cand;
+                            }
+                        }
+                    }
+                    if (best !== null) {
+                        return { index: best };
+                    }
+                    // Fallback: nudge a small step toward the destination.
+                    var dir = pullDestIndex > meta.currentIndex ? 1 : -1;
+                    var stepSize = Math.round(dist / Math.max(2, pullStepsLeft + 2));
+                    stepSize = clampNumber(stepSize, 4, 18);
+                    var next = meta.currentIndex + dir * stepSize;
+                    if (dir > 0) next = Math.min(next, pullDestIndex);
+                    else next = Math.max(next, pullDestIndex);
+                    next = Math.max(0, Math.min(masterQs.length - 1, Math.round(next)));
+                    if (next !== meta.currentIndex) {
+                        return { index: next };
+                    }
+                    pullStepsLeft = 0;
+                    pullDestIndex = null;
+                    return null;
+                }
+
+                var minDistance = Math.max(12, Math.round((settings.armBeats || 0) * 4));
+                if (Math.abs(meta.currentIndex - targetIdx) < minDistance) {
+                    return null;
+                }
+
+                var threshold = settings.similarityThreshold || 0.85;
+                var sim = stalkerLookupSimilarity(meta.currentIndex, targetIdx, settings);
+                if (sim >= threshold) simStreak += 1;
+                else simStreak = 0;
+                if (simStreak < 3) return null;
+
+                var strength = clamp01((sim - threshold) / Math.max(0.001, (1 - threshold)));
+                var awayFactor = clamp01((beatsAway - (settings.armBeats || 0)) / 24);
+                var pullProb = Math.min(0.3, 0.06 + 0.18 * strength * (0.35 + 0.65 * awayFactor));
+                if (Math.random() > pullProb) return null;
+
+                // Start a multi-step suction sequence toward a pre-roll near the anchor.
+                pullDestIndex = Math.max(0, Math.min(masterQs.length - 1, targetIdx - 4));
+                var steps = 2 + Math.floor(strength * 5);
+                pullStepsLeft = clampNumber(steps, 2, 8);
+                cooldownLeft = settings.cooldownBeats || 0;
+                beatsAway = 0;
+                simStreak = 0;
+                // Next tick will execute the first pull step.
+                return null;
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    cooldownLeft = 0;
+                    beatsAway = 0;
+                    simStreak = 0;
+                    pullStepsLeft = 0;
+                    pullDestIndex = null;
+                }
+            },
+            dispose: function() {
+                cooldownLeft = 0;
+                beatsAway = 0;
+                simStreak = 0;
+                pullStepsLeft = 0;
+                pullDestIndex = null;
+            }
+        };
+    }
+});
+
+// Register Timbre Surfing as a stackable texture drift layer.
+registerStackLayer({
+    id: "timbresurf",
+    label: "Timbre Surfing",
+    description: "Jump among timbrally similar beats for infinite texture loops.",
+    factory: function(ctx) {
+        var settings = getTimbreSurfingSettings();
+        var history = [];
+
+        function remember(idx) {
+            history.push(idx);
+            var maxKeep = Math.max(16, Math.round((settings.recentWindowBeats || 0) * 2) + 32);
+            if (history.length > maxKeep) {
+                history = history.slice(history.length - maxKeep);
+            }
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.currentIndex !== "number" || typeof meta.proposedIndex !== "number") return null;
+                if ((meta.mode || "").toLowerCase() === "timbresurf") return null;
+
+                if (Math.random() > (settings.applyChance || 1.0)) {
+                    return null;
+                }
+
+                var cur = meta.currentIndex;
+                var proposed = meta.proposedIndex;
+
+                // Default: only affect sequential progress unless override is enabled.
+                if (settings.overrideJumps < 1 && proposed !== cur + 1) {
+                    remember(cur);
+                    return null;
+                }
+
+                remember(cur);
+                var next = timbreSurfChooseNextIndex(cur, settings, history);
+                if (typeof next === "number" && isFinite(next)) {
+                    return { index: next };
+                }
+                return null;
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    history = [];
+                }
+            },
+            dispose: function() {
+                history = [];
+            }
+        };
+    }
+});
+
+// ===== Chroma Stacking (The Wall of Sound) =====
+function sanitizeChromaStackingSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.chromaStacking || {};
+    var out = cloneSettings(defaults);
+
+    var overlayGain = coerceNumber(input.overlayGain);
+    if (overlayGain === null) overlayGain = defaults.overlayGain;
+    out.overlayGain = clamp01(overlayGain);
+
+    var minChroma = coerceNumber(input.minChromaSimilarity);
+    if (minChroma === null) minChroma = defaults.minChromaSimilarity;
+    out.minChromaSimilarity = clampNumber(minChroma, 0.2, 0.999);
+
+    var minTimbre = coerceNumber(input.minTimbreDistance);
+    if (minTimbre === null) minTimbre = defaults.minTimbreDistance;
+    out.minTimbreDistance = clampNumber(minTimbre, 0, 300);
+
+    var excl = coerceNumber(input.excludeNeighborBeats);
+    if (excl === null) excl = defaults.excludeNeighborBeats;
+    out.excludeNeighborBeats = clampNumber(Math.round(excl), 0, 32);
+
+    var minSpan = coerceNumber(input.minJumpSpanBeats);
+    if (minSpan === null) minSpan = defaults.minJumpSpanBeats;
+    out.minJumpSpanBeats = clampNumber(Math.round(minSpan), 0, 256);
+
+    var searchTopK = coerceNumber(input.searchTopK);
+    if (searchTopK === null) searchTopK = defaults.searchTopK;
+    out.searchTopK = clampNumber(Math.round(searchTopK), 1, 32);
+
+    var randomSample = coerceNumber(input.randomSample);
+    if (randomSample === null) randomSample = defaults.randomSample;
+    out.randomSample = clampNumber(Math.round(randomSample), 0, 256);
+
+    var temperature = coerceNumber(input.temperature);
+    if (temperature === null) temperature = defaults.temperature;
+    out.temperature = clampNumber(temperature, 0.03, 1.5);
+
+    var resampleBeats = coerceNumber(input.resampleBeats);
+    if (resampleBeats === null) resampleBeats = defaults.resampleBeats;
+    out.resampleBeats = clampNumber(Math.round(resampleBeats), 1, 64);
+
+    return out;
+}
+
+function getChromaStackingSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("chromaStacking");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("chromaStacking") : cloneAdvancedDefaults("chromaStacking");
+    return sanitizeChromaStackingSettings(settings, ADVANCED_DEFAULTS.chromaStacking);
+}
+
+function createSliceOverlayHead(player, trackRef, options) {
+    options = options || {};
+    var ctx = (player && typeof player.getContext === "function") ? player.getContext() : null;
+    if (!ctx) return null;
+    var buffer =
+        (trackRef && trackRef.buffer) ||
+        (masterQs && masterQs.length && masterQs[0] && masterQs[0].track && masterQs[0].track.buffer) ||
+        null;
+    if (!buffer) return null;
+
+    var master = ctx.createGain();
+    master.gain.value = clamp01(options.gain != null ? options.gain : 0.7);
+    master.connect(ctx.destination);
+    var active = null;
+
+    function stopActive(fadeSeconds) {
+        if (!active) return;
+        try {
+            var now = ctx.currentTime;
+            var fade = Math.max(0.005, fadeSeconds || 0.02);
+            try {
+                active.gain.gain.cancelScheduledValues(now);
+                active.gain.gain.setValueAtTime(active.gain.gain.value, now);
+                active.gain.gain.linearRampToValueAtTime(0.0, now + fade);
+            } catch (e) {}
+            try {
+                active.source.stop(now + fade + 0.01);
+            } catch (e2) {
+                try { active.source.stop(); } catch (e3) {}
+            }
+        } catch (e4) {}
+        active = null;
+    }
+
+    function playSlice(offsetSeconds, durationSeconds, playbackRate) {
+        if (!buffer) return;
+        if (typeof window !== "undefined" && window.harmonizerBaseAudioOnly) {
+            stopActive(0.02);
+            return;
+        }
+        var offset = Math.max(0, offsetSeconds || 0);
+        var dur = Math.max(0.02, durationSeconds || 0.1);
+        if (offset >= buffer.duration) return;
+        dur = Math.min(dur, Math.max(0.02, buffer.duration - offset));
+
+        stopActive(0.015);
+
+        var src = ctx.createBufferSource();
+        src.buffer = buffer;
+        try {
+            src.playbackRate.value = (typeof playbackRate === "number" && isFinite(playbackRate)) ? playbackRate : 1.0;
+        } catch (e) {}
+        var g = ctx.createGain();
+        g.gain.value = 0.0;
+        src.connect(g);
+        g.connect(master);
+        var now = ctx.currentTime;
+        try {
+            g.gain.setValueAtTime(0.0, now);
+            g.gain.linearRampToValueAtTime(1.0, now + 0.015);
+        } catch (e2) {
+            g.gain.value = 1.0;
+        }
+        try {
+            src.start(0, offset, dur + 0.02);
+        } catch (e3) {
+            try { src.start(0, offset); } catch (e4) {}
+        }
+        active = { source: src, gain: g };
+    }
+
+    return {
+        playSlice: playSlice,
+        setGain: function(v) {
+            try { master.gain.value = clamp01(v); } catch (e) {}
+        },
+        stop: function() {
+            stopActive(0.02);
+        }
+    };
+}
+
+function buildChromaStackState(beats, settings) {
+    beats = beats || [];
+    settings = sanitizeChromaStackingSettings(settings, ADVANCED_DEFAULTS.chromaStacking);
+    var chromas = computeBeatChromaVectors(beats);
+    var timbres = computeBeatTimbreVectors(beats);
+    var pitchClasses = new Array(beats.length);
+    var buckets = new Array(12);
+    for (var i = 0; i < 12; i++) buckets[i] = [];
+    for (var b = 0; b < beats.length; b++) {
+        var pc = chromas[b] ? dominantPitchClass(chromas[b]) : 0;
+        pitchClasses[b] = pc;
+        buckets[pc].push(b);
+    }
+    return {
+        chromas: chromas,
+        timbres: timbres,
+        pitchClasses: pitchClasses,
+        buckets: buckets
+    };
+}
+
+function pickChromaStackOverlayIndex(curIdx, state, settings) {
+    if (!state || !state.chromas || !state.chromas.length) return null;
+    if (typeof curIdx !== "number" || !isFinite(curIdx)) return null;
+    curIdx = Math.max(0, Math.min(state.chromas.length - 1, Math.round(curIdx)));
+    var curChroma = state.chromas[curIdx];
+    var curTimbre = state.timbres[curIdx];
+    if (!curChroma || !curTimbre) return null;
+
+    var excludeNeighbors = settings.excludeNeighborBeats || 0;
+    var minSpan = settings.minJumpSpanBeats || 0;
+    var minChroma = settings.minChromaSimilarity || 0.85;
+    var minTimbre = settings.minTimbreDistance || 0;
+    var searchTopK = settings.searchTopK || 10;
+    var randomSample = settings.randomSample || 0;
+
+    var candidates = [];
+    var seen = Object.create(null);
+
+    var edges = serverLoopCandidateMap ? (serverLoopCandidateMap[curIdx] || []) : [];
+    for (var i = 0; i < edges.length && candidates.length < searchTopK; i++) {
+        var e = edges[i];
+        if (!e || typeof e.target !== "number") continue;
+        var t = e.target;
+        if (t < 0 || t >= state.chromas.length) continue;
+        if (!seen[t]) {
+            candidates.push(t);
+            seen[t] = true;
+        }
+    }
+
+    if (randomSample > 0 && state.buckets && state.pitchClasses) {
+        var pc = state.pitchClasses[curIdx] || 0;
+        var bucket = state.buckets[pc] || [];
+        var tries = 0;
+        var want = Math.min(randomSample, Math.max(0, bucket.length));
+        while (candidates.length < (searchTopK + want) && tries < want * 4 && bucket.length) {
+            tries += 1;
+            var r = bucket[Math.floor(Math.random() * bucket.length)];
+            if (r === curIdx) continue;
+            if (!seen[r]) {
+                candidates.push(r);
+                seen[r] = true;
+            }
+        }
+    }
+
+    if (!candidates.length) return null;
+
+    var scored = [];
+    for (var c = 0; c < candidates.length; c++) {
+        var idx = candidates[c];
+        var span = Math.abs(idx - curIdx);
+        if (excludeNeighbors > 0 && span <= excludeNeighbors) continue;
+        if (span < minSpan) continue;
+        var chromaSim = chromaDotSimilarity(curChroma, state.chromas[idx]);
+        if (chromaSim < minChroma) continue;
+        var tdist = euclidean_distance(curTimbre, state.timbres[idx]);
+        if (tdist < minTimbre) continue;
+        var score = chromaSim + 0.0025 * Math.min(200, Math.max(0, tdist));
+        scored.push({ idx: idx, score: score });
+    }
+
+    if (!scored.length) return null;
+    scored.sort(function(a, b) { return b.score - a.score; });
+    var pool = scored.slice(0, Math.min(8, scored.length));
+    if (pool.length === 1) return pool[0].idx;
+
+    var temperature = settings.temperature || 0.2;
+    var maxScore = pool[0].score;
+    var weights = [];
+    var totalWeight = 0;
+    for (var w = 0; w < pool.length; w++) {
+        var ww = Math.exp((pool[w].score - maxScore) / temperature);
+        weights[w] = ww;
+        totalWeight += ww;
+    }
+    var rr = Math.random() * totalWeight;
+    for (var pick = 0; pick < pool.length; pick++) {
+        rr -= weights[pick];
+        if (rr <= 0) {
+            return pool[pick].idx;
+        }
+    }
+    return pool[0].idx;
+}
+
+function createChromaStackDriver(player, options) {
+    options = options || {};
+    var modeName = "chromastack";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+    var currentIndex = 0;
+
+    var settings = sanitizeChromaStackingSettings(options, ADVANCED_DEFAULTS.chromaStacking);
+    var state = null;
+    var overlayHead = null;
+    var overlayIndex = null;
+    var overlayHold = 0;
+    var lastOverlayIndex = null;
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function ensureState() {
+        if (!state) {
+            state = buildChromaStackState(masterQs, settings);
+        }
+        if (!overlayHead) {
+            overlayHead = createSliceOverlayHead(player, curTrack || (masterQs[0] ? masterQs[0].track : null), { gain: settings.overlayGain });
+        }
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        if (overlayHead) overlayHead.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        if (overlayHead) overlayHead.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function maybePickOverlay() {
+        if (overlayHold > 0 && overlayIndex !== null) {
+            overlayHold -= 1;
+            return overlayIndex;
+        }
+        var idx = pickChromaStackOverlayIndex(currentIndex, state, settings);
+        if (typeof idx === "number" && isFinite(idx)) {
+            overlayIndex = idx;
+            overlayHold = Math.max(0, (settings.resampleBeats || 1) - 1);
+            return overlayIndex;
+        }
+        overlayIndex = null;
+        overlayHold = 0;
+        return null;
+    }
+
+    function computeProposedNext() {
+        var nextLinear = currentIndex + 1;
+        if (nextLinear >= masterQs.length) {
+            return window.harmonizerLoopEnabled ? 0 : nextLinear;
+        }
+        return nextLinear;
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+
+        if (currentIndex >= masterQs.length) {
+            if (autoPlayNext && playNextInQueue()) {
+                return;
+            }
+            stop();
+            return;
+        }
+
+        ensureState();
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        var chosenOverlay = maybePickOverlay();
+        var overlayBeat = (typeof chosenOverlay === "number" && masterQs[chosenOverlay]) ? masterQs[chosenOverlay] : null;
+        if (overlayBeat && overlayBeat.tile) {
+            overlayBeat.tile.highlight2("rgba(168, 88, 255, 0.85)");
+        }
+
+        if (overlayHead && overlayBeat) {
+            overlayHead.setGain(settings.overlayGain || 0.7);
+            var rate = (player && typeof player.getSpeedFactor === "function") ? player.getSpeedFactor() : 1.0;
+            overlayHead.playSlice(overlayBeat.start || 0, q.duration || 0.25, rate);
+        }
+
+        if (typeof chosenOverlay === "number" && lastOverlayIndex !== null && chosenOverlay !== lastOverlayIndex) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(lastOverlayIndex, chosenOverlay, true);
+            }
+        }
+        lastOverlayIndex = (typeof chosenOverlay === "number") ? chosenOverlay : lastOverlayIndex;
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q, overlayIndex: chosenOverlay });
+        var delay = player.playQ(q);
+
+        var proposed = computeProposedNext();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: "sequential"
+        });
+
+        if (nextIdx !== currentIndex + 1) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeChromaStackingSettings(customSettings, ADVANCED_DEFAULTS.chromaStacking);
+        state = null;
+        overlayIndex = null;
+        overlayHold = 0;
+        lastOverlayIndex = null;
+        if (overlayHead) {
+            overlayHead.setGain(settings.overlayGain || 0.7);
+        }
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getChromaStackingSettings());
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            overlayIndex = null;
+            overlayHold = 0;
+            lastOverlayIndex = null;
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+registerStackLayer({
+    id: "chromastack",
+    label: "Chroma Stacking",
+    description: "Overlay harmonically-matching beats with contrasting timbre.",
+    factory: function(ctx) {
+        var player = driver && driver.player ? driver.player : null;
+        if (!player || typeof player.getContext !== "function") return null;
+        var settings = getChromaStackingSettings();
+        var state = buildChromaStackState(ctx && ctx.beats ? ctx.beats : masterQs, settings);
+        var overlayHead = createSliceOverlayHead(player, ctx && ctx.track ? ctx.track : curTrack, { gain: settings.overlayGain });
+        if (!overlayHead) return null;
+        var hold = 0;
+        var overlayIndex = null;
+
+        function maybePick(curIdx) {
+            if (hold > 0 && overlayIndex !== null) {
+                hold -= 1;
+                return overlayIndex;
+            }
+            var idx = pickChromaStackOverlayIndex(curIdx, state, settings);
+            if (typeof idx === "number" && isFinite(idx)) {
+                overlayIndex = idx;
+                hold = Math.max(0, (settings.resampleBeats || 1) - 1);
+                return overlayIndex;
+            }
+            overlayIndex = null;
+            hold = 0;
+            return null;
+        }
+
+        return {
+            onBeat: function(meta) {
+                if (!meta || !meta.beat) return;
+                if ((meta.mode || "").toLowerCase() === "chromastack") return;
+                var curIdx = typeof meta.currentIndex === "number" ? meta.currentIndex : (meta.beat.which || 0);
+                var idx = maybePick(curIdx);
+                if (idx === null || idx === undefined) return;
+                var beat = (masterQs && masterQs[idx]) ? masterQs[idx] : null;
+                if (!beat) return;
+                overlayHead.setGain(settings.overlayGain || 0.7);
+                var rate = (player && typeof player.getSpeedFactor === "function") ? player.getSpeedFactor() : 1.0;
+                overlayHead.playSlice(beat.start || 0, (meta.beat && meta.beat.duration) || 0.25, rate);
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    hold = 0;
+                    overlayIndex = null;
+                    overlayHead.stop();
+                }
+            },
+            dispose: function() {
+                hold = 0;
+                overlayIndex = null;
+                overlayHead.stop();
+            }
+        };
+    }
+});
+
+// ===== Beat Sorting (Deconstruction) =====
+function sanitizeBeatSortingSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.beatSorting || {};
+    var out = cloneSettings(defaults);
+
+    var feature = coerceNumber(input.feature);
+    if (feature === null) feature = defaults.feature;
+    out.feature = clampNumber(Math.round(feature), 0, 2); // 0=pitch, 1=brightness, 2=loudness
+
+    var direction = coerceNumber(input.direction);
+    if (direction === null) direction = defaults.direction;
+    out.direction = direction >= 1 ? 1 : 0; // 0=asc, 1=desc
+
+    var minVolume = coerceNumber(input.minVolume);
+    if (minVolume === null) minVolume = defaults.minVolume;
+    out.minVolume = clampNumber(minVolume, 0, 1);
+
+    var repeatEach = coerceNumber(input.repeatEach);
+    if (repeatEach === null) repeatEach = defaults.repeatEach;
+    out.repeatEach = clampNumber(Math.round(repeatEach), 1, 16);
+
+    var overrideJumps = coerceNumber(input.overrideJumps);
+    if (overrideJumps === null) overrideJumps = defaults.overrideJumps;
+    out.overrideJumps = overrideJumps >= 1 ? 1 : 0;
+
+    return out;
+}
+
+function getBeatSortingSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("beatSorting");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("beatSorting") : cloneAdvancedDefaults("beatSorting");
+    return sanitizeBeatSortingSettings(settings, ADVANCED_DEFAULTS.beatSorting);
+}
+
+function buildBeatSortingState(beats, settings) {
+    settings = sanitizeBeatSortingSettings(settings, ADVANCED_DEFAULTS.beatSorting);
+    beats = beats || [];
+    var n = beats.length;
+    var values = new Array(n);
+    var raw = new Array(n);
+    var energyRaw = new Array(n);
+
+    var chromas = null;
+    var timbres = null;
+
+    if (settings.feature === 0) {
+        chromas = computeBeatChromaVectors(beats);
+    } else if (settings.feature === 1) {
+        timbres = computeBeatTimbreVectors(beats);
+    }
+
+    var minV = Infinity;
+    var maxV = -Infinity;
+    var minE = Infinity;
+    var maxE = -Infinity;
+    for (var i = 0; i < n; i++) {
+        var b = beats[i];
+        var energy = beatEnergy(b);
+        if (!isFinite(energy)) energy = 0;
+        energyRaw[i] = energy;
+        if (energy < minE) minE = energy;
+        if (energy > maxE) maxE = energy;
+        var v = 0;
+        if (settings.feature === 2) {
+            v = energy;
+        } else if (settings.feature === 1) {
+            var tv = timbres && timbres[i] ? timbres[i] : null;
+            v = tv ? (tv[1] || 0) : 0;
+        } else {
+            var cv = chromas && chromas[i] ? chromas[i] : null;
+            if (cv) {
+                var sum = 0;
+                var wsum = 0;
+                for (var p = 0; p < 12; p++) {
+                    var w = cv[p] || 0;
+                    wsum += w;
+                    sum += w * p;
+                }
+                v = wsum > 0 ? (sum / wsum) : 0;
+            } else {
+                v = 0;
+            }
+        }
+        if (!isFinite(v)) v = 0;
+        raw[i] = v;
+        if (v < minV) minV = v;
+        if (v > maxV) maxV = v;
+    }
+
+    var range = maxV - minV;
+    if (!isFinite(range) || range <= 1e-9) range = 1;
+    for (var j = 0; j < n; j++) {
+        values[j] = (raw[j] - minV) / range;
+        if (!isFinite(values[j])) values[j] = 0;
+        values[j] = clamp01(values[j]);
+    }
+
+    var order = [];
+    var minVol = settings.minVolume || 0;
+    var energy01 = new Array(n);
+    var eRange = maxE - minE;
+    if (!isFinite(eRange) || eRange <= 1e-9) eRange = 1;
+    for (var k = 0; k < n; k++) {
+        energy01[k] = clamp01((energyRaw[k] - minE) / eRange);
+        if (energy01[k] < minVol) {
+            continue;
+        }
+        order.push(k);
+    }
+    if (!order.length && n) {
+        // Avoid a dead/no-op state if volume units differ (e.g., dB loudness).
+        for (var kk = 0; kk < n; kk++) order.push(kk);
+    }
+
+    order.sort(function(a, b) {
+        var va = values[a];
+        var vb = values[b];
+        if (va === vb) return a - b;
+        return settings.direction >= 1 ? (vb - va) : (va - vb);
+    });
+
+    var posByIndex = Object.create(null);
+    for (var z = 0; z < order.length; z++) {
+        posByIndex[order[z]] = z;
+    }
+
+    return {
+        feature: settings.feature,
+        direction: settings.direction,
+        values: values,
+        energy01: energy01,
+        order: order,
+        posByIndex: posByIndex
+    };
+}
+
+function createBeatSortingDriver(player, options) {
+    options = options || {};
+    var modeName = "beatsort";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+
+    var settings = sanitizeBeatSortingSettings(options, ADVANCED_DEFAULTS.beatSorting);
+    var state = null;
+    var orderPos = 0;
+    var repeatLeft = 0;
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function ensureState() {
+        if (!state) {
+            state = buildBeatSortingState(masterQs, settings);
+            orderPos = 0;
+            repeatLeft = Math.max(0, (settings.repeatEach || 1) - 1);
+        }
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function currentIndex() {
+        ensureState();
+        if (!state.order.length) return 0;
+        var pos = Math.max(0, Math.min(state.order.length - 1, orderPos));
+        return state.order[pos];
+    }
+
+    function advancePosition() {
+        ensureState();
+        if (repeatLeft > 0) {
+            repeatLeft -= 1;
+            return;
+        }
+        orderPos += 1;
+        repeatLeft = Math.max(0, (settings.repeatEach || 1) - 1);
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+        ensureState();
+
+        if (!state.order.length) {
+            stop();
+            return;
+        }
+
+        if (orderPos >= state.order.length) {
+            if (window.harmonizerLoopEnabled) {
+                orderPos = 0;
+            } else if (autoPlayNext && playNextInQueue()) {
+                return;
+            } else {
+                stop();
+                return;
+            }
+        }
+
+        var idx = currentIndex();
+        var q = masterQs[idx];
+        if (!q) {
+            orderPos = Math.max(0, Math.min(state.order.length - 1, orderPos + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        // Play audio first; UI can fail safely without muting the mode.
+        var delay = player.playQ(q);
+        try {
+            if (q.tile && typeof q.tile.highlight === "function") {
+                q.tile.highlight();
+            }
+            updateCursors(q);
+            mtime.text(fmtTime(q.start));
+            pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+        } catch (uiErr) {}
+
+        try {
+            notifyStackOnBeat({ mode: modeName, currentIndex: idx, beat: q, sortPos: orderPos, sortValue: state.values[idx] });
+        } catch (stackErr) {}
+
+        var proposed = idx; // will be overridden below
+        advancePosition();
+        if (orderPos < state.order.length) {
+            proposed = state.order[orderPos];
+        } else {
+            proposed = window.harmonizerLoopEnabled ? state.order[0] : masterQs.length;
+        }
+
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: idx,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: "beatsort"
+        });
+
+        // If a stack layer changes the next beat, sync our cursor to it.
+        if (nextIdx !== proposed && state.posByIndex && state.posByIndex[nextIdx] !== undefined) {
+            orderPos = state.posByIndex[nextIdx];
+            repeatLeft = Math.max(0, (settings.repeatEach || 1) - 1);
+        }
+
+        if (nextIdx !== idx + 1 && nextIdx !== idx) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(idx, nextIdx, false);
+            }
+        }
+
+        // If nextIdx is beyond track end, let loop/end logic handle it at top.
+        if (nextIdx >= 0 && nextIdx < masterQs.length) {
+            // Align orderPos if possible.
+            if (state.posByIndex && state.posByIndex[nextIdx] !== undefined) {
+                orderPos = state.posByIndex[nextIdx];
+            }
+        } else {
+            orderPos = state.order.length;
+        }
+
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeBeatSortingSettings(customSettings, ADVANCED_DEFAULTS.beatSorting);
+        state = null;
+        orderPos = 0;
+        repeatLeft = 0;
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getBeatSortingSettings());
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            ensureState();
+            var idx = q.which;
+            if (state.posByIndex && state.posByIndex[idx] !== undefined) {
+                orderPos = state.posByIndex[idx];
+            } else {
+                orderPos = 0;
+            }
+            repeatLeft = Math.max(0, (settings.repeatEach || 1) - 1);
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex(); },
+        get running() { return running; }
+    };
+}
+
+// Register Beat Sorting as a stackable reorder layer.
+registerStackLayer({
+    id: "beatsort",
+    label: "Beat Sorting",
+    description: "Reorder playback by pitch/brightness/loudness gradients.",
+    factory: function(ctx) {
+        if (!ctx || !ctx.beats || !ctx.beats.length) return null;
+        var settings = getBeatSortingSettings();
+        var state = buildBeatSortingState(ctx.beats, settings);
+        if (!state || !state.order || !state.order.length) return null;
+
+        var repeatLeft = 0;
+
+        function resetRepeats() {
+            repeatLeft = Math.max(0, (settings.repeatEach || 1) - 1);
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.currentIndex !== "number" || typeof meta.proposedIndex !== "number") return null;
+                if ((meta.mode || "").toLowerCase() === "beatsort") return null;
+
+                var cur = meta.currentIndex;
+                var proposed = meta.proposedIndex;
+
+                if (settings.overrideJumps < 1 && proposed !== cur + 1) {
+                    resetRepeats();
+                    return null;
+                }
+
+                if (repeatLeft > 0) {
+                    repeatLeft -= 1;
+                    return { index: cur };
+                }
+
+                var pos = (state.posByIndex && state.posByIndex[cur] !== undefined) ? state.posByIndex[cur] : null;
+                if (pos === null) {
+                    resetRepeats();
+                    return { index: state.order[0] };
+                }
+
+                var nextPos = pos + 1;
+                if (nextPos >= state.order.length) {
+                    if (window.harmonizerLoopEnabled) {
+                        nextPos = 0;
+                    } else {
+                        resetRepeats();
+                        return null;
+                    }
+                }
+
+                resetRepeats();
+                return { index: state.order[nextPos] };
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    repeatLeft = 0;
+                }
+            },
+            dispose: function() {
+                repeatLeft = 0;
+            }
+        };
+    }
+});
+
+// ===== Reverse Bloom (Drop-to-Rewind) =====
+function sanitizeReverseBloomSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.reverseBloom || {};
+    var out = cloneSettings(defaults);
+
+    var thr = coerceNumber(input.triggerThreshold);
+    if (thr === null) thr = defaults.triggerThreshold;
+    out.triggerThreshold = clampNumber(thr, 0, 1);
+
+    var rewindBeats = coerceNumber(input.rewindBeats);
+    if (rewindBeats === null) rewindBeats = defaults.rewindBeats;
+    out.rewindBeats = clampNumber(Math.round(rewindBeats), 1, 128);
+
+    var chance = coerceNumber(input.rewindChance);
+    if (chance === null) chance = defaults.rewindChance;
+    out.rewindChance = clampNumber(chance, 0, 1);
+
+    var cooldown = coerceNumber(input.cooldownBeats);
+    if (cooldown === null) cooldown = defaults.cooldownBeats;
+    out.cooldownBeats = clampNumber(Math.round(cooldown), 0, 256);
+
+    var resumeMode = coerceNumber(input.resumeMode);
+    if (resumeMode === null) resumeMode = defaults.resumeMode;
+    out.resumeMode = resumeMode >= 1 ? 1 : 0; // 0=linear, 1=similarity hop
+
+    var minSim = coerceNumber(input.minSimilarity);
+    if (minSim === null) minSim = defaults.minSimilarity;
+    out.minSimilarity = clampNumber(minSim, 0, 0.999);
+
+    var minSpan = coerceNumber(input.bloomMinSpanBeats);
+    if (minSpan === null) minSpan = defaults.bloomMinSpanBeats;
+    out.bloomMinSpanBeats = clampNumber(Math.round(minSpan), 0, 512);
+
+    var topK = coerceNumber(input.bloomTopK);
+    if (topK === null) topK = defaults.bloomTopK;
+    out.bloomTopK = clampNumber(Math.round(topK), 1, 32);
+
+    var temp = coerceNumber(input.bloomTemperature);
+    if (temp === null) temp = defaults.bloomTemperature;
+    out.bloomTemperature = clampNumber(temp, 0.03, 1.5);
+
+    var overrideJumps = coerceNumber(input.overrideJumps);
+    if (overrideJumps === null) overrideJumps = defaults.overrideJumps;
+    out.overrideJumps = overrideJumps >= 1 ? 1 : 0;
+
+    return out;
+}
+
+function getReverseBloomSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("reverseBloom");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("reverseBloom") : cloneAdvancedDefaults("reverseBloom");
+    return sanitizeReverseBloomSettings(settings, ADVANCED_DEFAULTS.reverseBloom);
+}
+
+function reverseBloomEnergy01(beat) {
+    var e = beatEnergy(beat);
+    if (!isFinite(e)) e = 0;
+    return clamp01(e);
+}
+
+function reverseBloomCrossedThreshold(prev, next, thr) {
+    if (!isFinite(prev)) prev = 0;
+    if (!isFinite(next)) next = 0;
+    if (!isFinite(thr)) thr = 0;
+    // A threshold of 0 should make triggering easier, not disable the mode.
+    if (thr <= 0) {
+        return prev <= 0 && next > 0;
+    }
+    return prev < thr && next >= thr;
+}
+
+function reverseBloomBoostedChance(baseChance, energy, threshold) {
+    baseChance = clamp01(baseChance);
+    if (!isFinite(energy)) energy = 0;
+    if (!isFinite(threshold)) threshold = 0;
+    if (energy <= threshold) return baseChance;
+    var denom = Math.max(1e-6, 1 - threshold);
+    var strength = clamp01((energy - threshold) / denom);
+    // Above-threshold drops should be more reliable than a flat coin flip.
+    return clamp01(baseChance + strength * (1 - baseChance) * 0.85);
+}
+
+function reverseBloomRememberTarget(list, idx, maxKeep) {
+    if (!list) list = [];
+    list.push(idx);
+    if (list.length > maxKeep) {
+        list = list.slice(list.length - maxKeep);
+    }
+    return list;
+}
+
+function reverseBloomPickSimilarDrop(anchorIdx, settings, recentTargets) {
+    settings = sanitizeReverseBloomSettings(settings, ADVANCED_DEFAULTS.reverseBloom);
+    if (!serverLoopCandidateMap || !masterQs || !masterQs.length) return null;
+    var edges = serverLoopCandidateMap[anchorIdx] || [];
+    if (!edges.length) return null;
+
+    var minSim = settings.minSimilarity || 0;
+    var minSpan = settings.bloomMinSpanBeats || 0;
+    var scored = [];
+    for (var i = 0; i < edges.length; i++) {
+        var edge = edges[i];
+        if (!edge || typeof edge.target !== "number") continue;
+        var targetIdx = Math.round(edge.target);
+        if (targetIdx < 0 || targetIdx >= masterQs.length) continue;
+        if (targetIdx === anchorIdx) continue;
+
+        var span = Math.abs(targetIdx - anchorIdx);
+        if (span < minSpan) continue;
+
+        var simRaw = (typeof edge.similarity === "number") ? edge.similarity : 0;
+        var sim = simRaw < 0 ? (simRaw + 1) / 2 : simRaw;
+        sim = clamp01(sim);
+        if (sim < minSim) continue;
+
+        var recentPenalty = 0;
+        if (recentTargets && recentTargets.length) {
+            for (var r = 0; r < recentTargets.length; r++) {
+                if (recentTargets[r] === targetIdx) {
+                    recentPenalty += 0.18;
+                }
+            }
+        }
+
+        var targetBeat = masterQs[targetIdx];
+        var energyBonus = targetBeat ? reverseBloomEnergy01(targetBeat) * 0.12 : 0;
+        // Candidate edges from the server use `section_match`; locally built edges use `sameSection`.
+        // Reward jumping to a different section a bit more for variety.
+        var sameSection = !!(edge.section_match || edge.sectionMatch || edge.sameSection);
+        var sectionBonus = sameSection ? 0.02 : 0.06;
+        var jitter = (Math.random() - 0.5) * settings.bloomTemperature * 0.05;
+        var score = sim + energyBonus + sectionBonus + jitter - recentPenalty;
+        scored.push({ target: targetIdx, score: score, sim: sim, span: span });
+    }
+    if (!scored.length) return null;
+    scored.sort(function(a, b) { return b.score - a.score; });
+
+    var pool = scored.slice(0, Math.max(1, Math.min(settings.bloomTopK || 10, scored.length)));
+    if (pool.length === 1) return pool[0].target;
+
+    var temperature = settings.bloomTemperature || 0.25;
+    var maxScore = pool[0].score;
+    var weights = [];
+    var total = 0;
+    for (var w = 0; w < pool.length; w++) {
+        var ww = Math.exp((pool[w].score - maxScore) / temperature);
+        weights[w] = ww;
+        total += ww;
+    }
+    var rr = Math.random() * total;
+    for (var j = 0; j < pool.length; j++) {
+        rr -= weights[j];
+        if (rr <= 0) return pool[j].target;
+    }
+    return pool[0].target;
+}
+
+function createReverseBloomDriver(player, options) {
+    options = options || {};
+    var modeName = "reversebloom";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+
+    var settings = sanitizeReverseBloomSettings(options, ADVANCED_DEFAULTS.reverseBloom);
+    var currentIndex = 0;
+
+    var smoothedEnergy = 0;
+    var lastSmoothedEnergy = 0;
+    var lastDelta = 0;
+    var cooldownLeft = 0;
+    var rewindLeft = 0;
+    var anchorIndex = null;
+    var recentDrops = [];
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function maybeTriggerRewind(beat) {
+        if (!beat) return false;
+        if (cooldownLeft > 0) {
+            cooldownLeft -= 1;
+            return false;
+        }
+        var thr = settings.triggerThreshold || 0;
+        var energy = reverseBloomEnergy01(beat);
+        lastSmoothedEnergy = smoothedEnergy;
+        smoothedEnergy = smoothedEnergy * 0.72 + energy * 0.28;
+
+        var delta = smoothedEnergy - lastSmoothedEnergy;
+        var crossed = reverseBloomCrossedThreshold(lastSmoothedEnergy, smoothedEnergy, thr);
+        var peaked = lastDelta > 0 && delta <= 0 && smoothedEnergy >= thr;
+        lastDelta = delta;
+        if (!(crossed || peaked)) return false;
+
+        var effChance = reverseBloomBoostedChance(settings.rewindChance || 0, smoothedEnergy, thr);
+        if (Math.random() > effChance) return false;
+        if (currentIndex <= 0) return false;
+
+        anchorIndex = currentIndex;
+        rewindLeft = Math.min(settings.rewindBeats || 8, currentIndex);
+        return rewindLeft > 0;
+    }
+
+    function computeProposedNext() {
+        if (rewindLeft > 0) {
+            if (rewindLeft === 1 && settings.resumeMode >= 1 && anchorIndex !== null) {
+                var dropIdx = reverseBloomPickSimilarDrop(anchorIndex, settings, recentDrops);
+                if (typeof dropIdx === "number" && isFinite(dropIdx) && dropIdx >= 0 && dropIdx < masterQs.length) {
+                    recentDrops = reverseBloomRememberTarget(recentDrops, dropIdx, 10);
+                    cooldownLeft = settings.cooldownBeats || 0;
+                    rewindLeft = 0;
+                    var startIdx = Math.max(0, Math.min(masterQs.length - 1, dropIdx - (settings.rewindBeats || 8)));
+                    anchorIndex = null;
+                    return startIdx;
+                }
+            }
+            var nextBack = Math.max(0, currentIndex - 1);
+            rewindLeft -= 1;
+            if (rewindLeft <= 0) {
+                cooldownLeft = settings.cooldownBeats || 0;
+                anchorIndex = null;
+            }
+            return nextBack;
+        }
+        var beat = masterQs[currentIndex];
+        if (maybeTriggerRewind(beat)) {
+            var next = Math.max(0, currentIndex - 1);
+            rewindLeft = Math.max(0, rewindLeft - 1);
+            if (rewindLeft <= 0) {
+                cooldownLeft = settings.cooldownBeats || 0;
+                anchorIndex = null;
+            }
+            return next;
+        }
+        return currentIndex + 1;
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+
+        if (currentIndex >= masterQs.length) {
+            if (window.harmonizerLoopEnabled) {
+                currentIndex = 0;
+            } else if (autoPlayNext && playNextInQueue()) {
+                return;
+            } else {
+                stop();
+                return;
+            }
+        }
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q, rewinding: rewindLeft > 0 });
+        var delay = player.playQ(q);
+
+        var proposed = computeProposedNext();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: rewindLeft > 0 ? "rewind" : "sequential"
+        });
+
+        if (nextIdx !== currentIndex + 1 && nextIdx !== currentIndex) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeReverseBloomSettings(customSettings, ADVANCED_DEFAULTS.reverseBloom);
+        smoothedEnergy = 0;
+        lastSmoothedEnergy = 0;
+        lastDelta = 0;
+        cooldownLeft = 0;
+        rewindLeft = 0;
+        anchorIndex = null;
+        recentDrops = [];
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getReverseBloomSettings());
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            smoothedEnergy = 0;
+            lastSmoothedEnergy = 0;
+            lastDelta = 0;
+            cooldownLeft = 0;
+            rewindLeft = 0;
+            anchorIndex = null;
+            recentDrops = [];
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+registerStackLayer({
+    id: "reversebloom",
+    label: "Reverse Bloom",
+    description: "On drops, rewind a beat-window then bloom into another.",
+    factory: function(ctx) {
+        var settings = getReverseBloomSettings();
+        var smoothedEnergy = 0;
+        var lastSmoothedEnergy = 0;
+        var lastDelta = 0;
+        var cooldownLeft = 0;
+        var rewindLeft = 0;
+        var anchorIndex = null;
+        var recentDrops = [];
+
+        function updateEnergy(beat) {
+            var energy = reverseBloomEnergy01(beat);
+            lastSmoothedEnergy = smoothedEnergy;
+            smoothedEnergy = smoothedEnergy * 0.72 + energy * 0.28;
+            var delta = smoothedEnergy - lastSmoothedEnergy;
+            var peaked = lastDelta > 0 && delta <= 0;
+            lastDelta = delta;
+            return { peaked: peaked };
+        }
+
+        function shouldTrigger(curIdx, beat) {
+            if (cooldownLeft > 0) {
+                cooldownLeft -= 1;
+                return false;
+            }
+            var thr = settings.triggerThreshold || 0;
+            var info = updateEnergy(beat);
+            var crossed = reverseBloomCrossedThreshold(lastSmoothedEnergy, smoothedEnergy, thr);
+            var peaked = !!(info && info.peaked) && smoothedEnergy >= thr;
+            if (!(crossed || peaked)) return false;
+            var effChance = reverseBloomBoostedChance(settings.rewindChance || 0, smoothedEnergy, thr);
+            if (Math.random() > effChance) return false;
+            if (curIdx <= 0) return false;
+            anchorIndex = curIdx;
+            rewindLeft = Math.min(settings.rewindBeats || 8, curIdx);
+            return rewindLeft > 0;
+        }
+
+        function finishCooldown() {
+            cooldownLeft = settings.cooldownBeats || 0;
+            rewindLeft = 0;
+            anchorIndex = null;
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.currentIndex !== "number" || typeof meta.proposedIndex !== "number") return null;
+                if ((meta.mode || "").toLowerCase() === "reversebloom") return null;
+
+                var cur = meta.currentIndex;
+                var proposed = meta.proposedIndex;
+
+                if (settings.overrideJumps < 1 && proposed !== cur + 1) {
+                    return null;
+                }
+
+                var beat = meta.beat || (masterQs ? masterQs[cur] : null);
+                if (!beat) return null;
+
+                if (rewindLeft > 0) {
+                    if (rewindLeft === 1 && settings.resumeMode >= 1 && anchorIndex !== null) {
+                        var dropIdx = reverseBloomPickSimilarDrop(anchorIndex, settings, recentDrops);
+                        if (typeof dropIdx === "number" && isFinite(dropIdx) && masterQs && dropIdx >= 0 && dropIdx < masterQs.length) {
+                            recentDrops = reverseBloomRememberTarget(recentDrops, dropIdx, 10);
+                            finishCooldown();
+                            var startIdx = Math.max(0, Math.min(masterQs.length - 1, dropIdx - (settings.rewindBeats || 8)));
+                            return { index: startIdx };
+                        }
+                    }
+                    rewindLeft -= 1;
+                    if (rewindLeft <= 0) {
+                        finishCooldown();
+                    }
+                    return { index: Math.max(0, cur - 1) };
+                }
+
+                if (shouldTrigger(cur, beat)) {
+                    rewindLeft = Math.max(0, rewindLeft - 1);
+                    if (rewindLeft <= 0) {
+                        finishCooldown();
+                    }
+                    return { index: Math.max(0, cur - 1) };
+                }
+                return null;
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    smoothedEnergy = 0;
+                    lastSmoothedEnergy = 0;
+                    lastDelta = 0;
+                    cooldownLeft = 0;
+                    rewindLeft = 0;
+                    anchorIndex = null;
+                    recentDrops = [];
+                }
+            },
+            dispose: function() {
+                smoothedEnergy = 0;
+                lastSmoothedEnergy = 0;
+                lastDelta = 0;
+                cooldownLeft = 0;
+                rewindLeft = 0;
+                anchorIndex = null;
+                recentDrops = [];
+            }
+        };
+    }
+});
+
+// ===== Barber Pole (Infinite Rising/Descending) =====
+function sanitizeBarberPoleSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.barberPole || {};
+    var out = cloneSettings(defaults);
+
+    var feature = coerceNumber(input.feature);
+    if (feature === null) feature = defaults.feature;
+    out.feature = clampNumber(Math.round(feature), 0, 2); // 0=loudness, 1=brightness, 2=pitch
+
+    var direction = coerceNumber(input.direction);
+    if (direction === null) direction = defaults.direction;
+    out.direction = direction >= 1 ? 1 : 0; // 0=down, 1=up
+
+    var stepRanks = coerceNumber(input.stepRanks);
+    if (stepRanks === null) stepRanks = defaults.stepRanks;
+    out.stepRanks = clampNumber(Math.round(stepRanks), 1, 64);
+
+    var minSim = coerceNumber(input.minSimilarity);
+    if (minSim === null) minSim = defaults.minSimilarity;
+    out.minSimilarity = clampNumber(minSim, 0, 0.999);
+
+    var minVolume = coerceNumber(input.minVolume);
+    if (minVolume === null) minVolume = defaults.minVolume;
+    out.minVolume = clampNumber(minVolume, 0, 1);
+
+    var minSpan = coerceNumber(input.minSpanBeats);
+    if (minSpan === null) minSpan = defaults.minSpanBeats;
+    out.minSpanBeats = clampNumber(Math.round(minSpan), 0, 512);
+
+    var excl = coerceNumber(input.excludeNeighborBeats);
+    if (excl === null) excl = defaults.excludeNeighborBeats;
+    out.excludeNeighborBeats = clampNumber(Math.round(excl), 0, 32);
+
+    var topK = coerceNumber(input.topK);
+    if (topK === null) topK = defaults.topK;
+    out.topK = clampNumber(Math.round(topK), 1, 32);
+
+    var temperature = coerceNumber(input.temperature);
+    if (temperature === null) temperature = defaults.temperature;
+    out.temperature = clampNumber(temperature, 0.03, 1.5);
+
+    var recentWindowBeats = coerceNumber(input.recentWindowBeats);
+    if (recentWindowBeats === null) recentWindowBeats = defaults.recentWindowBeats;
+    out.recentWindowBeats = clampNumber(Math.round(recentWindowBeats), 0, 256);
+
+    var repeatPenalty = coerceNumber(input.repeatPenalty);
+    if (repeatPenalty === null) repeatPenalty = defaults.repeatPenalty;
+    out.repeatPenalty = clampNumber(repeatPenalty, 0, 1);
+
+    var applyChance = coerceNumber(input.applyChance);
+    if (applyChance === null) applyChance = defaults.applyChance;
+    out.applyChance = clampNumber(applyChance, 0, 1);
+
+    var overrideJumps = coerceNumber(input.overrideJumps);
+    if (overrideJumps === null) overrideJumps = defaults.overrideJumps;
+    out.overrideJumps = overrideJumps >= 1 ? 1 : 0;
+
+    return out;
+}
+
+function getBarberPoleSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("barberPole");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("barberPole") : cloneAdvancedDefaults("barberPole");
+    return sanitizeBarberPoleSettings(settings, ADVANCED_DEFAULTS.barberPole);
+}
+
+function buildBarberPoleState(beats, settings) {
+    settings = sanitizeBarberPoleSettings(settings, ADVANCED_DEFAULTS.barberPole);
+    beats = beats || [];
+    var n = beats.length;
+    var values = new Array(n);
+    var raw = new Array(n);
+    var energyRaw = new Array(n);
+
+    var chromas = null;
+    var timbres = null;
+    if (settings.feature === 2) {
+        chromas = computeBeatChromaVectors(beats);
+    } else if (settings.feature === 1) {
+        timbres = computeBeatTimbreVectors(beats);
+    }
+
+    var minV = Infinity;
+    var maxV = -Infinity;
+    var minE = Infinity;
+    var maxE = -Infinity;
+    for (var i = 0; i < n; i++) {
+        var b = beats[i];
+        var e = beatEnergy(b);
+        if (!isFinite(e)) e = 0;
+        energyRaw[i] = e;
+        if (e < minE) minE = e;
+        if (e > maxE) maxE = e;
+        var v = 0;
+        if (settings.feature === 0) {
+            v = e;
+        } else if (settings.feature === 1) {
+            var tv = timbres && timbres[i] ? timbres[i] : null;
+            v = tv ? (tv[1] || 0) : 0;
+        } else {
+            var cv = chromas && chromas[i] ? chromas[i] : null;
+            if (cv) {
+                var sum = 0;
+                var wsum = 0;
+                for (var p = 0; p < 12; p++) {
+                    var w = cv[p] || 0;
+                    wsum += w;
+                    sum += w * p;
+                }
+                v = wsum > 0 ? (sum / wsum) : 0;
+            } else {
+                v = 0;
+            }
+        }
+        if (!isFinite(v)) v = 0;
+        raw[i] = v;
+        if (v < minV) minV = v;
+        if (v > maxV) maxV = v;
+    }
+
+    var range = maxV - minV;
+    if (!isFinite(range) || range <= 1e-9) range = 1;
+    for (var j = 0; j < n; j++) {
+        values[j] = (raw[j] - minV) / range;
+        if (!isFinite(values[j])) values[j] = 0;
+        values[j] = clamp01(values[j]);
+    }
+
+    var order = [];
+    var minVol = settings.minVolume || 0;
+    var eRange = maxE - minE;
+    if (!isFinite(eRange) || eRange <= 1e-9) eRange = 1;
+    var energy01 = new Array(n);
+    for (var k = 0; k < n; k++) {
+        energy01[k] = clamp01((energyRaw[k] - minE) / eRange);
+        if (energy01[k] < minVol) continue;
+        order.push(k);
+    }
+    if (!order.length && n) {
+        for (var kk = 0; kk < n; kk++) order.push(kk);
+    }
+    order.sort(function(a, b) {
+        var va = values[a];
+        var vb = values[b];
+        if (va === vb) return a - b;
+        return va - vb;
+    });
+
+    var posByIndex = Object.create(null);
+    for (var z = 0; z < order.length; z++) {
+        posByIndex[order[z]] = z;
+    }
+
+    return { values: values, energy01: energy01, order: order, posByIndex: posByIndex, feature: settings.feature };
+}
+
+function barberPoleWrapIndex(idx, len) {
+    if (len <= 0) return 0;
+    var v = idx % len;
+    if (v < 0) v += len;
+    return v;
+}
+
+function barberPoleWrapDist(a, b, len) {
+    if (len <= 0) return 0;
+    var d = Math.abs(a - b);
+    return Math.min(d, len - d);
+}
+
+function barberPoleCountRecent(history, idx, windowBeats) {
+    if (!history || !history.length || windowBeats <= 0) return 0;
+    var start = Math.max(0, history.length - windowBeats);
+    var c = 0;
+    for (var i = start; i < history.length; i++) {
+        if (history[i] === idx) c += 1;
+    }
+    return c;
+}
+
+function barberPoleDeltaInDir(fromPos, toPos, dirSign, len) {
+    if (len <= 0) return 0;
+    if (dirSign >= 0) {
+        return (toPos - fromPos + len) % len;
+    }
+    return (fromPos - toPos + len) % len;
+}
+
+function barberPoleFindPosForValue(order, values, targetValue) {
+    if (!order || !order.length || !values) return 0;
+    var bestPos = 0;
+    var bestDiff = Infinity;
+    for (var i = 0; i < order.length; i++) {
+        var idx = order[i];
+        var v = values[idx];
+        if (!isFinite(v)) v = 0;
+        var d = Math.abs(v - targetValue);
+        if (d < bestDiff) {
+            bestDiff = d;
+            bestPos = i;
+        }
+    }
+    return bestPos;
+}
+
+function barberPoleChooseNextIndex(curIdx, state, settings, history) {
+    settings = sanitizeBarberPoleSettings(settings, ADVANCED_DEFAULTS.barberPole);
+    if (!state || !state.order || !state.order.length) return curIdx + 1;
+    if (!serverLoopCandidateMap || !serverLoopCandidateMap[curIdx]) return curIdx + 1;
+
+    var order = state.order;
+    var n = order.length;
+    var curPos = state.posByIndex && state.posByIndex[curIdx] !== undefined ? state.posByIndex[curIdx] : null;
+    var curVal = (state.values && state.values[curIdx] !== undefined) ? state.values[curIdx] : 0;
+    if (curPos === null) curPos = barberPoleFindPosForValue(order, state.values, curVal);
+
+    var dirSign = settings.direction >= 1 ? 1 : -1;
+    var stepRanks = Math.max(1, settings.stepRanks || 1);
+    var targetPos = barberPoleWrapIndex(curPos + dirSign * stepRanks, n);
+    var targetIdx = order[targetPos];
+
+    var edges = serverLoopCandidateMap[curIdx] || [];
+    if (!edges.length) return targetIdx;
+
+    var minSim = settings.minSimilarity || 0;
+    var minSpan = settings.minSpanBeats || 0;
+    var excl = settings.excludeNeighborBeats || 0;
+    var recentWindow = settings.recentWindowBeats || 0;
+    var repPenalty = settings.repeatPenalty || 0;
+    var scoredPreferred = [];
+    var scoredFallback = [];
+    for (var i = 0; i < edges.length; i++) {
+        var edge = edges[i];
+        if (!edge || typeof edge.target !== "number") continue;
+        var cand = Math.round(edge.target);
+        if (!masterQs || cand < 0 || cand >= masterQs.length) continue;
+        if (cand === curIdx) continue;
+        var span = Math.abs(cand - curIdx);
+        if (span < minSpan) continue;
+        if (excl > 0 && span <= excl) continue;
+        if (state.posByIndex && state.posByIndex[cand] === undefined) continue;
+
+        var simRaw = (typeof edge.similarity === "number") ? edge.similarity : 0;
+        var sim = simRaw < 0 ? (simRaw + 1) / 2 : simRaw;
+        sim = clamp01(sim);
+        if (sim < minSim) continue;
+
+        var candPos = state.posByIndex[cand];
+        var distToTarget = barberPoleWrapDist(candPos, targetPos, n);
+        var prox = 1 - (distToTarget / Math.max(1, Math.floor(n / 2)));
+        prox = clamp01(prox);
+
+        var candVal = (state.values && state.values[cand] !== undefined) ? state.values[cand] : 0;
+        var driftRaw = clampNumber(dirSign * (candVal - curVal), -1, 1);
+        var driftScore = clamp01(driftRaw * 1.6);
+        var deltaDir = barberPoleDeltaInDir(curPos, candPos, dirSign, n);
+        var stepErr = Math.abs(deltaDir - stepRanks);
+        var stepProx = 1 - Math.min(1, stepErr / Math.max(1, stepRanks * 2));
+        stepProx = clamp01(stepProx);
+
+        var repeatCount = barberPoleCountRecent(history, cand, recentWindow);
+        var penalty = repeatCount > 0 ? Math.min(0.8, repeatCount * repPenalty) : 0;
+
+        var sameSection = !!(edge.section_match || edge.sectionMatch || edge.sameSection);
+        var sectionBonus = sameSection ? 0.02 : 0.06;
+        var jitter = (Math.random() - 0.5) * settings.temperature * 0.05;
+        // Stronger "pole" effect: prioritize moving in the chosen direction while staying similar.
+        var wrongDirPenalty = driftRaw <= 0 ? 0.18 : 0;
+        var score = 0.55 * sim + 0.28 * prox + 0.42 * driftScore + 0.26 * stepProx + sectionBonus + jitter - penalty - wrongDirPenalty;
+        var bucket = driftRaw > 0 ? scoredPreferred : scoredFallback;
+        bucket.push({ target: cand, score: score });
+    }
+
+    var scored = scoredPreferred.length ? scoredPreferred : scoredFallback;
+    if (!scored.length) {
+        return targetIdx;
+    }
+
+    scored.sort(function(a, b) { return b.score - a.score; });
+    var pool = scored.slice(0, Math.max(1, Math.min(settings.topK || 12, scored.length)));
+    if (pool.length === 1) return pool[0].target;
+
+    var temperature = settings.temperature || 0.25;
+    var maxScore = pool[0].score;
+    var weights = [];
+    var total = 0;
+    for (var w = 0; w < pool.length; w++) {
+        var ww = Math.exp((pool[w].score - maxScore) / temperature);
+        weights[w] = ww;
+        total += ww;
+    }
+    var r = Math.random() * total;
+    for (var j2 = 0; j2 < pool.length; j2++) {
+        r -= weights[j2];
+        if (r <= 0) return pool[j2].target;
+    }
+    return pool[0].target;
+}
+
+function createBarberPoleDriver(player, options) {
+    options = options || {};
+    var modeName = "barberpole";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+
+    var settings = sanitizeBarberPoleSettings(options, ADVANCED_DEFAULTS.barberPole);
+    var state = null;
+    var history = [];
+    var currentIndex = 0;
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function ensureState() {
+        if (!state) {
+            state = buildBarberPoleState(masterQs, settings);
+        }
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function remember(idx) {
+        history.push(idx);
+        var maxKeep = Math.max(48, (settings.recentWindowBeats || 0) * 2 + 64);
+        if (history.length > maxKeep) {
+            history = history.slice(history.length - maxKeep);
+        }
+    }
+
+    function computeProposedNext() {
+        ensureState();
+        if (!state || !state.order || !state.order.length) return currentIndex + 1;
+        if (Math.random() > (settings.applyChance || 1.0)) return currentIndex + 1;
+        remember(currentIndex);
+        return barberPoleChooseNextIndex(currentIndex, state, settings, history);
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+        ensureState();
+
+        if (currentIndex >= masterQs.length) {
+            if (window.harmonizerLoopEnabled) {
+                currentIndex = 0;
+            } else if (autoPlayNext && playNextInQueue()) {
+                return;
+            } else {
+                stop();
+                return;
+            }
+        }
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q });
+        var delay = player.playQ(q);
+
+        var proposed = computeProposedNext();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: "barberpole"
+        });
+
+        if (nextIdx !== currentIndex + 1 && nextIdx !== currentIndex) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeBarberPoleSettings(customSettings, ADVANCED_DEFAULTS.barberPole);
+        state = null;
+        history = [];
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getBarberPoleSettings());
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            history = [];
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+registerStackLayer({
+    id: "barberpole",
+    label: "Barber Pole",
+    description: "Directional drift up/down a loudness/brightness gradient.",
+    factory: function(ctx) {
+        if (!ctx || !ctx.beats || !ctx.beats.length) return null;
+        var settings = getBarberPoleSettings();
+        var state = buildBarberPoleState(ctx.beats, settings);
+        if (!state || !state.order || !state.order.length) return null;
+        var history = [];
+
+        function remember(idx) {
+            history.push(idx);
+            var maxKeep = Math.max(48, (settings.recentWindowBeats || 0) * 2 + 64);
+            if (history.length > maxKeep) {
+                history = history.slice(history.length - maxKeep);
+            }
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.currentIndex !== "number" || typeof meta.proposedIndex !== "number") return null;
+                if ((meta.mode || "").toLowerCase() === "barberpole") return null;
+
+                if (Math.random() > (settings.applyChance || 1.0)) {
+                    return null;
+                }
+
+                var cur = meta.currentIndex;
+                var proposed = meta.proposedIndex;
+                if (settings.overrideJumps < 1 && proposed !== cur + 1) {
+                    return null;
+                }
+                remember(cur);
+                var next = barberPoleChooseNextIndex(cur, state, settings, history);
+                if (typeof next === "number" && isFinite(next)) {
+                    return { index: next };
+                }
+                return null;
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    history = [];
+                }
+            },
+            dispose: function() {
+                history = [];
+            }
+        };
+    }
+});
+
+// ===== Palindrome Engine (Forward/Backward Phrases) =====
+function sanitizePalindromeEngineSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.palindromeEngine || {};
+    var out = cloneSettings(defaults);
+
+    var phraseBeats = coerceNumber(input.phraseBeats);
+    if (phraseBeats === null) phraseBeats = defaults.phraseBeats;
+    out.phraseBeats = clampNumber(Math.round(phraseBeats), 2, 256);
+
+    var minSim = coerceNumber(input.turnMinSimilarity);
+    if (minSim === null) minSim = defaults.turnMinSimilarity;
+    out.turnMinSimilarity = clampNumber(minSim, 0, 0.999);
+
+    var topK = coerceNumber(input.turnTopK);
+    if (topK === null) topK = defaults.turnTopK;
+    out.turnTopK = clampNumber(Math.round(topK), 1, 32);
+
+    var temp = coerceNumber(input.turnTemperature);
+    if (temp === null) temp = defaults.turnTemperature;
+    out.turnTemperature = clampNumber(temp, 0.03, 1.5);
+
+    var minSpan = coerceNumber(input.minTurnSpanBeats);
+    if (minSpan === null) minSpan = defaults.minTurnSpanBeats;
+    out.minTurnSpanBeats = clampNumber(Math.round(minSpan), 0, 512);
+
+    var excl = coerceNumber(input.excludeNeighborBeats);
+    if (excl === null) excl = defaults.excludeNeighborBeats;
+    out.excludeNeighborBeats = clampNumber(Math.round(excl), 0, 32);
+
+    var cooldown = coerceNumber(input.flipCooldownBeats);
+    if (cooldown === null) cooldown = defaults.flipCooldownBeats;
+    out.flipCooldownBeats = clampNumber(Math.round(cooldown), 0, 256);
+
+    var applyChance = coerceNumber(input.applyChance);
+    if (applyChance === null) applyChance = defaults.applyChance;
+    out.applyChance = clampNumber(applyChance, 0, 1);
+
+    var overrideJumps = coerceNumber(input.overrideJumps);
+    if (overrideJumps === null) overrideJumps = defaults.overrideJumps;
+    out.overrideJumps = overrideJumps >= 1 ? 1 : 0;
+
+    return out;
+}
+
+function getPalindromeEngineSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("palindromeEngine");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("palindromeEngine") : cloneAdvancedDefaults("palindromeEngine");
+    return sanitizePalindromeEngineSettings(settings, ADVANCED_DEFAULTS.palindromeEngine);
+}
+
+function palindromeNormalizeSimilarity(simRaw) {
+    var sim = (typeof simRaw === "number" && isFinite(simRaw)) ? simRaw : 0;
+    if (sim < 0) sim = (sim + 1) / 2;
+    return clamp01(sim);
+}
+
+function palindromePickTurnTarget(curIdx, nextDir, settings, recentTargets) {
+    settings = sanitizePalindromeEngineSettings(settings, ADVANCED_DEFAULTS.palindromeEngine);
+    if (!serverLoopCandidateMap || !masterQs || !masterQs.length) return null;
+    var edges = serverLoopCandidateMap[curIdx] || [];
+    if (!edges.length) return null;
+
+    var phrase = settings.phraseBeats || 16;
+    var minSim = settings.turnMinSimilarity || 0;
+    var minSpan = settings.minTurnSpanBeats || 0;
+    var excl = settings.excludeNeighborBeats || 0;
+
+    var scored = [];
+    for (var i = 0; i < edges.length; i++) {
+        var edge = edges[i];
+        if (!edge || typeof edge.target !== "number") continue;
+        var targetIdx = Math.round(edge.target);
+        if (targetIdx < 0 || targetIdx >= masterQs.length) continue;
+        if (targetIdx === curIdx) continue;
+        var span = Math.abs(targetIdx - curIdx);
+        if (span < minSpan) continue;
+        if (excl > 0 && span <= excl) continue;
+
+        // Require room to walk in the new direction for the whole phrase.
+        var endIdx = targetIdx + nextDir * (phrase - 1);
+        if (endIdx < 0 || endIdx >= masterQs.length) continue;
+
+        var sim = palindromeNormalizeSimilarity(edge.similarity);
+        if (sim < minSim) continue;
+
+        // Penalize repeating the same turnaround target.
+        var repeatPenalty = 0;
+        if (recentTargets && recentTargets.length) {
+            for (var r = 0; r < recentTargets.length; r++) {
+                if (recentTargets[r] === targetIdx) {
+                    repeatPenalty += 0.22;
+                }
+            }
+        }
+
+        var sectionBonus = edge.sameSection ? 0.02 : 0.06;
+        var jitter = (Math.random() - 0.5) * settings.turnTemperature * 0.05;
+        var score = sim + sectionBonus + jitter - repeatPenalty;
+        scored.push({ target: targetIdx, score: score });
+    }
+
+    if (!scored.length) return null;
+    scored.sort(function(a, b) { return b.score - a.score; });
+
+    var pool = scored.slice(0, Math.max(1, Math.min(settings.turnTopK || 10, scored.length)));
+    if (pool.length === 1) return pool[0].target;
+
+    var temperature = settings.turnTemperature || 0.25;
+    var maxScore = pool[0].score;
+    var weights = [];
+    var total = 0;
+    for (var w = 0; w < pool.length; w++) {
+        var ww = Math.exp((pool[w].score - maxScore) / temperature);
+        weights[w] = ww;
+        total += ww;
+    }
+    var rr = Math.random() * total;
+    for (var j = 0; j < pool.length; j++) {
+        rr -= weights[j];
+        if (rr <= 0) return pool[j].target;
+    }
+    return pool[0].target;
+}
+
+function createPalindromeDriver(player, options) {
+    options = options || {};
+    var modeName = "palindrome";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+
+    var settings = sanitizePalindromeEngineSettings(options, ADVANCED_DEFAULTS.palindromeEngine);
+    var currentIndex = 0;
+    var dir = 1;
+    var stepsLeft = settings.phraseBeats || 16;
+    var cooldownLeft = 0;
+    var recentTurns = [];
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function rememberTurn(idx) {
+        recentTurns.push(idx);
+        if (recentTurns.length > 12) {
+            recentTurns = recentTurns.slice(recentTurns.length - 12);
+        }
+    }
+
+    function beginNewPhrase(nextDir) {
+        dir = nextDir;
+        stepsLeft = settings.phraseBeats || 16;
+        if (cooldownLeft > 0) {
+            cooldownLeft -= 1;
+            return;
+        }
+        if (Math.random() > (settings.applyChance || 1.0)) {
+            return;
+        }
+        var turnTarget = palindromePickTurnTarget(currentIndex, dir, settings, recentTurns);
+        if (typeof turnTarget === "number" && isFinite(turnTarget)) {
+            rememberTurn(turnTarget);
+            currentIndex = turnTarget;
+            cooldownLeft = settings.flipCooldownBeats || 0;
+        }
+    }
+
+    function computeProposedNext() {
+        if (!masterQs || !masterQs.length) return currentIndex + 1;
+
+        if (stepsLeft <= 0) {
+            beginNewPhrase(-dir);
+        }
+
+        var next = currentIndex + dir;
+        stepsLeft -= 1;
+
+        // Boundary guard: flip early when we hit edges.
+        if (next < 0 || next >= masterQs.length) {
+            beginNewPhrase(-dir);
+            next = currentIndex + dir;
+            stepsLeft -= 1;
+        }
+        return next;
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+
+        if (currentIndex >= masterQs.length) {
+            if (window.harmonizerLoopEnabled) {
+                currentIndex = 0;
+            } else if (autoPlayNext && playNextInQueue()) {
+                return;
+            } else {
+                stop();
+                return;
+            }
+        }
+        if (currentIndex < 0) currentIndex = 0;
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q, dir: dir, stepsLeft: stepsLeft });
+        var delay = player.playQ(q);
+
+        var proposed = computeProposedNext();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: "palindrome"
+        });
+
+        if (nextIdx !== currentIndex + 1 && nextIdx !== currentIndex - 1 && nextIdx !== currentIndex) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizePalindromeEngineSettings(customSettings, ADVANCED_DEFAULTS.palindromeEngine);
+        dir = 1;
+        stepsLeft = settings.phraseBeats || 16;
+        cooldownLeft = 0;
+        recentTurns = [];
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getPalindromeEngineSettings());
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            dir = 1;
+            stepsLeft = settings.phraseBeats || 16;
+            cooldownLeft = 0;
+            recentTurns = [];
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+registerStackLayer({
+    id: "palindrome",
+    label: "Palindrome Engine",
+    description: "Alternate forward/backward phrases, pivoting on similarity.",
+    factory: function(ctx) {
+        if (!ctx || !ctx.beats || !ctx.beats.length) return null;
+        var settings = getPalindromeEngineSettings();
+        settings = sanitizePalindromeEngineSettings(settings, ADVANCED_DEFAULTS.palindromeEngine);
+        var dir = 1;
+        var stepsLeft = settings.phraseBeats || 16;
+        var cooldownLeft = 0;
+        var recentTurns = [];
+
+        function rememberTurn(idx) {
+            recentTurns.push(idx);
+            if (recentTurns.length > 12) {
+                recentTurns = recentTurns.slice(recentTurns.length - 12);
+            }
+        }
+
+        function beginNewPhrase(curIdx, nextDir) {
+            dir = nextDir;
+            stepsLeft = settings.phraseBeats || 16;
+            if (cooldownLeft > 0) {
+                cooldownLeft -= 1;
+                return curIdx;
+            }
+            if (Math.random() > (settings.applyChance || 1.0)) {
+                return curIdx;
+            }
+            var turnTarget = palindromePickTurnTarget(curIdx, dir, settings, recentTurns);
+            if (typeof turnTarget === "number" && isFinite(turnTarget)) {
+                rememberTurn(turnTarget);
+                cooldownLeft = settings.flipCooldownBeats || 0;
+                return turnTarget;
+            }
+            return curIdx;
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.currentIndex !== "number" || typeof meta.proposedIndex !== "number") return null;
+                if ((meta.mode || "").toLowerCase() === "palindrome") return null;
+
+                var cur = meta.currentIndex;
+                var proposed = meta.proposedIndex;
+                if (settings.overrideJumps < 1 && proposed !== cur + 1) {
+                    return null;
+                }
+
+                if (stepsLeft <= 0) {
+                    cur = beginNewPhrase(cur, -dir);
+                }
+
+                var next = cur + dir;
+                stepsLeft -= 1;
+
+                if (!masterQs || next < 0 || next >= masterQs.length) {
+                    cur = beginNewPhrase(cur, -dir);
+                    next = cur + dir;
+                    stepsLeft -= 1;
+                }
+
+                return { index: next };
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    dir = 1;
+                    stepsLeft = settings.phraseBeats || 16;
+                    cooldownLeft = 0;
+                    recentTurns = [];
+                }
+            },
+            dispose: function() {
+                dir = 1;
+                stepsLeft = settings.phraseBeats || 16;
+                cooldownLeft = 0;
+                recentTurns = [];
+            }
+        };
+    }
+});
+
+// ===== Spectral Gravity (Feature Attractor) =====
+function sanitizeSpectralGravitySettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.spectralGravity || {};
+    var out = cloneSettings(defaults);
+
+    var axis = coerceNumber(input.axis);
+    if (axis === null) axis = defaults.axis;
+    out.axis = clampNumber(Math.round(axis), 0, 2); // 0=brightness, 1=loudness, 2=pitch
+
+    var target = coerceNumber(input.target);
+    if (target === null) target = defaults.target;
+    out.target = clamp01(target);
+
+    var bandWidth = coerceNumber(input.bandWidth);
+    if (bandWidth === null) bandWidth = defaults.bandWidth;
+    out.bandWidth = clampNumber(bandWidth, 0.01, 1);
+
+    var triggerThreshold = coerceNumber(input.triggerThreshold);
+    if (triggerThreshold === null) triggerThreshold = defaults.triggerThreshold;
+    out.triggerThreshold = clampNumber(triggerThreshold, 0, 1);
+
+    var minSim = coerceNumber(input.minSimilarity);
+    if (minSim === null) minSim = defaults.minSimilarity;
+    out.minSimilarity = clampNumber(minSim, 0, 0.999);
+
+    var cooldown = coerceNumber(input.cooldownBeats);
+    if (cooldown === null) cooldown = defaults.cooldownBeats;
+    out.cooldownBeats = clampNumber(Math.round(cooldown), 0, 256);
+
+    var minSpan = coerceNumber(input.minSpanBeats);
+    if (minSpan === null) minSpan = defaults.minSpanBeats;
+    out.minSpanBeats = clampNumber(Math.round(minSpan), 0, 512);
+
+    var excl = coerceNumber(input.excludeNeighborBeats);
+    if (excl === null) excl = defaults.excludeNeighborBeats;
+    out.excludeNeighborBeats = clampNumber(Math.round(excl), 0, 32);
+
+    var topK = coerceNumber(input.topK);
+    if (topK === null) topK = defaults.topK;
+    out.topK = clampNumber(Math.round(topK), 1, 32);
+
+    var temperature = coerceNumber(input.temperature);
+    if (temperature === null) temperature = defaults.temperature;
+    out.temperature = clampNumber(temperature, 0.03, 1.5);
+
+    var recentWindowBeats = coerceNumber(input.recentWindowBeats);
+    if (recentWindowBeats === null) recentWindowBeats = defaults.recentWindowBeats;
+    out.recentWindowBeats = clampNumber(Math.round(recentWindowBeats), 0, 256);
+
+    var repeatPenalty = coerceNumber(input.repeatPenalty);
+    if (repeatPenalty === null) repeatPenalty = defaults.repeatPenalty;
+    out.repeatPenalty = clampNumber(repeatPenalty, 0, 1);
+
+    var applyChance = coerceNumber(input.applyChance);
+    if (applyChance === null) applyChance = defaults.applyChance;
+    out.applyChance = clampNumber(applyChance, 0, 1);
+
+    var overrideJumps = coerceNumber(input.overrideJumps);
+    if (overrideJumps === null) overrideJumps = defaults.overrideJumps;
+    out.overrideJumps = overrideJumps >= 1 ? 1 : 0;
+
+    return out;
+}
+
+function getSpectralGravitySettings() {
+    var useAdvanced = isAdvancedGroupEnabled("spectralGravity");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("spectralGravity") : cloneAdvancedDefaults("spectralGravity");
+    return sanitizeSpectralGravitySettings(settings, ADVANCED_DEFAULTS.spectralGravity);
+}
+
+function spectralGravityDistance(a, b, axis) {
+    var d = Math.abs(a - b);
+    if (axis === 2) {
+        // Pitch-class space wraps.
+        d = Math.min(d, 1 - d);
+    }
+    return d;
+}
+
+function buildSpectralGravityState(beats, settings) {
+    settings = sanitizeSpectralGravitySettings(settings, ADVANCED_DEFAULTS.spectralGravity);
+    beats = beats || [];
+    var n = beats.length;
+    var values = new Array(n);
+    var raw = new Array(n);
+
+    var chromas = null;
+    var timbres = null;
+    if (settings.axis === 2) {
+        chromas = computeBeatChromaVectors(beats);
+    } else if (settings.axis === 0) {
+        timbres = computeBeatTimbreVectors(beats);
+    }
+
+    var minV = Infinity;
+    var maxV = -Infinity;
+    for (var i = 0; i < n; i++) {
+        var b = beats[i];
+        var v = 0;
+        if (settings.axis === 1) {
+            v = beatEnergy(b);
+        } else if (settings.axis === 0) {
+            var tv = timbres && timbres[i] ? timbres[i] : null;
+            v = tv ? (tv[1] || 0) : 0;
+        } else {
+            var cv = chromas && chromas[i] ? chromas[i] : null;
+            if (cv) {
+                var sum = 0;
+                var wsum = 0;
+                for (var p = 0; p < 12; p++) {
+                    var w = cv[p] || 0;
+                    wsum += w;
+                    sum += w * p;
+                }
+                v = wsum > 0 ? (sum / wsum) : 0;
+            } else {
+                v = 0;
+            }
+        }
+        if (!isFinite(v)) v = 0;
+        raw[i] = v;
+        if (v < minV) minV = v;
+        if (v > maxV) maxV = v;
+    }
+
+    var range = maxV - minV;
+    if (!isFinite(range) || range <= 1e-9) range = 1;
+    for (var j = 0; j < n; j++) {
+        var vv;
+        if (settings.axis === 1) {
+            vv = clamp01(raw[j]);
+        } else {
+            vv = clamp01((raw[j] - minV) / range);
+        }
+        values[j] = vv;
+    }
+
+    var inBand = [];
+    var orderByCloseness = [];
+    var minVol = settings.axis === 1 ? 0 : 0;
+    for (var k = 0; k < n; k++) {
+        if (beatEnergy(beats[k]) < minVol) continue;
+        var dist = spectralGravityDistance(values[k], settings.target, settings.axis);
+        orderByCloseness.push({ idx: k, dist: dist });
+        if (dist <= settings.bandWidth) {
+            inBand.push(k);
+        }
+    }
+
+    orderByCloseness.sort(function(a, b) {
+        if (a.dist === b.dist) return a.idx - b.idx;
+        return a.dist - b.dist;
+    });
+
+    return {
+        axis: settings.axis,
+        target: settings.target,
+        values: values,
+        inBand: inBand,
+        closest: orderByCloseness.map(function(x) { return x.idx; })
+    };
+}
+
+function spectralGravityCountRecent(history, idx, windowBeats) {
+    if (!history || !history.length || windowBeats <= 0) return 0;
+    var start = Math.max(0, history.length - windowBeats);
+    var c = 0;
+    for (var i = start; i < history.length; i++) {
+        if (history[i] === idx) c += 1;
+    }
+    return c;
+}
+
+function spectralGravityChooseTarget(curIdx, state, settings, history) {
+    settings = sanitizeSpectralGravitySettings(settings, ADVANCED_DEFAULTS.spectralGravity);
+    if (!masterQs || !masterQs.length) return null;
+    if (!state || !state.values) return null;
+
+    var axis = settings.axis;
+    var target = settings.target;
+    var bandWidth = settings.bandWidth;
+    var minSim = settings.minSimilarity || 0;
+    var minSpan = settings.minSpanBeats || 0;
+    var excl = settings.excludeNeighborBeats || 0;
+    var recentWindow = settings.recentWindowBeats || 0;
+    var repPenalty = settings.repeatPenalty || 0;
+
+    var edges = serverLoopCandidateMap ? (serverLoopCandidateMap[curIdx] || []) : [];
+    var scored = [];
+
+    function maybeScoreCandidate(cand, sim, sameSection) {
+        if (cand < 0 || cand >= masterQs.length) return;
+        if (cand === curIdx) return;
+        var span = Math.abs(cand - curIdx);
+        if (span < minSpan) return;
+        if (excl > 0 && span <= excl) return;
+
+        var val = state.values[cand] !== undefined ? state.values[cand] : 0;
+        var dist = spectralGravityDistance(val, target, axis);
+        if (dist > bandWidth) return;
+
+        if (sim < minSim) return;
+
+        var closeness = 1 - clamp01(dist / Math.max(0.001, bandWidth));
+        var repeatCount = spectralGravityCountRecent(history, cand, recentWindow);
+        var penalty = repeatCount > 0 ? Math.min(0.8, repeatCount * repPenalty) : 0;
+        var sectionBonus = sameSection ? 0.02 : 0.06;
+        var jitter = (Math.random() - 0.5) * settings.temperature * 0.05;
+        var score = 0.7 * sim + 0.35 * closeness + sectionBonus + jitter - penalty;
+        scored.push({ target: cand, score: score });
+    }
+
+    for (var i = 0; i < edges.length; i++) {
+        var edge = edges[i];
+        if (!edge || typeof edge.target !== "number") continue;
+        var cand = Math.round(edge.target);
+        var sim = palindromeNormalizeSimilarity(edge.similarity);
+        maybeScoreCandidate(cand, sim, !!edge.sameSection);
+    }
+
+    // Fallback: scan globally for in-band beats near the target.
+    if (!scored.length && state.closest && state.closest.length) {
+        var maxScan = Math.min(220, state.closest.length);
+        for (var j = 0; j < maxScan; j++) {
+            var cand2 = state.closest[j];
+            var span2 = Math.abs(cand2 - curIdx);
+            if (span2 < minSpan || (excl > 0 && span2 <= excl)) continue;
+            var sim2 = 0.6; // fallback similarity guess
+            maybeScoreCandidate(cand2, sim2, false);
+            if (scored.length >= (settings.topK || 12)) break;
+        }
+    }
+
+    if (!scored.length) return null;
+    scored.sort(function(a, b) { return b.score - a.score; });
+    var pool = scored.slice(0, Math.max(1, Math.min(settings.topK || 12, scored.length)));
+    if (pool.length === 1) return pool[0].target;
+
+    var temperature = settings.temperature || 0.25;
+    var maxScore = pool[0].score;
+    var weights = [];
+    var total = 0;
+    for (var w = 0; w < pool.length; w++) {
+        var ww = Math.exp((pool[w].score - maxScore) / temperature);
+        weights[w] = ww;
+        total += ww;
+    }
+    var r = Math.random() * total;
+    for (var x = 0; x < pool.length; x++) {
+        r -= weights[x];
+        if (r <= 0) return pool[x].target;
+    }
+    return pool[0].target;
+}
+
+function createSpectralGravityDriver(player, options) {
+    options = options || {};
+    var modeName = "spectralgravity";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+
+    var settings = sanitizeSpectralGravitySettings(options, ADVANCED_DEFAULTS.spectralGravity);
+    var state = null;
+    var history = [];
+    var currentIndex = 0;
+    var cooldownLeft = 0;
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function ensureState() {
+        if (!state) {
+            state = buildSpectralGravityState(masterQs, settings);
+        }
+    }
+
+    function remember(idx) {
+        history.push(idx);
+        var maxKeep = Math.max(48, (settings.recentWindowBeats || 0) * 2 + 64);
+        if (history.length > maxKeep) {
+            history = history.slice(history.length - maxKeep);
+        }
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function maybeComputeJump() {
+        ensureState();
+        if (!state || !state.values || currentIndex < 0 || currentIndex >= masterQs.length) return null;
+
+        if (cooldownLeft > 0) {
+            cooldownLeft -= 1;
+            return null;
+        }
+        if (Math.random() > (settings.applyChance || 1.0)) return null;
+
+        var val = state.values[currentIndex] !== undefined ? state.values[currentIndex] : 0;
+        var dist = spectralGravityDistance(val, settings.target, settings.axis);
+        if (dist <= settings.bandWidth) return null;
+        if (dist < settings.triggerThreshold) return null;
+
+        var strength = clamp01((dist - settings.triggerThreshold) / Math.max(0.001, 1 - settings.triggerThreshold));
+        if (Math.random() > (0.35 + 0.65 * strength)) return null;
+
+        remember(currentIndex);
+        var next = spectralGravityChooseTarget(currentIndex, state, settings, history);
+        if (typeof next === "number" && isFinite(next)) {
+            cooldownLeft = settings.cooldownBeats || 0;
+            return next;
+        }
+        return null;
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+        ensureState();
+
+        if (currentIndex >= masterQs.length) {
+            if (window.harmonizerLoopEnabled) {
+                currentIndex = 0;
+            } else if (autoPlayNext && playNextInQueue()) {
+                return;
+            } else {
+                stop();
+                return;
+            }
+        }
+        if (currentIndex < 0) currentIndex = 0;
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q });
+        var delay = player.playQ(q);
+
+        var proposed = currentIndex + 1;
+        var jump = maybeComputeJump();
+        if (jump !== null && jump !== undefined) {
+            proposed = jump;
+        }
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: jump !== null ? "gravity" : "sequential"
+        });
+
+        if (nextIdx !== currentIndex + 1 && nextIdx !== currentIndex) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeSpectralGravitySettings(customSettings, ADVANCED_DEFAULTS.spectralGravity);
+        state = null;
+        history = [];
+        cooldownLeft = 0;
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getSpectralGravitySettings());
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            history = [];
+            cooldownLeft = 0;
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+registerStackLayer({
+    id: "spectralgravity",
+    label: "Spectral Gravity",
+    description: "Snap back to a target texture band when the spectrum drifts.",
+    factory: function(ctx) {
+        if (!ctx || !ctx.beats || !ctx.beats.length) return null;
+        var settings = getSpectralGravitySettings();
+        var state = buildSpectralGravityState(ctx.beats, settings);
+        if (!state || !state.values) return null;
+
+        var history = [];
+        var cooldownLeft = 0;
+
+        function remember(idx) {
+            history.push(idx);
+            var maxKeep = Math.max(48, (settings.recentWindowBeats || 0) * 2 + 64);
+            if (history.length > maxKeep) {
+                history = history.slice(history.length - maxKeep);
+            }
+        }
+
+        function maybeJump(curIdx) {
+            if (cooldownLeft > 0) {
+                cooldownLeft -= 1;
+                return null;
+            }
+            if (Math.random() > (settings.applyChance || 1.0)) return null;
+            var val = state.values[curIdx] !== undefined ? state.values[curIdx] : 0;
+            var dist = spectralGravityDistance(val, settings.target, settings.axis);
+            if (dist <= settings.bandWidth) return null;
+            if (dist < settings.triggerThreshold) return null;
+            var strength = clamp01((dist - settings.triggerThreshold) / Math.max(0.001, 1 - settings.triggerThreshold));
+            if (Math.random() > (0.35 + 0.65 * strength)) return null;
+            remember(curIdx);
+            var next = spectralGravityChooseTarget(curIdx, state, settings, history);
+            if (typeof next === "number" && isFinite(next)) {
+                cooldownLeft = settings.cooldownBeats || 0;
+                return next;
+            }
+            return null;
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.currentIndex !== "number" || typeof meta.proposedIndex !== "number") return null;
+                if ((meta.mode || "").toLowerCase() === "spectralgravity") return null;
+
+                var cur = meta.currentIndex;
+                var proposed = meta.proposedIndex;
+                if (settings.overrideJumps < 1 && proposed !== cur + 1) {
+                    return null;
+                }
+                var next = maybeJump(cur);
+                if (next !== null && next !== undefined) {
+                    return { index: next };
+                }
+                return null;
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    history = [];
+                    cooldownLeft = 0;
+                }
+            },
+            dispose: function() {
+                history = [];
+                cooldownLeft = 0;
+            }
+        };
+    }
+});
+
+// ===== Call & Response (Bar Alternation) =====
+function sanitizeCallResponseSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.callResponse || {};
+    var out = cloneSettings(defaults);
+
+    var callQ = coerceNumber(input.callQuantileMax);
+    if (callQ === null) callQ = defaults.callQuantileMax;
+    out.callQuantileMax = clampNumber(callQ, 0, 1);
+
+    var respQ = coerceNumber(input.responseQuantileMin);
+    if (respQ === null) respQ = defaults.responseQuantileMin;
+    out.responseQuantileMin = clampNumber(respQ, 0, 1);
+
+    var barsPerCall = coerceNumber(input.barsPerCall);
+    if (barsPerCall === null) barsPerCall = defaults.barsPerCall;
+    out.barsPerCall = clampNumber(Math.round(barsPerCall), 1, 16);
+
+    var barsPerResponse = coerceNumber(input.barsPerResponse);
+    if (barsPerResponse === null) barsPerResponse = defaults.barsPerResponse;
+    out.barsPerResponse = clampNumber(Math.round(barsPerResponse), 1, 16);
+
+    var minSim = coerceNumber(input.minSimilarity);
+    if (minSim === null) minSim = defaults.minSimilarity;
+    out.minSimilarity = clampNumber(minSim, 0, 0.999);
+
+    var topK = coerceNumber(input.topK);
+    if (topK === null) topK = defaults.topK;
+    out.topK = clampNumber(Math.round(topK), 1, 32);
+
+    var temperature = coerceNumber(input.temperature);
+    if (temperature === null) temperature = defaults.temperature;
+    out.temperature = clampNumber(temperature, 0.03, 1.5);
+
+    var minSpan = coerceNumber(input.minSpanBeats);
+    if (minSpan === null) minSpan = defaults.minSpanBeats;
+    out.minSpanBeats = clampNumber(Math.round(minSpan), 0, 512);
+
+    var excl = coerceNumber(input.excludeNeighborBeats);
+    if (excl === null) excl = defaults.excludeNeighborBeats;
+    out.excludeNeighborBeats = clampNumber(Math.round(excl), 0, 32);
+
+    var recentBars = coerceNumber(input.recentWindowBars);
+    if (recentBars === null) recentBars = defaults.recentWindowBars;
+    out.recentWindowBars = clampNumber(Math.round(recentBars), 0, 128);
+
+    var repeatPenalty = coerceNumber(input.repeatPenalty);
+    if (repeatPenalty === null) repeatPenalty = defaults.repeatPenalty;
+    out.repeatPenalty = clampNumber(repeatPenalty, 0, 1);
+
+    var energyBias = coerceNumber(input.energyBias);
+    if (energyBias === null) energyBias = defaults.energyBias;
+    out.energyBias = clampNumber(energyBias, 0, 1);
+
+    var sameSectionBias = coerceNumber(input.sameSectionBias);
+    if (sameSectionBias === null) sameSectionBias = defaults.sameSectionBias;
+    out.sameSectionBias = clampNumber(sameSectionBias, 0, 1);
+
+    var applyChance = coerceNumber(input.applyChance);
+    if (applyChance === null) applyChance = defaults.applyChance;
+    out.applyChance = clampNumber(applyChance, 0, 1);
+
+    var overrideJumps = coerceNumber(input.overrideJumps);
+    if (overrideJumps === null) overrideJumps = defaults.overrideJumps;
+    out.overrideJumps = overrideJumps >= 1 ? 1 : 0;
+
+    // Prevent inverted quantiles from nuking sets.
+    if (out.callQuantileMax > out.responseQuantileMin) {
+        var mid = (out.callQuantileMax + out.responseQuantileMin) / 2;
+        out.callQuantileMax = clampNumber(mid - 0.15, 0, 1);
+        out.responseQuantileMin = clampNumber(mid + 0.15, 0, 1);
+    }
+
+    return out;
+}
+
+function getCallResponseSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("callResponse");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("callResponse") : cloneAdvancedDefaults("callResponse");
+    return sanitizeCallResponseSettings(settings, ADVANCED_DEFAULTS.callResponse);
+}
+
+function callResponseGetBarIndex(beat) {
+    if (!beat) return null;
+    if (typeof beat.bar_index === "number") return beat.bar_index;
+    if (beat.parent && typeof beat.parent.which === "number") return beat.parent.which;
+    return null;
+}
+
+function callResponseQuantile(sorted, q) {
+    if (!sorted || !sorted.length) return 0;
+    q = clampNumber(q, 0, 1);
+    var pos = (sorted.length - 1) * q;
+    var base = Math.floor(pos);
+    var frac = pos - base;
+    var a = sorted[Math.max(0, Math.min(sorted.length - 1, base))];
+    var b = sorted[Math.max(0, Math.min(sorted.length - 1, base + 1))];
+    return a + frac * (b - a);
+}
+
+function buildCallResponseState(beats, settings) {
+    settings = sanitizeCallResponseSettings(settings, ADVANCED_DEFAULTS.callResponse);
+    beats = beats || [];
+    var n = beats.length;
+    var barKeyByBeat = new Array(n);
+    var barsByKey = Object.create(null);
+
+    for (var i = 0; i < n; i++) {
+        var b = beats[i];
+        var barKey = callResponseGetBarIndex(b);
+        if (barKey === null || !isFinite(barKey)) {
+            barKey = i; // fallback: treat each beat as its own bar
+        }
+        barKey = Math.round(barKey);
+        barKeyByBeat[i] = barKey;
+        if (!barsByKey[barKey]) {
+            barsByKey[barKey] = { key: barKey, beats: [], start: i, end: i };
+        }
+        var bar = barsByKey[barKey];
+        bar.beats.push(i);
+        bar.end = i;
+    }
+
+    var barKeys = Object.keys(barsByKey).map(function(k) { return parseInt(k, 10); });
+    barKeys.sort(function(a, b) { return a - b; });
+
+    var barCount = barKeys.length;
+    var barStartBeat = new Array(barCount);
+    var barEndBeat = new Array(barCount);
+    var barEnergy = new Array(barCount);
+    var barPosByKey = Object.create(null);
+
+    for (var bi = 0; bi < barCount; bi++) {
+        var key = barKeys[bi];
+        barPosByKey[key] = bi;
+        var barMeta = barsByKey[key];
+        barStartBeat[bi] = barMeta.start;
+        barEndBeat[bi] = barMeta.end;
+        var sum = 0;
+        for (var bj = 0; bj < barMeta.beats.length; bj++) {
+            sum += beatEnergy(beats[barMeta.beats[bj]]);
+        }
+        var avg = barMeta.beats.length ? (sum / barMeta.beats.length) : 0;
+        if (!isFinite(avg)) avg = 0;
+        barEnergy[bi] = clamp01(avg);
+    }
+
+    var energySorted = barEnergy.slice(0).sort(function(a, b) { return a - b; });
+    var callMax = callResponseQuantile(energySorted, settings.callQuantileMax);
+    var respMin = callResponseQuantile(energySorted, settings.responseQuantileMin);
+
+    var callBars = [];
+    var responseBars = [];
+    for (var bp = 0; bp < barCount; bp++) {
+        if (barEnergy[bp] <= callMax) callBars.push(bp);
+        if (barEnergy[bp] >= respMin) responseBars.push(bp);
+    }
+    if (!callBars.length || !responseBars.length) {
+        var median = callResponseQuantile(energySorted, 0.5);
+        callBars = [];
+        responseBars = [];
+        for (var bp2 = 0; bp2 < barCount; bp2++) {
+            if (barEnergy[bp2] <= median) callBars.push(bp2);
+            if (barEnergy[bp2] >= median) responseBars.push(bp2);
+        }
+    }
+
+    var beatBarPos = new Array(n);
+    for (var k = 0; k < n; k++) {
+        beatBarPos[k] = barPosByKey[barKeyByBeat[k]] !== undefined ? barPosByKey[barKeyByBeat[k]] : 0;
+    }
+
+    var callStartBeatSet = new Array(n);
+    var responseStartBeatSet = new Array(n);
+    for (var z = 0; z < n; z++) {
+        callStartBeatSet[z] = false;
+        responseStartBeatSet[z] = false;
+    }
+    callBars.forEach(function(pos) { callStartBeatSet[barStartBeat[pos]] = true; });
+    responseBars.forEach(function(pos) { responseStartBeatSet[barStartBeat[pos]] = true; });
+
+    return {
+        barKeys: barKeys,
+        barPosByKey: barPosByKey,
+        beatBarPos: beatBarPos,
+        barStartBeat: barStartBeat,
+        barEndBeat: barEndBeat,
+        barEnergy: barEnergy,
+        callBars: callBars,
+        responseBars: responseBars,
+        callStartBeatSet: callStartBeatSet,
+        responseStartBeatSet: responseStartBeatSet
+    };
+}
+
+function callResponseCountRecentBars(history, barPos, windowBars) {
+    if (!history || !history.length || windowBars <= 0) return 0;
+    var start = Math.max(0, history.length - windowBars);
+    var c = 0;
+    for (var i = start; i < history.length; i++) {
+        if (history[i] === barPos) c += 1;
+    }
+    return c;
+}
+
+function callResponsePickBarStartFromEdges(curIdx, state, settings, isResponsePhase, recentBars) {
+    settings = sanitizeCallResponseSettings(settings, ADVANCED_DEFAULTS.callResponse);
+    if (!state || !state.beatBarPos || !state.barStartBeat) return null;
+    if (!serverLoopCandidateMap || !serverLoopCandidateMap[curIdx]) return null;
+
+    var startSet = isResponsePhase ? state.responseStartBeatSet : state.callStartBeatSet;
+    if (!startSet) return null;
+
+    var edges = serverLoopCandidateMap[curIdx] || [];
+    var minSim = settings.minSimilarity || 0;
+    var minSpan = settings.minSpanBeats || 0;
+    var excl = settings.excludeNeighborBeats || 0;
+
+    var scored = [];
+    for (var i = 0; i < edges.length; i++) {
+        var edge = edges[i];
+        if (!edge || typeof edge.target !== "number") continue;
+        var target = Math.round(edge.target);
+        if (!masterQs || target < 0 || target >= masterQs.length) continue;
+        if (!startSet[target]) continue;
+
+        var span = Math.abs(target - curIdx);
+        if (span < minSpan) continue;
+        if (excl > 0 && span <= excl) continue;
+
+        var sim = palindromeNormalizeSimilarity(edge.similarity);
+        if (sim < minSim) continue;
+
+        var barPos = state.beatBarPos[target] || 0;
+        var barE = state.barEnergy[barPos] !== undefined ? state.barEnergy[barPos] : 0;
+        var energyGoal = isResponsePhase ? barE : (1 - barE);
+        var energyBonus = settings.energyBias * 0.25 * energyGoal;
+
+        var sectionBonus = (edge.sameSection ? 1 : 0) * settings.sameSectionBias * 0.12;
+
+        var repeatCount = callResponseCountRecentBars(recentBars, barPos, settings.recentWindowBars || 0);
+        var repPenalty = repeatCount > 0 ? Math.min(0.8, repeatCount * (settings.repeatPenalty || 0)) : 0;
+
+        var jitter = (Math.random() - 0.5) * settings.temperature * 0.05;
+        var score = 0.75 * sim + energyBonus + sectionBonus + jitter - repPenalty;
+        scored.push({ target: target, score: score, barPos: barPos });
+    }
+
+    if (!scored.length) return null;
+    scored.sort(function(a, b) { return b.score - a.score; });
+    var pool = scored.slice(0, Math.max(1, Math.min(settings.topK || 12, scored.length)));
+    if (pool.length === 1) return pool[0].target;
+
+    var temperature = settings.temperature || 0.25;
+    var maxScore = pool[0].score;
+    var weights = [];
+    var total = 0;
+    for (var w = 0; w < pool.length; w++) {
+        var ww = Math.exp((pool[w].score - maxScore) / temperature);
+        weights[w] = ww;
+        total += ww;
+    }
+    var r = Math.random() * total;
+    for (var j = 0; j < pool.length; j++) {
+        r -= weights[j];
+        if (r <= 0) return pool[j].target;
+    }
+    return pool[0].target;
+}
+
+function callResponsePickBarStartFallback(state, settings, isResponsePhase) {
+    settings = sanitizeCallResponseSettings(settings, ADVANCED_DEFAULTS.callResponse);
+    if (!state || !state.barStartBeat || !state.callBars || !state.responseBars) return 0;
+    var barPool = isResponsePhase ? state.responseBars : state.callBars;
+    if (!barPool.length) return 0;
+
+    var total = 0;
+    var weights = barPool.map(function(pos) {
+        var e = state.barEnergy[pos] !== undefined ? state.barEnergy[pos] : 0;
+        var goal = isResponsePhase ? e : (1 - e);
+        var w = 0.15 + settings.energyBias * 0.85 * goal;
+        total += w;
+        return w;
+    });
+    var r = Math.random() * total;
+    for (var i = 0; i < barPool.length; i++) {
+        r -= weights[i];
+        if (r <= 0) return state.barStartBeat[barPool[i]];
+    }
+    return state.barStartBeat[barPool[0]];
+}
+
+function createCallResponseDriver(player, options) {
+    options = options || {};
+    var modeName = "callresponse";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+
+    var settings = sanitizeCallResponseSettings(options, ADVANCED_DEFAULTS.callResponse);
+    var state = null;
+    var currentIndex = 0;
+
+    var phase = "call"; // call -> response -> call ...
+    var barsLeft = settings.barsPerCall || 1;
+    var recentBars = [];
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function ensureState() {
+        if (!state) {
+            state = buildCallResponseState(masterQs, settings);
+        }
+    }
+
+    function rememberBar(pos) {
+        recentBars.push(pos);
+        if (recentBars.length > 48) {
+            recentBars = recentBars.slice(recentBars.length - 48);
+        }
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function flipPhase() {
+        phase = phase === "call" ? "response" : "call";
+        barsLeft = phase === "call" ? (settings.barsPerCall || 1) : (settings.barsPerResponse || 1);
+    }
+
+    function shouldAttemptJump() {
+        return Math.random() <= (settings.applyChance || 1.0);
+    }
+
+    function computeProposedNext() {
+        ensureState();
+        if (!state || !state.barEndBeat) return currentIndex + 1;
+
+        var curBarPos = state.beatBarPos[currentIndex] || 0;
+        var isLastBeat = currentIndex === state.barEndBeat[curBarPos];
+        if (!isLastBeat) {
+            return currentIndex + 1;
+        }
+
+        // We are at the end of a bar.
+        if (barsLeft > 1) {
+            barsLeft -= 1;
+            return currentIndex + 1;
+        }
+
+        // Phase boundary: flip and jump to a matching call/response bar.
+        flipPhase();
+        rememberBar(curBarPos);
+        if (!shouldAttemptJump()) {
+            return currentIndex + 1;
+        }
+
+        var wantResponse = phase === "response";
+        var picked = callResponsePickBarStartFromEdges(currentIndex, state, settings, wantResponse, recentBars);
+        if (typeof picked === "number" && isFinite(picked)) {
+            return picked;
+        }
+        return callResponsePickBarStartFallback(state, settings, wantResponse);
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+        ensureState();
+
+        if (currentIndex >= masterQs.length) {
+            if (window.harmonizerLoopEnabled) {
+                currentIndex = 0;
+            } else if (autoPlayNext && playNextInQueue()) {
+                return;
+            } else {
+                stop();
+                return;
+            }
+        }
+        if (currentIndex < 0) currentIndex = 0;
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q, phase: phase, barsLeft: barsLeft });
+        var delay = player.playQ(q);
+
+        var proposed = computeProposedNext();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: "callresponse"
+        });
+
+        if (nextIdx !== currentIndex + 1 && nextIdx !== currentIndex) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeCallResponseSettings(customSettings, ADVANCED_DEFAULTS.callResponse);
+        state = null;
+        phase = "call";
+        barsLeft = settings.barsPerCall || 1;
+        recentBars = [];
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getCallResponseSettings());
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            phase = "call";
+            barsLeft = settings.barsPerCall || 1;
+            recentBars = [];
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+registerStackLayer({
+    id: "callresponse",
+    label: "Call & Response",
+    description: "Alternate low/high-energy bars with similarity-safe pivots.",
+    factory: function(ctx) {
+        if (!ctx || !ctx.beats || !ctx.beats.length) return null;
+        var settings = getCallResponseSettings();
+        var state = buildCallResponseState(ctx.beats, settings);
+        if (!state || !state.barEndBeat) return null;
+
+        var phase = "call";
+        var barsLeft = settings.barsPerCall || 1;
+        var recentBars = [];
+
+        function rememberBar(pos) {
+            recentBars.push(pos);
+            if (recentBars.length > 48) {
+                recentBars = recentBars.slice(recentBars.length - 48);
+            }
+        }
+
+        function flipPhase() {
+            phase = phase === "call" ? "response" : "call";
+            barsLeft = phase === "call" ? (settings.barsPerCall || 1) : (settings.barsPerResponse || 1);
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.currentIndex !== "number" || typeof meta.proposedIndex !== "number") return null;
+                if ((meta.mode || "").toLowerCase() === "callresponse") return null;
+
+                if (Math.random() > (settings.applyChance || 1.0)) {
+                    return null;
+                }
+
+                var cur = meta.currentIndex;
+                var proposed = meta.proposedIndex;
+                if (settings.overrideJumps < 1 && proposed !== cur + 1) {
+                    return null;
+                }
+
+                var curBarPos = state.beatBarPos[cur] || 0;
+                var isLastBeat = cur === state.barEndBeat[curBarPos];
+                if (!isLastBeat) return null;
+
+                if (barsLeft > 1) {
+                    barsLeft -= 1;
+                    return null;
+                }
+
+                flipPhase();
+                rememberBar(curBarPos);
+                var wantResponse = phase === "response";
+                var picked = callResponsePickBarStartFromEdges(cur, state, settings, wantResponse, recentBars);
+                if (typeof picked === "number" && isFinite(picked)) {
+                    return { index: picked };
+                }
+                return { index: callResponsePickBarStartFallback(state, settings, wantResponse) };
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    phase = "call";
+                    barsLeft = settings.barsPerCall || 1;
+                    recentBars = [];
+                }
+            },
+            dispose: function() {
+                phase = "call";
+                barsLeft = settings.barsPerCall || 1;
+                recentBars = [];
+            }
+        };
+    }
+});
+
+// ===== Orbit Weaver (Anchor Carousel) =====
+function sanitizeOrbitWeaverSettings(input, defaults) {
+    input = input || {};
+    defaults = defaults || ADVANCED_DEFAULTS.orbitWeaver || {};
+    var out = cloneSettings(defaults);
+
+    var anchorCount = coerceNumber(input.anchorCount);
+    if (anchorCount === null) anchorCount = defaults.anchorCount;
+    out.anchorCount = clampNumber(Math.round(anchorCount), 2, 16);
+
+    var spinAxis = coerceNumber(input.spinAxis);
+    if (spinAxis === null) spinAxis = defaults.spinAxis;
+    out.spinAxis = clampNumber(Math.round(spinAxis), 0, 2);
+
+    var barsPerAnchor = coerceNumber(input.barsPerAnchor);
+    if (barsPerAnchor === null) barsPerAnchor = defaults.barsPerAnchor;
+    out.barsPerAnchor = clampNumber(Math.round(barsPerAnchor), 1, 16);
+
+    var jumpAtBarStart = coerceNumber(input.jumpAtBarStart);
+    if (jumpAtBarStart === null) jumpAtBarStart = defaults.jumpAtBarStart;
+    out.jumpAtBarStart = jumpAtBarStart >= 1 ? 1 : 0;
+
+    var minSim = coerceNumber(input.minSimilarity);
+    if (minSim === null) minSim = defaults.minSimilarity;
+    out.minSimilarity = clampNumber(minSim, 0, 0.999);
+
+    var topK = coerceNumber(input.topK);
+    if (topK === null) topK = defaults.topK;
+    out.topK = clampNumber(Math.round(topK), 1, 32);
+
+    var temperature = coerceNumber(input.temperature);
+    if (temperature === null) temperature = defaults.temperature;
+    out.temperature = clampNumber(temperature, 0.03, 1.5);
+
+    var minSpan = coerceNumber(input.minSpanBeats);
+    if (minSpan === null) minSpan = defaults.minSpanBeats;
+    out.minSpanBeats = clampNumber(Math.round(minSpan), 0, 512);
+
+    var excl = coerceNumber(input.excludeNeighborBeats);
+    if (excl === null) excl = defaults.excludeNeighborBeats;
+    out.excludeNeighborBeats = clampNumber(Math.round(excl), 0, 32);
+
+    var recentWindowBeats = coerceNumber(input.recentWindowBeats);
+    if (recentWindowBeats === null) recentWindowBeats = defaults.recentWindowBeats;
+    out.recentWindowBeats = clampNumber(Math.round(recentWindowBeats), 0, 512);
+
+    var repeatPenalty = coerceNumber(input.repeatPenalty);
+    if (repeatPenalty === null) repeatPenalty = defaults.repeatPenalty;
+    out.repeatPenalty = clampNumber(repeatPenalty, 0, 1);
+
+    var sameSectionBias = coerceNumber(input.sameSectionBias);
+    if (sameSectionBias === null) sameSectionBias = defaults.sameSectionBias;
+    out.sameSectionBias = clampNumber(sameSectionBias, 0, 1);
+
+    var anchorPull = coerceNumber(input.anchorPull);
+    if (anchorPull === null) anchorPull = defaults.anchorPull;
+    out.anchorPull = clampNumber(anchorPull, 0, 1);
+
+    var applyChance = coerceNumber(input.applyChance);
+    if (applyChance === null) applyChance = defaults.applyChance;
+    out.applyChance = clampNumber(applyChance, 0, 1);
+
+    var overrideJumps = coerceNumber(input.overrideJumps);
+    if (overrideJumps === null) overrideJumps = defaults.overrideJumps;
+    out.overrideJumps = overrideJumps >= 1 ? 1 : 0;
+
+    return out;
+}
+
+function getOrbitWeaverSettings() {
+    var useAdvanced = isAdvancedGroupEnabled("orbitWeaver");
+    var settings = useAdvanced ? ensureAdvancedGroupSettings("orbitWeaver") : cloneAdvancedDefaults("orbitWeaver");
+    return sanitizeOrbitWeaverSettings(settings, ADVANCED_DEFAULTS.orbitWeaver);
+}
+
+function orbitWeaverGetBarIndex(beat) {
+    if (!beat) return null;
+    if (typeof beat.bar_index === "number") return beat.bar_index;
+    if (beat.parent && typeof beat.parent.which === "number") return beat.parent.which;
+    return null;
+}
+
+function orbitWeaverCircDist(a, b) {
+    var d = Math.abs(a - b);
+    return Math.min(d, 1 - d);
+}
+
+function orbitWeaverCountRecent(history, idx, windowBeats) {
+    if (!history || !history.length || windowBeats <= 0) return 0;
+    var start = Math.max(0, history.length - windowBeats);
+    var c = 0;
+    for (var i = start; i < history.length; i++) {
+        if (history[i] === idx) c += 1;
+    }
+    return c;
+}
+
+function buildOrbitWeaverState(beats, settings) {
+    settings = sanitizeOrbitWeaverSettings(settings, ADVANCED_DEFAULTS.orbitWeaver);
+    beats = beats || [];
+    var n = beats.length;
+
+    // Bar metadata (start/end/position by beat).
+    var barKeyByBeat = new Array(n);
+    var barsByKey = Object.create(null);
+    for (var i = 0; i < n; i++) {
+        var b = beats[i];
+        var barKey = orbitWeaverGetBarIndex(b);
+        if (barKey === null || !isFinite(barKey)) {
+            barKey = i;
+        }
+        barKey = Math.round(barKey);
+        barKeyByBeat[i] = barKey;
+        if (!barsByKey[barKey]) {
+            barsByKey[barKey] = { key: barKey, beats: [], start: i, end: i };
+        }
+        var bar = barsByKey[barKey];
+        bar.beats.push(i);
+        bar.end = i;
+    }
+    var barKeys = Object.keys(barsByKey).map(function(k) { return parseInt(k, 10); });
+    barKeys.sort(function(a, b) { return a - b; });
+    var barCount = barKeys.length;
+    var barStartBeat = new Array(barCount);
+    var barEndBeat = new Array(barCount);
+    var beatBarPos = new Array(n);
+    var barPosByKey = Object.create(null);
+    var barStartSet = Object.create(null);
+    for (var bi = 0; bi < barCount; bi++) {
+        var key = barKeys[bi];
+        barPosByKey[key] = bi;
+        var meta = barsByKey[key];
+        barStartBeat[bi] = meta.start;
+        barEndBeat[bi] = meta.end;
+        barStartSet[meta.start] = true;
+        for (var bj = 0; bj < meta.beats.length; bj++) {
+            beatBarPos[meta.beats[bj]] = bi;
+        }
+    }
+
+    // Feature vectors (energy, brightness, pitch).
+    var energies = new Array(n);
+    var brightRaw = new Array(n);
+    var pitchVals = new Array(n);
+
+    var timbres = computeBeatTimbreVectors(beats);
+    var chromas = computeBeatChromaVectors(beats);
+
+    var minBright = Infinity;
+    var maxBright = -Infinity;
+    for (var j = 0; j < n; j++) {
+        var e = clamp01(beatEnergy(beats[j]));
+        energies[j] = e;
+        var tb = timbres && timbres[j] ? (timbres[j][1] || 0) : 0;
+        if (!isFinite(tb)) tb = 0;
+        brightRaw[j] = tb;
+        if (tb < minBright) minBright = tb;
+        if (tb > maxBright) maxBright = tb;
+
+        var pv = 0;
+        if (chromas && chromas[j] && chromas[j].length >= 12) {
+            pv = dominantPitchClass(chromas[j]) / 11;
+        }
+        if (!isFinite(pv)) pv = 0;
+        pitchVals[j] = clamp01(pv);
+    }
+    var brightRange = maxBright - minBright;
+    if (!isFinite(brightRange) || brightRange <= 1e-9) brightRange = 1;
+    var brightness = new Array(n);
+    for (var k = 0; k < n; k++) {
+        brightness[k] = clamp01((brightRaw[k] - minBright) / brightRange);
+    }
+
+    function featureDist(aIdx, bIdx) {
+        var de = Math.abs(energies[aIdx] - energies[bIdx]);
+        var db = Math.abs(brightness[aIdx] - brightness[bIdx]);
+        var dp = orbitWeaverCircDist(pitchVals[aIdx], pitchVals[bIdx]);
+        // Slightly favor pitch/texture diversity (feels like "orbiting" around harmonic space).
+        return 0.30 * de + 0.30 * db + 0.40 * dp;
+    }
+
+    // Anchor candidates: bar starts if requested, otherwise all beats.
+    var candidates = [];
+    for (var c = 0; c < n; c++) {
+        if (settings.jumpAtBarStart >= 1 && !barStartSet[c]) continue;
+        // Avoid anchor selection on near-silence.
+        if (energies[c] < 0.03) continue;
+        candidates.push(c);
+    }
+    if (!candidates.length) {
+        candidates = [];
+        for (var c2 = 0; c2 < n; c2++) candidates.push(c2);
+    }
+
+    // Choose diverse anchors via farthest-point sampling.
+    var anchors = [];
+    var anchorCount = Math.min(settings.anchorCount || 6, Math.max(2, candidates.length));
+    var seed = candidates[0] || 0;
+    var bestE = -1;
+    for (var s = 0; s < candidates.length; s++) {
+        var idx = candidates[s];
+        if (energies[idx] > bestE) {
+            bestE = energies[idx];
+            seed = idx;
+        }
+    }
+    anchors.push(seed);
+
+    var minSpan = settings.minSpanBeats || 0;
+    for (var a = 1; a < anchorCount; a++) {
+        var bestIdx = null;
+        var bestScore = -Infinity;
+        for (var p = 0; p < candidates.length; p++) {
+            var cand = candidates[p];
+            var ok = true;
+            var minD = Infinity;
+            for (var q = 0; q < anchors.length; q++) {
+                var prev = anchors[q];
+                if (minSpan > 0 && Math.abs(cand - prev) < minSpan) {
+                    ok = false;
+                    break;
+                }
+                var d = featureDist(cand, prev);
+                if (d < minD) minD = d;
+            }
+            if (!ok) continue;
+            if (minD > bestScore) {
+                bestScore = minD;
+                bestIdx = cand;
+            }
+        }
+        if (bestIdx === null) break;
+        anchors.push(bestIdx);
+    }
+
+    // Sort anchors along a chosen axis to get a stable "carousel" order.
+    anchors = Array.from(new Set(anchors));
+    var axis = settings.spinAxis || 2;
+    anchors.sort(function(aIdx, bIdx) {
+        var av = axis === 0 ? energies[aIdx] : axis === 1 ? brightness[aIdx] : pitchVals[aIdx];
+        var bv = axis === 0 ? energies[bIdx] : axis === 1 ? brightness[bIdx] : pitchVals[bIdx];
+        if (av === bv) return aIdx - bIdx;
+        return av - bv;
+    });
+
+    // Anchor bar starts (for clean jumps).
+    var anchorStarts = anchors.map(function(idx) {
+        if (settings.jumpAtBarStart < 1) return idx;
+        var barPos = beatBarPos[idx] || 0;
+        return barStartBeat[barPos] || idx;
+    });
+
+    return {
+        energies: energies,
+        brightness: brightness,
+        pitch: pitchVals,
+        barKeyByBeat: barKeyByBeat,
+        barStartBeat: barStartBeat,
+        barEndBeat: barEndBeat,
+        beatBarPos: beatBarPos,
+        barStartSet: barStartSet,
+        anchors: anchors,
+        anchorStarts: anchorStarts
+    };
+}
+
+function orbitWeaverIsBarBoundary(state, beatIdx, beatsLen) {
+    if (!state || !state.barKeyByBeat || typeof beatIdx !== "number") return false;
+    if (beatsLen === undefined || beatsLen === null) {
+        beatsLen = state.barKeyByBeat.length || 0;
+    }
+    var idx = Math.round(beatIdx);
+    if (idx < 0 || idx >= beatsLen) return false;
+    if (idx === beatsLen - 1) return true;
+    return state.barKeyByBeat[idx] !== state.barKeyByBeat[idx + 1];
+}
+
+function orbitWeaverAnchorProximity(state, beatIdx, anchorIdx) {
+    if (!state || !state.energies) return 0;
+    var e = state.energies[beatIdx] || 0;
+    var b = state.brightness[beatIdx] || 0;
+    var p = state.pitch[beatIdx] || 0;
+
+    var ae = state.energies[anchorIdx] || 0;
+    var ab = state.brightness[anchorIdx] || 0;
+    var ap = state.pitch[anchorIdx] || 0;
+
+    var dist = 0.30 * Math.abs(e - ae) + 0.30 * Math.abs(b - ab) + 0.40 * orbitWeaverCircDist(p, ap);
+    return clamp01(1 - dist);
+}
+
+function orbitWeaverPickFromEdges(curIdx, state, settings, targetAnchorBeatIdx, history) {
+    settings = sanitizeOrbitWeaverSettings(settings, ADVANCED_DEFAULTS.orbitWeaver);
+    if (!serverLoopCandidateMap || !serverLoopCandidateMap[curIdx]) return null;
+    var edges = serverLoopCandidateMap[curIdx] || [];
+    if (!edges.length) return null;
+
+    var minSim = settings.minSimilarity || 0;
+    var minSpan = settings.minSpanBeats || 0;
+    var excl = settings.excludeNeighborBeats || 0;
+    var recentWindow = settings.recentWindowBeats || 0;
+    var repPenalty = settings.repeatPenalty || 0;
+    var secBias = settings.sameSectionBias || 0;
+    var pull = settings.anchorPull || 0;
+
+    var scored = [];
+    for (var i = 0; i < edges.length; i++) {
+        var edge = edges[i];
+        if (!edge || typeof edge.target !== "number") continue;
+        var cand = Math.round(edge.target);
+        if (!masterQs || cand < 0 || cand >= masterQs.length) continue;
+        if (cand === curIdx) continue;
+
+        var span = Math.abs(cand - curIdx);
+        if (span < minSpan) continue;
+        if (excl > 0 && span <= excl) continue;
+        if (settings.jumpAtBarStart >= 1 && !state.barStartSet[cand]) continue;
+
+        var simRaw = (typeof edge.similarity === "number") ? edge.similarity : 0;
+        var sim = simRaw < 0 ? (simRaw + 1) / 2 : simRaw;
+        sim = clamp01(sim);
+        if (sim < minSim) continue;
+
+        var prox = orbitWeaverAnchorProximity(state, cand, targetAnchorBeatIdx);
+        var sameSection = !!(edge.section_match || edge.sectionMatch || edge.sameSection);
+        var sectionBonus = sameSection ? (0.02 + 0.06 * secBias) : 0;
+        var repeatCount = orbitWeaverCountRecent(history, cand, recentWindow);
+        var penalty = repeatCount > 0 ? Math.min(0.85, repeatCount * repPenalty) : 0;
+        var jitter = (Math.random() - 0.5) * (settings.temperature || 0.25) * 0.04;
+
+        var score = (1 - pull) * sim + pull * prox + sectionBonus + jitter - penalty;
+        scored.push({ target: cand, score: score });
+    }
+    if (!scored.length) return null;
+
+    scored.sort(function(a, b) { return b.score - a.score; });
+    var pool = scored.slice(0, Math.max(1, Math.min(settings.topK || 12, scored.length)));
+    if (pool.length === 1) return pool[0].target;
+
+    var temperature = settings.temperature || 0.25;
+    var maxScore = pool[0].score;
+    var weights = [];
+    var total = 0;
+    for (var w = 0; w < pool.length; w++) {
+        var ww = Math.exp((pool[w].score - maxScore) / temperature);
+        weights[w] = ww;
+        total += ww;
+    }
+    var r = Math.random() * total;
+    for (var j = 0; j < pool.length; j++) {
+        r -= weights[j];
+        if (r <= 0) return pool[j].target;
+    }
+    return pool[0].target;
+}
+
+function orbitWeaverFallbackToAnchor(state, settings, anchorBeatIdx) {
+    if (!state) return anchorBeatIdx;
+    if (settings.jumpAtBarStart >= 1 && !state.barStartSet[anchorBeatIdx]) {
+        var barPos = state.beatBarPos[anchorBeatIdx] || 0;
+        return state.barStartBeat[barPos] || anchorBeatIdx;
+    }
+    return anchorBeatIdx;
+}
+
+function createOrbitWeaverDriver(player, options) {
+    options = options || {};
+    var modeName = "orbitweaver";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+
+    var settings = sanitizeOrbitWeaverSettings(options, ADVANCED_DEFAULTS.orbitWeaver);
+    var state = null;
+    var history = [];
+
+    var currentIndex = 0;
+    var anchorPos = 0;
+    var barsLeft = settings.barsPerAnchor || 1;
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function ensureState() {
+        if (!state) {
+            state = buildOrbitWeaverState(masterQs, settings);
+            anchorPos = 0;
+            barsLeft = settings.barsPerAnchor || 1;
+            history = [];
+        }
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        notifyStackPlaybackStateChange({ playing: false, mode: modeName });
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        $("#play").text("Resume");
+        setPlayingClass(null);
+        notifyStackPlaybackStateChange({ playing: false, mode: modeName });
+    }
+
+    function shouldAttemptJump() {
+        var chance = settings.applyChance || 1.0;
+        return Math.random() <= chance;
+    }
+
+    function remember(idx) {
+        history.push(idx);
+        var maxKeep = Math.max(16, settings.recentWindowBeats || 0);
+        if (history.length > maxKeep * 2) {
+            history = history.slice(history.length - maxKeep * 2);
+        }
+    }
+
+    function computeProposedNext() {
+        if (!state || !state.anchors || !state.anchors.length) {
+            return currentIndex + 1;
+        }
+
+        if (!orbitWeaverIsBarBoundary(state, currentIndex, masterQs ? masterQs.length : null)) {
+            return currentIndex + 1;
+        }
+
+        // Bar boundary.
+        if (barsLeft > 1) {
+            barsLeft -= 1;
+            return currentIndex + 1;
+        }
+
+        // Switch anchor target on boundary.
+        anchorPos = (anchorPos + 1) % state.anchors.length;
+        barsLeft = settings.barsPerAnchor || 1;
+        if (!shouldAttemptJump()) {
+            return currentIndex + 1;
+        }
+
+        var targetAnchorBeat = state.anchorStarts[anchorPos] || state.anchors[anchorPos] || 0;
+        var picked = orbitWeaverPickFromEdges(currentIndex, state, settings, targetAnchorBeat, history);
+        if (typeof picked === "number" && isFinite(picked)) {
+            remember(picked);
+            return picked;
+        }
+        return orbitWeaverFallbackToAnchor(state, settings, targetAnchorBeat);
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+        ensureState();
+
+        if (currentIndex >= masterQs.length) {
+            if (window.harmonizerLoopEnabled) {
+                currentIndex = 0;
+            } else if (autoPlayNext && playNextInQueue()) {
+                return;
+            } else {
+                stop();
+                return;
+            }
+        }
+        if (currentIndex < 0) currentIndex = 0;
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        notifyStackOnBeat({
+            mode: modeName,
+            currentIndex: currentIndex,
+            beat: q,
+            anchorPos: anchorPos,
+            barsLeft: barsLeft
+        });
+
+        var delay = player.playQ(q);
+        var proposed = computeProposedNext();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: "orbitweaver"
+        });
+
+        if (nextIdx !== currentIndex + 1 && nextIdx !== currentIndex) {
+            if (typeof drawJumpArcHighlight === "function") {
+                drawJumpArcHighlight(currentIndex, nextIdx, false);
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        settings = sanitizeOrbitWeaverSettings(customSettings, ADVANCED_DEFAULTS.orbitWeaver);
+        state = null;
+        history = [];
+        anchorPos = 0;
+        barsLeft = settings.barsPerAnchor || 1;
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getOrbitWeaverSettings());
+            clearProcessTimer();
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
+            anchorPos = 0;
+            barsLeft = settings.barsPerAnchor || 1;
+            history = [];
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+        onStackChange: function() {},
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+registerStackLayer({
+    id: "orbitweaver",
+    label: "Orbit Weaver",
+    description: "Cycle a carousel of diverse anchors, weaving via similarity at bar boundaries.",
+    factory: function(ctx) {
+        if (!ctx || !ctx.beats || !ctx.beats.length) return null;
+        var settings = getOrbitWeaverSettings();
+        var state = buildOrbitWeaverState(ctx.beats, settings);
+        if (!state || !state.anchors || !state.anchors.length) return null;
+
+        var anchorPos = 0;
+        var barsLeft = settings.barsPerAnchor || 1;
+        var history = [];
+
+        function remember(idx) {
+            history.push(idx);
+            if (history.length > 256) history = history.slice(history.length - 256);
+        }
+
+        return {
+            transformNextIndex: function(meta) {
+                if (!meta || typeof meta.currentIndex !== "number" || typeof meta.proposedIndex !== "number") return null;
+                if ((meta.mode || "").toLowerCase() === "orbitweaver") return null;
+                if (Math.random() > (settings.applyChance || 1.0)) return null;
+
+                var cur = meta.currentIndex;
+                var proposed = meta.proposedIndex;
+                if (settings.overrideJumps < 1 && proposed !== cur + 1) {
+                    return null;
+                }
+
+                if (!orbitWeaverIsBarBoundary(state, cur, ctx && ctx.beats ? ctx.beats.length : null)) return null;
+
+                if (barsLeft > 1) {
+                    barsLeft -= 1;
+                    return null;
+                }
+
+                anchorPos = (anchorPos + 1) % state.anchors.length;
+                barsLeft = settings.barsPerAnchor || 1;
+
+                var targetAnchorBeat = state.anchorStarts[anchorPos] || state.anchors[anchorPos] || 0;
+                remember(cur);
+                var picked = orbitWeaverPickFromEdges(cur, state, settings, targetAnchorBeat, history);
+                if (typeof picked === "number" && isFinite(picked)) {
+                    remember(picked);
+                    return { index: picked };
+                }
+                return { index: orbitWeaverFallbackToAnchor(state, settings, targetAnchorBeat) };
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    anchorPos = 0;
+                    barsLeft = settings.barsPerAnchor || 1;
+                    history = [];
+                }
+            },
+            dispose: function() {
+                anchorPos = 0;
+                barsLeft = settings.barsPerAnchor || 1;
+                history = [];
+            }
+        };
+    }
+});
+
+// Register Elastic Velo as a stackable speed warp layer.
+registerStackLayer({
+    id: "elasticvelo",
+    label: "Elastic Velo",
+    description: "Map beat energy to playback speed (nightcore ↔ vaporwave).",
+    factory: function(ctx) {
+        var player = driver && driver.player ? driver.player : null;
+        if (!player || typeof player.setSpeedFactor !== "function") {
+            return null;
+        }
+        var settings = getElasticVelocitySettings();
+        var smoothRate = null;
+        var lastRate = 1.0;
+
+        function reset() {
+            smoothRate = null;
+            lastRate = 1.0;
+            try { player.setSpeedFactor(1.0); } catch (e) {}
+        }
+
+        function computeRate(beat) {
+            var energy = elasticVelocityEnergy01(beat);
+            var target = elasticVelocityMapRate(energy, settings);
+            var smoothingBeats = settings.smoothingBeats || 0;
+            var alpha = smoothingBeats <= 0 ? 1.0 : (1.0 / (1.0 + smoothingBeats));
+            if (smoothRate === null || !isFinite(smoothRate)) {
+                smoothRate = target;
+            } else {
+                smoothRate = smoothRate + alpha * (target - smoothRate);
+            }
+            var rate = smoothRate;
+            var maxDelta = settings.maxDeltaPerBeat || 0;
+            if (maxDelta > 0 && isFinite(lastRate)) {
+                rate = clampNumber(rate, lastRate - maxDelta, lastRate + maxDelta);
+            }
+            rate = clampNumber(rate, settings.minRate, settings.maxRate);
+            lastRate = rate;
+            return rate;
+        }
+
+        return {
+            onBeat: function(meta) {
+                if (!meta || !meta.beat) return;
+                if ((meta.mode || "").toLowerCase() === "elasticvelo") return;
+                var rate = computeRate(meta.beat);
+                try { player.setSpeedFactor(rate); } catch (e) {}
+            },
+            onPlaybackStateChange: function(meta) {
+                if (meta && meta.playing === false) {
+                    reset();
+                }
+            },
+            dispose: function() {
+                reset();
             }
         };
     }
@@ -10862,13 +19891,134 @@ function Driver(player) {
     } else if (mode === "dopamine") {
         var dopamineSettings = getDopamineMinerSettings();
         return createDopamineMinerDriver(player, dopamineSettings);
-    } else if (mode === "autoharmonizer") {
-        return createAutoharmonizerDriver(player);
-    } else if (mode === "sculptor") {
-        return createSectionSculptorDriver(player);
-    }
+	    } else if (mode === "harmonictrap") {
+	        var harmonicSettings = getHarmonicTrapSettings();
+	        return createHarmonicTrapDriver(player, harmonicSettings);
+	    } else if (mode === "phaseshifter") {
+	        var phaseSettings = getPhaseShifterSettings();
+	        return createPhaseShifterDriver(player, phaseSettings);
+	    } else if (mode === "granularfreeze") {
+	        var granularSettings = getGranularFreezeSettings();
+	        return createGranularFreezeDriver(player, granularSettings);
+	    } else if (mode === "elasticvelo") {
+	        var elasticSettings = getElasticVelocitySettings();
+	        return createElasticVeloDriver(player, elasticSettings);
+	    } else if (mode === "mathrocker") {
+	        var mathSettings = getMathRockerSettings();
+	        return createMathRockerDriver(player, mathSettings);
+	    } else if (mode === "stalker") {
+	        var stalkerSettings = getStalkerSettings();
+	        return createStalkerDriver(player, stalkerSettings);
+	    } else if (mode === "timbresurf") {
+	        var timbreSettings = getTimbreSurfingSettings();
+	        return createTimbreSurfDriver(player, timbreSettings);
+	    } else if (mode === "chromastack") {
+	        var chromaSettings = getChromaStackingSettings();
+	        return createChromaStackDriver(player, chromaSettings);
+	    } else if (mode === "beatsort") {
+	        var sortSettings = getBeatSortingSettings();
+	        return createBeatSortingDriver(player, sortSettings);
+	    } else if (mode === "reversebloom") {
+	        var bloomSettings = getReverseBloomSettings();
+	        return createReverseBloomDriver(player, bloomSettings);
+	    } else if (mode === "barberpole") {
+	        var poleSettings = getBarberPoleSettings();
+	        return createBarberPoleDriver(player, poleSettings);
+	    } else if (mode === "palindrome") {
+	        var palSettings = getPalindromeEngineSettings();
+	        return createPalindromeDriver(player, palSettings);
+	    } else if (mode === "spectralgravity") {
+	        var gravSettings = getSpectralGravitySettings();
+	        return createSpectralGravityDriver(player, gravSettings);
+	    } else if (mode === "callresponse") {
+	        var crSettings = getCallResponseSettings();
+	        return createCallResponseDriver(player, crSettings);
+	    } else if (mode === "orbitweaver") {
+	        var owSettings = getOrbitWeaverSettings();
+	        return createOrbitWeaverDriver(player, owSettings);
+	    } else if (mode === "autoharmonizer") {
+	        return createAutoharmonizerDriver(player);
+	    } else if (mode === "sculptor") {
+	        return createSectionSculptorDriver(player);
+	    }
     return createCanonDriver(player);
 }
+
+// Stack modal UI
+$(document).ready(function() {
+    var stackModal = $("#stack-modal");
+    var stackToggleBtn = $("#stack-toggle");
+    var stackListRoot = $("#stack-layer-list");
+
+    function renderStackList() {
+        if (!stackListRoot || !stackListRoot.length) return;
+        stackListRoot.empty();
+        var layers = (typeof window.getAvailableStackLayers === "function") ? window.getAvailableStackLayers() : [];
+        var active = (typeof window.getStackedLayers === "function") ? window.getStackedLayers() : [];
+        if (!layers.length) {
+            stackListRoot.append('<p style="color:#888; margin:0;">No stackable modes yet.</p>');
+            return;
+        }
+        layers.forEach(function(layer) {
+            var id = (layer.id || "") + "";
+            var isOn = active.indexOf(id) !== -1;
+            var item = $('<label style="display:flex; flex-direction:column; gap:4px; padding:8px; border:1px solid rgba(232,180,184,0.15); border-radius:6px; background:rgba(255,255,255,0.03); cursor:pointer;"></label>');
+            var header = $('<div style="display:flex; align-items:center; gap:8px;"></div>');
+            var checkbox = $('<input type="checkbox" />').attr("data-layer-id", id);
+            checkbox.prop("checked", isOn);
+            var title = $('<span style="font-weight:600; color:rgba(232,180,184,0.95);"></span>').text(layer.label || id);
+            header.append(checkbox);
+            header.append(title);
+            item.append(header);
+            if (layer.description) {
+                item.append($('<span style="font-size:0.85rem; color:rgba(232,180,184,0.7);"></span>').text(layer.description));
+            }
+            checkbox.on("change", function() {
+                var current = (typeof window.getStackedLayers === "function") ? window.getStackedLayers() : [];
+                var next = current.slice();
+                if (this.checked) {
+                    if (next.indexOf(id) === -1) next.push(id);
+                } else {
+                    next = next.filter(function(x) { return x !== id; });
+                }
+                if (typeof window.setStackedLayers === "function") {
+                    window.setStackedLayers(next);
+                }
+            });
+            stackListRoot.append(item);
+        });
+    }
+
+    function openStackModal() {
+        renderStackList();
+        stackModal.show();
+    }
+
+    if (stackToggleBtn && stackToggleBtn.length) {
+        stackToggleBtn.on("click", function() {
+            openStackModal();
+        });
+    }
+
+    $("#stack-modal-close, #stack-modal-cancel").on("click", function() {
+        stackModal.hide();
+    });
+
+    $("#stack-modal-clear").on("click", function() {
+        if (typeof window.clearStackedLayers === "function") {
+            window.clearStackedLayers();
+        }
+        renderStackList();
+    });
+
+    stackModal.on("click", function(e) {
+        if (e.target === stackModal[0]) {
+            stackModal.hide();
+        }
+    });
+
+    updateStackButtonLabel();
+});
 
     window.onload = init;
 

@@ -13,6 +13,7 @@
  */
 
 import { eventBus, Events } from '../utils/EventBus.js';
+import * as THREE from 'three';
 
 class VisualizerBase {
     constructor(scene, camera, renderer) {
