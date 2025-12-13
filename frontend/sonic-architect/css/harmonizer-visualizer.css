@@ -112,6 +112,48 @@ html, body {
   background: rgba(0,0,0,0.4);
 }
 
+.hv-controls__tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-bottom: 1px solid var(--hv-border-soft);
+  background: rgba(0,0,0,0.35);
+}
+
+.hv-main-tab {
+  flex: 1 1 0;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid var(--hv-border-soft);
+  color: var(--hv-muted);
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.06s ease;
+}
+
+.hv-main-tab:hover {
+  border-color: var(--hv-border);
+  transform: translateY(-1px);
+}
+
+.hv-main-tab:active {
+  transform: translateY(0);
+}
+
+.hv-main-tab.active {
+  color: var(--hv-text);
+  border-color: var(--hv-accent);
+  background: var(--hv-accent-soft);
+}
+
+.hv-pane[hidden] {
+  display: none !important;
+}
+
 .hv-brand {
   display: grid;
   gap: 4px;

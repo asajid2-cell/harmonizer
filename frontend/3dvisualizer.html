@@ -35,12 +35,32 @@
                 </div>
             </div>
 
+            <div class="hv-controls__tabs" role="tablist" aria-label="3D Visualizer panels">
+                <button id="hv-main-tab-song" class="hv-main-tab active" type="button" role="tab" aria-selected="true" aria-controls="hv-main-pane-song">
+                    Song
+                </button>
+                <button id="hv-main-tab-viz" class="hv-main-tab" type="button" role="tab" aria-selected="false" aria-controls="hv-main-pane-viz">
+                    Visualizer
+                </button>
+            </div>
+
             <div class="hv-controls__scroll">
+            <div id="hv-main-pane-song" class="hv-pane" role="tabpanel" aria-labelledby="hv-main-tab-song">
             <section class="hv-section">
                 <h2 class="hv-section__title">Track</h2>
                 <div class="hv-queue-actions">
                     <button id="hv-choose-song-btn" class="hv-btn" type="button">Choose Song</button>
                     <button id="hv-playpause-btn" class="hv-btn ghost" type="button">Play / Pause</button>
+                </div>
+            </section>
+
+            <section class="hv-section">
+                <h2 class="hv-section__title">Queue</h2>
+                <div class="hv-queue-actions">
+                    <button id="hv-add-songs-btn" class="hv-btn" type="button">Add Songs</button>
+                    <button id="hv-view-queue-btn" class="hv-btn ghost" type="button">View Queue</button>
+                    <button id="hv-next-btn" class="hv-btn" type="button">Next Song</button>
+                    <button id="hv-clear-queue-btn" class="hv-btn ghost" type="button">Clear Queue</button>
                 </div>
             </section>
 
@@ -168,6 +188,9 @@
                 </div>
             </section>
 
+            </div>
+
+            <div id="hv-main-pane-viz" class="hv-pane" role="tabpanel" aria-labelledby="hv-main-tab-viz" hidden>
             <section class="hv-section">
                 <h2 class="hv-section__title">Scene</h2>
                 <label class="hv-label">Preset
@@ -419,15 +442,7 @@
                 <button id="hv-apply-colors" class="hv-btn" type="button">Apply Colors</button>
             </section>
 
-            <section class="hv-section">
-                <h2 class="hv-section__title">Queue</h2>
-                <div class="hv-queue-actions">
-                    <button id="hv-add-songs-btn" class="hv-btn" type="button">Add Songs</button>
-                    <button id="hv-view-queue-btn" class="hv-btn ghost" type="button">View Queue</button>
-                    <button id="hv-next-btn" class="hv-btn" type="button">Next Song</button>
-                    <button id="hv-clear-queue-btn" class="hv-btn ghost" type="button">Clear Queue</button>
-                </div>
-            </section>
+            </div>
             </div>
 
             <div class="hv-controls__footer">

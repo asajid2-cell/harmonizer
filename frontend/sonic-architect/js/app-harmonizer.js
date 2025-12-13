@@ -52,6 +52,8 @@ const VISUALIZER_STORAGE = {
   quality: 'threeDVisualizerQuality',
 };
 
+const MAIN_TAB_STORAGE_KEY = 'threeDVisualizerMainTabV1';
+
 function readStorage(primaryKey, fallbackValue) {
   try {
     const v = localStorage.getItem(primaryKey);
@@ -257,6 +259,10 @@ function cacheDom() {
   dom.autoplayHint = document.getElementById('hv-autoplay-hint');
 
   dom.hideUiBtn = document.getElementById('hv-hide-ui-btn');
+  dom.mainTabSong = document.getElementById('hv-main-tab-song');
+  dom.mainTabViz = document.getElementById('hv-main-tab-viz');
+  dom.mainPaneSong = document.getElementById('hv-main-pane-song');
+  dom.mainPaneViz = document.getElementById('hv-main-pane-viz');
   dom.presetSelect = document.getElementById('hv-scene-preset');
   dom.vizSelect = document.getElementById('hv-viz-mode');
   dom.vizControls = document.getElementById('hv-viz-controls');
@@ -2304,6 +2310,29 @@ function renderVisualizerControls() {
 }
 
 function bindUI() {
+  function applyMainTab(tabId) {
+    const normalized = (tabId || 'song').toLowerCase() === 'viz' ? 'viz' : 'song';
+    const isSong = normalized === 'song';
+
+    if (dom.mainPaneSong) dom.mainPaneSong.hidden = !isSong;
+    if (dom.mainPaneViz) dom.mainPaneViz.hidden = isSong;
+
+    if (dom.mainTabSong) {
+      dom.mainTabSong.classList.toggle('active', isSong);
+      dom.mainTabSong.setAttribute('aria-selected', isSong ? 'true' : 'false');
+    }
+    if (dom.mainTabViz) {
+      dom.mainTabViz.classList.toggle('active', !isSong);
+      dom.mainTabViz.setAttribute('aria-selected', !isSong ? 'true' : 'false');
+    }
+  }
+
+  function setMainTab(tabId, { persist = true } = {}) {
+    const normalized = (tabId || 'song').toLowerCase() === 'viz' ? 'viz' : 'song';
+    applyMainTab(normalized);
+    if (persist) writeStorage(MAIN_TAB_STORAGE_KEY, normalized);
+  }
+
   // Hide UI toggle
   if (dom.hideUiBtn) {
     const savedHidden = readStorage(VISUALIZER_STORAGE.uiHidden, '0') === '1';
@@ -2315,6 +2344,14 @@ function bindUI() {
       dom.hideUiBtn.textContent = hidden ? 'Show UI' : 'Hide UI';
       writeStorage(VISUALIZER_STORAGE.uiHidden, hidden ? '1' : '0');
     });
+  }
+
+  // Main (right panel) tabs: Song vs Visualizer
+  if (dom.mainTabSong && dom.mainTabViz) {
+    dom.mainTabSong.addEventListener('click', () => setMainTab('song'));
+    dom.mainTabViz.addEventListener('click', () => setMainTab('viz'));
+    const saved = (readStorage(MAIN_TAB_STORAGE_KEY, 'song') || 'song').toLowerCase();
+    setMainTab(saved, { persist: false });
   }
 
   // Preset options
