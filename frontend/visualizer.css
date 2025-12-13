@@ -1143,7 +1143,7 @@ body.state-home .viz-mode-switch {
     margin: 0 auto;
     display: flex;
     justify-content: center;
-    padding: clamp(18px, 3vw, 32px) 0;
+    padding: clamp(10px, 2vw, 20px) 0;
     overflow: visible;
 }
 
@@ -1164,13 +1164,13 @@ body.state-home .viz-mode-switch {
 
 #tiles {
     width: 100%;
-    min-height: clamp(540px, 64vh, 940px);
+    min-height: clamp(500px, 60vh, 880px);
     position: relative;
     overflow: visible;
 }
 
 body.advanced-expanded #tiles {
-    min-height: clamp(720px, 78vh, 1180px);
+    min-height: clamp(680px, 74vh, 1120px);
 }
 
 body.playing-jukebox .viz-orbit-shell,
