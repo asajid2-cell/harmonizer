@@ -6780,7 +6780,11 @@ function drawJumpArcHighlight(fromIdx, toIdx, isOverlay) {
 
     // Choose colors based on loop type
     var flashColor = isCanonLoop ? "#FF69B4" : "#FFFFFF"; // Pink for canon, white for jukebox
-    var settleColor = isCanonLoop ? "#FF1493" : "#00FFFF"; // Deep pink for canon, cyan for jukebox
+    var accentColor = "#00FFFF";
+    try {
+        accentColor = (getComputedStyle(document.documentElement).getPropertyValue("--color-cyan") || "").trim() || accentColor;
+    } catch (e) {}
+    var settleColor = isCanonLoop ? "#FF1493" : accentColor; // Deep pink for canon, accent for jukebox
 
     // Create bright highlight arc - each jump gets its own path
     var jumpPath = paper.path(pathString);

@@ -1,10 +1,24 @@
 <!DOCTYPE html>
 
-<html lang="en">
+<html lang="en" class="experimental-disabled">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Harmonizer Lab</title>
+    <script>
+        (function hydrateExperimentalThemeEarly() {
+            var enabled = false;
+            try {
+                var key = 'harmonizer:experimental';
+                var raw = localStorage.getItem(key);
+                enabled = raw === '1' || raw === 'true';
+            } catch (e) {}
+            var root = document.documentElement;
+            root.classList.toggle('experimental-enabled', enabled);
+            root.classList.toggle('experimental-disabled', !enabled);
+            root.dataset.experimental = enabled ? '1' : '0';
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
@@ -36,13 +50,13 @@
                     AND CREATE ENDLESS SEAMLESS LOOPS. YOUR MUSIC NEVER HAS TO END.
                 </p>
                 <div class="hero-callouts-row">
-                    <ul class="hero-callouts">
-                        <li>&#x27E1; <strong>CANON MODE</strong> &rarr; MIRROR VOICES</li>
-                        <li>&#x27E1; <strong>JUKEBOX MODE</strong> &rarr; JUMP AND NEVER STOP</li>
-                        <li>&#x27E1; <strong>ETERNAL MODE</strong> &rarr; LAYER AND REPEAT</li>
-                        <li>&#x27E1; <strong>AUTOHARMONIZER</strong> &rarr; DUAL TRACK FUSION</li>
-                        <li>&#x27E1; <strong>SECTION SCULPTOR</strong> &rarr; ARRANGE CLIPS</li>
-                    </ul>
+                     <ul class="hero-callouts">
+                         <li>&#x27E1; <strong>CANON MODE</strong> &rarr; MIRROR VOICES</li>
+                         <li>&#x27E1; <strong>JUKEBOX MODE</strong> &rarr; JUMP AND NEVER STOP</li>
+                         <li>&#x27E1; <strong>ETERNAL MODE</strong> &rarr; LAYER AND REPEAT</li>
+                         <li data-experimental="1">&#x27E1; <strong>AUTOHARMONIZER</strong> &rarr; DUAL TRACK FUSION</li>
+                         <li>&#x27E1; <strong>SECTION SCULPTOR</strong> &rarr; ARRANGE CLIPS</li>
+                     </ul>
                     <div class="ascii-dancer-cluster">
                         <pre class="ascii-dancer-side">
   &#9834;&#9835;
@@ -162,119 +176,119 @@ jgs   `-=========-`()
                                 <p>layer + evolve</p>
                             </div>
                         </button>
-                        <button type="button" data-algorithm="dopamine" class="mode-card toggle">
+                        <button type="button" data-algorithm="dopamine" data-experimental="1" class="mode-card toggle">
                             <span class="mode-card-icon" aria-hidden="true">&#9889;</span>
                             <div class="mode-card-body">
                                 <h3>DOPAMINE MINER</h3>
                                 <p>infinite climax</p>
                             </div>
                         </button>
-	                        <button type="button" data-algorithm="harmonictrap" class="mode-card toggle">
+	                        <button type="button" data-algorithm="harmonictrap" data-experimental="1" class="mode-card toggle">
 	                            <span class="mode-card-icon" aria-hidden="true">&#9835;</span>
 	                            <div class="mode-card-body">
 	                                <h3>HARMONIC TRAP</h3>
 	                                <p>modal locking</p>
 	                            </div>
 	                        </button>
-	                        <button type="button" data-algorithm="phaseshifter" class="mode-card toggle">
+	                        <button type="button" data-algorithm="phaseshifter" data-experimental="1" class="mode-card toggle">
 	                            <span class="mode-card-icon" aria-hidden="true">&#8776;</span>
 	                            <div class="mode-card-body">
 	                                <h3>PHASE SHIFTER</h3>
 	                                <p>reich phasing</p>
 	                            </div>
 	                        </button>
-                          <button type="button" data-algorithm="granularfreeze" class="mode-card toggle">
+                          <button type="button" data-algorithm="granularfreeze" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#10052;</span>
                               <div class="mode-card-body">
                                   <h3>GRANULAR FREEZE</h3>
                                   <p>chopped &amp; screwed</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="elasticvelo" class="mode-card toggle">
+                          <button type="button" data-algorithm="elasticvelo" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#8646;</span>
                               <div class="mode-card-body">
                                   <h3>ELASTIC VELO</h3>
                                   <p>nightcore &harr; vaporwave</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="mathrocker" class="mode-card toggle">
+                          <button type="button" data-algorithm="mathrocker" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#247;</span>
                               <div class="mode-card-body">
                                   <h3>MATH ROCKER</h3>
                                   <p>time signature butcher</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="stalker" class="mode-card toggle">
+                          <button type="button" data-algorithm="stalker" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#9679;</span>
                               <div class="mode-card-body">
                                   <h3>THE STALKER</h3>
                                   <p>targeted gravity</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="timbresurf" class="mode-card toggle">
+                          <button type="button" data-algorithm="timbresurf" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#9839;</span>
                               <div class="mode-card-body">
                                   <h3>TIMBRE SURFING</h3>
                                   <p>texture drone</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="chromastack" class="mode-card toggle">
+                          <button type="button" data-algorithm="chromastack" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#9836;</span>
                               <div class="mode-card-body">
                                   <h3>CHROMA STACKING</h3>
                                   <p>wall of sound</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="beatsort" class="mode-card toggle">
+                          <button type="button" data-algorithm="beatsort" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#8645;</span>
                               <div class="mode-card-body">
                                   <h3>BEAT SORTING</h3>
                                   <p>deconstruction</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="reversebloom" class="mode-card toggle">
+                          <button type="button" data-algorithm="reversebloom" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#8630;</span>
                               <div class="mode-card-body">
                                   <h3>REVERSE BLOOM</h3>
                                   <p>drop-to-rewind</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="barberpole" class="mode-card toggle">
+                          <button type="button" data-algorithm="barberpole" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#8648;</span>
                               <div class="mode-card-body">
                                   <h3>BARBER POLE</h3>
                                   <p>infinite rise</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="palindrome" class="mode-card toggle">
+                          <button type="button" data-algorithm="palindrome" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#8646;</span>
                               <div class="mode-card-body">
                                   <h3>PALINDROME</h3>
                                   <p>forward/back phrases</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="spectralgravity" class="mode-card toggle">
+                          <button type="button" data-algorithm="spectralgravity" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#9835;</span>
                               <div class="mode-card-body">
                                   <h3>SPECTRAL GRAVITY</h3>
                                   <p>tone attractor</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="callresponse" class="mode-card toggle">
+                          <button type="button" data-algorithm="callresponse" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#8596;</span>
                               <div class="mode-card-body">
                                   <h3>CALL &amp; RESPONSE</h3>
                                   <p>bar alternation</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="orbitweaver" class="mode-card toggle">
+                          <button type="button" data-algorithm="orbitweaver" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">&#9673;</span>
                               <div class="mode-card-body">
                                   <h3>ORBIT WEAVER</h3>
                                   <p>anchor carousel</p>
                               </div>
                           </button>
-                          <button type="button" data-algorithm="autoharmonizer" class="mode-card toggle">
+                          <button type="button" data-algorithm="autoharmonizer" data-experimental="1" class="mode-card toggle">
                               <span class="mode-card-icon" aria-hidden="true">↔</span>
                               <div class="mode-card-body">
                                   <h3>AUTOHARMONIZER</h3>
@@ -352,6 +366,9 @@ jgs   `-=========-`()
                         <button type="button" class="cta" id="youtube-to-mp3-btn" aria-label="YouTube to MP3 converter">
                             YouTube to MP3
                         </button>
+                        <button type="button" class="cta" id="experimental-mode-btn" aria-label="Toggle experimental mode">
+                            Enter Experimental Mode
+                        </button>
                     </div>
                 </form>
                 <div id="pinned-tracks-panel" class="status-panel" role="navigation" aria-label="Pinned demo tracks">
@@ -378,23 +395,23 @@ jgs   `-=========-`()
 	                                <option value="canon">Autocanonizer</option>
 	                                <option value="jukebox">Eternal Jukebox</option>
 	                                <option value="eternal">Eternal Canonizer</option>
-	                                <option value="dopamine">Dopamine Miner</option>
-	                                <option value="harmonictrap">Harmonic Trap</option>
-	                                <option value="phaseshifter">Phase Shifter</option>
-	                                <option value="granularfreeze">Granular Freeze</option>
-	                                <option value="elasticvelo">Elastic Velo</option>
-	                                <option value="mathrocker">Math Rocker</option>
-	                                <option value="stalker">The Stalker</option>
-	                                <option value="timbresurf">Timbre Surfing</option>
-	                                <option value="chromastack">Chroma Stacking</option>
-	                                <option value="beatsort">Beat Sorting</option>
-	                                <option value="reversebloom">Reverse Bloom</option>
-	                                <option value="barberpole">Barber Pole</option>
-	                                <option value="palindrome">Palindrome Engine</option>
-	                                <option value="spectralgravity">Spectral Gravity</option>
-	                                <option value="callresponse">Call &amp; Response</option>
-	                                <option value="orbitweaver">Orbit Weaver</option>
-	                                <option value="autoharmonizer">Autoharmonizer</option>
+	                                <option value="dopamine" data-experimental="1">Dopamine Miner</option>
+	                                <option value="harmonictrap" data-experimental="1">Harmonic Trap</option>
+	                                <option value="phaseshifter" data-experimental="1">Phase Shifter</option>
+	                                <option value="granularfreeze" data-experimental="1">Granular Freeze</option>
+	                                <option value="elasticvelo" data-experimental="1">Elastic Velo</option>
+	                                <option value="mathrocker" data-experimental="1">Math Rocker</option>
+	                                <option value="stalker" data-experimental="1">The Stalker</option>
+	                                <option value="timbresurf" data-experimental="1">Timbre Surfing</option>
+	                                <option value="chromastack" data-experimental="1">Chroma Stacking</option>
+	                                <option value="beatsort" data-experimental="1">Beat Sorting</option>
+	                                <option value="reversebloom" data-experimental="1">Reverse Bloom</option>
+	                                <option value="barberpole" data-experimental="1">Barber Pole</option>
+	                                <option value="palindrome" data-experimental="1">Palindrome Engine</option>
+	                                <option value="spectralgravity" data-experimental="1">Spectral Gravity</option>
+	                                <option value="callresponse" data-experimental="1">Call &amp; Response</option>
+	                                <option value="orbitweaver" data-experimental="1">Orbit Weaver</option>
+	                                <option value="autoharmonizer" data-experimental="1">Autoharmonizer</option>
 	                                <option value="sculptor">Section Sculptor</option>
 	                            </select>
                         </div>
@@ -434,7 +451,7 @@ jgs   `-=========-`()
                             <button type="button" id="advanced-toggle" class="viz-button ghost advanced-toggle-button" aria-pressed="false">
                                 Advanced: Off
                             </button>
-                            <button type="button" id="stack-toggle" class="viz-button ghost" aria-pressed="false" title="Stack additional modes on top of the base engine">
+                            <button type="button" id="stack-toggle" data-experimental="1" class="viz-button ghost" aria-pressed="false" title="Stack additional modes on top of the base engine">
                                 Stack: Off
                             </button>
                         </div>
@@ -648,7 +665,7 @@ jgs   `-=========-`()
     </div>
 
     <!-- Stack Modes Modal -->
-    <div id="stack-modal" class="modal" style="display: none;">
+    <div id="stack-modal" data-experimental="1" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Stack Modes</h3>
@@ -749,6 +766,86 @@ jgs   `-=========-`()
         const driveHelperHint = document.getElementById('drive-helper-hint');
         const vizModeSelect = document.getElementById('viz-mode-select');
         const config = window.HARMONIZER_CONFIG || {};
+        const EXPERIMENTAL_STORAGE_KEY = 'harmonizer:experimental';
+        const root = document.documentElement;
+        const experimentalButton = document.getElementById('experimental-mode-btn');
+        function getExperimentalEnabled() {
+            try {
+                const raw = localStorage.getItem(EXPERIMENTAL_STORAGE_KEY);
+                return raw === '1' || raw === 'true';
+            } catch (e) {
+                return false;
+            }
+        }
+        function setExperimentalEnabled(enabled, { animate = false } = {}) {
+            const on = !!enabled;
+            try {
+                localStorage.setItem(EXPERIMENTAL_STORAGE_KEY, on ? '1' : '0');
+            } catch (e) {}
+
+            root.classList.toggle('experimental-enabled', on);
+            root.classList.toggle('experimental-disabled', !on);
+            root.dataset.experimental = on ? '1' : '0';
+
+            body.classList.toggle('experimental-enabled', on);
+            body.classList.toggle('experimental-disabled', !on);
+            body.dataset.experimental = on ? '1' : '0';
+
+            if (animate && on) {
+                body.classList.add('experimental-corrupting');
+                window.setTimeout(() => body.classList.remove('experimental-corrupting'), 720);
+            }
+
+            if (experimentalButton) {
+                experimentalButton.textContent = on ? 'Exit Experimental Mode' : 'Enter Experimental Mode';
+            }
+
+            // Some UAs ignore `display:none` on <option>; explicitly hide/disable.
+            if (vizModeSelect) {
+                vizModeSelect.querySelectorAll('option[data-experimental="1"]').forEach((opt) => {
+                    opt.hidden = !on;
+                    opt.disabled = !on;
+                });
+            }
+
+            // Stacking is experimental-only.
+            const stackToggle = document.getElementById('stack-toggle');
+            if (stackToggle) {
+                stackToggle.disabled = !on;
+            }
+            if (!on && typeof window.clearStackedLayers === 'function') {
+                try { window.clearStackedLayers(); } catch (e) {}
+            }
+
+            // If we exit experimental while an experimental mode is active, snap back to canon.
+            if (!on) {
+                const experimentalModes = new Set([
+                    'dopamine',
+                    'harmonictrap',
+                    'phaseshifter',
+                    'granularfreeze',
+                    'elasticvelo',
+                    'mathrocker',
+                    'stalker',
+                    'timbresurf',
+                    'chromastack',
+                    'beatsort',
+                    'reversebloom',
+                    'barberpole',
+                    'palindrome',
+                    'spectralgravity',
+                    'callresponse',
+                    'orbitweaver',
+                    'autoharmonizer',
+                ]);
+                const modeNow = ((body.dataset.mode || '') + '').toLowerCase();
+                if (experimentalModes.has(modeNow)) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('mode', 'canon');
+                    window.location.href = url.pathname + '?' + url.searchParams.toString();
+                }
+            }
+        }
         const apiBaseUrl = (config.apiBaseUrl || "").replace(/\/+$/, "");
         const buildApiUrl = (path) => {
             if (!path.startsWith('/')) {
@@ -756,6 +853,15 @@ jgs   `-=========-`()
             }
             return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
         };
+
+        setExperimentalEnabled(getExperimentalEnabled(), { animate: false });
+
+        if (experimentalButton) {
+            experimentalButton.addEventListener('click', () => {
+                const next = !getExperimentalEnabled();
+                setExperimentalEnabled(next, { animate: next });
+            });
+        }
         const rlLoggingEnabled = Boolean(config.rlLoggingEnabled);
         const rlJumpEndpoint = buildApiUrl('/api/rl/jump-event');
         const rlModelEndpoint = buildApiUrl('/api/rl/model');
@@ -1047,7 +1153,10 @@ jgs   `-=========-`()
 	        const params = new URLSearchParams(window.location.search);
 	        const tridParam = params.get('trid');
 	        const requestedMode = (params.get('mode') || 'canon').toLowerCase();
-	        const allowedModes = new Set(['canon', 'jukebox', 'eternal', 'dopamine', 'harmonictrap', 'phaseshifter', 'granularfreeze', 'elasticvelo', 'mathrocker', 'stalker', 'timbresurf', 'chromastack', 'beatsort', 'reversebloom', 'barberpole', 'palindrome', 'spectralgravity', 'callresponse', 'orbitweaver', 'autoharmonizer', 'sculptor']);
+	        const experimentalEnabledAtLoad = getExperimentalEnabled();
+	        const allowedModes = experimentalEnabledAtLoad
+	            ? new Set(['canon', 'jukebox', 'eternal', 'dopamine', 'harmonictrap', 'phaseshifter', 'granularfreeze', 'elasticvelo', 'mathrocker', 'stalker', 'timbresurf', 'chromastack', 'beatsort', 'reversebloom', 'barberpole', 'palindrome', 'spectralgravity', 'callresponse', 'orbitweaver', 'autoharmonizer', 'sculptor'])
+	            : new Set(['canon', 'jukebox', 'eternal', 'sculptor']);
         const normalizedMode = allowedModes.has(requestedMode) ? requestedMode : modeFromBody;
         document.body.dataset.mode = normalizedMode;
         if (vizModeSelect) {
