@@ -20,7 +20,7 @@ class Ribbons extends VisualizerBase {
         this.id = 'ribbons';
         this.name = 'Ribbons';
         this.description = 'Flowing bezier ribbon streams';
-        this.author = 'Sonic Architect';
+        this.author = '3D Visualizer';
 
         // Ribbons array
         this.ribbons = [];

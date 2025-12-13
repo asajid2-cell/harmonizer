@@ -1,4 +1,4 @@
-/* Harmonizer-styled shell for Sonic Architect visualizers.
+/* Harmonizer-styled shell for 3D Visualizer.
    Keep this scoped to the lite page only. */
 
 :root {
@@ -185,4 +185,3 @@ html, body {
     flex-wrap: wrap;
   }
 }
-

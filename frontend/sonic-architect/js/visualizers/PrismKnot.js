@@ -12,7 +12,7 @@ class PrismKnot extends VisualizerBase {
         this.id = 'prism';
         this.name = 'Prism Knot';
         this.description = 'Torus-knot core with orbiting prisms';
-        this.author = 'Harmonizer';
+        this.author = '3D Visualizer';
 
         this.core = null;
         this.coreMat = null;
@@ -224,4 +224,3 @@ class PrismKnot extends VisualizerBase {
 }
 
 export default PrismKnot;
-

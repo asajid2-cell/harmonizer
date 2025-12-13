@@ -12,7 +12,7 @@ class NeonVoxelCity extends VisualizerBase {
         this.id = 'city';
         this.name = 'Neon Voxel City';
         this.description = 'Instanced neon skyline reacting to audio';
-        this.author = 'Harmonizer';
+        this.author = '3D Visualizer';
 
         this.instanced = null;
         this.geometry = null;
@@ -249,4 +249,3 @@ class NeonVoxelCity extends VisualizerBase {
 }
 
 export default NeonVoxelCity;
-

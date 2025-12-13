@@ -1,6 +1,6 @@
 /**
- * Harmonizer Visualizer controller.
- * Uses Sonic Architect rendering core but Harmonizer songs/queue.
+ * 3D Visualizer controller.
+ * Uses the 3D Visualizer rendering core with Harmonizer-driven playback support.
  */
 
 import * as THREE from 'three';
@@ -40,6 +40,31 @@ window.THREE = THREE;
 const CONFIG = window.HARMONIZER_CONFIG || {};
 const API_BASE_URL = (CONFIG.apiBaseUrl || '').replace(/\/+$/, '');
 const CACHE_BUSTER = 'v=20251212';
+
+// Rebrand storage keys without breaking existing saved state.
+const VISUALIZER_STORAGE = {
+  vizId: 'threeDVisualizerVizId',
+  uiHidden: 'threeDVisualizerUiHidden',
+  theme: 'threeDVisualizerThemeV1',
+  autoRotate: 'threeDVisualizerAutoRotate',
+  autoRotateSpeed: 'threeDVisualizerAutoRotateSpeed',
+  fov: 'threeDVisualizerFov',
+  quality: 'threeDVisualizerQuality',
+};
+
+function readStorage(primaryKey, fallbackValue) {
+  try {
+    const v = localStorage.getItem(primaryKey);
+    if (v !== null) return v;
+  } catch (e) {}
+  return fallbackValue;
+}
+
+function writeStorage(primaryKey, value) {
+  try {
+    localStorage.setItem(primaryKey, value);
+  } catch (e) {}
+}
 
 function resolveApiUrl(path, addCacheBuster = true) {
   if (!path) return API_BASE_URL || '';
@@ -433,7 +458,7 @@ function initVisualizers() {
   app.vizManager.register(NeonVoxelCity);
   app.vizManager.register(MetaballsFluid);
 
-  const savedViz = localStorage.getItem('harmonizerVisualizerVizId') || 'sphere';
+  const savedViz = readStorage(VISUALIZER_STORAGE.vizId, 'sphere') || 'sphere';
   app.vizManager.switchTo(savedViz, 'instant');
   if (dom.vizSelect) dom.vizSelect.value = savedViz;
   renderVisualizerControls();
@@ -550,7 +575,7 @@ function createExternalAudioReceiver(enabled, sid) {
 
   function init() {
     // Same-origin fast-path: directly read analyser from the opener window.
-    // This allows Harmonizer -> Sonic Architect without requiring Harmonizer code changes.
+    // This allows Harmonizer -> 3D Visualizer without requiring Harmonizer code changes.
     const direct = tryAttachOpenerAnalyser();
     if (direct) state.enabled = true;
 
@@ -1577,7 +1602,7 @@ async function syncOverlayPlayback() {
 async function playTrackById(trackId, { queueIndex = null } = {}) {
   if (externalAudioReceiver.enabled) {
     currentTrackId = trackId;
-    if (dom.trackMeta) dom.trackMeta.textContent = trackId ? `External audio • ${trackId}` : 'External audio • Harmonizer';
+    if (dom.trackMeta) dom.trackMeta.textContent = trackId ? `External audio • ${trackId}` : 'External audio • linked';
     return;
   }
   currentTrackId = trackId;
@@ -1992,7 +2017,7 @@ async function handleUploadFiles(files) {
 // THEME + EFFECTS + CONTROLS
 // =====================================
 
-const THEME_STORAGE_KEY = 'harmonizerVisualizerThemeV1';
+const THEME_STORAGE_KEY = VISUALIZER_STORAGE.theme;
 
 function applyTheme(themeId, primary, secondary, tertiary) {
   const theme = THEMES[themeId] || THEMES.cyber;
@@ -2175,9 +2200,7 @@ function applyPreset(presetId) {
 
   if (dom.vizSelect) dom.vizSelect.value = preset.vizId;
   app.vizManager.switchTo(preset.vizId, 'instant');
-  try {
-    localStorage.setItem('harmonizerVisualizerVizId', preset.vizId);
-  } catch (e) {}
+  writeStorage(VISUALIZER_STORAGE.vizId, preset.vizId);
 
   setTimeout(() => {
     Object.entries(preset.vizControls || {}).forEach(([key, val]) => app.vizManager.setControl(key, val));
@@ -2283,16 +2306,14 @@ function renderVisualizerControls() {
 function bindUI() {
   // Hide UI toggle
   if (dom.hideUiBtn) {
-    const savedHidden = localStorage.getItem('harmonizerVisualizerUiHidden') === '1';
+    const savedHidden = readStorage(VISUALIZER_STORAGE.uiHidden, '0') === '1';
     dom.body.classList.toggle('hv-ui-hidden', savedHidden);
     dom.hideUiBtn.textContent = savedHidden ? 'Show UI' : 'Hide UI';
 
     dom.hideUiBtn.addEventListener('click', () => {
       const hidden = dom.body.classList.toggle('hv-ui-hidden');
       dom.hideUiBtn.textContent = hidden ? 'Show UI' : 'Hide UI';
-      try {
-        localStorage.setItem('harmonizerVisualizerUiHidden', hidden ? '1' : '0');
-      } catch (e) {}
+      writeStorage(VISUALIZER_STORAGE.uiHidden, hidden ? '1' : '0');
     });
   }
 
@@ -2311,9 +2332,7 @@ function bindUI() {
     dom.vizSelect.addEventListener('change', async () => {
       const id = dom.vizSelect.value;
       await app.vizManager.switchTo(id, 'instant');
-      try {
-        localStorage.setItem('harmonizerVisualizerVizId', id);
-      } catch (e) {}
+      writeStorage(VISUALIZER_STORAGE.vizId, id);
       // Recentre camera target so orbit/zoom doesn't drift into empty space.
       app.controls.target.set(0, 0, 0);
       app.controls.update();
@@ -2502,26 +2521,22 @@ function bindUI() {
 
   // Camera controls
   if (dom.camAutoRotate) {
-    const savedAutoRotate = localStorage.getItem('harmonizerVisualizerAutoRotate') === '1';
+    const savedAutoRotate = readStorage(VISUALIZER_STORAGE.autoRotate, '0') === '1';
     dom.camAutoRotate.checked = savedAutoRotate;
     app.controls.autoRotate = savedAutoRotate;
     dom.camAutoRotate.addEventListener('change', () => {
       app.controls.autoRotate = !!dom.camAutoRotate.checked;
-      try {
-        localStorage.setItem('harmonizerVisualizerAutoRotate', app.controls.autoRotate ? '1' : '0');
-      } catch (e) {}
+      writeStorage(VISUALIZER_STORAGE.autoRotate, app.controls.autoRotate ? '1' : '0');
     });
   }
   if (dom.camAutoRotateSpeed) {
-    const savedSpeed = Number(localStorage.getItem('harmonizerVisualizerAutoRotateSpeed') || '2');
+    const savedSpeed = Number(readStorage(VISUALIZER_STORAGE.autoRotateSpeed, '2') || '2');
     dom.camAutoRotateSpeed.value = String(savedSpeed);
     app.controls.autoRotateSpeed = savedSpeed;
     dom.camAutoRotateSpeed.addEventListener('input', () => {
       const v = Number(dom.camAutoRotateSpeed.value);
       app.controls.autoRotateSpeed = v;
-      try {
-        localStorage.setItem('harmonizerVisualizerAutoRotateSpeed', String(v));
-      } catch (e) {}
+      writeStorage(VISUALIZER_STORAGE.autoRotateSpeed, String(v));
     });
   }
   if (dom.camFov) {
@@ -2530,9 +2545,7 @@ function bindUI() {
       const v = Number(dom.camFov.value);
       app.camera.fov = v;
       app.camera.updateProjectionMatrix();
-      try {
-        localStorage.setItem('harmonizerVisualizerFov', String(v));
-      } catch (e) {}
+      writeStorage(VISUALIZER_STORAGE.fov, String(v));
     });
   }
   if (dom.camReset) {
@@ -2544,7 +2557,7 @@ function bindUI() {
     });
   }
   if (dom.qualitySelect) {
-    const savedQuality = (localStorage.getItem('harmonizerVisualizerQuality') || 'high').toLowerCase();
+    const savedQuality = (readStorage(VISUALIZER_STORAGE.quality, 'high') || 'high').toLowerCase();
     dom.qualitySelect.value = ['low', 'medium', 'high', 'ultra'].includes(savedQuality) ? savedQuality : 'high';
     dom.qualitySelect.addEventListener('change', () => setQuality(dom.qualitySelect.value));
     setQuality(dom.qualitySelect.value);
@@ -2556,9 +2569,7 @@ function setQuality(level) {
   const pixelRatioMax = q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 2 : 2;
   app.renderer.setPixelRatio(Math.min(pixelRatioMax, window.devicePixelRatio || 1));
   app.vizManager.setQuality(q);
-  try {
-    localStorage.setItem('harmonizerVisualizerQuality', q);
-  } catch (e) {}
+  writeStorage(VISUALIZER_STORAGE.quality, q);
   onResize();
 }
 
@@ -2575,7 +2586,7 @@ async function init() {
   applyEffectsFromUI();
 
   // Restore camera prefs
-  const savedFov = Number(localStorage.getItem('harmonizerVisualizerFov') || '70');
+  const savedFov = Number(readStorage(VISUALIZER_STORAGE.fov, '70') || '70');
   if (Number.isFinite(savedFov) && dom.camFov) {
     app.camera.fov = savedFov;
     app.camera.updateProjectionMatrix();
@@ -2612,7 +2623,7 @@ async function init() {
   const usingExternalAudio = externalAudioReceiver.enabled;
 
   if (usingExternalAudio) {
-    externalTrackLabel = initialTrackId ? `External audio • ${initialTrackId}` : 'External audio • Harmonizer';
+    externalTrackLabel = initialTrackId ? `External audio • ${initialTrackId}` : 'External audio • linked';
     if (dom.trackMeta) dom.trackMeta.textContent = externalTrackLabel;
     if (dom.autoplayHint) dom.autoplayHint.hidden = true;
     [
@@ -2674,4 +2685,4 @@ if (document.readyState === 'loading') {
   init();
 }
 
-window.harmonizerVisualizer = { playTrackById, addToQueue, playNextInQueue };
+window.threeDVisualizer = { playTrackById, addToQueue, playNextInQueue };

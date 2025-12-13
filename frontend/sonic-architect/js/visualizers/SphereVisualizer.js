@@ -205,7 +205,7 @@ class SphereVisualizer extends VisualizerBase {
         this.id = 'sphere';
         this.name = 'Sphere';
         this.description = 'Deforming icosahedron with multi-layer noise';
-        this.author = 'Sonic Architect';
+        this.author = '3D Visualizer';
 
         // Geometry and mesh
         this.geometry = null;

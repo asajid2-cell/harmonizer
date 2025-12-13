@@ -108,7 +108,7 @@ class ParticleGalaxy extends VisualizerBase {
         this.id = 'galaxy';
         this.name = 'Galaxy';
         this.description = 'Spiral galaxy with 100k+ particles';
-        this.author = 'Sonic Architect';
+        this.author = '3D Visualizer';
 
         // Geometry and material
         this.geometry = null;

@@ -13,7 +13,7 @@ class MetaballsFluid extends VisualizerBase {
         this.id = 'metaballs';
         this.name = 'Metaballs Fluid';
         this.description = 'Marching cubes metaballs with audio-driven turbulence';
-        this.author = 'Harmonizer';
+        this.author = '3D Visualizer';
 
         this.marching = null;
         this.material = null;
@@ -174,4 +174,3 @@ class MetaballsFluid extends VisualizerBase {
 }
 
 export default MetaballsFluid;
-

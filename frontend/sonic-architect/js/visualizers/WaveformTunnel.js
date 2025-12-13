@@ -20,7 +20,7 @@ class WaveformTunnel extends VisualizerBase {
         this.id = 'tunnel';
         this.name = 'Waveform Tunnel';
         this.description = 'Infinite fly-through with audio-reactive geometry';
-        this.author = 'Sonic Architect';
+        this.author = '3D Visualizer';
 
         // Tunnel segments
         this.rings = [];

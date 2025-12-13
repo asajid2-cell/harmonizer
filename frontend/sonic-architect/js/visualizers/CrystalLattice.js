@@ -12,7 +12,7 @@ class CrystalLattice extends VisualizerBase {
         this.id = 'crystal';
         this.name = 'Crystal Lattice';
         this.description = 'Instanced crystal field with beat shimmer';
-        this.author = 'Harmonizer';
+        this.author = '3D Visualizer';
 
         this.instanced = null;
         this.geometry = null;
@@ -182,4 +182,3 @@ class CrystalLattice extends VisualizerBase {
 }
 
 export default CrystalLattice;
-

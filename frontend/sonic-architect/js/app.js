@@ -1009,7 +1009,7 @@ class SonicArchitectApp {
 
         const a = document.createElement('a');
         a.href = url;
-        a.download = `sonic-architect-preset-${Date.now()}.json`;
+        a.download = `3dvisualizer-preset-${Date.now()}.json`;
         a.click();
 
         URL.revokeObjectURL(url);

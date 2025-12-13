@@ -177,7 +177,7 @@ class RaymarchFractal extends VisualizerBase {
         this.id = 'fractal';
         this.name = 'Raymarch Fractal';
         this.description = 'Mandelbulb raymarch with glow';
-        this.author = 'Harmonizer';
+        this.author = '3D Visualizer';
 
         this.mesh = null;
         this.material = null;

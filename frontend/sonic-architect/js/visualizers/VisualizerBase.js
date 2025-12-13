@@ -29,7 +29,7 @@ class VisualizerBase {
         this.id = 'base';
         this.name = 'Base Visualizer';
         this.description = 'Abstract base class';
-        this.author = 'Sonic Architect';
+        this.author = '3D Visualizer';
 
         // State
         this.isInitialized = false;

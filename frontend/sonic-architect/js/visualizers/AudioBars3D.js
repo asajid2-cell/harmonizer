@@ -20,7 +20,7 @@ class AudioBars3D extends VisualizerBase {
         this.id = 'bars';
         this.name = 'Audio Bars';
         this.description = '3D equalizer bars in circular/grid layout';
-        this.author = 'Sonic Architect';
+        this.author = '3D Visualizer';
 
         // Bars
         this.bars = [];

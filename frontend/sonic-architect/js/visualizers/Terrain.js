@@ -187,7 +187,7 @@ class Terrain extends VisualizerBase {
         this.id = 'terrain';
         this.name = 'Terrain';
         this.description = 'Audio-reactive procedural landscape';
-        this.author = 'Sonic Architect';
+        this.author = '3D Visualizer';
 
         // Geometry and material
         this.geometry = null;
