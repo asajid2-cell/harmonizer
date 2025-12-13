@@ -920,23 +920,342 @@ function notifyStackPlaybackStateChange(meta) {
     });
 }
 
+var harmonizerAntiLoop = {
+    tick: 0,
+    byMode: Object.create(null)
+};
+
+function harmonizerAntiLoopEnabled() {
+    if (typeof window === "undefined") return true;
+    // Allow users to disable via console: `window.harmonizerAntiLoopEnabled = false`.
+    return window.harmonizerAntiLoopEnabled !== false;
+}
+
+function harmonizerGetAntiLoopState(modeName) {
+    var mode = (modeName || "unknown").toLowerCase();
+    if (!harmonizerAntiLoop.byMode[mode]) {
+        harmonizerAntiLoop.byMode[mode] = {
+            visits: [],
+            edges: [],
+            cooldownUntilTick: 0,
+            tabooTargets: Object.create(null),
+            tabooEdges: Object.create(null),
+            tabooRanges: []
+        };
+    }
+    return harmonizerAntiLoop.byMode[mode];
+}
+
+function harmonizerBeatSectionIndex(idx) {
+    if (!masterQs || idx === null || idx === undefined) return null;
+    var q = masterQs[idx];
+    if (!q) return null;
+    return (typeof q.section === "number" && isFinite(q.section)) ? q.section : null;
+}
+
+function harmonizerIsAlternating2Cycle(seq, windowLen) {
+    if (!Array.isArray(seq)) return false;
+    windowLen = Math.max(6, Math.round(windowLen || 0));
+    if (seq.length < windowLen) return false;
+    var slice = seq.slice(seq.length - windowLen);
+    var a = slice[0];
+    var b = slice[1];
+    if (a === b) return false;
+    var okAB = true;
+    var okBA = true;
+    for (var i = 0; i < slice.length; i++) {
+        if (slice[i] !== (i % 2 === 0 ? a : b)) okAB = false;
+        if (slice[i] !== (i % 2 === 0 ? b : a)) okBA = false;
+        if (!okAB && !okBA) return false;
+    }
+    return okAB || okBA;
+}
+
+function harmonizerLooksStuck(state, currentIndex, proposedIndex) {
+    var WINDOW = 64;
+    var MIN_LEN = 20;
+    var UNIQUE_RATIO_MIN = 0.35;
+    var EDGE_UNIQUE_MAX = 3;
+    var EDGE_WINDOW = 14;
+
+    if (!state || !Array.isArray(state.visits)) return false;
+    if (typeof currentIndex !== "number" || typeof proposedIndex !== "number") return false;
+    var k = Math.min(WINDOW - 1, state.visits.length);
+    var recent = state.visits.slice(state.visits.length - k);
+    recent.push(proposedIndex);
+    if (recent.length < MIN_LEN) return false;
+
+    var uniq = Object.create(null);
+    for (var i = 0; i < recent.length; i++) {
+        var v = recent[i];
+        uniq[v] = true;
+    }
+    var uniqueRatio = Object.keys(uniq).length / Math.max(1, recent.length);
+    if (uniqueRatio < UNIQUE_RATIO_MIN) return true;
+    if (harmonizerIsAlternating2Cycle(recent, 12) || harmonizerIsAlternating2Cycle(recent, 16)) return true;
+
+    if (Array.isArray(state.edges) && state.edges.length) {
+        var eK = Math.min(EDGE_WINDOW, state.edges.length);
+        var eSlice = state.edges.slice(state.edges.length - eK);
+        eSlice.push(currentIndex + ":" + proposedIndex);
+        var uniqE = Object.create(null);
+        for (var e = 0; e < eSlice.length; e++) uniqE[eSlice[e]] = true;
+        if (eSlice.length >= 12 && Object.keys(uniqE).length <= EDGE_UNIQUE_MAX) return true;
+    }
+
+    return false;
+}
+
+function harmonizerPickAntiLoopEscape(meta, state) {
+    if (!meta || typeof meta.currentIndex !== "number") return null;
+    if (!masterQs || !masterQs.length) return null;
+    var n = masterQs.length;
+    var cur = meta.currentIndex;
+
+    var WINDOW = 64;
+    var recentIdx = state && Array.isArray(state.visits) ? state.visits.slice(Math.max(0, state.visits.length - WINDOW)) : [];
+    var recentSet = Object.create(null);
+    var recentSections = Object.create(null);
+    for (var i = 0; i < recentIdx.length; i++) {
+        var v = recentIdx[i];
+        recentSet[v] = true;
+        var sec = harmonizerBeatSectionIndex(v);
+        if (sec !== null) recentSections[sec] = true;
+    }
+    recentSet[cur] = true;
+
+    function isRecent(idx) { return !!recentSet[idx]; }
+    function isTabooTarget(idx) {
+        if (!state || !state.tabooTargets) return false;
+        var exp = state.tabooTargets[idx];
+        if (!exp) return false;
+        if (harmonizerAntiLoop.tick > exp) {
+            delete state.tabooTargets[idx];
+            return false;
+        }
+        return true;
+    }
+    function isTabooRange(idx) {
+        if (!state || !Array.isArray(state.tabooRanges) || !state.tabooRanges.length) return false;
+        var keep = [];
+        var hit = false;
+        for (var ri = 0; ri < state.tabooRanges.length; ri++) {
+            var r = state.tabooRanges[ri];
+            if (!r) continue;
+            if (harmonizerAntiLoop.tick > (r.until || 0)) continue;
+            keep.push(r);
+            if (idx >= r.min && idx <= r.max) hit = true;
+        }
+        state.tabooRanges = keep;
+        return hit;
+    }
+    function isTabooEdge(edgeKey) {
+        if (!state || !state.tabooEdges) return false;
+        var exp = state.tabooEdges[edgeKey];
+        if (!exp) return false;
+        if (harmonizerAntiLoop.tick > exp) {
+            delete state.tabooEdges[edgeKey];
+            return false;
+        }
+        return true;
+    }
+
+    function pickFromEdges(edges, sourceBias, sourceIdx) {
+        if (!edges || !edges.length) return null;
+        var scored = [];
+        for (var ei = 0; ei < edges.length; ei++) {
+            var e = edges[ei];
+            if (!e || typeof e.target !== "number") continue;
+            var t = e.target;
+            if (t < 0 || t >= n) continue;
+            if (isRecent(t)) continue;
+            if (isTabooTarget(t)) continue;
+            if (isTabooRange(t)) continue;
+            var span = Math.abs(t - cur);
+            if (span < 12) continue;
+            var sim = (typeof e.similarity === "number" && isFinite(e.similarity)) ? e.similarity : 0;
+            var sameSection = !!(e.section_match || e.sectionMatch || e.sameSection);
+            var secBonus = sameSection ? 0.0 : 0.08;
+            var spanBonus = Math.min(0.18, span / Math.max(32, n));
+            var edgeKey = (typeof sourceIdx === "number" ? sourceIdx : cur) + ":" + t;
+            if (isTabooEdge(edgeKey)) continue;
+            var s = 0.65 * sim + secBonus + spanBonus + (sourceBias || 0);
+            scored.push({ target: t, score: s });
+        }
+        if (!scored.length) return null;
+        scored.sort(function(a, b) { return b.score - a.score; });
+        var pool = scored.slice(0, Math.min(10, scored.length));
+        if (pool.length === 1) return pool[0].target;
+        var maxScore = pool[0].score;
+        var total = 0;
+        var weights = [];
+        for (var wi = 0; wi < pool.length; wi++) {
+            var w = Math.exp((pool[wi].score - maxScore) / 0.25);
+            weights[wi] = w;
+            total += w;
+        }
+        var r = Math.random() * total;
+        for (var pi = 0; pi < pool.length; pi++) {
+            r -= weights[pi];
+            if (r <= 0) return pool[pi].target;
+        }
+        return pool[0].target;
+    }
+
+    // Prefer a "plausible" escape that still follows the server loop graph when possible.
+    if (serverLoopCandidateMap && serverLoopCandidateMap[cur]) {
+        var fromCur = pickFromEdges(serverLoopCandidateMap[cur], 0.03, cur);
+        if (fromCur !== null) return fromCur;
+    }
+
+    // If the current source is saturated, "regenerate" by sampling edges from nearby sources (still excluding taboo/recent).
+    if (serverLoopCandidateMap) {
+        var R = 8;
+        for (var r = 1; r <= R; r++) {
+            var left = cur - r;
+            var right = cur + r;
+            if (left >= 0 && serverLoopCandidateMap[left] && serverLoopCandidateMap[left].length) {
+                var fromLeft = pickFromEdges(serverLoopCandidateMap[left], -0.01 * r, left);
+                if (fromLeft !== null) return fromLeft;
+            }
+            if (right < n && serverLoopCandidateMap[right] && serverLoopCandidateMap[right].length) {
+                var fromRight = pickFromEdges(serverLoopCandidateMap[right], -0.01 * r, right);
+                if (fromRight !== null) return fromRight;
+            }
+        }
+    }
+
+    // Otherwise, pick a far beat that hasn't been visited recently, preferring unseen sections.
+    var energyRaw = new Array(n);
+    var minE = Infinity;
+    var maxE = -Infinity;
+    for (var j = 0; j < n; j++) {
+        var e = beatEnergy(masterQs[j]);
+        if (typeof e !== "number" || !isFinite(e)) e = 0;
+        energyRaw[j] = e;
+        if (e < minE) minE = e;
+        if (e > maxE) maxE = e;
+    }
+    var range = Math.max(1e-9, maxE - minE);
+    var candidates = [];
+    for (var k = 0; k < n; k++) {
+        if (isRecent(k)) continue;
+        if (isTabooTarget(k)) continue;
+        if (isTabooRange(k)) continue;
+        var dist01 = Math.abs(k - cur) / Math.max(1, n - 1);
+        var e01 = clamp01((energyRaw[k] - minE) / range);
+        var secK = harmonizerBeatSectionIndex(k);
+        var unseenSection = (secK !== null && !recentSections[secK]) ? 1 : 0;
+        var score = 0.55 * dist01 + 0.25 * e01 + 0.20 * unseenSection;
+        candidates.push({ idx: k, score: score });
+    }
+    if (!candidates.length) return null;
+    candidates.sort(function(a, b) { return b.score - a.score; });
+    var pickPool = candidates.slice(0, Math.min(20, candidates.length));
+    return pickPool[Math.floor(Math.random() * pickPool.length)].idx;
+}
+
+function harmonizerApplyAntiLoop(meta, idx) {
+    if (!harmonizerAntiLoopEnabled()) return idx;
+    if (!meta || typeof meta.currentIndex !== "number" || typeof idx !== "number") return idx;
+    if (!masterQs || !masterQs.length) return idx;
+
+    var mode = (meta.mode || "unknown").toLowerCase();
+    var state = harmonizerGetAntiLoopState(mode);
+    harmonizerAntiLoop.tick += 1;
+    var tick = harmonizerAntiLoop.tick;
+
+    state.visits.push(meta.currentIndex);
+    if (state.visits.length > 256) state.visits.shift();
+
+    var out = idx;
+    if (tick >= (state.cooldownUntilTick || 0) && harmonizerLooksStuck(state, meta.currentIndex, idx)) {
+        // Mark the recent loop neighborhood as taboo so the reroll doesn't pick the same tiny set again.
+        var tabooUntil = tick + 160;
+        var tabooSlice = state.visits.slice(Math.max(0, state.visits.length - 40));
+        for (var ti = 0; ti < tabooSlice.length; ti++) {
+            var tIdx = tabooSlice[ti];
+            if (typeof tIdx === "number" && isFinite(tIdx)) state.tabooTargets[tIdx] = tabooUntil;
+        }
+        var tabooEdgesSlice = state.edges.slice(Math.max(0, state.edges.length - 40));
+        for (var te = 0; te < tabooEdgesSlice.length; te++) {
+            var ek = tabooEdgesSlice[te];
+            if (ek) state.tabooEdges[ek] = tabooUntil;
+        }
+        // Add buffered "regions" so we also avoid nearby beats that weren't explicitly visited yet.
+        // This approximates "skip that loop region and take the next best thing".
+        if (!state.tabooRanges) state.tabooRanges = [];
+        var uniq = Array.from(new Set(tabooSlice.filter(function(v) { return typeof v === "number" && isFinite(v); })));
+        uniq.sort(function(a, b) { return a - b; });
+        if (uniq.length) {
+            var gap = 6;
+            var pad = 4;
+            var start = uniq[0];
+            var last = uniq[0];
+            for (var ui = 1; ui < uniq.length; ui++) {
+                var v = uniq[ui];
+                if (v - last <= gap) {
+                    last = v;
+                    continue;
+                }
+                state.tabooRanges.push({
+                    min: Math.max(0, start - pad),
+                    max: Math.min(masterQs.length - 1, last + pad),
+                    until: tabooUntil
+                });
+                start = v;
+                last = v;
+            }
+            state.tabooRanges.push({
+                min: Math.max(0, start - pad),
+                max: Math.min(masterQs.length - 1, last + pad),
+                until: tabooUntil
+            });
+            if (state.tabooRanges.length > 12) {
+                state.tabooRanges = state.tabooRanges.slice(state.tabooRanges.length - 12);
+            }
+        }
+
+        var escape = harmonizerPickAntiLoopEscape(meta, state);
+        if (typeof escape === "number" && isFinite(escape) && escape !== idx && escape !== meta.currentIndex) {
+            out = Math.max(0, Math.min(masterQs.length - 1, Math.round(escape)));
+            state.cooldownUntilTick = tick + 64;
+            try {
+                console.log("[AntiLoop] forced escape", {
+                    mode: mode,
+                    from: meta.currentIndex,
+                    proposed: idx,
+                    to: out
+                });
+            } catch (e) {}
+        }
+    }
+
+    state.edges.push(meta.currentIndex + ":" + out);
+    if (state.edges.length > 256) state.edges.shift();
+    return out;
+}
+
 function applyStackedNextIndex(meta) {
-    if (!activeStackLayers.length) {
-        return meta.proposedIndex;
+    if (!meta || typeof meta.proposedIndex !== "number" || !isFinite(meta.proposedIndex)) {
+        return (meta && typeof meta.proposedIndex === "number") ? meta.proposedIndex : 0;
     }
     var idx = meta.proposedIndex;
-    var guard = 0;
-    activeStackLayers.forEach(function(layer) {
-        if (!layer || typeof layer.transformNextIndex !== "function") return;
-        if (guard++ > 6) return;
-        try {
-            var out = layer.transformNextIndex(Object.assign({}, meta, { proposedIndex: idx }));
-            if (out && typeof out.index === "number" && isFinite(out.index)) {
-                var clamped = Math.max(0, Math.min(masterQs.length - 1, Math.round(out.index)));
-                idx = clamped;
-            }
-        } catch (e) {}
-    });
+    if (activeStackLayers.length) {
+        var guard = 0;
+        activeStackLayers.forEach(function(layer) {
+            if (!layer || typeof layer.transformNextIndex !== "function") return;
+            if (guard++ > 6) return;
+            try {
+                var out = layer.transformNextIndex(Object.assign({}, meta, { proposedIndex: idx }));
+                if (out && typeof out.index === "number" && isFinite(out.index)) {
+                    var clamped = Math.max(0, Math.min(masterQs.length - 1, Math.round(out.index)));
+                    idx = clamped;
+                }
+            } catch (e) {}
+        });
+    }
+    idx = harmonizerApplyAntiLoop(meta, idx);
     return idx;
 }
 
@@ -13842,13 +14161,33 @@ function timbreSurfChooseNextIndex(currentIndex, settings, history) {
     var repeatPenalty = settings.repeatPenalty || 0;
 
     var recentCounts = Object.create(null);
-    if (recentWindow > 0 && history.length) {
-        var windowSlice = history.slice(Math.max(0, history.length - recentWindow));
-        for (var h = 0; h < windowSlice.length; h++) {
-            var idx = windowSlice[h];
-            recentCounts[idx] = (recentCounts[idx] || 0) + 1;
+    var windowSlice = [];
+    if (history.length) {
+        windowSlice = (recentWindow > 0)
+            ? history.slice(Math.max(0, history.length - recentWindow))
+            : history.slice(Math.max(0, history.length - 24));
+    }
+    for (var h = 0; h < windowSlice.length; h++) {
+        var idx = windowSlice[h];
+        recentCounts[idx] = (recentCounts[idx] || 0) + 1;
+    }
+    var recentSet = Object.create(null);
+    var edgeCounts = Object.create(null);
+    for (var hs = 0; hs < windowSlice.length; hs++) {
+        recentSet[windowSlice[hs]] = true;
+        if (hs > 0) {
+            var a = windowSlice[hs - 1];
+            var b = windowSlice[hs];
+            var kEdge = a + ":" + b;
+            edgeCounts[kEdge] = (edgeCounts[kEdge] || 0) + 1;
         }
     }
+    var prevIdx = (history.length >= 2) ? history[history.length - 2] : null;
+    var prev2Idx = (history.length >= 3) ? history[history.length - 3] : null;
+    var prev3Idx = (history.length >= 4) ? history[history.length - 4] : null;
+    var backtrackPenalty = Math.max(0.75, repeatPenalty * 4);
+    var nearPenalty = Math.max(0.35, repeatPenalty * 2);
+    var edgeRepeatPenalty = Math.max(0.2, repeatPenalty * 1.5);
 
     var scored = [];
     for (var i = 0; i < edges.length; i++) {
@@ -13865,9 +14204,17 @@ function timbreSurfChooseNextIndex(currentIndex, settings, history) {
         if (excludeNeighbors > 0 && span <= excludeNeighbors) continue;
 
         var s = sim;
-        if (repeatPenalty > 0 && recentCounts[target]) {
-            s = s - (recentCounts[target] * repeatPenalty);
-        }
+        var sameSection = !!(e.section_match || e.sectionMatch || e.sameSection);
+        if (!sameSection) s += 0.02;
+        if (repeatPenalty > 0 && recentCounts[target]) s -= (recentCounts[target] * repeatPenalty);
+        if (recentSet[target]) s -= 0.12;
+        var eKey = currentIndex + ":" + target;
+        if (edgeCounts[eKey]) s -= (edgeCounts[eKey] * edgeRepeatPenalty);
+        if (target === prevIdx) s -= backtrackPenalty;
+        if (target === prev2Idx || target === prev3Idx) s -= nearPenalty;
+
+        // Tiny jitter to break ties and reduce deterministic oscillation.
+        s += (Math.random() - 0.5) * 0.0005;
         scored.push({ target: target, similarity: sim, score: s });
     }
 

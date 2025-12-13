@@ -82,9 +82,7 @@ function resolveApiUrl(path, addCacheBuster = true) {
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const PAGE_PARAMS = new URLSearchParams(location.search);
-const EXTERNAL_AUDIO_MODE = (PAGE_PARAMS.get('src') || '').toLowerCase() === 'harmonizer';
-const EXTERNAL_AUDIO_SID = PAGE_PARAMS.get('sid') || null;
-const EXTERNAL_TRACK_ID = PAGE_PARAMS.get('trid') || null;
+// 3D Visualizer is standalone: it owns its own playback (even if launched from Harmonizer).
 
 // =====================================
 // THEMES + PRESETS
@@ -372,8 +370,10 @@ function cacheDom() {
   dom.paneQueue = document.getElementById('hv-pane-queue');
   dom.songSearch = document.getElementById('hv-song-search');
   dom.uploadBtn = document.getElementById('hv-upload-btn');
+  dom.uploadDirectBtn = document.getElementById('hv-upload-direct-btn');
   dom.refreshBtn = document.getElementById('hv-refresh-btn');
   dom.uploadInput = document.getElementById('hv-upload-input');
+  dom.uploadDirectInput = document.getElementById('hv-upload-direct-input');
   dom.uploadStatus = document.getElementById('hv-upload-status');
   dom.songsList = document.getElementById('hv-songs-list');
   dom.queueList = document.getElementById('hv-queue-list');
@@ -509,6 +509,24 @@ function getIdleAudioData() {
 }
 
 function createExternalAudioReceiver(enabled, sid) {
+  // Standalone 3D Visualizer: never attach to Harmonizer tab audio.
+  // Keeping the legacy implementation below (unreachable) avoids a huge diff.
+  return {
+    get enabled() {
+      return false;
+    },
+    init: function () {},
+    dispose: function () {},
+    hasRecentFrame: function () {
+      return false;
+    },
+    getAnalysis: function () {
+      return null;
+    },
+    isConnected: function () {
+      return false;
+    },
+  };
   const state = {
     enabled: !!enabled,
     sid: sid || null,
@@ -580,11 +598,6 @@ function createExternalAudioReceiver(enabled, sid) {
   }
 
   function init() {
-    // Same-origin fast-path: directly read analyser from the opener window.
-    // This allows Harmonizer -> 3D Visualizer without requiring Harmonizer code changes.
-    const direct = tryAttachOpenerAnalyser();
-    if (direct) state.enabled = true;
-
     if (!state.enabled) return;
 
     try {
@@ -727,19 +740,8 @@ function createExternalAudioReceiver(enabled, sid) {
     hasRecentFrame,
     getAnalysis,
     isConnected: () => state.connected,
-    tryEnableFromOpener: () => {
-      const direct = tryAttachOpenerAnalyser();
-      if (!direct) return false;
-      state.enabled = true;
-      pullFromDirectAnalyser();
-      return !!state.directAnalyser;
-    },
   };
 }
-
-const externalAudioReceiver = createExternalAudioReceiver(EXTERNAL_AUDIO_MODE, EXTERNAL_AUDIO_SID);
-let externalUiTick = 0;
-let externalTrackLabel = 'External audio';
 
 function animate() {
   requestAnimationFrame(animate);
@@ -747,23 +749,7 @@ function animate() {
   const delta = app.clock.getDelta();
   let audioData = null;
 
-  if (externalAudioReceiver.enabled) {
-    audioData = externalAudioReceiver.getAnalysis(delta) || getIdleAudioData();
-    const beatIntensity = audioData && typeof audioData.__beat === 'number' ? audioData.__beat : 0;
-    if (beatIntensity > 0.01) {
-      app.vizManager.onBeat(beatIntensity);
-    }
-    // Lightweight status so it's obvious whether we're receiving frames.
-    externalUiTick += delta;
-    if (externalUiTick > 0.6) {
-      externalUiTick = 0;
-      if (dom.trackMeta) {
-        dom.trackMeta.textContent = externalAudioReceiver.hasRecentFrame()
-          ? `${externalTrackLabel} • connected`
-          : `${externalTrackLabel} • waiting…`;
-      }
-    }
-  } else if (audioEngine.isPlaying && frequencyAnalyzer.isInitialized) {
+  if (audioEngine.isPlaying && frequencyAnalyzer.isInitialized) {
     frequencyAnalyzer.update();
     const beatState = beatDetector.update(delta * 1000);
     audioData = frequencyAnalyzer.getAnalysis();
@@ -780,14 +766,13 @@ function animate() {
 
   app.vizManager.update(delta, audioData);
   app.controls.update();
-  // Harmonizer driver runs on the audio element, independent of visuals.
-  if (!externalAudioReceiver.enabled) {
-    hxRuntime.active = !!hxState.enabled && hxRuntime.beats.length > 0;
-    if (hxRuntime.active) {
-      try {
-        hxTick();
-      } catch (e) {}
-    }
+
+  // Remix driver runs on the audio element, independent of visuals.
+  hxRuntime.active = !!hxState.enabled && hxRuntime.beats.length > 0 && audioEngine.isPlaying;
+  if (hxRuntime.active) {
+    try {
+      hxTick();
+    } catch (e) {}
   }
   app.composer.render();
 }
@@ -1459,7 +1444,6 @@ async function ensureAudioUnlocked() {
 }
 
 document.addEventListener('pointerdown', async () => {
-  if (externalAudioReceiver.enabled) return;
   const ok = await ensureAudioUnlocked();
   if (ok && pendingTrackToPlay) {
     const next = pendingTrackToPlay;
@@ -1606,11 +1590,6 @@ async function syncOverlayPlayback() {
 }
 
 async function playTrackById(trackId, { queueIndex = null } = {}) {
-  if (externalAudioReceiver.enabled) {
-    currentTrackId = trackId;
-    if (dom.trackMeta) dom.trackMeta.textContent = trackId ? `External audio • ${trackId}` : 'External audio • linked';
-    return;
-  }
   currentTrackId = trackId;
 
   const unlocked = await ensureAudioUnlocked();
@@ -1649,7 +1628,7 @@ async function playTrackById(trackId, { queueIndex = null } = {}) {
   }
 
   if (dom.trackMeta) {
-    dom.trackMeta.textContent = `${analysis.title} · ${analysis.artist}`;
+    dom.trackMeta.textContent = `${analysis.title} - ${analysis.artist}`;
   }
 
   // Prepare Harmonizer-driver features for this track.
@@ -2431,14 +2410,6 @@ function bindUI() {
   }
   if (dom.chooseSongBtn) {
     dom.chooseSongBtn.addEventListener('click', async () => {
-      if (externalAudioReceiver.enabled) {
-        try {
-          if (window.opener && !window.opener.closed) {
-            window.opener.focus();
-          }
-        } catch (e) {}
-        return;
-      }
       openLibrary('songs');
       try {
         await fetchCachedTracks();
@@ -2451,14 +2422,6 @@ function bindUI() {
   }
   if (dom.playPauseBtn) {
     dom.playPauseBtn.addEventListener('click', async () => {
-      if (externalAudioReceiver.enabled) {
-        try {
-          if (window.opener && !window.opener.closed) {
-            window.opener.focus();
-          }
-        } catch (e) {}
-        return;
-      }
       const ok = await ensureAudioUnlocked();
       if (!ok) {
         if (dom.autoplayHint) dom.autoplayHint.hidden = false;
@@ -2487,6 +2450,13 @@ function bindUI() {
   if (dom.uploadBtn && dom.uploadInput) {
     dom.uploadBtn.addEventListener('click', () => dom.uploadInput.click());
     dom.uploadInput.addEventListener('change', () => handleUploadFiles(dom.uploadInput.files));
+  }
+  if (dom.uploadDirectBtn && dom.uploadDirectInput) {
+    dom.uploadDirectBtn.addEventListener('click', () => {
+      openLibrary('songs');
+      dom.uploadDirectInput.click();
+    });
+    dom.uploadDirectInput.addEventListener('change', () => handleUploadFiles(dom.uploadDirectInput.files));
   }
   if (dom.refreshBtn) {
     dom.refreshBtn.addEventListener('click', async () => {
@@ -2613,7 +2583,6 @@ function setQuality(level) {
 async function init() {
   cacheDom();
   loadPersistedQueue();
-  externalAudioReceiver.init();
 
   initThree();
   initVisualizers();
@@ -2639,73 +2608,7 @@ async function init() {
   }
 
   const initialTrackId = params.get('trid');
-
-  // If we can see Harmonizer's analyser in the opener window, prefer "external audio" mode
-  // so this page doesn't start its own audio playback (avoids doubled/choppy audio).
-  const openerHint = (() => {
-    try {
-      return !!(window.opener && !window.opener.closed);
-    } catch (e) {
-      return false;
-    }
-  })();
-
-  if (!EXTERNAL_AUDIO_MODE && openerHint) {
-    for (let i = 0; i < 24; i++) {
-      if (externalAudioReceiver.tryEnableFromOpener()) break;
-      await delay(50);
-    }
-  }
-
-  const usingExternalAudio = externalAudioReceiver.enabled;
-
-  if (usingExternalAudio) {
-    externalTrackLabel = initialTrackId ? `External audio • ${initialTrackId}` : 'External audio • linked';
-    if (dom.trackMeta) dom.trackMeta.textContent = externalTrackLabel;
-    if (dom.autoplayHint) dom.autoplayHint.hidden = true;
-    [
-      dom.chooseSongBtn,
-      dom.playPauseBtn,
-      dom.addSongsBtn,
-      dom.viewQueueBtn,
-      dom.nextBtn,
-      dom.clearQueueBtn,
-      dom.uploadBtn,
-      dom.refreshBtn,
-      dom.songSearch,
-      dom.uploadInput,
-    ]
-      .filter(Boolean)
-      .forEach((el) => (el.disabled = true));
-    [
-      dom.hxEnabled,
-      dom.hxMode,
-      dom.hxJumpProb,
-      dom.hxLoopEnd,
-      dom.hxRestart,
-      dom.hxApply,
-      dom.hxCanonVoices,
-      dom.hxOverlayMix,
-      dom.hxBaseAudioOnly,
-      dom.hxDopamine,
-      dom.hxDopamineTop,
-      dom.hxDopamineWindow,
-      dom.hxTrap,
-      dom.hxTrapWindow,
-      dom.hxTrapStrength,
-      dom.hxPhase,
-      dom.hxPhaseRate,
-      dom.hxPhaseDepth,
-      dom.hxFreeze,
-      dom.hxFreezeChance,
-      dom.hxFreezeRepeats,
-      dom.hxVelo,
-      dom.hxVeloBase,
-      dom.hxVeloAmt,
-    ]
-      .filter(Boolean)
-      .forEach((el) => (el.disabled = true));
-  } else if (initialTrackId) {
+  if (initialTrackId) {
     try {
       await playTrackById(initialTrackId);
     } catch (e) {
