@@ -5222,13 +5222,49 @@ $(document).ready(function() {
 		        }
 		    });
 
-		    // Visualize This button handler: open external visualizer (no separate playback)
+		    // Visualize This button handler: launch Sonic Architect as its own player (settings carried over).
 		    $("#visualize-this-btn").click(function() {
 		        var trackId = (window.curTrack && window.curTrack.id) ? window.curTrack.id : null;
 		        if (!trackId) {
 		            alert("No track loaded yet.");
 		            return;
 		        }
+		        // Persist Harmonizer settings so Sonic Architect can mirror them on load.
+		        try {
+		            var startTimeSeconds = null;
+		            var wasPlaying = null;
+		            if (typeof remixer !== "undefined" && remixer && typeof remixer.getPlayer === "function") {
+		                var pl = remixer.getPlayer();
+		                if (pl && pl.audio) {
+		                    startTimeSeconds = (typeof pl.audio.currentTime === "number" && isFinite(pl.audio.currentTime)) ? pl.audio.currentTime : 0;
+		                    wasPlaying = !pl.audio.paused;
+		                }
+		            }
+		            var stackedLayers = [];
+		            if (window.getStackedLayers) {
+		                stackedLayers = window.getStackedLayers() || [];
+		            }
+		            var rlModelVariant = null;
+		            try {
+		                rlModelVariant = (localStorage.getItem("RL_MODEL_VARIANT") || null);
+		            } catch (e) {}
+		            localStorage.setItem(
+		                "harmonizerVisualizerLaunchHarmonizerV1",
+		                JSON.stringify({
+		                    trackId: trackId,
+		                    mode: mode,
+		                    stackedLayers: stackedLayers,
+		                    loopEnabled: !!window.harmonizerLoopEnabled,
+		                    baseAudioOnly: !!window.harmonizerBaseAudioOnly,
+		                    canonVoiceCount: (typeof window.canonVoiceCount === "number" ? window.canonVoiceCount : null),
+		                    startTimeSeconds: startTimeSeconds,
+		                    wasPlaying: wasPlaying,
+		                    policyMode: (typeof window.harmonizerPolicyMode === "string" ? window.harmonizerPolicyMode : null),
+		                    rlModelVariant: rlModelVariant,
+		                    savedAt: Date.now()
+		                })
+		            );
+		        } catch (e) {}
 		        var sid = "viz-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
 		        var baseVizUrl;
 		        try {
@@ -5239,11 +5275,9 @@ $(document).ready(function() {
 		        var targetUrl =
 		            baseVizUrl +
 		            (baseVizUrl.indexOf("?") === -1 ? "?" : "&") +
-		            "src=harmonizer&sid=" +
-		            encodeURIComponent(sid) +
-		            "&trid=" + encodeURIComponent(trackId) +
-		            "&mode=" + encodeURIComponent(mode || "") +
-		            "&v=2025121330";
+		            "trid=" + encodeURIComponent(trackId) +
+		            (mode ? ("&mode=" + encodeURIComponent(mode || "")) : "") +
+		            "&v=2025121331";
 		        var vizWindow = window.open(targetUrl, "_blank");
 		        if (!vizWindow) {
 		            alert("Popup blocked — allow popups for this site to open the visualizer.");
@@ -5253,6 +5287,9 @@ $(document).ready(function() {
 		        if (window.__harmonizerVizPump && typeof window.__harmonizerVizPump.stop === "function") {
 		            try { window.__harmonizerVizPump.stop(); } catch (e) {}
 		        }
+
+		        // Sonic Architect is now standalone; stop using the cross-tab audio pump.
+		        return;
 
 		        window.__harmonizerVizPump = (function createVizPump(winRef) {
 		            var audioCtx = null;
