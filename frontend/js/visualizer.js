@@ -1229,6 +1229,13 @@ function harmonizerApplyAntiLoop(meta, idx) {
     if (!masterQs || !masterQs.length) return idx;
 
     var mode = (meta.mode || "unknown").toLowerCase();
+    // Only force anti-loop escapes in orbit/eternal-style looping modes.
+    // Canon-canvas modes are meant to play sequentially.
+    try {
+        if (typeof isOrbitMode === "function" && !isOrbitMode(mode)) {
+            return idx;
+        }
+    } catch (e) {}
     var state = harmonizerGetAntiLoopState(mode);
     harmonizerAntiLoop.tick += 1;
     var tick = harmonizerAntiLoop.tick;
