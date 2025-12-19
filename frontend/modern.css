@@ -1455,6 +1455,14 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     margin-bottom: 22px;
 }
 
+.mode-divider {
+    grid-column: 1 / -1;
+    height: 1px;
+    margin: 4px 2px;
+    background: linear-gradient(90deg, rgba(var(--color-cyan-rgb), 0.15), rgba(255, 255, 255, 0.2), rgba(var(--color-cyan-rgb), 0.15));
+    opacity: 0.6;
+}
+
 .mode-card {
     display: flex;
     flex-direction: column;

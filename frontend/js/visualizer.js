@@ -12353,6 +12353,14 @@ registerStackLayer({
 });
 
 // ===== Phase Shifter (Steve Reich Effect) =====
+function getPhaseIntensityFactor() {
+    var value = coerceNumber(typeof window !== "undefined" ? window.phaseIntensity : null);
+    if (value === null) {
+        return 1;
+    }
+    return clampNumber(value, 0, 4);
+}
+
 function sanitizePhaseShifterSettings(input, defaults) {
     input = input || {};
     defaults = defaults || ADVANCED_DEFAULTS.phaseShifter || {};
@@ -12378,6 +12386,10 @@ function sanitizePhaseShifterSettings(input, defaults) {
     if (overlayLoop === null) overlayLoop = defaults.overlayLoop;
     out.overlayLoop = overlayLoop >= 1 ? 1 : 0;
 
+    var intensity = getPhaseIntensityFactor();
+    out.rateDelta = clampNumber(out.rateDelta * intensity, 0, 0.08);
+    out.overlayGain = clamp01(out.overlayGain * intensity);
+
     return out;
 }
 
@@ -12386,6 +12398,15 @@ function getPhaseShifterSettings() {
     var settings = useAdvanced ? ensureAdvancedGroupSettings("phaseShifter") : cloneAdvancedDefaults("phaseShifter");
     return sanitizePhaseShifterSettings(settings, ADVANCED_DEFAULTS.phaseShifter);
 }
+
+window.applyPhaseIntensity = function() {
+    if (mode === "phaseshifter" && driver && typeof driver.applySettings === "function") {
+        driver.applySettings(getPhaseShifterSettings());
+    }
+    if (typeof rebuildActiveStackLayers === "function") {
+        rebuildActiveStackLayers();
+    }
+};
 
 function createPhaseOverlayHead(player, track, options) {
     var settings = sanitizePhaseShifterSettings(options, ADVANCED_DEFAULTS.phaseShifter);
@@ -13120,7 +13141,7 @@ registerStackLayer({
     }
 });
 
-// ===== Elastic Velo (Energy-linked playbackRate) =====
+// ===== Elastic Velocity (Energy-linked playbackRate) =====
 function sanitizeElasticVelocitySettings(input, defaults) {
     input = input || {};
     defaults = defaults || ADVANCED_DEFAULTS.elasticVelocity || {};
@@ -18879,10 +18900,10 @@ registerStackLayer({
     }
 });
 
-// Register Elastic Velo as a stackable speed warp layer.
+// Register Elastic Velocity as a stackable speed warp layer.
 registerStackLayer({
     id: "elasticvelo",
-    label: "Elastic Velo",
+    label: "Elastic Velocity",
     description: "Map beat energy to playback speed (nightcore ↔ vaporwave).",
     factory: function(ctx) {
         var player = driver && driver.player ? driver.player : null;
@@ -20431,7 +20452,26 @@ $(document).ready(function() {
             stackListRoot.append('<p style="color:#888; margin:0;">No stackable modes yet.</p>');
             return;
         }
+        var baseOrder = ["phaseshifter", "elasticvelo", "reversebloom"];
+        var baseSet = {};
+        baseOrder.forEach(function(id) { baseSet[id] = true; });
+        var baseMap = {};
+        var experimentalLayers = [];
         layers.forEach(function(layer) {
+            var id = (layer.id || "") + "";
+            if (baseSet[id]) {
+                baseMap[id] = layer;
+            } else {
+                experimentalLayers.push(layer);
+            }
+        });
+        var baseLayers = baseOrder.map(function(id) { return baseMap[id]; }).filter(Boolean);
+        var orderedLayers = baseLayers.concat(experimentalLayers);
+
+        orderedLayers.forEach(function(layer, idx) {
+            if (baseLayers.length && experimentalLayers.length && idx === baseLayers.length) {
+                stackListRoot.append('<div class="stack-divider" aria-hidden="true"></div>');
+            }
             var id = (layer.id || "") + "";
             var isOn = active.indexOf(id) !== -1;
             var item = $('<label style="display:flex; flex-direction:column; gap:4px; padding:8px; border:1px solid rgba(232,180,184,0.15); border-radius:6px; background:rgba(255,255,255,0.03); cursor:pointer;"></label>');
