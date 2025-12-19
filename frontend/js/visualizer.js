@@ -12352,7 +12352,7 @@ registerStackLayer({
     }
 });
 
-// ===== Phase Shifter (Steve Reich Effect) =====
+// ===== Phase Shifter (Synced Phaser) =====
 function getPhaseIntensityFactor() {
     var value = coerceNumber(typeof window !== "undefined" ? window.phaseIntensity : null);
     if (value === null) {
@@ -12386,10 +12386,6 @@ function sanitizePhaseShifterSettings(input, defaults) {
     if (overlayLoop === null) overlayLoop = defaults.overlayLoop;
     out.overlayLoop = overlayLoop >= 1 ? 1 : 0;
 
-    var intensity = getPhaseIntensityFactor();
-    out.rateDelta = clampNumber(out.rateDelta * intensity, 0, 0.08);
-    out.overlayGain = clamp01(out.overlayGain * intensity);
-
     return out;
 }
 
@@ -12411,8 +12407,12 @@ window.applyPhaseIntensity = function() {
 function createPhaseOverlayHead(player, track, options) {
     var settings = sanitizePhaseShifterSettings(options, ADVANCED_DEFAULTS.phaseShifter);
     var source = null;
-    var gainNode = null;
+    var wetGain = null;
     var panner = null;
+    var filterStages = [];
+    var lfo = null;
+    var lfoGain = null;
+    var connected = false;
     var started = false;
 
     function getContext() {
@@ -12437,19 +12437,85 @@ function createPhaseOverlayHead(player, track, options) {
         if (!ctx) {
             return false;
         }
-        if (!gainNode) {
-            gainNode = ctx.createGain();
-            gainNode.gain.value = settings.overlayGain;
+        if (!wetGain) {
+            wetGain = ctx.createGain();
+            wetGain.gain.value = 0;
+        }
+        if (!filterStages.length) {
+            var stageCount = 4;
+            var prev = null;
+            for (var i = 0; i < stageCount; i++) {
+                var filter = ctx.createBiquadFilter();
+                filter.type = "allpass";
+                filter.Q.value = 0.7;
+                filterStages.push(filter);
+                if (prev) {
+                    prev.connect(filter);
+                }
+                prev = filter;
+            }
+            if (prev) {
+                prev.connect(wetGain);
+            }
+        }
+        if (!connected) {
             if (typeof ctx.createStereoPanner === "function") {
                 panner = ctx.createStereoPanner();
                 try { panner.pan.value = 0; } catch (e) {}
-                gainNode.connect(panner);
+                wetGain.connect(panner);
                 panner.connect(ctx.destination);
             } else {
-                gainNode.connect(ctx.destination);
+                wetGain.connect(ctx.destination);
+            }
+            connected = true;
+        }
+        if (!lfo) {
+            lfo = ctx.createOscillator();
+            lfoGain = ctx.createGain();
+            lfo.type = "sine";
+            lfo.connect(lfoGain);
+            filterStages.forEach(function(filter) {
+                lfoGain.connect(filter.frequency);
+            });
+            try { lfo.start(); } catch (e) {}
+        }
+        applyPhaserParams();
+        return true;
+    }
+
+    function computePhaserParams() {
+        var intensity = getPhaseIntensityFactor();
+        var rateDelta = (settings && typeof settings.rateDelta === "number") ? settings.rateDelta : 0;
+        var overlayGain = (settings && typeof settings.overlayGain === "number") ? settings.overlayGain : 0;
+        var lfoRate = clampNumber(0.05 + rateDelta * 50, 0.05, 2.0);
+        var baseHz = clampNumber(600 + intensity * 200, 200, 2000);
+        var depthHz = clampNumber(300 * intensity, 0, 1500);
+        var wet = clamp01(overlayGain * intensity);
+        return { lfoRate: lfoRate, baseHz: baseHz, depthHz: depthHz, wet: wet };
+    }
+
+    function applyPhaserParams() {
+        if (!wetGain || !filterStages.length || !lfo || !lfoGain) {
+            return;
+        }
+        var params = computePhaserParams();
+        wetGain.gain.value = params.wet;
+        try { lfo.frequency.value = params.lfoRate; } catch (e) {}
+        try { lfoGain.gain.value = params.depthHz; } catch (e) {}
+        filterStages.forEach(function(filter, idx) {
+            var base = params.baseHz * (1 + idx * 0.2);
+            try { filter.frequency.value = base; } catch (e) {}
+        });
+    }
+
+    function getBaseRate() {
+        if (player && typeof player.getSpeedFactor === "function") {
+            var rate = player.getSpeedFactor();
+            if (typeof rate === "number" && isFinite(rate) && rate > 0) {
+                return rate;
             }
         }
-        return true;
+        return 1;
     }
 
     function stopSource() {
@@ -12484,12 +12550,16 @@ function createPhaseOverlayHead(player, track, options) {
         stopSource();
         var src = ctx.createBufferSource();
         src.buffer = buffer;
-        var rate = 1 + (settings.rateDelta || 0);
+        var rate = getBaseRate();
         try { src.playbackRate.value = rate; } catch (e) {}
         if (settings.overlayLoop >= 1) {
             src.loop = true;
         }
-        src.connect(gainNode);
+        if (filterStages.length) {
+            src.connect(filterStages[0]);
+        } else if (wetGain) {
+            src.connect(wetGain);
+        }
         var offset = normalizedOffset(offsetSeconds, buffer);
         try {
             src.start(0, offset);
@@ -12509,11 +12579,9 @@ function createPhaseOverlayHead(player, track, options) {
 
     function applySettings(nextSettings) {
         settings = sanitizePhaseShifterSettings(nextSettings, ADVANCED_DEFAULTS.phaseShifter);
-        if (gainNode && gainNode.gain) {
-            try { gainNode.gain.value = settings.overlayGain; } catch (e) {}
-        }
+        applyPhaserParams();
         if (source && source.playbackRate) {
-            try { source.playbackRate.value = 1 + (settings.rateDelta || 0); } catch (e) {}
+            try { source.playbackRate.value = getBaseRate(); } catch (e) {}
         }
     }
 
@@ -12711,11 +12779,11 @@ function createPhaseShifterDriver(player, options) {
     };
 }
 
-// Register Phase Shifter as a stackable drifting playhead.
+// Register Phase Shifter as a stackable phaser layer.
 registerStackLayer({
     id: "phaseshifter",
     label: "Phase Shifter",
-    description: "Add a second drifting playhead (Reich phasing).",
+    description: "Applies a synced phaser sweep.",
     factory: function(ctx) {
         if (!ctx || !ctx.beats || !ctx.beats.length) return null;
         var player = driver && driver.player ? driver.player : null;
