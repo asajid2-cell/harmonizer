@@ -556,6 +556,8 @@
         resetPlayButtonPosition() {
             try {
                 window.localStorage.removeItem('idcDesktopPlayButton');
+                window.localStorage.removeItem('idcDesktopPlayButton:desktop');
+                window.localStorage.removeItem('idcDesktopPlayButton:tablet');
             } catch (err) {
                 console.warn('[PersistentPlayer] Unable to clear play button position', err);
             }
@@ -666,9 +668,10 @@
 
         ensureDockButton() {
             if (this.dockButton) return this.dockButton;
+            const prefersDesktop = window.matchMedia('(min-width: 521px)').matches;
             const dockHost =
-                document.querySelector('.taskbar-tray') ||
-                document.querySelector('.desktop-taskbar') ||
+                (prefersDesktop && document.querySelector('.taskbar-tray')) ||
+                (prefersDesktop && document.querySelector('.desktop-taskbar')) ||
                 document.body;
             const button = document.createElement('button');
             button.type = 'button';
@@ -1316,9 +1319,11 @@
             const existing = document.getElementById('autoplay-trigger');
             if (existing) existing.remove();
 
+            const prefersDesktop = window.matchMedia('(min-width: 521px)').matches;
             const desktop = document.querySelector('.desktop');
+            const mobileCredits = document.querySelector('.mobile-landing .retro-credits');
             const creditsSection = document.querySelector('.retro-credits');
-            const host = desktop || creditsSection;
+            const host = (prefersDesktop && desktop) ? desktop : (mobileCredits || creditsSection);
             if (!host) return;
 
             // Create an autoplay trigger button
@@ -1328,7 +1333,7 @@
             autoplayTrigger.textContent = 'PLAY';
             autoplayTrigger.setAttribute('aria-label', 'Start playing music');
             autoplayTrigger.draggable = false;
-            if (desktop) {
+            if (prefersDesktop && desktop) {
                 autoplayTrigger.dataset.floating = 'true';
             }
 
@@ -1394,8 +1399,9 @@
 
             host.appendChild(autoplayTrigger);
 
-            if (desktop) {
-                const storageKey = 'idcDesktopPlayButton';
+            if (prefersDesktop && desktop) {
+                const bucket = window.matchMedia('(max-width: 1024px)').matches ? 'tablet' : 'desktop';
+                const storageKey = `idcDesktopPlayButton:${bucket}`;
                 const loadPosition = () => {
                     try {
                         const raw = window.localStorage.getItem(storageKey);
@@ -1419,7 +1425,16 @@
                     autoplayTrigger.style.left = `${defaultX}px`;
                     autoplayTrigger.style.top = `${defaultY}px`;
                 };
-                const saved = loadPosition();
+                const saved = (() => {
+                    const value = loadPosition();
+                    if (value) return value;
+                    try {
+                        const legacyRaw = window.localStorage.getItem('idcDesktopPlayButton');
+                        return legacyRaw ? JSON.parse(legacyRaw) : null;
+                    } catch (err) {
+                        return null;
+                    }
+                })();
                 if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
                     autoplayTrigger.style.left = `${saved.x}px`;
                     autoplayTrigger.style.top = `${saved.y}px`;

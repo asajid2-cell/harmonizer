@@ -245,6 +245,65 @@
     .retro-credits span:nth-child(2){color:#c38aff}
     .retro-credits span:nth-child(3){color:#58ff7a}
 
+    .retro-nav{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      padding:6px 10px;
+      background-color:#0b1422;
+      border-bottom:1px solid #24324f;
+      font-family:"MS Sans Serif",Tahoma,sans-serif;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+    .retro-nav a{color:#8ab4ff;text-decoration:none}
+    .retro-nav a:hover,.retro-nav a:focus-visible,.retro-nav a[aria-current="page"]{color:#fca1ff;text-decoration:underline}
+
+    .mobile-landing{display:none}
+    .mobile-landing .retro-title{
+      font-size:clamp(26px,4vw,40px);
+      color:#1d55ff;
+      letter-spacing:.12em;
+      margin:18px 0 18px;
+      text-transform:uppercase;
+      text-shadow:0 0 16px rgba(61,128,255,.6);
+      font-family:"Times New Roman",serif;
+    }
+    .mobile-landing .retro-ascii-wall{
+      margin:10px auto;
+      padding:14px;
+      width:min(88vw,1500px);
+      min-height:60vh;
+      border:2px solid rgba(255,255,255,.24);
+      background:linear-gradient(180deg,#01060f,#000);
+      font-family:"Courier New",monospace;
+      color:#b0c9ff;
+      box-shadow:0 0 32px rgba(0,0,0,.65);
+      column-width:150px;
+      column-gap:14px;
+      text-align:left;
+      overflow:visible;
+    }
+    .mobile-landing .retro-ascii-card{
+      margin:0 0 8px;
+      padding:0;
+      background:transparent;
+      border:none;
+      white-space:pre;
+      font-size:7px;
+      line-height:.95;
+      color:inherit;
+      break-inside:avoid;
+      box-shadow:none;
+      text-align:left;
+    }
+    .mobile-landing .retro-ascii-card[aria-label="internet discotheque marquee"]{margin-top:32vh;break-before:column}
+    .mobile-landing .retro-ascii-card[aria-label="amiga workstation"]{margin-top:36vh;break-before:column;margin-left:100px}
+    .mobile-landing .retro-ascii-card[aria-label="ps2 controller"]{margin-top:40vh;break-before:column;margin-left:170px}
+    .mobile-landing .retro-ascii-card--y2k{transform:none}
+    .mobile-landing .retro-ascii-card--console{margin-left:0}
+
     .desktop-taskbar{
       position:absolute;
       left:0;
@@ -327,46 +386,91 @@
       to{opacity:1;transform:translateY(0)}
     }
 
-    @media (max-width: 900px){
-      .desktop{min-height:100vh}
-      .desktop-topbar{padding:20px 12px 10px;text-align:center}
+    @media (max-width: 1024px){
+      .desktop-topbar{padding:18px 12px 10px}
+      .desktop-title{letter-spacing:.26em}
       .desktop-album-bg{
-        inset:140px 0 140px;
-        background-size:min(480px,80vw);
-        opacity:.95;
-      }
-      .desktop-credits{
-        position:relative;
-        left:auto;
-        transform:none;
-        bottom:auto;
-        margin:0 auto 16px;
+        inset:120px 0 90px;
+        background-size:min(460px,72vw);
+        opacity:.92;
       }
       .desktop-icons{
-        position:relative;
-        inset:auto;
-        padding:18px 18px 12px;
-        grid-auto-flow:row;
-        grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
-        grid-template-rows:auto;
-        justify-items:center;
+        inset:108px 14px 58px 14px;
+        grid-auto-columns:84px;
+        grid-template-rows:repeat(6,84px);
+        gap:16px 18px;
       }
-      .desktop-icons.is-freeform{display:grid}
-      .desktop-icon{position:relative;cursor:pointer;touch-action:auto}
-      .desktop-taskbar{position:sticky}
-      .start-menu{left:8px;right:8px;width:auto}
+      .desktop-icon{width:84px;font-size:10px}
+      .icon-frame{width:56px;height:56px}
+      .icon-frame i{font-size:30px}
+      .taskbar-center{display:none}
+    }
+
+    @media (max-width: 520px){
+      .desktop{display:none}
+      .mobile-landing{display:block}
+      .retro-wrapper{display:flex;justify-content:center;align-items:flex-start;padding:24px 8px 18px;min-height:auto}
+      .retro-window{width:min(1650px,100%);min-height:auto;border:3px solid #17233c;box-shadow:0 0 32px #000000a6;background-color:#010409}
+      .retro-window__chrome{
+        display:flex;
+        background:linear-gradient(90deg,#4b5d7a,#2c3750);
+        color:#e4e8f2;
+        padding:6px 10px;
+        font-family:"MS Sans Serif",Tahoma,sans-serif;
+        font-size:12px;
+        justify-content:space-between;
+        align-items:center;
+        letter-spacing:.04em;
+        position:relative;
+      }
+      .retro-window__brand{display:none}
+      .retro-window__title{
+        position:static;
+        transform:none;
+        flex:1;
+        text-align:center;
+        letter-spacing:.12em;
+        font-size:11px;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        pointer-events:none;
+      }
+      .retro-content{padding:18px 14px;text-align:center;min-height:auto}
+      .mobile-landing .retro-title{font-size:clamp(20px,6vw,28px);letter-spacing:.08em;margin-bottom:12px;line-height:1.2}
+      .mobile-landing .retro-ascii-wall{
+        column-width:100%;
+        column-count:1;
+        padding:10px;
+        width:calc(100% - 8px);
+        min-height:auto;
+        margin:8px auto;
+        overflow:hidden!important;
+        max-width:100vw!important;
+        box-sizing:border-box!important;
+      }
+      .mobile-landing .retro-ascii-card{
+        font-size:3px!important;
+        line-height:1!important;
+        margin:12px 0;
+        break-before:auto;
+        margin-left:0!important;
+        margin-top:0!important;
+        max-width:calc(100vw - 40px)!important;
+        overflow-x:hidden!important;
+        overflow-y:hidden!important;
+        box-sizing:border-box!important;
+        word-break:break-all!important;
+        transform:scale(0.95)!important;
+        transform-origin:left top!important;
+      }
+      .mobile-landing .retro-ascii-card[aria-label="internet discotheque marquee"]{margin-top:0!important}
+      .mobile-landing .retro-ascii-card[aria-label="amiga workstation"]{margin-top:12px!important;margin-left:0!important}
+      .mobile-landing .retro-ascii-card[aria-label="ps2 controller"]{margin-top:12px!important;margin-left:0!important}
     }
 
     @media (max-width: 480px){
-      .retro-wrapper{padding:0;min-height:100vh}
-      .retro-window{min-height:100vh;border:0}
-      .retro-window__chrome{display:none}
-      .desktop-topbar{padding:18px 12px 10px}
-      .desktop-album-bg{inset:140px 0 160px}
-      .desktop-icons{padding:12px}
-      .taskbar-start{padding:6px 10px;font-size:10px}
-      .taskbar-center{display:none}
-      .taskbar-clock{font-size:10px}
+      .retro-nav{gap:6px;font-size:10px}
     }
 
     @media (prefers-reduced-motion: reduce){
@@ -389,6 +493,274 @@
       </div>
       <main id="main" class="retro-content">
         <h1 class="sr-only">Internet Discotheque</h1>
+        <section class="mobile-landing" aria-label="Internet Discotheque landing">
+          <nav aria-label="Pages" class="retro-nav">
+            <a href="/" aria-current="page"> Home </a>
+            <a href="/projects"> Showcase </a>
+            <a href="/harmonizer.html"> Harmonizer </a>
+            <a href="/eldrichify.html"> Image Playground </a>
+            <a href="/talk-to-disco-teque.html"> Talk to Disco-teque </a>
+            <a href="/codesniff.html"> CodeSniff </a>
+            <a href="https://plaza.one/" target="_blank" rel="noopener"> Radio </a>
+            <a href="/ourspace.html"> OurSpace </a>
+            <a href="/sand.html"> Sand Sim </a>
+            <a href="/notebook.html"> Notebook </a>
+            <a href="/cheatsheets/"> Quick Reference </a>
+        
+          </nav>
+          <h1 class="retro-title">Internet Discotheque</h1>
+          <section class="retro-ascii-wall" aria-label="dancing ascii gallery">
+          <pre class="retro-ascii-card retro-ascii-card--y2k" aria-label="internet discotheque marquee">
+                              oOOOoOOo
+                             .OOoOOOo.
+                             OOOoOOOoO
+                             'OOoOOOo'
+                                |||
+                             /\  ||  /\
+                            /  \ || /  \
+                           / /\ \||/ /\ \
+                          /_/  \.**./  \_\
+                               / || \
+                              *  ||  *
+                                 **
+                                     .-'''-.
+                                    / .===. \
+                                    \/ 6 6 \/
+                                    ( \___/ )
+                            ___ooo___\_____/____ooo___
+                           /                            \
+                           |        INTERNET             |
+                           |         DISCOTHEQUE         |
+                           \____________________________/
+                                  |  |         |  |
+                                  |  |         |  |
+                                  |__|         |__|
+                                   /_\\         /_\\
+                                  // \\         // \\
+                                  *   *         *   *
+          </pre>
+
+          <pre class="retro-ascii-card" aria-label="wave dancer">
+               .oOOOo.
+               oOOOoOOo
+               .OOoOOOo.
+               OOOoOOOoO    
+              'OOoOOOo'
+                 |||
+              /\  ||  /\
+             /  \ || /  \
+            / /\ \||/ /\ \
+           /_/  \.**./  \_\
+                / || \
+               *  ||  *               
+                  **     .''''''''''.
+                      .''            ''.
+                    .'      .-^.       '.
+                   /      .'*   '*.      \
+                  ;      /   \ /   \      ;
+                  |     /     V     \     |
+                  |    /   .-----.   \    |
+                  ;    |  (  _ _  )   |   ;
+                   \    \   \___/    /   /
+                    '.   '._     _.-'  .'
+                      '.    ''-''    .'
+                        '-._       _.'
+                             '| |'
+                           __/| |\__
+                         .'-._| |_._'-.
+                        /     | |     \
+                       /  /\  | |  /\  \
+                      /  /  \ | | /  \  \
+                     /__/    \| |/    \__\
+                              * *
+          </pre>
+
+          <pre class="retro-ascii-card" aria-label="sysadmin sentinel">
+                       SysAdmin
+                        _\/|(/_
+                        >_   _ /
+                        (_)-(_)
+                         ) o (
+                         \ = /
+                          |W|
+                          | |
+                        __| |__
+                       / \ u / \
+                      |   `-'   |
+                      |__|   |__|
+                       |||ADM|||
+                       |||   |||
+                       |||   |||
+                       |||   |||
+                       |||   |||
+                       |||   |||
+                      /  |___/  \
+                      ||(|   \)||
+                       \| | |//
+                         | | |
+                         | | |
+                         | | |
+                         | | |
+                         | | |
+                         ( ( |
+                         | | |
+                         | | |
+                         | | |
+                         | | |
+                         | | |
+                      ___[_[_]
+                     / /      \ 
+                     \_\______/ 
+          </pre>
+
+          <pre class="retro-ascii-card" aria-label="glyph guardian">
+                               .;+itIYIIYIIYItt+;:                      
+                            =tXVVXItt+;=;;=+itIYVVXIi:                  
+                         ;YVXXt=:               .;tYXXX+                
+                      .tVXVt;                       .iXXVI:             
+                     tRXX;                        .;;  ;YVVY:           
+                   ;RXV;                            +RR+..YVRt          
+                 .XXR;                           :;.  ;BBY.:VXR;        
+                ;RYX                              :XBY; tBBi tVR+       
+               ;RV+                             :;  :RMB+;BMB.;RXt      
+              ;RR;                               ;RR+.tBMBiBMB::RXt     
+             :RV;                             .+;. iBBY;BMMBMMB.:RXi    
+             RYt                                =BBi:BMBXBMMMBY. ;RR;   
+            YtV                               +Y+:tMBIBMMBMR=     iIR   
+           :RR.                        .::.    .tBXtMMBMBY:        RIi  
+           XIt                     ;IRBRXVRBY;   ;BBBMR=           ;VR  
+          .RR                    ;RBt:     .+RB;  :BI:              VY; 
+          +tX                   iBt           =BX                   itY 
+          Yt=                  ;Bi             :Bt                  :XR 
+          RX:                  RX               =B:                  RX.
+          RR                  :B:                Ri                  YX:
+          RR                  ;B                 YY                  YY;
+          RR                  :B;                Ri                  YX:
+          RX:                  RX               +B:                  RX.
+          YI;                  +Ri             :Bt                  :XR 
+          +tX              .i:  iBI           iBX                   itY 
+          .RR            ;VBBB.  ;RBt:     :+RR+                    VY; 
+           XIt        .tBMMMRBB;   ;tRBVXVBRY;                     ;VR  
+           :RR.     ;RBMMBVBB;;RR;     .::.                        RIi  
+            IIR  .tBMMMBMMB;RMX:                                  tIR   
+             RII BMMBMMBiBMB;:+Vi:                               ;RR:   
+             :RV;:BMBXBMB;;VBY.                                 :RX+    
+              ;RV+:BMB;RBMY  ;t;                               ;RXt     
+               ;RXt.RMB;:tBB=                                 ;RVi      
+                :RYR.;BBY. :+t;                              IXR;       
+                  XXR+ ;RBY:                               ;RYR:        
+                   ;RYR; .;Yi:                           :XXVt          
+                     +VXV=                             ;YVVt.           
+                       +VXVI;                       ;tVXVt.             
+                         ;tVXXYi;.              ;+IXXVY;                
+                            ;tIVVXXYti=====iiIXXVVYt;                   
+                                :;iitItttttItt+;:
+          </pre>
+
+            <pre class="retro-ascii-card retro-ascii-card--console" aria-label="command console">
+                              \_/ 
+             _______________                        |*\_/*|________
+            |  ___________  |     .-.     .-.      ||_/-\_|______  |
+            | |           | |    .****. .****.     | |           | |
+            | |   0   0   | |    .*****.*****.     | |   0   0   | |
+            | |     -     | |     .*********.      | |     -     | |
+            | |   \___/   | |      .*******.       | |   \___/   | |
+            | |___     ___| |       .*****.        | |___________| |
+            |_____|\_/|_____|        .***.         |_______________|
+              _|__|/ \|_|_.............*.............._|________|_
+             / ********** \                          / ********** \
+           /  ************  \                      /  ************  \
+          --------------------                    --------------------
+            </pre>
+
+            <pre class="retro-ascii-card" aria-label="amiga workstation">
+                               ___..-.---.---.--..___
+                         _..-- `.`.   `.  `.  `.      --.._
+                        /    ___________\   \   \______    \
+                        |   |.-----------`.  `.  `.---.|   |
+                        |`. |'  \`.        \   \   \  '|   |
+                        |`. |'   \ `-._     `.  `.  `.'|   |
+                       /|   |'    `-._o)\  /(o\   \   \|   |\
+                     .' |   |'  `.     .'  '.  `.  `.  `.  | `.
+                    /  .|   |'    `.  (_.==._)   \   \   \ |.  \         _.--.
+                  .' .' |   |'      _.-======-._  `.  `.  `. `. `.    _.-_.-'\ 
+                 /  /   |   |'    .'   |_||_|   `.  \   \   \  \  \ .'_.'     ||
+                / .'    |`. |'   /_.-'========`-._\  `.  `-._`._`. \(.__      :|
+               ( '      |`. |'.______________________.'\      _.) ` )`-._`-._/ /
+                \\      |   '.------------------------.'`-._-'    //     `-._.'
+                _\\_    \    | AMIGA  O O O O * * `.`.|    '     //
+               (_  _)    '-._|________________________|_.-'|   _//_
+               /  /      /`-._      |`-._     / /      /   |  (_  _)
+             .'   \     |`-._ `-._   `-._`-._/ /      /    |    \  \
+            /      `.   |    `-._ `-._   `-._|/      /     |    /   `.
+           /  / / /. )  |  `-._  `-._ `-._          /     /   .'      \
+          | | | \ \|/   |  `-._`-._  `-._ `-._     /     /.  ( .\ \ \  \
+           \ \ \ \/     |  `-._`-._`-._  `-._ `-._/     /  \  \|/ / | | |
+            `.\_\/       `-._  `-._`-._`-._  `-._/|    /|   \   \/ / / /
+                        /    `-._  `-._`-._`-._  ||   / |    \   \/_/.'
+                      .'         `-._  `-._`-._  ||  /  |     \
+             LGB     /           / . `-._  `-._  || /   |      \
+                    '\          / /      `-._    ||/'._.'       \
+                     \`.      .' /           `-._|/              \
+                      `.`-._.' .'               \               .'
+                        `-.__\/                 `\            .' '
+                                                 \`.       _.' .'
+                                                  `.`-._.-' _.'
+                                                    `-.__.-'
+            </pre>
+
+            <pre class="retro-ascii-card" aria-label="circuit totem">
+                                                       /'.    /|    .'\
+                                                 ,._   |+i\  /++\  / +|    ,,
+                                                 |*+'._/+++\/+ ++\/+++<_.-'+|
+                                            :-.  \ ++++?++ +++++*++++++ +++ /  .-:
+                                            |*+\_/++++ +++*++ ++++++ ++?++++\_/ +|
+                                        ,    \*+++++ ++++ +++*+++ ++++ +++ +++++/   ,
+                                        \'-._> +__+*++__*+++_+__*++ ++__++++__*<_.-'/ 
+                                         `>*+++|  \++/  |+*/     `\ +|  |++/  |++++<'
+                                      _,-'+ * +*\  \/  /++|__.-.  |+ |  |+/  /+ +*+'-._
+                                      '-.*+++++++\    /+ ++++++/  / *|  |/  /+ ++++++.-'
+                                          > *+++++\  /*++++ +/` /`+++|     < *++ +++< 
+                                      _,-'* +++ ++|  |++ +*/` /` +* +|  |\  \+ ++++++'-._
+                                      `-._+ +*++?+|  |+++*|  '-----.+|  |+\  \+* ++ +_.-'
+                                         _`\++++++|__|+ *+|________|+|__|++\__|++++/`_
+                                        /*++_+* + +++++ ++ + ++++ +++++ ++ ++++ ++_+*+\
+                                        '--' `>*+++ +++++ +++++*++++  +++ ++++ ?<' '--'
+                                             /++_++ ++ ++++++ ++?+ +++++*+++ ++++ \
+                                             |_/ `\++ ++ +++*++++++++++ ++++*./`\_|
+                                                  /+*.-.*+ +_ ++*+ _+++ .-.* +\
+                                            jgs   | /   | +/ `\?+/` \*+|    \ |
+                                                   '    \.'    |/    './     '
+            </pre>
+
+            <pre class="retro-ascii-card" aria-label="ps2 controller">
+                _=====_                               _=====_
+               / _____ \                             / _____ \
+             +.-'_____'-.---------------------------.-'_____'-.+
+            /   |     |  '.        S O N Y        .'  |  _  |   \
+           / ___| /|\ |___ \                     / ___| /_\ |___ \
+          / |      |      | ;  __           _   ; | _         _ | ;
+          | | <---   ---> | | |__|         |_:> | ||_|       (_)| |
+          | |___   |   ___| ;SELECT       START ; |___       ___| ;
+          |\    | \|/ |    /  _     ___      _   \    | (X) |    /|
+          | \   |_____|  .','" "', |___|  ,'" "', '.  |_____|  .' |
+          |  '-.______.-' /       \ANALOG/       \  '-._____.-'   |
+          |               |       |------|       |                |
+          |              /\       /      \       /\               |
+          |             /  '.___.'        '.___.'  \              |
+          |            /                            \             |
+           \          /                              \           /
+            \________/                                \_________/
+                              PS2 CONTROLLER
+            </pre>
+            </section>
+          <div class="retro-credits" aria-label="Album credits">
+            <span>ID Chief</span>
+            <span>&#x30B3;&#x30F3;&#x30B7;&#x30E3;&#x30B9;THOUGHTS</span>
+            <span>Aloe Island Posse</span>
+          </div>
+        </section>
+
         <section class="desktop" aria-label="Internet Discotheque desktop">
           <div class="desktop-topbar">
             <div class="desktop-brand">
@@ -512,13 +884,22 @@
       if (!iconLayer) return;
 
       const icons = Array.from(iconLayer.querySelectorAll('.desktop-icon'));
-      const storageKey = 'idcDesktopLayout';
-      const isCompact = window.matchMedia('(max-width: 900px)').matches;
+      const isMobileSmall = window.matchMedia('(max-width: 520px)').matches;
+      if (isMobileSmall) return;
+
+      const bucket = window.matchMedia('(max-width: 1024px)').matches ? 'tablet' : 'desktop';
+      const storageKey = `idcDesktopLayout:${bucket}`;
+      const legacyStorageKey = 'idcDesktopLayout';
 
       const loadLayout = () => {
         try {
           const raw = window.localStorage.getItem(storageKey);
-          return raw ? JSON.parse(raw) : {};
+          if (raw) return JSON.parse(raw);
+          const legacyRaw = window.localStorage.getItem(legacyStorageKey);
+          if (!legacyRaw) return {};
+          const parsed = JSON.parse(legacyRaw);
+          window.localStorage.setItem(storageKey, JSON.stringify(parsed));
+          return parsed || {};
         } catch (err) {
           return {};
         }
@@ -622,7 +1003,12 @@
       const resetLayout = () => {
         try {
           window.localStorage.removeItem(storageKey);
+          window.localStorage.removeItem(legacyStorageKey);
+          window.localStorage.removeItem('idcDesktopLayout:desktop');
+          window.localStorage.removeItem('idcDesktopLayout:tablet');
           window.localStorage.removeItem('idcDesktopPlayButton');
+          window.localStorage.removeItem('idcDesktopPlayButton:desktop');
+          window.localStorage.removeItem('idcDesktopPlayButton:tablet');
           const rawPlayer = window.localStorage.getItem('idcPersistentPlayerState');
           if (rawPlayer) {
             const parsed = JSON.parse(rawPlayer);
@@ -642,12 +1028,10 @@
           icon.style.left = '';
           icon.style.top = '';
         });
-        if (!isCompact) {
-          requestAnimationFrame(() => {
-            applyGridPositions({});
-            iconLayer.classList.add('is-freeform');
-          });
-        }
+        requestAnimationFrame(() => {
+          applyGridPositions({});
+          iconLayer.classList.add('is-freeform');
+        });
         window.dispatchEvent(new Event('idc-reset-layout'));
       };
 
@@ -655,9 +1039,7 @@
         resetLayoutButton.addEventListener('click', resetLayout);
       }
 
-      if (!isCompact) {
-        requestAnimationFrame(enableFreeform);
-      }
+      requestAnimationFrame(enableFreeform);
 
       const startButton = document.querySelector('[data-start-toggle]');
       const startMenu = document.getElementById('start-menu');
