@@ -166,7 +166,29 @@ class SearchEngine:
             'java': ['.java'],
             'kotlin': ['.kt'],
             'html': ['.html', '.htm'],
-            'css': ['.css']
+            'css': ['.css'],
+            'c': ['.c', '.h'],
+            'cpp': ['.cpp', '.cc', '.cxx', '.hpp', '.hh', '.hxx', '.h'],
+            'c++': ['.cpp', '.cc', '.cxx', '.hpp', '.hh', '.hxx', '.h'],
+            'csharp': ['.cs'],
+            'c#': ['.cs'],
+            'go': ['.go'],
+            'rust': ['.rs'],
+            'ruby': ['.rb', '.rake'],
+            'php': ['.php', '.phtml'],
+            'bash': ['.sh', '.bash', '.zsh'],
+            'shell': ['.sh', '.bash', '.zsh'],
+            'sql': ['.sql'],
+            'glsl': ['.glsl', '.vert', '.frag', '.geom', '.tesc', '.tese', '.comp'],
+            'hlsl': ['.hlsl', '.fx', '.fxh', '.hlsli'],
+            'wgsl': ['.wgsl'],
+            'metal': ['.metal'],
+            'shaderlab': ['.shader', '.cginc'],
+            'shader': [
+                '.glsl', '.vert', '.frag', '.geom', '.tesc', '.tese', '.comp',
+                '.hlsl', '.fx', '.fxh', '.hlsli',
+                '.wgsl', '.metal', '.shader', '.cginc'
+            ]
         }
 
         # If language filter is specified, collect allowed extensions

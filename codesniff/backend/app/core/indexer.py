@@ -21,6 +21,7 @@ from .ruby_parser import RubyParser, ParsedRubyFile, ParsedRubyMethod, ParsedRub
 from .php_parser import PHPParser, ParsedPHPFile, ParsedPHPFunction, ParsedPHPClass
 from .bash_parser import BashParser, ParsedBashFile, ParsedBashFunction
 from .sql_parser import SQLParser, ParsedSQLFile, ParsedSQLTable, ParsedSQLProcedure, ParsedSQLView
+from .shader_parser import ShaderParser, ParsedShaderFile, ParsedShaderFunction
 from .embedder import CodeEmbedder
 from .text_search import TextSearchEngine
 from ..storage.vector_store import VectorStore
@@ -76,6 +77,7 @@ class Indexer:
         self.php_parser = PHPParser()
         self.bash_parser = BashParser()
         self.sql_parser = SQLParser()
+        self.shader_parser = ShaderParser()
         self.embedder = embedder or CodeEmbedder()
         self.vector_store = vector_store or VectorStore()
         self.metadata_store = metadata_store or MetadataStore()
@@ -94,12 +96,18 @@ class Indexer:
         self.php_extensions = {'.php', '.phtml'}
         self.bash_extensions = {'.sh', '.bash', '.zsh'}
         self.sql_extensions = {'.sql'}
+        self.shader_extensions = {
+            '.glsl', '.vert', '.frag', '.geom', '.tesc', '.tese', '.comp',
+            '.hlsl', '.fx', '.fxh', '.hlsli',
+            '.wgsl', '.metal', '.shader', '.cginc'
+        }
         self.all_extensions = (self.python_extensions | self.js_extensions | self.java_extensions |
                               self.html_css_extensions | self.c_cpp_extensions | self.csharp_extensions |
                               self.go_extensions | self.rust_extensions | self.ruby_extensions |
-                              self.php_extensions | self.bash_extensions | self.sql_extensions)
+                              self.php_extensions | self.bash_extensions | self.sql_extensions |
+                              self.shader_extensions)
 
-        logger.info("Indexer initialized with multi-language support (Python, JS/TS, Java, Kotlin, HTML, CSS, C, C++, C#, Go, Rust, Ruby, PHP, Bash, SQL)")
+        logger.info("Indexer initialized with multi-language support (Python, JS/TS, Java, Kotlin, HTML, CSS, C, C++, C#, Go, Rust, Ruby, PHP, Bash, SQL, Shaders)")
 
     def index_directory(self, directory_path: str, show_progress: bool = True) -> IndexStats:
         """
@@ -379,6 +387,23 @@ class Indexer:
 
             # Extract symbols from SQL file
             symbols_to_index = self._extract_sql_symbols(parsed_file, stats)
+
+        elif file_ext in self.shader_extensions:
+            parsed_file = self.shader_parser.parse_file(file_path)
+            if not parsed_file:
+                logger.warning(f"Failed to parse shader file {file_path}")
+                stats.files_failed = 1
+                return stats
+
+            # Add file to metadata store
+            file_id = self.metadata_store.add_file(
+                path=file_path,
+                total_lines=parsed_file.total_lines
+            )
+            stats.total_lines = parsed_file.total_lines
+
+            # Extract symbols from shader file
+            symbols_to_index = self._extract_shader_symbols(parsed_file, stats)
 
         else:
             logger.warning(f"Unsupported file type: {file_path}")
@@ -987,6 +1012,26 @@ class Indexer:
 
         return symbols_to_index
 
+    def _extract_shader_symbols(self, parsed_file: ParsedShaderFile, stats: IndexStats) -> List[Dict]:
+        """Extract symbols from parsed shader file"""
+        symbols_to_index = []
+
+        for func in parsed_file.functions:
+            func_data = type('ShaderFunction', (), {
+                'name': func.name,
+                'code': func.code,
+                'start_line': func.start_line,
+                'end_line': func.end_line,
+                'docstring': func.docstring
+            })()
+
+            symbols_to_index.append({
+                'type': 'function',
+                'data': func_data
+            })
+            stats.functions_indexed += 1
+
+        return symbols_to_index
     def _index_symbols(self, symbols: List[Dict], file_id: int, file_path: str):
         """
         Generate embeddings and store symbols in batches to avoid OOM

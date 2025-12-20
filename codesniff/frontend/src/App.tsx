@@ -120,6 +120,20 @@ function App() {
     { value: 'kotlin', label: 'Kotlin' },
     { value: 'html', label: 'HTML' },
     { value: 'css', label: 'CSS' },
+    { value: 'c', label: 'C' },
+    { value: 'cpp', label: 'C++' },
+    { value: 'csharp', label: 'C#' },
+    { value: 'go', label: 'Go' },
+    { value: 'rust', label: 'Rust' },
+    { value: 'ruby', label: 'Ruby' },
+    { value: 'php', label: 'PHP' },
+    { value: 'bash', label: 'Bash' },
+    { value: 'sql', label: 'SQL' },
+    { value: 'glsl', label: 'GLSL' },
+    { value: 'hlsl', label: 'HLSL' },
+    { value: 'wgsl', label: 'WGSL' },
+    { value: 'metal', label: 'Metal' },
+    { value: 'shaderlab', label: 'ShaderLab' },
   ];
 
   const toggleLanguage = (lang: string) => {

@@ -622,6 +622,18 @@
       const resetLayout = () => {
         try {
           window.localStorage.removeItem(storageKey);
+          window.localStorage.removeItem('idcDesktopPlayButton');
+          const rawPlayer = window.localStorage.getItem('idcPersistentPlayerState');
+          if (rawPlayer) {
+            const parsed = JSON.parse(rawPlayer);
+            if (parsed && typeof parsed === 'object') {
+              if (parsed.uiState && typeof parsed.uiState === 'object') {
+                delete parsed.uiState.position;
+                parsed.uiState.minimized = false;
+              }
+              window.localStorage.setItem('idcPersistentPlayerState', JSON.stringify(parsed));
+            }
+          }
         } catch (err) {
           console.warn('Layout reset failed', err);
         }
@@ -636,6 +648,7 @@
             iconLayer.classList.add('is-freeform');
           });
         }
+        window.dispatchEvent(new Event('idc-reset-layout'));
       };
 
       if (resetLayoutButton) {
@@ -688,4 +701,3 @@
   <script src="./js/persistent-player.js" defer></script>
 </body>
 </html>
-

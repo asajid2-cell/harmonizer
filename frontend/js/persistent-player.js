@@ -5,16 +5,16 @@
     const PLAYER_STYLE_ID = 'idc-persistent-player-styles';
 
     const FALLBACK_TRACKS = [
-        { number: '01', title: 'Moves So Sweet', artist: 'ID Chief', durationLabel: '3:14', file: 'assets/audio/moves-so-sweet.wav' },
-        { number: '02', title: 'Tigerstyle', artist: 'Aloe Island Posse', durationLabel: '2:58', file: 'assets/audio/tigerstyle.wav' },
-        { number: '03', title: 'Kotori', artist: 'コンシャスTHOUGHTS', durationLabel: '3:28', file: 'assets/audio/kotori.wav' },
-        { number: '04', title: 'Smile', artist: 'ID Chief x Aloe Island Posse', durationLabel: '3:21', file: 'assets/audio/smile.wav' },
-        { number: '05', title: "Maybe I'm Dreaming", artist: 'コンシャスTHOUGHTS x ID Chief', durationLabel: '4:04', file: 'assets/audio/maybe-im-dreaming.wav' },
-        { number: '06', title: 'Refreshing', artist: 'コンシャスTHOUGHTS x Aloe Island Posse', durationLabel: '2:40', file: 'assets/audio/refreshing.wav' },
-        { number: '07', title: 'Our Love', artist: 'Aloe Island Posse', durationLabel: '2:30', file: 'assets/audio/our-love.wav' },
-        { number: '08', title: 'Visions of You', artist: 'コンシャスTHOUGHTS', durationLabel: '3:14', file: 'assets/audio/visions-of-you.wav' },
-        { number: '09', title: 'Me & You', artist: 'ID Chief', durationLabel: '3:21', file: 'assets/audio/me-and-you.wav' },
-        { number: '10', title: 'Space Cowboys', artist: 'コンシャスTHOUGHTS x ID Chief x Aloe Island Posse', durationLabel: '4:20', file: 'assets/audio/space-cowboys.wav' },
+        { number: '01', title: 'Moves So Sweet', artist: 'ID Chief', durationLabel: '3:14', file: 'assets/audio/moves-so-sweet.mp3' },
+        { number: '02', title: 'Tigerstyle', artist: 'Aloe Island Posse', durationLabel: '2:58', file: 'assets/audio/tigerstyle.mp3' },
+        { number: '03', title: 'Kotori', artist: 'コンシャスTHOUGHTS', durationLabel: '3:28', file: 'assets/audio/kotori.mp3' },
+        { number: '04', title: 'Smile', artist: 'ID Chief x Aloe Island Posse', durationLabel: '3:21', file: 'assets/audio/smile.mp3' },
+        { number: '05', title: "Maybe I'm Dreaming", artist: 'コンシャスTHOUGHTS x ID Chief', durationLabel: '4:04', file: 'assets/audio/maybe-im-dreaming.mp3' },
+        { number: '06', title: 'Refreshing', artist: 'コンシャスTHOUGHTS x Aloe Island Posse', durationLabel: '2:40', file: 'assets/audio/refreshing.mp3' },
+        { number: '07', title: 'Our Love', artist: 'Aloe Island Posse', durationLabel: '2:30', file: 'assets/audio/our-love.mp3' },
+        { number: '08', title: 'Visions of You', artist: 'コンシャスTHOUGHTS', durationLabel: '3:14', file: 'assets/audio/visions-of-you.mp3' },
+        { number: '09', title: 'Me & You', artist: 'ID Chief', durationLabel: '3:21', file: 'assets/audio/me-and-you.mp3' },
+        { number: '10', title: 'Space Cowboys', artist: 'コンシャスTHOUGHTS x ID Chief x Aloe Island Posse', durationLabel: '4:20', file: 'assets/audio/space-cowboys.mp3' },
     ];
 
     const scriptEl = document.currentScript || document.querySelector('script[src*="persistent-player.js"]');
@@ -123,6 +123,8 @@
             this.volume = typeof this.state?.volume === 'number' ? clamp(this.state.volume, 0, 1) : 0.9;
             this.uiState = this.state?.uiState || {};
             this.minimized = !!this.uiState.minimized;
+            this.dragPosition = this.uiState?.position || null;
+            this.dockButton = null;
             this.autoStartAttempted = false;
 
             if (this.blocked) {
@@ -132,9 +134,12 @@
 
             this.injectStyles();
             this.buildUI();
+            this.applySavedPosition();
+            this.setupDrag();
             this.setupAudio();
             this.bindUIEvents();
             this.bindStorageEvents();
+            this.bindDesktopEvents();
             this.buildCatalog();
             this.setupInlineIntegration();
             this.restoreFromState();
@@ -165,6 +170,14 @@
     z-index: 9999;
     transition: opacity 180ms ease, transform 180ms ease;
 }
+#persistent-audio-deck[data-docked="true"] {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(16px);
+}
+#persistent-audio-deck[data-dragging="true"] {
+    cursor: grabbing;
+}
 #persistent-audio-deck[data-visible="false"] {
     opacity: 0;
     pointer-events: none;
@@ -190,6 +203,12 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 8px;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+#persistent-audio-deck[data-dragging="true"] header {
+    cursor: grabbing;
 }
 #persistent-audio-deck .player-meta {
     display: grid;
@@ -214,6 +233,28 @@
     display: flex;
     align-items: center;
     gap: 6px;
+}
+#persistent-player-dock {
+    border: 1px solid #3a3a3a;
+    background: #151515;
+    color: #66d9ff;
+    padding: 4px 10px;
+    font-family: "MS Sans Serif", Tahoma, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.08), inset -1px -1px 0 rgba(0, 0, 0, 0.6);
+}
+#persistent-player-dock.is-active {
+    color: #3f9;
+    border-color: #3f9;
+}
+#persistent-player-dock[data-floating="true"] {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 9998;
 }
 #persistent-audio-deck button {
     font-family: inherit;
@@ -475,6 +516,8 @@
                     this.stopAndHide();
                     return;
                 }
+                this.uiState = this.state?.uiState || {};
+                this.dragPosition = this.uiState?.position || this.dragPosition;
                 const incomingSettings = this.state?.playbackSettings || {};
                 this.playbackSettings = {
                     shuffle: incomingSettings.shuffle !== undefined ? incomingSettings.shuffle : true,
@@ -485,15 +528,124 @@
                 this.volume = typeof this.state.volume === 'number' ? clamp(this.state.volume, 0, 1) : this.volume;
                 this.applyVolume();
                 this.applyMinimizeState(!!(this.state?.uiState?.minimized));
+                this.applySavedPosition();
                 this.restoreFromState();
+            });
+        }
+
+        bindDesktopEvents() {
+            window.addEventListener('idc-reset-layout', () => {
+                this.resetDockAndPosition();
+            });
+        }
+
+        resetDockAndPosition() {
+            this.uiState.position = null;
+            this.dragPosition = null;
+            if (this.root) {
+                this.root.style.left = '';
+                this.root.style.top = '';
+                this.root.style.right = '';
+                this.root.style.bottom = '';
+            }
+            this.applyMinimizeState(false);
+            this.persistState();
+            this.resetPlayButtonPosition();
+        }
+
+        resetPlayButtonPosition() {
+            try {
+                window.localStorage.removeItem('idcDesktopPlayButton');
+            } catch (err) {
+                console.warn('[PersistentPlayer] Unable to clear play button position', err);
+            }
+            const button = document.getElementById('autoplay-trigger');
+            const desktop = document.querySelector('.desktop');
+            if (!button || !desktop || button.dataset.floating !== 'true') return;
+            const desktopRect = desktop.getBoundingClientRect();
+            const buttonRect = button.getBoundingClientRect();
+            const defaultX = clamp((desktopRect.width - buttonRect.width) / 2, 0, desktopRect.width - buttonRect.width);
+            const defaultY = clamp(desktopRect.height - buttonRect.height - 140, 0, desktopRect.height - buttonRect.height);
+            button.style.left = `${defaultX}px`;
+            button.style.top = `${defaultY}px`;
+        }
+
+        applySavedPosition() {
+            if (!this.root) return;
+            const saved = this.dragPosition;
+            if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) return;
+            const rect = this.root.getBoundingClientRect();
+            const maxX = Math.max(0, window.innerWidth - rect.width);
+            const maxY = Math.max(0, window.innerHeight - rect.height);
+            const nextX = clamp(saved.x, 0, maxX);
+            const nextY = clamp(saved.y, 0, maxY);
+            this.root.style.left = `${nextX}px`;
+            this.root.style.top = `${nextY}px`;
+            this.root.style.right = 'auto';
+            this.root.style.bottom = 'auto';
+        }
+
+        setupDrag() {
+            if (!this.root) return;
+            const handle = this.root.querySelector('header');
+            if (!handle) return;
+
+            handle.addEventListener('pointerdown', (event) => {
+                if (event.button !== 0) return;
+                if (event.target.closest('button')) return;
+
+                const rect = this.root.getBoundingClientRect();
+                const offsetX = event.clientX - rect.left;
+                const offsetY = event.clientY - rect.top;
+                const width = rect.width;
+                const height = rect.height;
+                let moved = false;
+                const startX = event.clientX;
+                const startY = event.clientY;
+
+                this.root.dataset.dragging = 'true';
+                this.root.style.right = 'auto';
+                this.root.style.bottom = 'auto';
+                handle.setPointerCapture(event.pointerId);
+
+                const move = (moveEvent) => {
+                    const dx = Math.abs(moveEvent.clientX - startX);
+                    const dy = Math.abs(moveEvent.clientY - startY);
+                    if (dx > 4 || dy > 4) moved = true;
+                    const maxX = Math.max(0, window.innerWidth - width);
+                    const maxY = Math.max(0, window.innerHeight - height);
+                    const nextX = clamp(moveEvent.clientX - offsetX, 0, maxX);
+                    const nextY = clamp(moveEvent.clientY - offsetY, 0, maxY);
+                    this.root.style.left = `${nextX}px`;
+                    this.root.style.top = `${nextY}px`;
+                };
+
+                const end = () => {
+                    this.root.dataset.dragging = 'false';
+                    handle.releasePointerCapture(event.pointerId);
+                    handle.removeEventListener('pointermove', move);
+                    handle.removeEventListener('pointerup', end);
+                    handle.removeEventListener('pointercancel', end);
+                    if (moved) {
+                        this.uiState.position = {
+                            x: parseFloat(this.root.style.left) || 0,
+                            y: parseFloat(this.root.style.top) || 0,
+                        };
+                        this.dragPosition = this.uiState.position;
+                        this.persistState();
+                    }
+                };
+
+                handle.addEventListener('pointermove', move);
+                handle.addEventListener('pointerup', end);
+                handle.addEventListener('pointercancel', end);
             });
         }
 
         toggleMinimize(force) {
             if (!this.root) return;
             const next = typeof force === 'boolean' ? force : this.root.dataset.minimized !== 'true';
-            this.root.dataset.minimized = next ? 'true' : 'false';
-            this.updateMinimizeUI();
+            this.applyMinimizeState(next);
             this.persistState();
         }
 
@@ -507,7 +659,46 @@
         applyMinimizeState(isMinimized) {
             if (!this.root) return;
             this.root.dataset.minimized = isMinimized ? 'true' : 'false';
+            this.root.dataset.docked = isMinimized ? 'true' : 'false';
             this.updateMinimizeUI();
+            this.updateDockButton(isMinimized);
+        }
+
+        ensureDockButton() {
+            if (this.dockButton) return this.dockButton;
+            const dockHost =
+                document.querySelector('.taskbar-tray') ||
+                document.querySelector('.desktop-taskbar') ||
+                document.body;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.id = 'persistent-player-dock';
+            button.className = 'player-dock-button';
+            button.textContent = 'Player';
+            button.setAttribute('aria-label', 'Open music player');
+            if (dockHost === document.body) {
+                button.dataset.floating = 'true';
+            }
+            button.addEventListener('click', () => {
+                this.applyMinimizeState(false);
+                this.showUI();
+                this.persistState();
+            });
+            dockHost.appendChild(button);
+            this.dockButton = button;
+            return button;
+        }
+
+        updateDockButton(isDocked) {
+            if (!isDocked) {
+                if (this.dockButton) {
+                    this.dockButton.remove();
+                    this.dockButton = null;
+                }
+                return;
+            }
+            const button = this.ensureDockButton();
+            button.classList.add('is-active');
         }
 
         buildCatalog() {
@@ -907,6 +1098,11 @@
                 this.setTrack(nextMeta, { startTime: 0, autoPlay: true });
                 return;
             }
+            if (this.catalogOrder.length > 1) {
+                console.log('[PersistentPlayer] Wrapping to first track');
+                this.setTrack(this.catalogOrder[0], { startTime: 0, autoPlay: true });
+                return;
+            }
             console.log('[PersistentPlayer] No next track, stopping playback');
             this.persistState({ isPlaying: false, currentTime: this.audio.duration || 0 });
             this.root.dataset.playing = 'false';
@@ -1052,6 +1248,7 @@
                 volume: this.volume,
                 uiState: {
                     minimized: this.root?.dataset?.minimized === 'true',
+                    position: this.uiState?.position || null,
                 },
             };
             this.state = next;
@@ -1119,15 +1316,21 @@
             const existing = document.getElementById('autoplay-trigger');
             if (existing) existing.remove();
 
-            // Find the credits section to inject the button
+            const desktop = document.querySelector('.desktop');
             const creditsSection = document.querySelector('.retro-credits');
-            if (!creditsSection) return;
+            const host = desktop || creditsSection;
+            if (!host) return;
 
             // Create an autoplay trigger button
             const autoplayTrigger = document.createElement('button');
+            autoplayTrigger.type = 'button';
             autoplayTrigger.id = 'autoplay-trigger';
-            autoplayTrigger.textContent = '► PLAY';
+            autoplayTrigger.textContent = 'PLAY';
             autoplayTrigger.setAttribute('aria-label', 'Start playing music');
+            autoplayTrigger.draggable = false;
+            if (desktop) {
+                autoplayTrigger.dataset.floating = 'true';
+            }
 
             // Add styles if not already present
             if (!document.getElementById('autoplay-trigger-styles')) {
@@ -1135,7 +1338,9 @@
                 style.id = 'autoplay-trigger-styles';
                 style.textContent = `
                     #autoplay-trigger {
-                        display: inline-block;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
                         margin-top: 16px;
                         padding: 8px 20px;
                         background: transparent;
@@ -1147,9 +1352,22 @@
                         letter-spacing: 0.12em;
                         text-transform: uppercase;
                         cursor: pointer;
+                        user-select: none;
                         transition: all 0.3s ease;
                         box-shadow: 0 0 10px rgba(102, 217, 255, 0.3);
                         animation: buttonGlow 2s ease-in-out infinite;
+                    }
+                    #autoplay-trigger[data-floating="true"] {
+                        position: absolute;
+                        z-index: 6;
+                        margin-top: 0;
+                        cursor: grab;
+                        touch-action: none;
+                    }
+                    #autoplay-trigger.is-dragging {
+                        cursor: grabbing;
+                        opacity: 0.9;
+                        animation: none;
                     }
                     @keyframes buttonGlow {
                         0%, 100% {
@@ -1174,9 +1392,103 @@
                 document.head.appendChild(style);
             }
 
-            autoplayTrigger.addEventListener('click', () => {
+            host.appendChild(autoplayTrigger);
+
+            if (desktop) {
+                const storageKey = 'idcDesktopPlayButton';
+                const loadPosition = () => {
+                    try {
+                        const raw = window.localStorage.getItem(storageKey);
+                        return raw ? JSON.parse(raw) : null;
+                    } catch (err) {
+                        return null;
+                    }
+                };
+                const savePosition = (pos) => {
+                    try {
+                        window.localStorage.setItem(storageKey, JSON.stringify(pos));
+                    } catch (err) {
+                        console.warn('[PersistentPlayer] Unable to save play button position', err);
+                    }
+                };
+                const placeDefault = () => {
+                    const desktopRect = desktop.getBoundingClientRect();
+                    const buttonRect = autoplayTrigger.getBoundingClientRect();
+                    const defaultX = clamp((desktopRect.width - buttonRect.width) / 2, 0, desktopRect.width - buttonRect.width);
+                    const defaultY = clamp(desktopRect.height - buttonRect.height - 140, 0, desktopRect.height - buttonRect.height);
+                    autoplayTrigger.style.left = `${defaultX}px`;
+                    autoplayTrigger.style.top = `${defaultY}px`;
+                };
+                const saved = loadPosition();
+                if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+                    autoplayTrigger.style.left = `${saved.x}px`;
+                    autoplayTrigger.style.top = `${saved.y}px`;
+                } else {
+                    placeDefault();
+                }
+
+                const handlePointerDown = (event) => {
+                    if (event.button !== 0) return;
+                    autoplayTrigger.dataset.dragged = 'false';
+                    const buttonRect = autoplayTrigger.getBoundingClientRect();
+                    const desktopRect = desktop.getBoundingClientRect();
+                    const offsetX = event.clientX - buttonRect.left;
+                    const offsetY = event.clientY - buttonRect.top;
+                    const width = buttonRect.width;
+                    const height = buttonRect.height;
+                    let moved = false;
+                    const startX = event.clientX;
+                    const startY = event.clientY;
+
+                    autoplayTrigger.classList.add('is-dragging');
+                    autoplayTrigger.setPointerCapture(event.pointerId);
+
+                    const move = (moveEvent) => {
+                        const dx = Math.abs(moveEvent.clientX - startX);
+                        const dy = Math.abs(moveEvent.clientY - startY);
+                        if (dx > 4 || dy > 4) moved = true;
+                        const nextX = clamp(moveEvent.clientX - desktopRect.left - offsetX, 0, desktopRect.width - width);
+                        const nextY = clamp(moveEvent.clientY - desktopRect.top - offsetY, 0, desktopRect.height - height);
+                        autoplayTrigger.style.left = `${nextX}px`;
+                        autoplayTrigger.style.top = `${nextY}px`;
+                    };
+
+                    const end = () => {
+                        autoplayTrigger.classList.remove('is-dragging');
+                        autoplayTrigger.releasePointerCapture(event.pointerId);
+                        autoplayTrigger.removeEventListener('pointermove', move);
+                        autoplayTrigger.removeEventListener('pointerup', end);
+                        autoplayTrigger.removeEventListener('pointercancel', end);
+                        if (moved) {
+                            autoplayTrigger.dataset.dragged = 'true';
+                            savePosition({
+                                x: parseFloat(autoplayTrigger.style.left) || 0,
+                                y: parseFloat(autoplayTrigger.style.top) || 0,
+                            });
+                        }
+                    };
+
+                    autoplayTrigger.addEventListener('pointermove', move);
+                    autoplayTrigger.addEventListener('pointerup', end);
+                    autoplayTrigger.addEventListener('pointercancel', end);
+                };
+
+                autoplayTrigger.addEventListener('pointerdown', handlePointerDown);
+            }
+
+            autoplayTrigger.addEventListener('click', (event) => {
+                if (autoplayTrigger.dataset.dragged === 'true') {
+                    autoplayTrigger.dataset.dragged = 'false';
+                    event.preventDefault();
+                    return;
+                }
                 this.autoStartAttempted = true;
                 this.playbackSettings.shuffle = true;
+                this.playbackSettings.repeatAll = false;
+                this.playbackSettings.loopOne = false;
+                if (this.audio) {
+                    this.audio.loop = false;
+                }
                 this.updateModeButtons();
                 this.persistState();
                 const randomMeta = this.catalogOrder[Math.floor(Math.random() * this.catalogOrder.length)];
@@ -1190,9 +1502,7 @@
                     .catch((err) => {
                         console.warn('[PersistentPlayer] Autoplay failed', err);
                     });
-            }, { once: true });
-
-            creditsSection.appendChild(autoplayTrigger);
+            });
         }
 
         isHomePage() {

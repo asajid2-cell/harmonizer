@@ -79,7 +79,7 @@ class CCppParser:
         try:
             # Determine if C or C++ based on extension
             ext = Path(file_path).suffix.lower()
-            is_cpp = ext in {'.cpp', '.cxx', '.cc', '.hpp', '.hxx', '.hh'}
+            is_cpp = ext in {'.cpp', '.cxx', '.cc', '.hpp', '.hxx', '.hh', '.h'}
             parser = self.cpp_parser if is_cpp else self.c_parser
 
             # Read file as binary
