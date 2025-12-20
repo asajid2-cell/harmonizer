@@ -184,6 +184,13 @@ jgs   `-=========-`()
                                 <p>Applies a synced phaser sweep to the audio.</p>
                             </div>
                         </button>
+                        <button type="button" data-algorithm="autocrooner" class="mode-card toggle">
+                            <span class="mode-card-icon" aria-hidden="true">&#9834;</span>
+                            <div class="mode-card-body">
+                                <h3>AUTOCROONER</h3>
+                                <p>Slow, warm, vintage croon with wow/flutter.</p>
+                            </div>
+                        </button>
                         <button type="button" data-algorithm="elasticvelo" class="mode-card toggle">
                             <span class="mode-card-icon" aria-hidden="true">&#8646;</span>
                             <div class="mode-card-body">
@@ -398,6 +405,7 @@ jgs   `-=========-`()
 	                                <option value="jukebox" title="Jumps between similar beats for endless loops.">Eternal Jukebox</option>
 	                                <option value="eternal" title="Combines canon overlay with jukebox looping.">Eternal Canonizer</option>
 	                                <option value="phaseshifter" title="Applies a synced phaser sweep.">Phase Shifter</option>
+	                                <option value="autocrooner" title="Slow, warm, vintage croon with wow/flutter.">Autocrooner</option>
 	                                <option value="elasticvelo" title="Maps beat energy to playback speed.">Elastic Velocity</option>
 	                                <option value="reversebloom" title="Rewinds on drops then jumps to similar peaks.">Reverse Bloom</option>
 	                                <option value="autoharmonizer" title="Blends two tracks into linked loops.">Autoharmonizer</option>
@@ -1200,8 +1208,8 @@ jgs   `-=========-`()
 	        const requestedMode = (params.get('mode') || 'canon').toLowerCase();
 	        const experimentalEnabledAtLoad = getExperimentalEnabled();
 	        const allowedModes = experimentalEnabledAtLoad
-	            ? new Set(['canon', 'jukebox', 'eternal', 'dopamine', 'harmonictrap', 'phaseshifter', 'granularfreeze', 'elasticvelo', 'mathrocker', 'stalker', 'timbresurf', 'chromastack', 'beatsort', 'reversebloom', 'barberpole', 'palindrome', 'spectralgravity', 'callresponse', 'orbitweaver', 'autoharmonizer', 'sculptor'])
-	            : new Set(['canon', 'jukebox', 'eternal', 'phaseshifter', 'elasticvelo', 'reversebloom', 'autoharmonizer', 'sculptor']);
+	            ? new Set(['canon', 'jukebox', 'eternal', 'autocrooner', 'dopamine', 'harmonictrap', 'phaseshifter', 'granularfreeze', 'elasticvelo', 'mathrocker', 'stalker', 'timbresurf', 'chromastack', 'beatsort', 'reversebloom', 'barberpole', 'palindrome', 'spectralgravity', 'callresponse', 'orbitweaver', 'autoharmonizer', 'sculptor'])
+	            : new Set(['canon', 'jukebox', 'eternal', 'autocrooner', 'phaseshifter', 'elasticvelo', 'reversebloom', 'autoharmonizer', 'sculptor']);
         const normalizedMode = allowedModes.has(requestedMode) ? requestedMode : modeFromBody;
         document.body.dataset.mode = normalizedMode;
         if (vizModeSelect) {
@@ -2145,6 +2153,7 @@ jgs   `-=========-`()
 	            canon: ['canon'],
 	            jukebox: ['jukebox'],
 	            eternal: ['eternal'],
+	            autocrooner: [],
 	            dopamine: ['dopamine'],
   	            harmonictrap: ['harmonictrap'],
 	            phaseshifter: ['phaseshifter'],
@@ -2173,6 +2182,7 @@ jgs   `-=========-`()
 	            canon: ['canonOverlay'],
 	            jukebox: ['jukeboxLoop'],
 	            eternal: ['eternalOverlay', 'eternalLoop'],
+	            autocrooner: [],
 	            dopamine: ['dopamineMiner'],
   	            harmonictrap: ['harmonicTrap'],
 	            phaseshifter: ['phaseShifter'],
@@ -2950,9 +2960,9 @@ jgs   `-=========-`()
             if (!advancedUiReady) {
                 return;
             }
-            const allowed = MODE_TO_SECTION_IDS[modeKey] || [];
-            const selection = allowed.length ? allowed : ADVANCED_SECTION_LAYOUT.map((section) => section.id);
-            const allowedSet = new Set(selection);
+            const hasMapping = Object.prototype.hasOwnProperty.call(MODE_TO_SECTION_IDS, modeKey);
+            const selection = hasMapping ? (MODE_TO_SECTION_IDS[modeKey] || []) : ADVANCED_SECTION_LAYOUT.map((section) => section.id);
+            const allowedSet = new Set(selection || []);
             ADVANCED_SECTION_LAYOUT.forEach((section) => {
                 const node = advancedSectionNodes[section.id];
                 if (node) {
@@ -3183,7 +3193,7 @@ jgs   `-=========-`()
                     const analysis = window.curTrack.analysis || {};
                     // Prefer the raw track title for display; strip any mode suffix if present
                     let title = (window.curTrack.title || window.curTrack.fixedTitle || '').toString();
-                    title = title.replace(/\s+-\s+(Canon|Jukebox|Eternal|Autoharmonizer|Sculptor)\s*$/i, '');
+                    title = title.replace(/\s+-\s+(Canon|Jukebox|Eternal|Autocrooner|Autoharmonizer|Sculptor)\s*$/i, '');
                     const artist = (window.curTrack.artist || '').toString();
                     const mode = (document.body.dataset.mode || 'canon').toLowerCase();
 

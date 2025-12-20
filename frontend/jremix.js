@@ -225,14 +225,162 @@ function createJRemixer(context, jquery) {
 	            vizAnalyser.smoothingTimeConstant = 0.85;
 	            vizAnalyser.connect(context.destination);
 
+	            // Central mix bus (lets us insert per-mode FX while keeping a single analyser tap).
+	            var mixBus = context.createGain();
+	            mixBus.gain.value = 1.0;
+
+	            function makeSoftClipCurve(amount) {
+	                var k = (typeof amount === "number" && isFinite(amount)) ? amount : 0.75;
+	                k = Math.max(0.01, Math.min(2.5, k));
+	                var n = 44100;
+	                var curve = new Float32Array(n);
+	                for (var i = 0; i < n; i++) {
+	                    var x = (i * 2) / (n - 1) - 1;
+	                    curve[i] = Math.tanh(k * x);
+	                }
+	                return curve;
+	            }
+
+	            function makeImpulseResponse(seconds, decay) {
+	                var duration = Math.max(0.1, Math.min(2.0, seconds || 0.8));
+	                var d = Math.max(0.5, Math.min(8.0, decay || 2.5));
+	                var rate = context.sampleRate || 44100;
+	                var length = Math.max(1, Math.floor(duration * rate));
+	                var buffer = context.createBuffer(2, length, rate);
+	                for (var ch = 0; ch < buffer.numberOfChannels; ch++) {
+	                    var data = buffer.getChannelData(ch);
+	                    for (var j = 0; j < length; j++) {
+	                        var t = j / length;
+	                        // White noise with exponential decay envelope.
+	                        data[j] = (Math.random() * 2 - 1) * Math.pow(1 - t, d);
+	                    }
+	                }
+	                return buffer;
+	            }
+
+	            function createCroonerFx() {
+	                var input = context.createGain();
+	                var output = context.createGain();
+
+	                var hp = context.createBiquadFilter();
+	                hp.type = "highpass";
+	                hp.frequency.value = 130;
+	                hp.Q.value = 0.7;
+
+	                var lp = context.createBiquadFilter();
+	                lp.type = "lowpass";
+	                lp.frequency.value = 3200;
+	                lp.Q.value = 0.7;
+
+	                var comp = context.createDynamicsCompressor();
+	                try {
+	                    comp.threshold.value = -24;
+	                    comp.knee.value = 18;
+	                    comp.ratio.value = 3;
+	                    comp.attack.value = 0.003;
+	                    comp.release.value = 0.25;
+	                } catch (e) {}
+
+	                var shaper = context.createWaveShaper();
+	                shaper.curve = makeSoftClipCurve(0.8);
+	                try { shaper.oversample = "2x"; } catch (e) {}
+
+	                // Slapback delay (vintage croon feel)
+	                var delay = context.createDelay(0.5);
+	                delay.delayTime.value = 0.095;
+	                var delayFeedback = context.createGain();
+	                delayFeedback.gain.value = 0.18;
+	                var delayWet = context.createGain();
+	                delayWet.gain.value = 0.12;
+
+	                delay.connect(delayFeedback);
+	                delayFeedback.connect(delay);
+
+	                // Small spring-ish verb
+	                var convolver = context.createConvolver();
+	                try {
+	                    convolver.buffer = makeImpulseResponse(0.8, 2.8);
+	                } catch (e) {}
+	                var verbWet = context.createGain();
+	                verbWet.gain.value = 0.06;
+
+	                // Wow/flutter by modulating delayTime slightly.
+	                var wow = context.createOscillator();
+	                wow.type = "sine";
+	                wow.frequency.value = 0.35;
+	                var wowGain = context.createGain();
+	                wowGain.gain.value = 0.0035;
+	                wow.connect(wowGain);
+	                wowGain.connect(delay.delayTime);
+
+	                var flutter = context.createOscillator();
+	                flutter.type = "sine";
+	                flutter.frequency.value = 5.2;
+	                var flutterGain = context.createGain();
+	                flutterGain.gain.value = 0.0006;
+	                flutter.connect(flutterGain);
+	                flutterGain.connect(delay.delayTime);
+
+	                try { wow.start(0); } catch (e) {}
+	                try { flutter.start(0); } catch (e) {}
+
+	                // Routing
+	                input.connect(hp);
+	                hp.connect(lp);
+	                lp.connect(comp);
+	                comp.connect(shaper);
+
+	                // Dry
+	                shaper.connect(output);
+
+	                // Delay
+	                shaper.connect(delay);
+	                delay.connect(delayWet);
+	                delayWet.connect(output);
+
+	                // Verb
+	                shaper.connect(convolver);
+	                convolver.connect(verbWet);
+	                verbWet.connect(output);
+
+	                return {
+	                    input: input,
+	                    output: output,
+	                    setMix: function(level) {
+	                        var x = (typeof level === "number" && isFinite(level)) ? level : 0.12;
+	                        x = Math.max(0, Math.min(0.5, x));
+	                        try { delayWet.gain.value = x; } catch (e) {}
+	                        try { verbWet.gain.value = Math.max(0, x * 0.5); } catch (e2) {}
+	                    }
+	                };
+	            }
+
+	            var croonerFx = createCroonerFx();
+	            try { croonerFx.output.connect(vizAnalyser); } catch (e) {}
+	            var croonerEnabled = false;
+	            function setCroonerEnabled(enabled) {
+	                var next = !!enabled;
+	                if (next === croonerEnabled) {
+	                    return;
+	                }
+	                croonerEnabled = next;
+	                try { mixBus.disconnect(); } catch (e) {}
+	                if (croonerEnabled) {
+	                    try { mixBus.connect(croonerFx.input); } catch (e2) {}
+	                } else {
+	                    try { mixBus.connect(vizAnalyser); } catch (e3) {}
+	                }
+	            }
+
             // Get number of voices from window setting (default 2 for backwards compatibility)
             // Canon and eternal modes use layered voices; jukebox should be single-voice
-            var currentMode = (typeof window !== 'undefined' && document.body)
-                ? document.body.getAttribute('data-mode')
-                : 'canon';
+            var currentMode = (typeof window !== 'undefined' && typeof window.mode === 'string')
+                ? window.mode
+                : ((typeof window !== 'undefined' && document.body) ? document.body.getAttribute('data-mode') : 'canon');
+            currentMode = (currentMode || 'canon').toLowerCase();
             var requestedVoices = window.canonVoiceCount || 2;
             var numVoices;
-	            if (currentMode === 'jukebox' || currentMode === 'dopamine' || currentMode === 'harmonictrap' || currentMode === 'phaseshifter' || currentMode === 'granularfreeze' || currentMode === 'elasticvelo' || currentMode === 'mathrocker' || currentMode === 'stalker' || currentMode === 'timbresurf' || currentMode === 'chromastack' || currentMode === 'beatsort' || currentMode === 'reversebloom' || currentMode === 'barberpole' || currentMode === 'palindrome' || currentMode === 'spectralgravity' || currentMode === 'callresponse' || currentMode === 'orbitweaver') {
+	            if (currentMode === 'jukebox' || currentMode === 'autocrooner' || currentMode === 'dopamine' || currentMode === 'harmonictrap' || currentMode === 'phaseshifter' || currentMode === 'granularfreeze' || currentMode === 'elasticvelo' || currentMode === 'mathrocker' || currentMode === 'stalker' || currentMode === 'timbresurf' || currentMode === 'chromastack' || currentMode === 'beatsort' || currentMode === 'reversebloom' || currentMode === 'barberpole' || currentMode === 'palindrome' || currentMode === 'spectralgravity' || currentMode === 'callresponse' || currentMode === 'orbitweaver') {
 	                // Single-voice modes: no canon overlay
 	                numVoices = 1;
 	            } else if (currentMode === 'canon') {
@@ -268,9 +416,9 @@ function createJRemixer(context, jquery) {
                     // ignore failures on platforms without setter
                 }
                 mainGain.connect(mainPanner);
-                mainPanner.connect(vizAnalyser);
+                mainPanner.connect(mixBus);
             } else {
-                mainGain.connect(vizAnalyser);
+                mainGain.connect(mixBus);
             }
             mainGain.gain.value = masterGain;
 
@@ -317,9 +465,9 @@ function createJRemixer(context, jquery) {
                         // ignore
                     }
                     gainNodeToConnect.connect(voicePanner);
-                    voicePanner.connect(vizAnalyser);
+                    voicePanner.connect(mixBus);
                 } else {
-                    gainNodeToConnect.connect(vizAnalyser);
+                    gainNodeToConnect.connect(mixBus);
                 }
 
                 // Adjust gain for multiple voices - use gentler reduction to keep all voices audible
@@ -356,9 +504,10 @@ function createJRemixer(context, jquery) {
                 voiceBeatsSinceJump[voiceIdx]++;
 
                 // Only allow jumping in canon mode - eternal/jukebox modes use fixed offsets
-                var currentMode = (typeof window !== 'undefined' && document.body)
-                    ? document.body.getAttribute('data-mode')
-                    : 'canon';
+                var currentMode = (typeof window !== 'undefined' && typeof window.mode === 'string')
+                    ? window.mode
+                    : ((typeof window !== 'undefined' && document.body) ? document.body.getAttribute('data-mode') : 'canon');
+                currentMode = (currentMode || 'canon').toLowerCase();
                 if (currentMode !== 'canon') {
                     return false;
                 }
@@ -438,7 +587,7 @@ function createJRemixer(context, jquery) {
                 audioSource.buffer = q.track.buffer;
                 audioSource.connect(audioGain);
                 audioSource.start(start, q.start, duration);
-                audioGain.connect(context.destination);
+                audioGain.connect(mixBus);
                 return duration + when;
             }
 
@@ -689,6 +838,14 @@ function createJRemixer(context, jquery) {
 	                    speedFactor = next;
 	                },
 
+	                setCroonerEnabled: function(enabled) {
+	                    setCroonerEnabled(!!enabled);
+	                },
+
+	                isCroonerEnabled: function() {
+	                    return croonerEnabled;
+	                },
+
                 getSpeedFactor: function() {
                     return speedFactor;
                 },
@@ -733,6 +890,9 @@ function createJRemixer(context, jquery) {
                     return vizAnalyser;
                 }
             }
+
+	            // Initialize effect routing for this player instance.
+	            setCroonerEnabled(currentMode === 'autocrooner');
             return player;
         },
 

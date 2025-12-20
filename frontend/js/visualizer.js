@@ -4614,7 +4614,7 @@ function setDisplayMode() {
 }
 
 function setPlayingClass(modeName) {
-    document.body.classList.remove("playing-canon", "playing-jukebox", "playing-eternal", "playing-autoharmonizer", "playing-sculptor", "playing-phaseshifter", "playing-granularfreeze", "playing-elasticvelo", "playing-mathrocker", "playing-stalker", "playing-timbresurf", "playing-chromastack", "playing-beatsort", "playing-reversebloom", "playing-barberpole", "playing-palindrome", "playing-spectralgravity", "playing-callresponse", "playing-orbitweaver");
+    document.body.classList.remove("playing-canon", "playing-jukebox", "playing-eternal", "playing-autocrooner", "playing-autoharmonizer", "playing-sculptor", "playing-phaseshifter", "playing-granularfreeze", "playing-elasticvelo", "playing-mathrocker", "playing-stalker", "playing-timbresurf", "playing-chromastack", "playing-beatsort", "playing-reversebloom", "playing-barberpole", "playing-palindrome", "playing-spectralgravity", "playing-callresponse", "playing-orbitweaver");
     if (modeName === "canon") {
         document.body.classList.add("playing-canon");
         baseNoteStrength = 0.05;
@@ -4627,6 +4627,9 @@ function setPlayingClass(modeName) {
         document.body.classList.add("playing-eternal");
         baseNoteStrength = 0.1;
         renderJukeboxBackdrop(modeName);
+    } else if (modeName === "autocrooner") {
+        document.body.classList.add("playing-autocrooner");
+        baseNoteStrength = 0.06;
     } else if (modeName === "phaseshifter") {
         document.body.classList.add("playing-phaseshifter");
         baseNoteStrength = 0.07;
@@ -4778,7 +4781,7 @@ function init() {
     pulseNotes(baseNoteStrength);
     if (document.body && document.body.dataset && document.body.dataset.mode) {
         var bodyMode = document.body.dataset.mode.toLowerCase();
-        if (bodyMode === "jukebox" || bodyMode === "canon" || bodyMode === "eternal" || bodyMode === "autoharmonizer" || bodyMode === "sculptor") {
+        if (bodyMode === "jukebox" || bodyMode === "canon" || bodyMode === "eternal" || bodyMode === "autocrooner" || bodyMode === "autoharmonizer" || bodyMode === "sculptor") {
             mode = bodyMode;
         }
     }
@@ -6550,7 +6553,7 @@ function processParams() {
     if (requestedMode) {
         requestedMode = requestedMode.toLowerCase();
     }
-    if (requestedMode === "jukebox" || requestedMode === "canon" || requestedMode === "eternal" || requestedMode === "dopamine" || requestedMode === "harmonictrap" || requestedMode === "phaseshifter" || requestedMode === "granularfreeze" || requestedMode === "elasticvelo" || requestedMode === "mathrocker" || requestedMode === "stalker" || requestedMode === "timbresurf" || requestedMode === "chromastack" || requestedMode === "beatsort" || requestedMode === "reversebloom" || requestedMode === "barberpole" || requestedMode === "palindrome" || requestedMode === "spectralgravity" || requestedMode === "callresponse" || requestedMode === "orbitweaver" || requestedMode === "autoharmonizer" || requestedMode === "sculptor") {
+    if (requestedMode === "jukebox" || requestedMode === "canon" || requestedMode === "eternal" || requestedMode === "autocrooner" || requestedMode === "dopamine" || requestedMode === "harmonictrap" || requestedMode === "phaseshifter" || requestedMode === "granularfreeze" || requestedMode === "elasticvelo" || requestedMode === "mathrocker" || requestedMode === "stalker" || requestedMode === "timbresurf" || requestedMode === "chromastack" || requestedMode === "beatsort" || requestedMode === "reversebloom" || requestedMode === "barberpole" || requestedMode === "palindrome" || requestedMode === "spectralgravity" || requestedMode === "callresponse" || requestedMode === "orbitweaver" || requestedMode === "autoharmonizer" || requestedMode === "sculptor") {
         mode = requestedMode;
     }
     var trid = params.get("trid");
@@ -13615,6 +13618,245 @@ function createElasticVeloDriver(player, options) {
             if (!q || typeof q.which !== "number") return;
             currentIndex = q.which;
             smoothRate = null;
+            lastRate = 1.0;
+            if (!running) {
+                q.tile.highlight();
+                updateCursors(q);
+                mtime.text(fmtTime(q.start));
+                pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+            }
+        },
+
+        applySettings: function(customSettings) {
+            rebuildFromSettings(customSettings);
+        },
+
+        onStackChange: function() {},
+
+        get curQ() { return currentIndex; },
+        get running() { return running; }
+    };
+}
+
+// ===== AutoCrooner (Vintage slow croon) =====
+function sanitizeAutoCroonerSettings(input) {
+    input = input || {};
+    var out = {
+        baseRate: 0.86,
+        minRate: 0.76,
+        maxRate: 0.98,
+        energyTilt: 0.08,
+        wobbleDepth: 0.018,
+        wobbleBeats: 16,
+        jitterDepth: 0.006
+    };
+
+    var baseRate = coerceNumber(input.baseRate);
+    if (baseRate !== null) out.baseRate = clampNumber(baseRate, 0.5, 1.5);
+    var minRate = coerceNumber(input.minRate);
+    if (minRate !== null) out.minRate = clampNumber(minRate, 0.25, 2.0);
+    var maxRate = coerceNumber(input.maxRate);
+    if (maxRate !== null) out.maxRate = clampNumber(maxRate, 0.25, 2.0);
+    if (out.maxRate < out.minRate) {
+        var tmp = out.maxRate;
+        out.maxRate = out.minRate;
+        out.minRate = tmp;
+    }
+
+    var energyTilt = coerceNumber(input.energyTilt);
+    if (energyTilt !== null) out.energyTilt = clampNumber(energyTilt, 0.0, 0.5);
+    var wobbleDepth = coerceNumber(input.wobbleDepth);
+    if (wobbleDepth !== null) out.wobbleDepth = clampNumber(wobbleDepth, 0.0, 0.15);
+    var wobbleBeats = coerceNumber(input.wobbleBeats);
+    if (wobbleBeats !== null) out.wobbleBeats = clampNumber(Math.round(wobbleBeats), 2, 128);
+    var jitterDepth = coerceNumber(input.jitterDepth);
+    if (jitterDepth !== null) out.jitterDepth = clampNumber(jitterDepth, 0.0, 0.05);
+
+    return out;
+}
+
+function getAutoCroonerSettings() {
+    var overrides = null;
+    try {
+        overrides = (typeof window !== "undefined" && window.autocroonerSettings) ? window.autocroonerSettings : null;
+    } catch (e) {}
+    return sanitizeAutoCroonerSettings(overrides);
+}
+
+function createAutoCroonerDriver(player, options) {
+    options = sanitizeAutoCroonerSettings(options || getAutoCroonerSettings());
+    var modeName = "autocrooner";
+    var running = false;
+    var processTimer = null;
+    var mtime = $("#mtime");
+    var currentIndex = 0;
+    var lastRate = 1.0;
+    var wobblePhase = Math.random() * Math.PI * 2;
+
+    function clearProcessTimer() {
+        if (processTimer) {
+            clearTimeout(processTimer);
+            processTimer = null;
+        }
+    }
+
+    function resetRateState() {
+        lastRate = 1.0;
+        if (player && typeof player.setSpeedFactor === "function") {
+            try { player.setSpeedFactor(1.0); } catch (e) {}
+        }
+    }
+
+    function scheduleNext(delaySeconds) {
+        clearProcessTimer();
+        var ms = Math.max(0.1, delaySeconds || 0.1) * 1000;
+        processTimer = setTimeout(function() {
+            if (running) process();
+        }, ms);
+    }
+
+    function pausePlayback() {
+        if (!running) return;
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        resetRateState();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+    }
+
+    function stop() {
+        running = false;
+        clearProcessTimer();
+        player.stop();
+        resetRateState();
+        clearOverlayChips();
+        $("#play").text("Play");
+        setURL();
+        setPlayingClass(null);
+        pulseNotes(baseNoteStrength);
+        resetPlaybackState();
+    }
+
+    function computeRateForBeat(beat, beatIndex) {
+        var energy = elasticVelocityEnergy01(beat);
+        var tilt = (energy - 0.5) * (options.energyTilt || 0);
+        var wobbleBeats = Math.max(2, options.wobbleBeats || 16);
+        var wobble =
+            (options.wobbleDepth || 0) *
+            Math.sin(wobblePhase + (beatIndex / wobbleBeats) * Math.PI * 2);
+        var jitter = (Math.random() * 2 - 1) * (options.jitterDepth || 0);
+
+        var target = (options.baseRate || 1.0) + tilt + wobble + jitter;
+        target = clampNumber(target, options.minRate, options.maxRate);
+
+        var maxDelta = 0.08;
+        var next = clampNumber(target, lastRate - maxDelta, lastRate + maxDelta);
+        lastRate = next;
+        return next;
+    }
+
+    function computeProposedNext() {
+        var nextLinear = currentIndex + 1;
+        if (nextLinear >= masterQs.length) {
+            return window.harmonizerLoopEnabled ? 0 : nextLinear;
+        }
+        return nextLinear;
+    }
+
+    function process() {
+        if (!running || !masterQs || !masterQs.length) return;
+
+        if (currentIndex >= masterQs.length) {
+            if (autoPlayNext && playNextInQueue()) {
+                return;
+            }
+            stop();
+            return;
+        }
+
+        var q = masterQs[currentIndex];
+        if (!q) {
+            currentIndex = Math.max(0, Math.min(masterQs.length - 1, currentIndex + 1));
+            scheduleNext(0.25);
+            return;
+        }
+
+        q.tile.highlight();
+        updateCursors(q);
+        mtime.text(fmtTime(q.start));
+        pulseNotes(q.median_volume || q.volume || baseNoteStrength);
+
+        var rate = computeRateForBeat(q, currentIndex);
+        if (player && typeof player.setSpeedFactor === "function") {
+            try { player.setSpeedFactor(rate); } catch (e) {}
+        }
+
+        notifyStackOnBeat({ mode: modeName, currentIndex: currentIndex, beat: q, rate: rate });
+        var delay = player.playQ(q);
+
+        var proposed = computeProposedNext();
+        var nextIdx = applyStackedNextIndex({
+            mode: modeName,
+            currentIndex: currentIndex,
+            proposedIndex: proposed,
+            beat: q,
+            proposedReason: "sequential"
+        });
+
+        if (nextIdx >= masterQs.length) {
+            if (window.harmonizerLoopEnabled) {
+                nextIdx = nextIdx % masterQs.length;
+            }
+        }
+
+        currentIndex = nextIdx;
+        scheduleNext(delay);
+    }
+
+    function rebuildFromSettings(customSettings) {
+        options = sanitizeAutoCroonerSettings(customSettings || getAutoCroonerSettings());
+        wobblePhase = Math.random() * Math.PI * 2;
+    }
+
+    return {
+        start: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getAutoCroonerSettings());
+            currentIndex = 0;
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        resume: function() {
+            if (!masterQs || !masterQs.length) return;
+            resetTileColors(masterQs);
+            rebuildFromSettings(getAutoCroonerSettings());
+            running = true;
+            markPlaybackStarted();
+            process();
+            setURL();
+            $("#play").text("Stop");
+            setPlayingClass(modeName);
+            pulseNotes(baseNoteStrength);
+        },
+
+        stop: stop,
+        pause: pausePlayback,
+        isRunning: function() { return running; },
+        player: player,
+
+        setNextQ: function(q) {
+            if (!q || typeof q.which !== "number") return;
+            currentIndex = q.which;
             lastRate = 1.0;
             if (!running) {
                 q.tile.highlight();
@@ -20738,6 +20980,8 @@ function Driver(player) {
     } else if (mode === "eternal") {
         var eternalSettings = getLoopSettingsForMode("eternal");
         return createJukeboxDriver(player, eternalSettings);
+    } else if (mode === "autocrooner") {
+        return createAutoCroonerDriver(player);
     } else if (mode === "dopamine") {
         var dopamineSettings = getDopamineMinerSettings();
         return createDopamineMinerDriver(player, dopamineSettings);

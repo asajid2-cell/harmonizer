@@ -587,6 +587,8 @@ def _process_audio_job(job_id, audio_path, audio_path2, track_id, track_id2, tit
             mode = "orbitweaver"
         elif algorithm == "sculptor":
             mode = "sculptor"
+        elif algorithm == "autocrooner":
+            mode = "autocrooner"
         elif algorithm == "autoharmonizer":
             mode = "autoharmonizer"
         else:
@@ -1056,7 +1058,7 @@ def visualizer():
     if "trid" not in request.args:
         return redirect(url_for("index"))
     mode = request.args.get("mode", "canon").lower()
-    if mode not in {"canon", "jukebox", "eternal", "dopamine", "harmonictrap", "phaseshifter", "granularfreeze", "elasticvelo", "mathrocker", "stalker", "timbresurf", "chromastack", "beatsort", "reversebloom", "barberpole", "palindrome", "spectralgravity", "callresponse", "orbitweaver"}:
+    if mode not in {"canon", "jukebox", "eternal", "autocrooner", "dopamine", "harmonictrap", "phaseshifter", "granularfreeze", "elasticvelo", "mathrocker", "stalker", "timbresurf", "chromastack", "beatsort", "reversebloom", "barberpole", "palindrome", "spectralgravity", "callresponse", "orbitweaver"}:
         mode = "canon"
     redirect_url = url_for("index", trid=request.args["trid"], mode=mode)
     return redirect(redirect_url)
@@ -2403,7 +2405,7 @@ def api_process():
     if request.method == "OPTIONS":
         return ("", 204)
     algorithm = request.form.get("algorithm", "canon").lower()
-    if algorithm not in {"canon", "jukebox", "eternal", "dopamine", "harmonictrap", "phaseshifter", "granularfreeze", "elasticvelo", "mathrocker", "stalker", "timbresurf", "chromastack", "beatsort", "reversebloom", "barberpole", "palindrome", "spectralgravity", "callresponse", "orbitweaver", "autoharmonizer", "sculptor"}:
+    if algorithm not in {"canon", "jukebox", "eternal", "autocrooner", "dopamine", "harmonictrap", "phaseshifter", "granularfreeze", "elasticvelo", "mathrocker", "stalker", "timbresurf", "chromastack", "beatsort", "reversebloom", "barberpole", "palindrome", "spectralgravity", "callresponse", "orbitweaver", "autoharmonizer", "sculptor"}:
         return jsonify({"error": "Unsupported algorithm selection."}), 400
 
     source = request.form.get("source", "upload").lower()
@@ -2520,6 +2522,8 @@ def api_process():
                     mode = "beatsort"
                 elif algorithm == "reversebloom":
                     mode = "reversebloom"
+                elif algorithm == "autocrooner":
+                    mode = "autocrooner"
                 elif algorithm == "barberpole":
                     mode = "barberpole"
                 elif algorithm == "palindrome":
