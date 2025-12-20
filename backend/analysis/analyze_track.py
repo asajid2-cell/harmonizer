@@ -1273,15 +1273,15 @@ def generate_loop_candidates(
     beats: List[Quantum],
     similarity_matrix: np.ndarray,
     sections: List[Dict] = None,
-    min_span: int = 8,
+    min_span: int = 6,
     max_span: int = None,
     thresholds: List[float] = None,
-    max_candidates_per_beat: int = 12,
+    max_candidates_per_beat: int = 20,
     energies: Optional[List[float]] = None,
     chroma: Optional[List[np.ndarray]] = None,
     tempos: Optional[List[float]] = None,
     silence_floor: float = -50.0,
-    energy_drop_ratio: float = 0.6,
+    energy_drop_ratio: float = 0.45,
 ) -> Dict[int, List[Dict]]:
     """
     Generate bidirectional loop candidates for each beat using multi-tier thresholds.
@@ -1376,9 +1376,9 @@ def generate_loop_candidates(
             tgt_beat = beats[target_idx]
             src_phase = getattr(src_beat, "indexInParent", None)
             tgt_phase = getattr(tgt_beat, "indexInParent", None)
-            # enforce bar phase lock when available
-            if src_phase is not None and tgt_phase is not None and src_phase != tgt_phase:
-                continue
+            phase_match = None
+            if src_phase is not None and tgt_phase is not None:
+                phase_match = (src_phase == tgt_phase)
 
             src_energy = energy_for(source_idx)
             tgt_energy = energy_for(target_idx)
@@ -1404,7 +1404,10 @@ def generate_loop_candidates(
             # energy match bonus
             score += max(0.0, min(0.2, (tgt_energy - silence_floor) / 80.0))
             # phase bonus
-            score += 0.2 if (src_phase is not None and tgt_phase is not None and src_phase == tgt_phase) else 0
+            if phase_match is True:
+                score += 0.2
+            elif phase_match is False:
+                score -= 0.05
             # downbeat bonus
             if tgt_phase == 0:
                 score += 0.1
@@ -1429,6 +1432,7 @@ def generate_loop_candidates(
                 "abs_span": int(abs_span),
                 "direction": direction,
                 "section_match": section_match,
+                "phase_match": phase_match,
                 "score": float(score),
                 "beat_in_bar": getattr(tgt_beat, "beat_in_bar", None),
                 "bar_length_beats": getattr(tgt_beat, "bar_length_beats", None),
@@ -1436,6 +1440,11 @@ def generate_loop_candidates(
                 "source_energy": float(src_energy),
                 "target_energy": float(tgt_energy),
             })
+
+        phase_gate_threshold = max(max_candidates_per_beat, 12)
+        phase_match_count = sum(1 for cand in candidates if cand.get("phase_match") is True)
+        if phase_match_count >= phase_gate_threshold:
+            candidates = [cand for cand in candidates if cand.get("phase_match") is True]
 
         # Band by span/direction to avoid near-duplicates, then limit
         best_by_band: Dict[Tuple[str, int], Dict] = {}
@@ -1578,15 +1587,15 @@ def build_profile(
         beats=beats_meta,
         similarity_matrix=similarity_matrix,
         sections=sections,
-        min_span=8,
+        min_span=6,
         max_span=None,  # Auto-computed as n_beats // 2
         thresholds=[0.76, 0.65, 0.55],  # Tight + medium + loose
-        max_candidates_per_beat=12,
+        max_candidates_per_beat=20,
         energies=beat_energies,
         chroma=beat_chroma,
         tempos=beat_tempos,
         silence_floor=SILENCE_DB,
-        energy_drop_ratio=0.6,
+        energy_drop_ratio=0.45,
     )
 
     # Convert to string keys for JSON serialization

@@ -588,14 +588,14 @@ var ADVANCED_DEFAULTS = {
         jumpVariance: 0.65
     },
 	    dopamineMiner: {
-	        peakFraction: 0.1,
-	        minClusterBeats: 16,
+	        peakFraction: 0.15,
+	        minClusterBeats: 8,
 	        clusterGapBeats: 2,
 	        largestClusterOnly: 0,
 	        minDwellBeats: 4,
 	        maxSequentialBeats: 32,
-	        minJumpSpanBeats: 8,
-	        minJumpSimilarity: 0.72,
+	        minJumpSpanBeats: 4,
+	        minJumpSimilarity: 0.60,
 	        crossClusterBias: 0.5,
 	        jumpTemperature: 0.2,
 	        escapeProb: 0.03,
@@ -648,11 +648,11 @@ var ADVANCED_DEFAULTS = {
             armBeats: 2,
             symmetricLookup: 1
         },
-        timbreSurfing: {
-            topK: 5,
-            minSimilarity: 0.72,
-            minJumpSpanBeats: 8,
-            excludeNeighborBeats: 2,
+	    timbreSurfing: {
+            topK: 8,
+            minSimilarity: 0.60,
+            minJumpSpanBeats: 4,
+            excludeNeighborBeats: 1,
             temperature: 0.25,
             recentWindowBeats: 24,
             repeatPenalty: 0.25,
@@ -1252,6 +1252,41 @@ function harmonizerApplyAntiLoop(meta, idx) {
         }
     }
 
+    function isTabooTarget(target) {
+        if (!state || !state.tabooTargets) return false;
+        var exp = state.tabooTargets[target];
+        if (!exp) return false;
+        if (tick > exp) {
+            delete state.tabooTargets[target];
+            return false;
+        }
+        return true;
+    }
+    function isTabooEdge(edgeKey) {
+        if (!state || !state.tabooEdges) return false;
+        var exp = state.tabooEdges[edgeKey];
+        if (!exp) return false;
+        if (tick > exp) {
+            delete state.tabooEdges[edgeKey];
+            return false;
+        }
+        return true;
+    }
+    function isTabooRange(target) {
+        if (!state || !Array.isArray(state.tabooRanges) || !state.tabooRanges.length) return false;
+        var keep = [];
+        var hit = false;
+        for (var ri = 0; ri < state.tabooRanges.length; ri++) {
+            var r = state.tabooRanges[ri];
+            if (!r) continue;
+            if (tick > (r.until || 0)) continue;
+            keep.push(r);
+            if (target >= r.min && target <= r.max) hit = true;
+        }
+        state.tabooRanges = keep;
+        return hit;
+    }
+
     var out = idx;
     if (tick >= (state.cooldownUntilTick || 0) && harmonizerLooksStuck(state, meta.currentIndex, idx)) {
         // Mark the recent loop neighborhood as taboo so the reroll doesn't pick the same tiny set again.
@@ -1312,6 +1347,15 @@ function harmonizerApplyAntiLoop(meta, idx) {
                     to: out
                 });
             } catch (e) {}
+        }
+    }
+
+    // If we're about to jump into a known taboo zone, reroll an escape.
+    if (isTabooTarget(out) || isTabooRange(out) || isTabooEdge(meta.currentIndex + ":" + out)) {
+        var reroll = harmonizerPickAntiLoopEscape(meta, state);
+        if (typeof reroll === "number" && isFinite(reroll) && reroll !== out && reroll !== meta.currentIndex) {
+            out = Math.max(0, Math.min(masterQs.length - 1, Math.round(reroll)));
+            state.cooldownUntilTick = Math.max(state.cooldownUntilTick || 0, tick + 24);
         }
     }
 
@@ -10749,6 +10793,7 @@ function createDopamineMinerDriver(player, options) {
     var edgeWindow = [];
     var edgeCounts = Object.create(null);
     var EDGE_WINDOW_LIMIT = 96;
+    var fallbackRadius = 6;
     var burnoutCooldownLeft = 0;
 
     var settings = sanitizeDopamineMinerSettings(options, ADVANCED_DEFAULTS.dopamineMiner);
@@ -11063,6 +11108,37 @@ function createDopamineMinerDriver(player, options) {
 
     function getEdgeRepeatCount(src, dst) {
         return edgeCounts[(src + ">" + dst)] || 0;
+    }
+
+    function collectLoopEdges(useFallback) {
+        var out = [];
+        if (serverLoopCandidateMap && serverLoopCandidateMap[currentIndex]) {
+            var direct = serverLoopCandidateMap[currentIndex] || [];
+            for (var i = 0; i < direct.length; i++) {
+                if (!direct[i]) continue;
+                out.push(Object.assign({ sourceOffset: 0 }, direct[i]));
+            }
+        }
+        if (!useFallback) return out;
+        for (var r = 1; r <= fallbackRadius; r++) {
+            var left = currentIndex - r;
+            var right = currentIndex + r;
+            if (left >= 0 && serverLoopCandidateMap[left] && serverLoopCandidateMap[left].length) {
+                var leftEdges = serverLoopCandidateMap[left];
+                for (var li = 0; li < leftEdges.length; li++) {
+                    if (!leftEdges[li]) continue;
+                    out.push(Object.assign({ sourceOffset: r }, leftEdges[li]));
+                }
+            }
+            if (right < masterQs.length && serverLoopCandidateMap[right] && serverLoopCandidateMap[right].length) {
+                var rightEdges = serverLoopCandidateMap[right];
+                for (var ri = 0; ri < rightEdges.length; ri++) {
+                    if (!rightEdges[ri]) continue;
+                    out.push(Object.assign({ sourceOffset: r }, rightEdges[ri]));
+                }
+            }
+        }
+        return out;
     }
 
     function pushCapped(arr, value, limit) {
@@ -11407,6 +11483,50 @@ function createDopamineMinerDriver(player, options) {
         return clusterPeakBeatById[pool[0].id] !== undefined ? clusterPeakBeatById[pool[0].id] : pool[0].start;
     }
 
+    function chooseGlobalExploreTarget() {
+        if (!masterQs || !masterQs.length) return null;
+        var n = masterQs.length;
+        var recentSet = Object.create(null);
+        var recentSections = Object.create(null);
+        var recentWindow = Math.min(72, pathHistory.length);
+        for (var i = pathHistory.length - recentWindow; i < pathHistory.length; i++) {
+            var v = pathHistory[i];
+            if (typeof v !== "number" || !isFinite(v)) continue;
+            recentSet[v] = true;
+            var sec = harmonizerBeatSectionIndex(v);
+            if (sec !== null) recentSections[sec] = true;
+        }
+
+        var energies = new Array(n);
+        var minE = Infinity;
+        var maxE = -Infinity;
+        for (var e = 0; e < n; e++) {
+            var ev = beatEnergy(masterQs[e]);
+            energies[e] = ev;
+            if (ev < minE) minE = ev;
+            if (ev > maxE) maxE = ev;
+        }
+        var range = Math.max(1e-6, maxE - minE);
+        var minSpan = Math.max(24, Math.round(settings.minJumpSpanBeats * 4));
+        var candidates = [];
+        for (var b = 0; b < n; b++) {
+            if (recentSet[b]) continue;
+            if (isTaboo(b)) continue;
+            var dist = Math.abs(b - currentIndex);
+            if (dist < minSpan) continue;
+            var dist01 = dist / Math.max(1, n - 1);
+            var e01 = clamp01((energies[b] - minE) / range);
+            var secB = harmonizerBeatSectionIndex(b);
+            var sectionBonus = (secB !== null && !recentSections[secB]) ? 0.12 : 0;
+            var score = 0.55 * dist01 + 0.25 * e01 + sectionBonus;
+            candidates.push({ idx: b, score: score });
+        }
+        if (!candidates.length) return null;
+        candidates.sort(function(a, b) { return b.score - a.score; });
+        var pool = candidates.slice(0, Math.min(18, candidates.length));
+        return pool[Math.floor(Math.random() * pool.length)].idx;
+    }
+
     function findNearestPeak(fromIdx) {
         if (!peakData || !peakData.clusters.length) return 0;
         var best = null;
@@ -11424,10 +11544,13 @@ function createDopamineMinerDriver(player, options) {
     }
 
     function scoreCandidate(edge, currentClusterId) {
+        var sourceOffset = edge.sourceOffset || 0;
         var absSpan =
-            (typeof edge.abs_span === "number" && isFinite(edge.abs_span))
-                ? edge.abs_span
-                : Math.abs((edge.target || 0) - currentIndex);
+            sourceOffset
+                ? Math.abs((edge.target || 0) - currentIndex)
+                : (typeof edge.abs_span === "number" && isFinite(edge.abs_span))
+                    ? edge.abs_span
+                    : Math.abs((edge.target || 0) - currentIndex);
         var spanNorm = absSpan / Math.max(1, masterQs.length / 2);
         var spanBonus = Math.pow(Math.min(1, spanNorm), 0.65) * 0.25;
 
@@ -11467,32 +11590,49 @@ function createDopamineMinerDriver(player, options) {
 
         var jitter = (Math.random() - 0.5) * settings.jumpTemperature * 0.25;
         var stuckRepeatBoost = stuckLocalNow ? Math.min(1.4, repeatCount * 0.16) : 0;
-        return simScore + spanBonus + energyBonus + crossBonus + jitter - recentPenalty - burnoutPenalty - edgeRepeatPenalty - backwardPenalty - anchorPenalty - stuckRepeatBoost;
+        var sourcePenalty = sourceOffset ? Math.min(0.18, sourceOffset * 0.02) : 0;
+        var nonPeakPenalty = edge.nonPeak ? 0.08 : 0;
+        return simScore + spanBonus + energyBonus + crossBonus + jitter - recentPenalty - burnoutPenalty - edgeRepeatPenalty - backwardPenalty - anchorPenalty - stuckRepeatBoost - sourcePenalty - nonPeakPenalty;
     }
 
     function selectJumpCandidate(currentClusterId, opts) {
         opts = opts || {};
-        if (!serverLoopCandidateMap || !serverLoopCandidateMap[currentIndex]) return null;
-        var edges = serverLoopCandidateMap[currentIndex] || [];
+        var edges = collectLoopEdges(false);
         var minSpan = Math.max(settings.minJumpSpanBeats, Math.round(opts.minSpan || 0));
         var preferCross = !!opts.preferCrossCluster;
         var preferForward = !!opts.preferForward;
-        var filtered = edges.filter(function(edge) {
-            if (!edge || typeof edge.target !== "number") return false;
-            if (edge.target === currentIndex) return false;
-            if (isTaboo(edge.target)) return false;
-            if (isEdgeTaboo(currentIndex, edge.target)) return false;
-            if (!peakData.peakSet[edge.target]) return false;
-            if ((edge.similarity || 0) < settings.minJumpSimilarity) return false;
-            var absSpan =
-                (typeof edge.abs_span === "number" && isFinite(edge.abs_span))
-                    ? edge.abs_span
-                    : Math.abs(edge.target - currentIndex);
-            if (absSpan < minSpan) return false;
-            if (preferCross && peakData.clusterByBeat && peakData.clusterByBeat[edge.target] === currentClusterId) return false;
-            if (preferForward && edge.target < currentIndex && absSpan < Math.max(16, minSpan * 2)) return false;
-            return true;
-        });
+        var allowNonPeak = !!opts.allowNonPeak;
+        var minSim = (typeof opts.minSimilarity === "number")
+            ? opts.minSimilarity
+            : settings.minJumpSimilarity;
+        function filterEdges(list) {
+            return list.filter(function(edge) {
+                if (!edge || typeof edge.target !== "number") return false;
+                if (edge.target === currentIndex) return false;
+                if (isTaboo(edge.target)) return false;
+                if (isEdgeTaboo(currentIndex, edge.target)) return false;
+                if (!peakData.peakSet[edge.target]) {
+                    if (!allowNonPeak) return false;
+                    edge.nonPeak = true;
+                }
+                if ((edge.similarity || 0) < minSim) return false;
+                var absSpan =
+                    edge.sourceOffset
+                        ? Math.abs(edge.target - currentIndex)
+                        : (typeof edge.abs_span === "number" && isFinite(edge.abs_span))
+                            ? edge.abs_span
+                            : Math.abs(edge.target - currentIndex);
+                if (absSpan < minSpan) return false;
+                if (preferCross && peakData.clusterByBeat && peakData.clusterByBeat[edge.target] === currentClusterId) return false;
+                if (preferForward && edge.target < currentIndex && absSpan < Math.max(16, minSpan * 2)) return false;
+                return true;
+            });
+        }
+
+        var filtered = filterEdges(edges);
+        if (!filtered.length) {
+            filtered = filterEdges(collectLoopEdges(true));
+        }
         if (!filtered.length) return null;
 
         var scored = filtered.map(function(edge) {
@@ -11537,6 +11677,8 @@ function createDopamineMinerDriver(player, options) {
         var stuckLocal = isStuckLocal();
         stuckLocalNow = stuckLocal || tinyLoop;
         var pingpong = detectPingPong(8);
+        var allowNonPeak = tinyLoop || stuckLocal || pingpong;
+        var minSimOverride = allowNonPeak ? Math.max(0.5, settings.minJumpSimilarity - 0.12) : null;
 
         if (burnoutCooldownLeft <= 0 && stuckLocalNow) {
             var anchors = detectAnchorBeats(32, 0.32);
@@ -11582,6 +11724,11 @@ function createDopamineMinerDriver(player, options) {
                 burnoutCooldownLeft = Math.max(settings.burnoutCooldownBeats || 0, Math.round((settings.burnoutWindowBeats || 48) / 2));
                 return loopEscape;
             }
+            var globalEscape = chooseGlobalExploreTarget();
+            if (globalEscape !== null && globalEscape !== currentIndex) {
+                burnoutCooldownLeft = Math.max(settings.burnoutCooldownBeats || 0, Math.round((settings.burnoutWindowBeats || 48) / 2));
+                return globalEscape;
+            }
         }
 
         if (burnoutCooldownLeft <= 0 && isBurnedOut()) {
@@ -11617,8 +11764,16 @@ function createDopamineMinerDriver(player, options) {
         var jumpTarget = selectJumpCandidate(currentClusterId, {
             preferCrossCluster: (peakData.clusters.length > 1) && (hitSeqCap || tinyLoop),
             minSpan: (tinyLoop || stuckLocal) ? Math.max(16, Math.round(settings.minJumpSpanBeats * 2)) : 0,
-            preferForward: (tinyLoop || stuckLocal)
+            preferForward: (tinyLoop || stuckLocal),
+            allowNonPeak: allowNonPeak,
+            minSimilarity: minSimOverride
         });
+        if ((tinyLoop || stuckLocal || pingpong) && (jumpTarget === null || isRecentlyVisited(jumpTarget))) {
+            var escapeTarget = chooseGlobalExploreTarget();
+            if (escapeTarget !== null && escapeTarget !== currentIndex) {
+                return escapeTarget;
+            }
+        }
         if (jumpTarget !== null) {
             if (hitSeqCap && peakData.clusters.length > 1) {
                 var jtCluster = peakData.clusterByBeat[jumpTarget];
@@ -14317,21 +14472,106 @@ function getTimbreSurfingSettings() {
     return sanitizeTimbreSurfingSettings(settings, ADVANCED_DEFAULTS.timbreSurfing);
 }
 
+var timbreSurfCache = {
+    key: null,
+    timbres: null
+};
+
+function getTimbreSurfState() {
+    if (!masterQs || !masterQs.length) return { timbres: [] };
+    var key = (curTrack && curTrack.id ? curTrack.id : "") + ":" + masterQs.length;
+    if (timbreSurfCache.key === key && timbreSurfCache.timbres) {
+        return timbreSurfCache;
+    }
+    timbreSurfCache.key = key;
+    timbreSurfCache.timbres = computeBeatTimbreVectors(masterQs);
+    return timbreSurfCache;
+}
+
+function timbreSurfPickByTimbre(currentIndex, settings, recentSet, recentCounts, state) {
+    if (!state || !state.timbres || !state.timbres.length) return null;
+    var timbres = state.timbres;
+    if (currentIndex < 0 || currentIndex >= timbres.length) return null;
+    var curTimbre = timbres[currentIndex];
+    if (!curTimbre) return null;
+
+    var n = timbres.length;
+    var excludeNeighbors = settings.excludeNeighborBeats || 0;
+    var minSpan = settings.minJumpSpanBeats || 0;
+    var topK = settings.topK || 5;
+    var sampleCount = Math.min(n, Math.max(80, Math.round(n * 0.25)));
+    sampleCount = Math.min(sampleCount, 180);
+
+    var candidates = [];
+    if (n <= sampleCount) {
+        for (var i = 0; i < n; i++) candidates.push(i);
+    } else {
+        var seen = Object.create(null);
+        var attempts = 0;
+        while (candidates.length < sampleCount && attempts < sampleCount * 6) {
+            attempts += 1;
+            var idx = Math.floor(Math.random() * n);
+            if (seen[idx]) continue;
+            seen[idx] = true;
+            candidates.push(idx);
+        }
+    }
+
+    var scored = [];
+    for (var c = 0; c < candidates.length; c++) {
+        var idx = candidates[c];
+        if (idx === currentIndex) continue;
+        var span = Math.abs(idx - currentIndex);
+        if (span < minSpan) continue;
+        if (excludeNeighbors > 0 && span <= excludeNeighbors) continue;
+        var tv = timbres[idx];
+        if (!tv) continue;
+        var dist = euclidean_distance(curTimbre, tv);
+        if (!isFinite(dist)) continue;
+        var score = -(dist / 80);
+        if (recentSet && recentSet[idx]) score -= 0.2;
+        if (recentCounts && recentCounts[idx]) score -= 0.08 * recentCounts[idx];
+        score += (Math.random() - 0.5) * 0.002;
+        scored.push({ idx: idx, score: score });
+    }
+    if (!scored.length) return null;
+    scored.sort(function(a, b) { return b.score - a.score; });
+    var pool = scored.slice(0, Math.max(1, Math.min(topK, scored.length)));
+    if (pool.length === 1) return pool[0].idx;
+
+    var temperature = settings.temperature || 0.25;
+    var maxScore = pool[0].score;
+    var weights = [];
+    var totalWeight = 0;
+    for (var wIdx = 0; wIdx < pool.length; wIdx++) {
+        var w = Math.exp((pool[wIdx].score - maxScore) / temperature);
+        weights[wIdx] = w;
+        totalWeight += w;
+    }
+    var r = Math.random() * totalWeight;
+    for (var pick = 0; pick < pool.length; pick++) {
+        r -= weights[pick];
+        if (r <= 0) {
+            return pool[pick].idx;
+        }
+    }
+    return pool[0].idx;
+}
+
 function timbreSurfChooseNextIndex(currentIndex, settings, history) {
     settings = sanitizeTimbreSurfingSettings(settings, ADVANCED_DEFAULTS.timbreSurfing);
     history = Array.isArray(history) ? history : [];
     if (!masterQs || !masterQs.length) return null;
     if (!serverLoopCandidateMap) return null;
 
-    var edges = serverLoopCandidateMap[currentIndex] || [];
-    if (!edges.length) return null;
-
+    var timbreState = getTimbreSurfState();
     var excludeNeighbors = settings.excludeNeighborBeats || 0;
     var minSpan = settings.minJumpSpanBeats || 0;
     var minSim = settings.minSimilarity || 0;
     var topK = settings.topK || 5;
     var recentWindow = settings.recentWindowBeats || 0;
     var repeatPenalty = settings.repeatPenalty || 0;
+    var fallbackRadius = 6;
 
     var recentCounts = Object.create(null);
     var windowSlice = [];
@@ -14344,6 +14584,9 @@ function timbreSurfChooseNextIndex(currentIndex, settings, history) {
         var idx = windowSlice[h];
         recentCounts[idx] = (recentCounts[idx] || 0) + 1;
     }
+    var recentUniqueRatio = windowSlice.length
+        ? (Object.keys(recentCounts).length / Math.max(1, windowSlice.length))
+        : 1;
     var recentSet = Object.create(null);
     var edgeCounts = Object.create(null);
     for (var hs = 0; hs < windowSlice.length; hs++) {
@@ -14361,34 +14604,80 @@ function timbreSurfChooseNextIndex(currentIndex, settings, history) {
     var backtrackPenalty = Math.max(0.75, repeatPenalty * 4);
     var nearPenalty = Math.max(0.35, repeatPenalty * 2);
     var edgeRepeatPenalty = Math.max(0.2, repeatPenalty * 1.5);
+    var forceTimbreFallback = recentUniqueRatio < 0.45;
 
-    var scored = [];
-    for (var i = 0; i < edges.length; i++) {
-        var e = edges[i];
-        if (!e) continue;
-        var target = e.target;
-        if (typeof target !== "number" || !isFinite(target)) continue;
-        if (target < 0 || target >= masterQs.length) continue;
+    function collectCandidateEdges(useFallback) {
+        var out = [];
+        var direct = serverLoopCandidateMap[currentIndex] || [];
+        for (var d = 0; d < direct.length; d++) {
+            if (!direct[d]) continue;
+            out.push(Object.assign({ sourceOffset: 0 }, direct[d]));
+        }
+        if (!useFallback) return out;
+        for (var r = 1; r <= fallbackRadius; r++) {
+            var left = currentIndex - r;
+            var right = currentIndex + r;
+            if (left >= 0 && serverLoopCandidateMap[left] && serverLoopCandidateMap[left].length) {
+                var leftEdges = serverLoopCandidateMap[left];
+                for (var li = 0; li < leftEdges.length; li++) {
+                    if (!leftEdges[li]) continue;
+                    out.push(Object.assign({ sourceOffset: r }, leftEdges[li]));
+                }
+            }
+            if (right < masterQs.length && serverLoopCandidateMap[right] && serverLoopCandidateMap[right].length) {
+                var rightEdges = serverLoopCandidateMap[right];
+                for (var ri = 0; ri < rightEdges.length; ri++) {
+                    if (!rightEdges[ri]) continue;
+                    out.push(Object.assign({ sourceOffset: r }, rightEdges[ri]));
+                }
+            }
+        }
+        return out;
+    }
 
-        var sim = (typeof e.similarity === "number") ? e.similarity : 0;
-        if (sim < minSim) continue;
-        var span = Math.abs(target - currentIndex);
-        if (span < minSpan) continue;
-        if (excludeNeighbors > 0 && span <= excludeNeighbors) continue;
+    function scoreEdges(edges) {
+        var scored = [];
+        for (var i = 0; i < edges.length; i++) {
+            var e = edges[i];
+            if (!e) continue;
+            var target = e.target;
+            if (typeof target !== "number" || !isFinite(target)) continue;
+            if (target < 0 || target >= masterQs.length) continue;
 
-        var s = sim;
-        var sameSection = !!(e.section_match || e.sectionMatch || e.sameSection);
-        if (!sameSection) s += 0.02;
-        if (repeatPenalty > 0 && recentCounts[target]) s -= (recentCounts[target] * repeatPenalty);
-        if (recentSet[target]) s -= 0.12;
-        var eKey = currentIndex + ":" + target;
-        if (edgeCounts[eKey]) s -= (edgeCounts[eKey] * edgeRepeatPenalty);
-        if (target === prevIdx) s -= backtrackPenalty;
-        if (target === prev2Idx || target === prev3Idx) s -= nearPenalty;
+            var sim = (typeof e.similarity === "number") ? e.similarity : 0;
+            if (sim < minSim) continue;
+            var span = Math.abs(target - currentIndex);
+            if (span < minSpan) continue;
+            if (excludeNeighbors > 0 && span <= excludeNeighbors) continue;
 
-        // Tiny jitter to break ties and reduce deterministic oscillation.
-        s += (Math.random() - 0.5) * 0.0005;
-        scored.push({ target: target, similarity: sim, score: s });
+            var s = sim;
+            var sameSection = !!(e.section_match || e.sectionMatch || e.sameSection);
+            if (!sameSection) s += 0.02;
+            if (repeatPenalty > 0 && recentCounts[target]) s -= (recentCounts[target] * repeatPenalty);
+            if (recentSet[target]) s -= 0.12;
+            var eKey = currentIndex + ":" + target;
+            if (edgeCounts[eKey]) s -= (edgeCounts[eKey] * edgeRepeatPenalty);
+            if (target === prevIdx) s -= backtrackPenalty;
+            if (target === prev2Idx || target === prev3Idx) s -= nearPenalty;
+            if (e.sourceOffset) s -= Math.min(0.12, e.sourceOffset * 0.02);
+
+            // Tiny jitter to break ties and reduce deterministic oscillation.
+            s += (Math.random() - 0.5) * 0.0005;
+            scored.push({ target: target, similarity: sim, score: s });
+        }
+        return scored;
+    }
+
+    var scored = scoreEdges(collectCandidateEdges(false));
+    if (!scored.length) {
+        scored = scoreEdges(collectCandidateEdges(true));
+    }
+    if (!scored.length || forceTimbreFallback) {
+        var timbrePick = timbreSurfPickByTimbre(currentIndex, settings, recentSet, recentCounts, timbreState);
+        if (typeof timbrePick === "number" && isFinite(timbrePick)) {
+            return timbrePick;
+        }
+        if (!scored.length) return null;
     }
 
     if (!scored.length) return null;
