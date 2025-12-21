@@ -8977,7 +8977,7 @@ function createJukeboxDriver(player, options) {
     var JUMP_USAGE_DECAY_INTERVAL = 16; // beats between decay passes
     var JUMP_USAGE_DECAY_FACTOR = 0.96;
     var JUMP_USAGE_DECAY_THRESHOLD = 0.2;
-    var JUMP_RESET_INTERVAL = 10; // number of jumps before a soft reset
+    var JUMP_RESET_INTERVAL = 28; // number of jumps before a soft reset
     var beatsSinceUsageDecay = 0;
     var jumpsSinceReset = 0;
     var JBX_STUCK_WINDOW = 64;
@@ -9973,7 +9973,7 @@ function createJukeboxDriver(player, options) {
     }
 
     function selectJumpCandidate(src) {
-        // In base-audio-only mode, never perform jukebox/eternal jumps – always go sequential
+        // In base-audio-only mode, never perform jukebox/eternal jumps — always go sequential
         if (typeof window !== "undefined" && window.harmonizerBaseAudioOnly) {
             return {
                 target: src + 1,
@@ -9986,27 +9986,39 @@ function createJukeboxDriver(player, options) {
             return null;
         }
 
-        // Collect candidates from current beat and nearby beats
-        var searchRadius = Math.min(8, Math.floor(minLoopBeats / 2));
-        var candidates = [];
-        var loopGraphSize = Object.keys(loopGraph).length;
-        for (var offset = 0; offset <= searchRadius; offset++) {
-            var searchIdx = src + offset;
-            if (searchIdx >= 0 && searchIdx < masterQs.length && loopGraph[searchIdx]) {
-                _.each(loopGraph[searchIdx], function(edge) {
-                    candidates.push({ source: searchIdx, edge: edge, distance: offset });
-                });
-            }
-            if (offset > 0) {
-                searchIdx = src - offset;
+        function collectCandidatesWithinRadius(radius) {
+            var out = [];
+            for (var offset = 0; offset <= radius; offset++) {
+                var searchIdx = src + offset;
                 if (searchIdx >= 0 && searchIdx < masterQs.length && loopGraph[searchIdx]) {
                     _.each(loopGraph[searchIdx], function(edge) {
-                        candidates.push({ source: searchIdx, edge: edge, distance: offset });
+                        out.push({ source: searchIdx, edge: edge, distance: offset });
                     });
                 }
+                if (offset > 0) {
+                    searchIdx = src - offset;
+                    if (searchIdx >= 0 && searchIdx < masterQs.length && loopGraph[searchIdx]) {
+                        _.each(loopGraph[searchIdx], function(edge) {
+                            out.push({ source: searchIdx, edge: edge, distance: offset });
+                        });
+                    }
+                }
             }
+            return out;
+        }
+
+        // Collect candidates from current beat and nearby beats.
+        // Expand search radius adaptively when the loop graph is sparse to avoid long "no candidate" streaks.
+        var baseRadius = Math.min(8, Math.floor(minLoopBeats / 2));
+        var expandedRadius = Math.min(32, Math.max(12, baseRadius * 4));
+        var searchRadius = baseRadius;
+        var candidates = collectCandidatesWithinRadius(searchRadius);
+        if (!candidates.length && expandedRadius > searchRadius) {
+            searchRadius = expandedRadius;
+            candidates = collectCandidatesWithinRadius(searchRadius);
         }
         if (!candidates.length) {
+            var loopGraphSize = Object.keys(loopGraph).length;
             console.log('[selectJumpCandidate] No candidates found for src:', src, 'loopGraph has', loopGraphSize, 'sources, searchRadius:', searchRadius);
             return null;
         }
