@@ -1954,6 +1954,76 @@ body.playing-eternal #tiles {
     letter-spacing: 0.05em;
 }
 
+.viz-select {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 8px 34px 8px 10px;
+    min-width: 170px;
+    border-radius: 0;
+    border: 3px solid var(--color-cyan);
+    background: #000000;
+    color: var(--color-cyan);
+    box-shadow: none;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    line-height: 1;
+    background-image:
+        linear-gradient(45deg, transparent 50%, currentColor 50%),
+        linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position:
+        calc(100% - 16px) 50%,
+        calc(100% - 11px) 50%;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+}
+
+.viz-select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--color-cyan-rgb), 0.25);
+}
+
+.voice-count-control.autocrooner-style-control {
+    height: auto;
+    padding: 6px 10px;
+    gap: 8px;
+    border-color: rgba(255, 0, 255, 0.65);
+    box-shadow:
+        0 0 12px rgba(255, 0, 255, 0.18),
+        inset 0 0 10px rgba(0, 0, 0, 0.45);
+}
+
+.voice-count-control.autocrooner-style-control label {
+    color: rgba(255, 0, 255, 0.82);
+    white-space: nowrap;
+}
+
+.voice-count-control.autocrooner-style-control .viz-select {
+    border-width: 2px;
+    border-color: #FF00FF;
+    color: #FF00FF;
+    min-width: 190px;
+}
+
+.voice-count-control.autocrooner-style-control .viz-button {
+    min-width: 0;
+}
+
+.voice-count-control.autocrooner-style-control .viz-button.ghost {
+    border-width: 2px;
+    padding: 7px 12px;
+    font-size: 0.7rem;
+}
+
+.voice-count-control.autocrooner-style-control a.viz-button {
+    text-decoration: none;
+}
+
 .neon-range__track {
     position: relative;
     display: flex;

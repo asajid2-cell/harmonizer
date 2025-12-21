@@ -461,6 +461,21 @@ jgs   `-=========-`()
                                 </div>
                                 <span id="phase-intensity-display" class="neon-range__value">1.00x</span>
                             </div>
+                            <div class="voice-count-control autocrooner-style-control" title="Apply a learned crooner style profile">
+                                <label for="autocrooner-style">Crooner AI:</label>
+                                <select id="autocrooner-style" class="viz-select" aria-label="Autocrooner style">
+                                    <option value="">Default</option>
+                                </select>
+                                <button type="button" id="autocrooner-style-train" class="viz-button ghost" title="Train a style from the currently loaded track">
+                                    Train
+                                </button>
+                                <a class="viz-button ghost" href="/autocrooner/trainer" target="_blank" rel="noopener" title="Open the local trainer UI">
+                                    Trainer UI
+                                </a>
+                                <a class="viz-button ghost" href="/autocrooner/style-transfer" target="_blank" rel="noopener" title="Open the A/B style transfer tuner (local)">
+                                    Style Transfer
+                                </a>
+                            </div>
                             <button type="button" id="reset-cache-btn" class="viz-button ghost" title="Clear cached track profiles">
                                 Reset Cached Songs
                             </button>
@@ -4025,6 +4040,150 @@ jgs   `-=========-`()
         observer.observe(document.body, { attributes: true });
 
         window.updatePhaseIntensityVisibility = updateIntensityControlVisibility;
+    })();
+
+    // Autocrooner AI style selector (learns defaults from reference songs).
+    (function() {
+        const selectNode = document.getElementById('autocrooner-style');
+        const trainButton = document.getElementById('autocrooner-style-train');
+        const styleControl = document.querySelector('.autocrooner-style-control');
+        if (!selectNode || !styleControl) return;
+
+        const STORAGE_KEY = 'autocrooner:styleId';
+
+        function currentMode() {
+            return (document.body.getAttribute('data-mode') || 'canon').toLowerCase();
+        }
+
+        function updateVisibility() {
+            const isCrooner = currentMode() === 'autocrooner';
+            styleControl.style.display = isCrooner ? '' : 'none';
+        }
+
+        function getStoredStyleId() {
+            try { return localStorage.getItem(STORAGE_KEY) || ''; } catch (e) { return ''; }
+        }
+
+        function setStoredStyleId(id) {
+            try { localStorage.setItem(STORAGE_KEY, id || ''); } catch (e) {}
+        }
+
+        async function fetchStyleList() {
+            const res = await fetch('/api/autocrooner/style/list', { cache: 'no-store' });
+            if (!res.ok) return [];
+            const data = await res.json();
+            return (data && data.styles && Array.isArray(data.styles)) ? data.styles : [];
+        }
+
+        async function fetchStyle(id) {
+            if (!id) return null;
+            const res = await fetch(`/api/autocrooner/style/${encodeURIComponent(id)}`, { cache: 'no-store' });
+            if (!res.ok) return null;
+            return await res.json();
+        }
+
+        async function refreshOptions(selectId) {
+            const styles = await fetchStyleList();
+            const keep = selectNode.value || '';
+
+            // Reset to default option only
+            selectNode.innerHTML = '<option value=\"\">Default</option>';
+            styles.forEach((s) => {
+                if (!s || !s.id) return;
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                const label = s.name ? `${s.name}` : s.id;
+                const count = typeof s.trackCount === 'number' ? ` (${s.trackCount})` : '';
+                opt.textContent = label + count;
+                selectNode.appendChild(opt);
+            });
+
+            const desired = selectId || keep || '';
+            if (desired) {
+                selectNode.value = desired;
+            }
+        }
+
+        async function applyStyleId(styleId) {
+            const id = styleId || '';
+            setStoredStyleId(id);
+
+            if (!id) {
+                window.autocroonerSettings = null;
+                if (currentMode() === 'autocrooner' && window.driver && typeof window.driver.applySettings === 'function') {
+                    window.driver.applySettings(null);
+                }
+                return;
+            }
+
+            const style = await fetchStyle(id);
+            if (!style || !style.autocroonerSettings) {
+                return;
+            }
+            window.autocroonerSettings = style.autocroonerSettings;
+            if (currentMode() === 'autocrooner' && window.driver && typeof window.driver.applySettings === 'function') {
+                window.driver.applySettings(window.autocroonerSettings);
+            }
+        }
+
+        selectNode.addEventListener('change', () => {
+            applyStyleId(selectNode.value);
+        });
+
+        if (trainButton) {
+            trainButton.addEventListener('click', async () => {
+                const mode = currentMode();
+                if (mode !== 'autocrooner') {
+                    return;
+                }
+                const trackId =
+                    (window.curTrack && window.curTrack.id) ||
+                    (new URLSearchParams(window.location.search).get('trid') || '');
+                if (!trackId) {
+                    alert('Load a track first.');
+                    return;
+                }
+                const name = prompt('Name this crooner style:', 'My Crooner Style');
+                if (!name) return;
+                try {
+                    const res = await fetch('/api/autocrooner/style/train', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, trackIds: [trackId] })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        throw new Error((data && data.error) ? data.error : 'Train failed');
+                    }
+                    const styleId = data && data.style && data.style.id;
+                    await refreshOptions(styleId);
+                    if (styleId) {
+                        selectNode.value = styleId;
+                        await applyStyleId(styleId);
+                    }
+                } catch (err) {
+                    alert(err && err.message ? err.message : String(err));
+                }
+            });
+        }
+
+        updateVisibility();
+        refreshOptions(getStoredStyleId()).then(() => {
+            const stored = getStoredStyleId();
+            if (stored) {
+                selectNode.value = stored;
+                applyStyleId(stored);
+            }
+        });
+
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'data-mode') {
+                    updateVisibility();
+                }
+            });
+        });
+        observer.observe(document.body, { attributes: true });
     })();
     </script>
 <script src="./js/persistent-player.js?v=2025112424" defer></script>

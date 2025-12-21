@@ -264,25 +264,37 @@ function createJRemixer(context, jquery) {
 
 	                var hp = context.createBiquadFilter();
 	                hp.type = "highpass";
-	                hp.frequency.value = 130;
+	                hp.frequency.value = 200;
 	                hp.Q.value = 0.7;
 
 	                var lp = context.createBiquadFilter();
 	                lp.type = "lowpass";
-	                lp.frequency.value = 3200;
+	                lp.frequency.value = 6200;
 	                lp.Q.value = 0.7;
 
+	                // Collapse to mono (crooner era mixes were largely mono).
+	                var monoIn = context.createGain();
+	                monoIn.gain.value = 1.0;
+	                var splitter = context.createChannelSplitter(2);
+	                var merger = context.createChannelMerger(2);
+	                var monoLeft = context.createGain();
+	                var monoRight = context.createGain();
+	                monoLeft.gain.value = 0.5;
+	                monoRight.gain.value = 0.5;
+
+	                // Vintage-style “optical” compression: gentle, slow-ish release.
 	                var comp = context.createDynamicsCompressor();
 	                try {
-	                    comp.threshold.value = -24;
-	                    comp.knee.value = 18;
-	                    comp.ratio.value = 3;
-	                    comp.attack.value = 0.003;
-	                    comp.release.value = 0.25;
+	                    comp.threshold.value = -22;
+	                    comp.knee.value = 20;
+	                    comp.ratio.value = 2.6;
+	                    comp.attack.value = 0.01;
+	                    comp.release.value = 0.28;
 	                } catch (e) {}
 
 	                var shaper = context.createWaveShaper();
-	                shaper.curve = makeSoftClipCurve(0.8);
+	                var shaperDrive = 0.8;
+	                shaper.curve = makeSoftClipCurve(shaperDrive);
 	                try { shaper.oversample = "2x"; } catch (e) {}
 
 	                // Slapback delay (vintage croon feel)
@@ -303,6 +315,41 @@ function createJRemixer(context, jquery) {
 	                } catch (e) {}
 	                var verbWet = context.createGain();
 	                verbWet.gain.value = 0.06;
+
+	                // Vinyl hiss + intermittent crackles.
+	                var noiseGain = context.createGain();
+	                noiseGain.gain.value = 0.0;
+	                var noiseSource = null;
+	                (function initVinylNoise() {
+	                    try {
+	                        var rate = context.sampleRate || 44100;
+	                        var seconds = 2.0;
+	                        var length = Math.max(1, Math.floor(seconds * rate));
+	                        var buffer = context.createBuffer(1, length, rate);
+	                        var data = buffer.getChannelData(0);
+	                        // Base hiss
+	                        for (var i = 0; i < length; i++) {
+	                            data[i] = (Math.random() * 2 - 1) * 0.06;
+	                        }
+	                        // Sparse crackle impulses (with short decays)
+	                        var crackles = 55;
+	                        for (var c = 0; c < crackles; c++) {
+	                            var pos = Math.floor(Math.random() * (length - 1));
+	                            var amp = 0.25 + 0.75 * Math.random();
+	                            var decay = 12 + Math.floor(Math.random() * 60);
+	                            for (var j = 0; j < decay && (pos + j) < length; j++) {
+	                                data[pos + j] += (amp * (1 - j / decay)) * (Math.random() * 2 - 1);
+	                            }
+	                        }
+	                        noiseSource = context.createBufferSource();
+	                        noiseSource.buffer = buffer;
+	                        noiseSource.loop = true;
+	                        noiseSource.connect(noiseGain);
+	                        noiseSource.start(0);
+	                    } catch (e) {
+	                        noiseSource = null;
+	                    }
+	                })();
 
 	                // Wow/flutter by modulating delayTime slightly.
 	                var wow = context.createOscillator();
@@ -327,7 +374,17 @@ function createJRemixer(context, jquery) {
 	                // Routing
 	                input.connect(hp);
 	                hp.connect(lp);
-	                lp.connect(comp);
+
+	                // Mono sum after EQ so stereo content still “radio narrows” correctly.
+	                lp.connect(splitter);
+	                splitter.connect(monoLeft, 0);
+	                splitter.connect(monoRight, 1);
+	                monoLeft.connect(merger, 0, 0);
+	                monoRight.connect(merger, 0, 0);
+	                monoLeft.connect(merger, 0, 1);
+	                monoRight.connect(merger, 0, 1);
+	                merger.connect(comp);
+
 	                comp.connect(shaper);
 
 	                // Dry
@@ -343,6 +400,9 @@ function createJRemixer(context, jquery) {
 	                convolver.connect(verbWet);
 	                verbWet.connect(output);
 
+	                // Noise
+	                noiseGain.connect(output);
+
 	                return {
 	                    input: input,
 	                    output: output,
@@ -351,6 +411,25 @@ function createJRemixer(context, jquery) {
 	                        x = Math.max(0, Math.min(0.5, x));
 	                        try { delayWet.gain.value = x; } catch (e) {}
 	                        try { verbWet.gain.value = Math.max(0, x * 0.5); } catch (e2) {}
+	                    },
+	                    setTone: function(lowHz, highHz) {
+	                        var lo = (typeof lowHz === "number" && isFinite(lowHz)) ? lowHz : 200;
+	                        var hi = (typeof highHz === "number" && isFinite(highHz)) ? highHz : 6200;
+	                        lo = Math.max(20, Math.min(1200, lo));
+	                        hi = Math.max(lo + 200, Math.min(12000, hi));
+	                        try { hp.frequency.value = lo; } catch (e) {}
+	                        try { lp.frequency.value = hi; } catch (e2) {}
+	                    },
+	                    setNoise: function(level) {
+	                        var n = (typeof level === "number" && isFinite(level)) ? level : 0.0;
+	                        n = Math.max(0, Math.min(0.15, n));
+	                        try { noiseGain.gain.value = n; } catch (e) {}
+	                    },
+	                    setSaturation: function(drive) {
+	                        var d = (typeof drive === "number" && isFinite(drive)) ? drive : 0.8;
+	                        d = Math.max(0.01, Math.min(2.5, d));
+	                        shaperDrive = d;
+	                        try { shaper.curve = makeSoftClipCurve(shaperDrive); } catch (e) {}
 	                    }
 	                };
 	            }
@@ -840,6 +919,22 @@ function createJRemixer(context, jquery) {
 
 	                setCroonerEnabled: function(enabled) {
 	                    setCroonerEnabled(!!enabled);
+	                },
+
+	                setCroonerMix: function(level) {
+	                    try { croonerFx.setMix(level); } catch (e) {}
+	                },
+
+	                setCroonerTone: function(lowHz, highHz) {
+	                    try { croonerFx.setTone(lowHz, highHz); } catch (e) {}
+	                },
+
+	                setCroonerNoise: function(level) {
+	                    try { croonerFx.setNoise(level); } catch (e) {}
+	                },
+
+	                setCroonerSaturation: function(drive) {
+	                    try { croonerFx.setSaturation(drive); } catch (e) {}
 	                },
 
 	                isCroonerEnabled: function() {

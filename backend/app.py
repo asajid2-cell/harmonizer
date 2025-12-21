@@ -8,6 +8,7 @@ import os
 import mimetypes
 import re
 import uuid
+import math
 from pathlib import Path
 from typing import Optional, List, Dict
 
@@ -58,6 +59,15 @@ except ImportError:
         from .image_optimizer import ImageOptimizer  # type: ignore
     except ImportError:
         ImageOptimizer = None  # type: ignore
+
+try:
+    import numpy as np  # type: ignore
+    import librosa  # type: ignore
+    import soundfile as sf  # type: ignore
+except Exception:  # pragma: no cover
+    np = None  # type: ignore
+    librosa = None  # type: ignore
+    sf = None  # type: ignore
 
 RL_SNIPPET_DIR = rl_db.SNIPPET_DIR
 RL_MODEL_PATH = rl_db.MODEL_PATH
@@ -256,12 +266,17 @@ STUDY_DIR.mkdir(parents=True, exist_ok=True)
 DISCO_MEMORY_PATH = DATA_FOLDER / "discoteque_memory.jsonl"
 AUDIO_CACHE_PATH = DATA_FOLDER / "audio_cache.json"
 ANALYSIS_CACHE_PATH = DATA_FOLDER / "analysis_cache.json"
+AUTOCROONER_STYLE_DIR = DATA_FOLDER / "autocrooner_styles"
+AUTOCROONER_TRAIN_UPLOAD_DIR = UPLOAD_FOLDER / "autocrooner_trainer"
+AUTOCROONER_TRANSFER_UPLOAD_DIR = UPLOAD_FOLDER / "autocrooner_style_transfer"
+AUTOCROONER_TRANSFER_PREVIEW_DIR = AUTOCROONER_TRANSFER_UPLOAD_DIR / "previews"
 ELDRICHIFY_OUTPUT_DIR = UPLOAD_FOLDER / "eldrichify"
 IMGEN_OUTPUT_DIR = UPLOAD_FOLDER / "imgen"
 CHEATSHEET_UPLOAD_DIR = UPLOAD_FOLDER / "cheatsheets"
 CHEATSHEET_META_PATH = CHEATSHEET_UPLOAD_DIR / "entries.json"
 CHEATSHEET_ALLOWED_EXTENSIONS = {".txt", ".md", ".markdown"}
 CHEATSHEET_PASSWORD = os.environ.get("CHEATSHEET_PASSWORD", "")
+AUTOCROONER_TRAINING_ENABLED = os.environ.get("AUTOCROONER_TRAINING_ENABLED", "1").strip().lower() not in {"0", "false", "no"}
 
 
 def _load_cheatsheet_entries() -> list[dict]:
@@ -280,6 +295,9 @@ def _save_cheatsheet_entries(entries: list[dict]) -> None:
         json.dump(entries, handle, indent=2)
 ELDRICHIFY_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 IMGEN_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+AUTOCROONER_STYLE_DIR.mkdir(parents=True, exist_ok=True)
+AUTOCROONER_TRAIN_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+AUTOCROONER_TRANSFER_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 STATIC_CACHE_SECONDS = 31536000
@@ -314,6 +332,14 @@ _eldrichify_lock = threading.Lock()
 # Async audio processing job system
 _audio_jobs = {}  # job_id -> {"status": "pending|processing|completed|failed", "result": {...}, "error": str, "created": datetime, "progress": str}
 _audio_lock = threading.Lock()
+
+# Async autocrooner training job system (local training UI)
+_autocrooner_train_jobs = {}  # job_id -> {"status": "pending|processing|completed|failed", ...}
+_autocrooner_train_lock = threading.Lock()
+
+# Async autocrooner style-transfer job system (A/B style matching)
+_autocrooner_transfer_jobs = {}  # job_id -> {"status": "pending|processing|completed|failed", ...}
+_autocrooner_transfer_lock = threading.Lock()
 
 # Audio cache system - maps file hash to track_id
 _audio_cache = {}  # hash -> {"track_id": str, "title": str, "artist": str, "created": datetime}
@@ -797,6 +823,992 @@ def list_cached_tracks():
         }), 500
 
 
+def _safe_float(value, default: float = 0.0) -> float:
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return default
+    return f if math.isfinite(f) else default
+
+
+def _safe_int(value, default: int = 0) -> int:
+    try:
+        i = int(value)
+    except (TypeError, ValueError):
+        return default
+    return i
+
+
+def _load_track_profile_json(track_id: str) -> dict:
+    path = DATA_FOLDER / f"{track_id}.json"
+    if not path.is_file():
+        raise FileNotFoundError(f"Track profile not found: {track_id}")
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _extract_track_for_style(profile: dict) -> dict:
+    track = (profile.get("response") or {}).get("track") or {}
+    analysis = track.get("analysis") or {}
+    audio_summary = track.get("audio_summary") or {}
+    return {
+        "id": track.get("id"),
+        "title": track.get("title") or "Unknown Track",
+        "artist": track.get("artist") or "Unknown Artist",
+        "audio_url": track.get("audio_url") or (track.get("info") or {}).get("url"),
+        "tempo": _safe_float(audio_summary.get("tempo"), 0.0),
+        "loudness": _safe_float(audio_summary.get("loudness"), 0.0),
+        "segments": analysis.get("segments") or [],
+    }
+
+
+def _build_autocrooner_style(track_ids: list[str], *, name: Optional[str] = None) -> dict:
+    if not track_ids:
+        raise ValueError("trackIds must be a non-empty list.")
+
+    timbre_sum = [0.0] * 12
+    pitches_sum = [0.0] * 12
+    timbre_count = 0
+    pitch_count = 0
+    tempo_values: list[float] = []
+    loudness_values: list[float] = []
+
+    included_tracks: list[dict] = []
+    for track_id in track_ids:
+        profile = _load_track_profile_json(track_id)
+        track = _extract_track_for_style(profile)
+        included_tracks.append(
+            {
+                "trackId": track_id,
+                "title": track["title"],
+                "artist": track["artist"],
+                "tempo": track["tempo"],
+            }
+        )
+        if track["tempo"]:
+            tempo_values.append(float(track["tempo"]))
+        loudness_values.append(float(track["loudness"]))
+
+        for seg in track["segments"]:
+            if not isinstance(seg, dict):
+                continue
+            timbre = seg.get("timbre")
+            if isinstance(timbre, list) and timbre:
+                for i in range(min(12, len(timbre))):
+                    timbre_sum[i] += _safe_float(timbre[i], 0.0)
+                timbre_count += 1
+            pitches = seg.get("pitches")
+            if isinstance(pitches, list) and pitches:
+                for j in range(min(12, len(pitches))):
+                    pitches_sum[j] += _safe_float(pitches[j], 0.0)
+                pitch_count += 1
+
+    timbre_mean = (
+        [v / max(1, timbre_count) for v in timbre_sum] if timbre_count else [0.0] * 12
+    )
+    pitch_class_mean = (
+        [v / max(1, pitch_count) for v in pitches_sum] if pitch_count else [0.0] * 12
+    )
+    tempo_mean = sum(tempo_values) / max(1, len(tempo_values))
+    loudness_mean = sum(loudness_values) / max(1, len(loudness_values))
+
+    # Heuristic "crooner" defaults derived from the reference tempo.
+    target_bpm = 90.0
+    base_rate = 0.86
+    if tempo_mean and tempo_mean > 1:
+        base_rate = max(0.65, min(1.15, target_bpm / tempo_mean))
+
+    style_name = (name or "crooner-style").strip() or "crooner-style"
+    style_id = f"{re.sub(r'[^a-z0-9]+', '-', style_name.lower()).strip('-')}-{uuid.uuid4().hex[:10]}"
+
+    settings = {
+        "baseRate": round(base_rate, 4),
+        "minRate": round(max(0.5, base_rate - 0.12), 4),
+        "maxRate": round(min(1.25, base_rate + 0.12), 4),
+        "energyTilt": 0.08,
+        "wobbleDepth": 0.018,
+        "wobbleBeats": 16,
+        "jitterDepth": 0.006,
+        "satDrive": 0.8,
+        "fxMix": 0.14,
+        "toneLowHz": 200,
+        "toneHighHz": 6200,
+        "noiseLevel": 0.012,
+    }
+
+    return {
+        "id": style_id,
+        "name": style_name,
+        "createdAt": datetime.utcnow().isoformat() + "Z",
+        "tracks": included_tracks,
+        "stats": {
+            "tempoMean": tempo_mean,
+            "loudnessMean": loudness_mean,
+            "timbreMean": timbre_mean,
+            "pitchClassMean": pitch_class_mean,
+            "segmentCount": timbre_count,
+        },
+        "autocroonerSettings": settings,
+    }
+
+
+def _require_autocrooner_training_available() -> None:
+    if not AUTOCROONER_TRAINING_ENABLED:
+        raise PermissionError("Autocrooner training is disabled on this host.")
+    if np is None or librosa is None:
+        raise RuntimeError("Training dependencies are missing (numpy/librosa).")
+
+
+def _load_audio_mono(path: Path, *, sr: int = 22050, max_seconds: float = 90.0) -> tuple["np.ndarray", int]:
+    y, sr = librosa.load(str(path), sr=sr, mono=True)  # type: ignore[arg-type]
+    if max_seconds and max_seconds > 0:
+        max_len = int(sr * max_seconds)
+        if y.shape[0] > max_len:
+            y = y[:max_len]
+    return y.astype("float32", copy=False), sr
+
+
+def _vocalish_component(y: "np.ndarray") -> "np.ndarray":
+    # Best-effort "vocal-ish" isolation without heavy models.
+    # HPSS keeps harmonic component (often vocals + sustained instruments).
+    try:
+        y_h, _y_p = librosa.effects.hpss(y)  # type: ignore[misc]
+        return y_h.astype("float32", copy=False)
+    except Exception:
+        return y
+
+
+def _compute_ref_features(y: "np.ndarray", sr: int) -> "np.ndarray":
+    # Compact non-identifying feature vector: MFCC mean/std + spectral centroid mean/std.
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)  # type: ignore[misc]
+    centroid = librosa.feature.spectral_centroid(y=y, sr=sr)  # type: ignore[misc]
+    feats = [
+        np.mean(mfcc, axis=1),
+        np.std(mfcc, axis=1),
+        np.array([float(np.mean(centroid)), float(np.std(centroid))], dtype=np.float32),
+    ]
+    return np.concatenate(feats).astype(np.float32, copy=False)
+
+
+def _compute_window_features(y: "np.ndarray", sr: int) -> "np.ndarray":
+    # Non-identifying "style" features (spectral + dynamics stats; avoids explicit pitch/phoneme modeling).
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)  # type: ignore[misc]
+    centroid = librosa.feature.spectral_centroid(y=y, sr=sr)  # type: ignore[misc]
+    rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr, roll_percent=0.85)  # type: ignore[misc]
+    flatness = librosa.feature.spectral_flatness(y=y)  # type: ignore[misc]
+    zcr = librosa.feature.zero_crossing_rate(y)  # type: ignore[misc]
+    rms = librosa.feature.rms(y=y)  # type: ignore[misc]
+
+    feats = [
+        np.mean(mfcc, axis=1),
+        np.std(mfcc, axis=1),
+        np.array(
+            [
+                float(np.mean(centroid)),
+                float(np.std(centroid)),
+                float(np.mean(rolloff)),
+                float(np.std(rolloff)),
+                float(np.mean(flatness)),
+                float(np.std(flatness)),
+                float(np.mean(zcr)),
+                float(np.std(zcr)),
+                float(np.mean(rms)),
+                float(np.std(rms)),
+            ],
+            dtype=np.float32,
+        ),
+    ]
+    return np.concatenate(feats).astype(np.float32, copy=False)
+
+
+def _sample_audio_windows(
+    y: "np.ndarray",
+    sr: int,
+    *,
+    window_seconds: float,
+    count: int,
+    seed: int,
+    min_seconds: float = 1.0,
+) -> list[tuple[int, int]]:
+    if y.size == 0:
+        return []
+    seconds = max(float(min_seconds), float(window_seconds))
+    win = max(1, int(sr * seconds))
+    if win >= y.shape[0]:
+        return [(0, int(y.shape[0]))]
+
+    rng = np.random.RandomState(int(seed) & 0x7FFFFFFF)  # type: ignore[attr-defined]
+    max_start = int(y.shape[0] - win)
+    starts = rng.randint(0, max_start + 1, size=max(1, int(count))).tolist()
+    return [(int(s), int(s + win)) for s in starts]
+
+
+def _features_for_windows(
+    y: "np.ndarray",
+    sr: int,
+    windows: list[tuple[int, int]],
+) -> "np.ndarray":
+    if not windows:
+        return np.zeros((0, 1), dtype=np.float32)
+    rows: list["np.ndarray"] = []
+    for a, b in windows:
+        clip = y[a:b]
+        if clip.size < int(0.25 * sr):
+            continue
+        rows.append(_compute_window_features(clip, sr))
+    if not rows:
+        return np.zeros((0, 1), dtype=np.float32)
+    return np.stack(rows, axis=0).astype(np.float32, copy=False)
+
+
+def _apply_simple_crooner_dsp(y: "np.ndarray", sr: int, params: dict) -> "np.ndarray":
+    # Simple DSP approximation of the web crooner chain (band-limit + saturation + noise).
+    tone_low = float(params.get("toneLowHz", 200))
+    tone_high = float(params.get("toneHighHz", 6200))
+    tone_low = max(20.0, min(1200.0, tone_low))
+    tone_high = max(tone_low + 200.0, min(12000.0, tone_high))
+
+    try:
+        y_f = librosa.effects.preemphasis(y)  # type: ignore[misc]
+    except Exception:
+        y_f = y
+
+    # FFT bandpass mask (cheap + stable, avoids scipy dependency).
+    n = y_f.shape[0]
+    spec = np.fft.rfft(y_f)
+    freqs = np.fft.rfftfreq(n, d=1.0 / sr)
+    mask = (freqs >= tone_low) & (freqs <= tone_high)
+    spec *= mask.astype(spec.dtype, copy=False)
+    y_f = np.fft.irfft(spec, n=n).astype(np.float32, copy=False)
+
+    drive = float(params.get("satDrive", 0.8))
+    drive = max(0.01, min(2.5, drive))
+    y_f = np.tanh(drive * y_f).astype(np.float32, copy=False)
+
+    noise = float(params.get("noiseLevel", 0.0))
+    noise = max(0.0, min(0.15, noise))
+    if noise > 0:
+        y_f = (y_f + (np.random.randn(y_f.shape[0]).astype(np.float32) * noise)).astype(np.float32, copy=False)
+
+    # Normalize gently
+    peak = float(np.max(np.abs(y_f))) if y_f.size else 0.0
+    if peak > 1.0:
+        y_f = (y_f / peak).astype(np.float32, copy=False)
+    return y_f
+
+
+def _distance(a: "np.ndarray", b: "np.ndarray") -> float:
+    # L2 distance with mild weighting to keep stable.
+    if a.shape != b.shape:
+        return float("inf")
+    diff = a.astype(np.float32) - b.astype(np.float32)
+    return float(np.sqrt(np.mean(diff * diff)))
+
+
+def _stats_distance(real_feats: "np.ndarray", fake_feats: "np.ndarray") -> float:
+    if real_feats.size == 0 or fake_feats.size == 0:
+        return float("inf")
+    if real_feats.shape[1] != fake_feats.shape[1]:
+        return float("inf")
+    mr = np.mean(real_feats, axis=0)
+    sr_ = np.std(real_feats, axis=0)
+    mf = np.mean(fake_feats, axis=0)
+    sf_ = np.std(fake_feats, axis=0)
+    return float(
+        np.sqrt(np.mean((mr - mf) ** 2)) + 0.5 * np.sqrt(np.mean((sr_ - sf_) ** 2))
+    )
+
+
+class _Judger:
+    def __init__(self, *, seed: int = 0):
+        self.seed = int(seed)
+        self.mean: Optional["np.ndarray"] = None
+        self.std: Optional["np.ndarray"] = None
+        self.model = None
+
+    def fit(self, real_feats: "np.ndarray", fake_feats: "np.ndarray") -> bool:
+        if real_feats.size == 0 or fake_feats.size == 0:
+            return False
+        if real_feats.shape[1] != fake_feats.shape[1]:
+            return False
+        try:
+            from sklearn.linear_model import SGDClassifier  # type: ignore
+        except Exception:
+            return False
+
+        X = np.concatenate([real_feats, fake_feats], axis=0).astype(np.float32, copy=False)
+        y = np.concatenate(
+            [
+                np.ones((real_feats.shape[0],), dtype=np.int32),
+                np.zeros((fake_feats.shape[0],), dtype=np.int32),
+            ],
+            axis=0,
+        )
+
+        mean = np.mean(X, axis=0)
+        std = np.std(X, axis=0) + 1e-6
+        Xn = (X - mean) / std
+
+        clf = SGDClassifier(
+            loss="log_loss",
+            alpha=1e-3,
+            max_iter=2000,
+            tol=1e-3,
+            random_state=self.seed,
+        )
+        clf.fit(Xn, y)
+        self.mean = mean.astype(np.float32, copy=False)
+        self.std = std.astype(np.float32, copy=False)
+        self.model = clf
+        return True
+
+    def predict_real_prob(self, feats: "np.ndarray") -> "np.ndarray":
+        if feats.size == 0:
+            return np.zeros((0,), dtype=np.float32)
+        if self.model is None or self.mean is None or self.std is None:
+            return np.full((feats.shape[0],), 0.5, dtype=np.float32)
+
+        Xn = (feats.astype(np.float32) - self.mean) / self.std
+        try:
+            proba = self.model.predict_proba(Xn)  # type: ignore[no-any-return]
+            return proba[:, 1].astype(np.float32, copy=False)
+        except Exception:
+            try:
+                scores = self.model.decision_function(Xn)
+                return (1.0 / (1.0 + np.exp(-scores))).astype(np.float32, copy=False)
+            except Exception:
+                return np.full((feats.shape[0],), 0.5, dtype=np.float32)
+
+
+def _optimize_style_params(
+    *,
+    ref_features: "np.ndarray",
+    target_vocal: "np.ndarray",
+    sr: int,
+    initial: dict,
+    epochs: int,
+    trials_per_epoch: int,
+) -> tuple[dict, float]:
+    best = dict(initial)
+    best_score = _distance(ref_features, _compute_ref_features(_apply_simple_crooner_dsp(target_vocal, sr, best), sr))
+
+    for ep in range(max(1, epochs)):
+        # Anneal exploration radius over epochs.
+        t = 1.0 - (ep / max(1, epochs - 1)) if epochs > 1 else 0.0
+        radius_low = 120 * (0.25 + 0.75 * t)
+        radius_high = 900 * (0.25 + 0.75 * t)
+        radius_noise = 0.03 * (0.25 + 0.75 * t)
+        radius_drive = 0.8 * (0.25 + 0.75 * t)
+
+        for _ in range(max(4, trials_per_epoch)):
+            cand = dict(best)
+            cand["toneLowHz"] = float(cand.get("toneLowHz", 200)) + float(np.random.randn() * radius_low)
+            cand["toneHighHz"] = float(cand.get("toneHighHz", 6200)) + float(np.random.randn() * radius_high)
+            cand["noiseLevel"] = float(cand.get("noiseLevel", 0.012)) + float(np.random.randn() * radius_noise)
+            cand["satDrive"] = float(cand.get("satDrive", 0.8)) + float(np.random.randn() * radius_drive)
+
+            # Clamp
+            cand["toneLowHz"] = max(20.0, min(1200.0, cand["toneLowHz"]))
+            cand["toneHighHz"] = max(cand["toneLowHz"] + 200.0, min(12000.0, cand["toneHighHz"]))
+            cand["noiseLevel"] = max(0.0, min(0.15, cand["noiseLevel"]))
+            cand["satDrive"] = max(0.01, min(2.5, cand["satDrive"]))
+
+            y_try = _apply_simple_crooner_dsp(target_vocal, sr, cand)
+            score = _distance(ref_features, _compute_ref_features(y_try, sr))
+            if score < best_score:
+                best_score = score
+                best = cand
+
+    return best, float(best_score)
+
+
+def _optimize_style_params_adversarial(
+    *,
+    ref_vocal: "np.ndarray",
+    target_vocal: "np.ndarray",
+    sr: int,
+    initial: dict,
+    epochs: int,
+    trials_per_epoch: int,
+    seed: int,
+    window_seconds: float = 2.5,
+    windows_per_epoch: int = 10,
+    progress_cb=None,
+) -> tuple[dict, dict]:
+    """
+    Creator/Judger loop (GAN-ish but gradient-free):
+      - Judger learns to classify reference-vs-generated windows using non-identifying features.
+      - Creator proposes DSP params that fool the judger + match feature statistics.
+
+    Returns (best_params, metrics).
+    """
+    best = dict(initial)
+    rng = np.random.RandomState(int(seed) & 0x7FFFFFFF)  # type: ignore[attr-defined]
+    judger = _Judger(seed=int(seed))
+    eps = 1e-6
+
+    last_adv = None
+    last_feat = None
+    judger_ok = False
+
+    for ep in range(max(1, int(epochs))):
+        t = 1.0 - (ep / max(1, epochs - 1)) if epochs > 1 else 0.0
+        radius_low = 140 * (0.25 + 0.75 * t)
+        radius_high = 1000 * (0.25 + 0.75 * t)
+        radius_noise = 0.035 * (0.25 + 0.75 * t)
+        radius_drive = 0.9 * (0.25 + 0.75 * t)
+
+        windows_ref = _sample_audio_windows(
+            ref_vocal,
+            sr,
+            window_seconds=window_seconds,
+            count=windows_per_epoch,
+            seed=int(seed) + ep * 9973,
+            min_seconds=1.0,
+        )
+        windows_tgt = _sample_audio_windows(
+            target_vocal,
+            sr,
+            window_seconds=window_seconds,
+            count=windows_per_epoch,
+            seed=int(seed) + ep * 7919 + 17,
+            min_seconds=1.0,
+        )
+
+        real_feats = _features_for_windows(ref_vocal, sr, windows_ref)
+        fake_base: list["np.ndarray"] = []
+        for a, b in windows_tgt:
+            y_fake = _apply_simple_crooner_dsp(target_vocal[a:b], sr, best)
+            fake_base.append(_compute_window_features(y_fake, sr))
+        fake_feats = (
+            np.stack(fake_base, axis=0).astype(np.float32, copy=False)
+            if fake_base
+            else np.zeros((0, 1), dtype=np.float32)
+        )
+
+        judger_ok = judger.fit(real_feats, fake_feats)
+
+        def score_params(params: dict) -> tuple[float, float, float]:
+            fake_rows: list["np.ndarray"] = []
+            for a, b in windows_tgt:
+                y_fake = _apply_simple_crooner_dsp(target_vocal[a:b], sr, params)
+                fake_rows.append(_compute_window_features(y_fake, sr))
+            if not fake_rows:
+                return float("inf"), float("inf"), float("inf")
+            fake_mat = np.stack(fake_rows, axis=0).astype(np.float32, copy=False)
+            probs = judger.predict_real_prob(fake_mat)
+            adv = float(-np.mean(np.log(probs + eps)))
+            feat = float(_stats_distance(real_feats, fake_mat))
+            reg = 0.0
+            reg += 0.04 * abs(float(params.get("noiseLevel", 0.0)) - 0.012)
+            reg += 0.02 * abs(float(params.get("satDrive", 0.8)) - 0.8)
+            return adv + 0.65 * feat + reg, adv, feat
+
+        best_total, best_adv, best_feat = score_params(best)
+        for _ in range(max(6, int(trials_per_epoch))):
+            cand = dict(best)
+            cand["toneLowHz"] = float(cand.get("toneLowHz", 200)) + float(rng.randn() * radius_low)
+            cand["toneHighHz"] = float(cand.get("toneHighHz", 6200)) + float(rng.randn() * radius_high)
+            cand["noiseLevel"] = float(cand.get("noiseLevel", 0.012)) + float(rng.randn() * radius_noise)
+            cand["satDrive"] = float(cand.get("satDrive", 0.8)) + float(rng.randn() * radius_drive)
+
+            cand["toneLowHz"] = max(20.0, min(1200.0, cand["toneLowHz"]))
+            cand["toneHighHz"] = max(cand["toneLowHz"] + 200.0, min(12000.0, cand["toneHighHz"]))
+            cand["noiseLevel"] = max(0.0, min(0.15, cand["noiseLevel"]))
+            cand["satDrive"] = max(0.01, min(2.5, cand["satDrive"]))
+
+            total, adv, feat = score_params(cand)
+            if total < best_total:
+                best_total, best_adv, best_feat = total, adv, feat
+                best = cand
+
+        last_adv = float(best_adv)
+        last_feat = float(best_feat)
+        if progress_cb is not None:
+            try:
+                progress_cb(ep + 1, int(epochs), {"advLoss": last_adv, "featureLoss": last_feat, "judgerOk": judger_ok})
+            except Exception:
+                pass
+
+    metrics = {
+        "advLoss": last_adv,
+        "featureLoss": last_feat,
+        "judgerOk": bool(judger_ok),
+        "seed": int(seed),
+    }
+    return best, metrics
+
+
+@app.route("/api/autocrooner/style/train", methods=["POST"])
+def api_autocrooner_style_train():
+    payload = request.get_json(silent=True) or {}
+    track_ids = payload.get("trackIds") or payload.get("track_ids") or []
+    if not isinstance(track_ids, list):
+        return jsonify({"error": "trackIds must be a list."}), 400
+    name = payload.get("name")
+
+    try:
+        style = _build_autocrooner_style([str(t).strip() for t in track_ids if str(t).strip()], name=name)
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:  # pragma: no cover
+        app.logger.exception("Failed to train autocrooner style")
+        return jsonify({"error": f"Failed to train style: {exc}"}), 500
+
+    out_path = AUTOCROONER_STYLE_DIR / f"{style['id']}.json"
+    with out_path.open("w", encoding="utf-8") as handle:
+        json.dump(style, handle, indent=2)
+
+    return jsonify({"ok": True, "style": style})
+
+
+@app.route("/api/autocrooner/style/list", methods=["GET"])
+def api_autocrooner_style_list():
+    styles: list[dict] = []
+    for path in sorted(AUTOCROONER_STYLE_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                data = json.load(handle)
+            styles.append(
+                {
+                    "id": data.get("id") or path.stem,
+                    "name": data.get("name") or path.stem,
+                    "createdAt": data.get("createdAt"),
+                    "trackCount": len(data.get("tracks") or []),
+                }
+            )
+        except Exception:
+            continue
+    return jsonify({"ok": True, "styles": styles})
+
+
+@app.route("/api/autocrooner/style/<style_id>", methods=["GET"])
+def api_autocrooner_style_get(style_id: str):
+    safe = re.sub(r"[^a-zA-Z0-9_-]+", "", style_id or "")
+    if not safe:
+        return jsonify({"error": "Invalid style id."}), 400
+    path = AUTOCROONER_STYLE_DIR / f"{safe}.json"
+    if not path.is_file():
+        return jsonify({"error": "Style not found."}), 404
+    with path.open("r", encoding="utf-8") as handle:
+        return jsonify(json.load(handle))
+
+
+@app.route("/api/autocrooner/style/<style_id>/download", methods=["GET"])
+def api_autocrooner_style_download(style_id: str):
+    safe = re.sub(r"[^a-zA-Z0-9_-]+", "", style_id or "")
+    if not safe:
+        return jsonify({"error": "Invalid style id."}), 400
+    path = AUTOCROONER_STYLE_DIR / f"{safe}.json"
+    if not path.is_file():
+        return jsonify({"error": "Style not found."}), 404
+    return send_from_directory(AUTOCROONER_STYLE_DIR, f"{safe}.json", as_attachment=True, download_name=f"{safe}.json")
+
+
+def _process_autocrooner_train_job(job_id: str, *, name: str, file_specs: list[dict]) -> None:
+    try:
+        with _autocrooner_train_lock:
+            job = _autocrooner_train_jobs.get(job_id)
+            if job:
+                job["status"] = "processing"
+                job["progress"] = "Analyzing training tracks..."
+
+        try:
+            from .analysis.analyze_track import build_profile as _build_profile
+        except ImportError:
+            from analysis.analyze_track import build_profile as _build_profile  # type: ignore
+
+        track_ids: list[str] = []
+        for idx, spec in enumerate(file_specs):
+            audio_path = Path(spec["path"])
+            track_id = str(spec["track_id"])
+            title = str(spec.get("title") or audio_path.stem)
+            artist = str(spec.get("artist") or "(trainer upload)")
+            try:
+                rel = audio_path.resolve().relative_to(UPLOAD_FOLDER.resolve())
+                media_url = f"/media/{rel.as_posix()}"
+            except Exception:
+                media_url = f"/media/{audio_path.name}"
+            output_path = DATA_FOLDER / f"{track_id}.json"
+
+            with _autocrooner_train_lock:
+                job = _autocrooner_train_jobs.get(job_id)
+                if job:
+                    job["progress"] = f"Analyzing {idx + 1}/{len(file_specs)}: {title}"
+
+            _build_profile(
+                audio_path=audio_path,
+                track_id=track_id,
+                title=title,
+                artist=artist,
+                audio_url=media_url,
+                output_path=output_path,
+            )
+            track_ids.append(track_id)
+
+        with _autocrooner_train_lock:
+            job = _autocrooner_train_jobs.get(job_id)
+            if job:
+                job["progress"] = "Building crooner style pack..."
+
+        style = _build_autocrooner_style(track_ids, name=name)
+        out_path = AUTOCROONER_STYLE_DIR / f"{style['id']}.json"
+        with out_path.open("w", encoding="utf-8") as handle:
+            json.dump(style, handle, indent=2)
+
+        with _autocrooner_train_lock:
+            job = _autocrooner_train_jobs.get(job_id)
+            if job:
+                job["status"] = "completed"
+                job["progress"] = "Complete!"
+                job["result"] = {"styleId": style["id"], "downloadUrl": f"/api/autocrooner/style/{style['id']}/download"}
+    except Exception as exc:  # pragma: no cover
+        app.logger.exception("Autocrooner training job failed")
+        with _autocrooner_train_lock:
+            job = _autocrooner_train_jobs.get(job_id)
+            if job:
+                job["status"] = "failed"
+                job["error"] = str(exc)
+
+
+@app.route("/api/autocrooner/train", methods=["POST", "OPTIONS"])
+def api_autocrooner_train():
+    if not AUTOCROONER_TRAINING_ENABLED:
+        return jsonify({"error": "Autocrooner training is disabled on this host."}), 403
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    name = (request.form.get("name") or "crooner-style").strip()
+    files = request.files.getlist("audio_files")
+    if not files:
+        maybe = request.files.get("audio")
+        if maybe:
+            files = [maybe]
+
+    if not files:
+        return jsonify({"error": "Please upload one or more audio files (field: audio_files)."}), 400
+    if len(files) > 24:
+        return jsonify({"error": "Too many files. Max 24 per training job."}), 400
+
+    file_specs: list[dict] = []
+    for f in files:
+        if not f or not f.filename:
+            continue
+        if not allowed_file(f.filename):
+            return jsonify({"error": f"Unsupported file type: {f.filename}"}), 400
+        track_id = generate_track_id()
+        ext = Path(f.filename).suffix.lower()
+        filename = secure_filename(f"{track_id}{ext}")
+        audio_path = AUTOCROONER_TRAIN_UPLOAD_DIR / filename
+        f.save(audio_path)
+        file_specs.append(
+            {"path": str(audio_path), "track_id": track_id, "title": Path(f.filename).stem}
+        )
+
+    if not file_specs:
+        return jsonify({"error": "No valid files received."}), 400
+
+    job_id = str(uuid.uuid4())
+    with _autocrooner_train_lock:
+        _autocrooner_train_jobs[job_id] = {
+            "status": "pending",
+            "progress": "Queued...",
+            "result": None,
+            "error": None,
+            "created": datetime.utcnow().isoformat() + "Z",
+            "name": name,
+            "file_count": len(file_specs),
+        }
+
+    thread = threading.Thread(
+        target=_process_autocrooner_train_job,
+        kwargs={"job_id": job_id, "name": name, "file_specs": file_specs},
+        daemon=True,
+    )
+    thread.start()
+
+    return jsonify({"ok": True, "jobId": job_id, "status": "processing"})
+
+
+@app.route("/api/autocrooner/train/status/<job_id>", methods=["GET", "OPTIONS"])
+def api_autocrooner_train_status(job_id: str):
+    if request.method == "OPTIONS":
+        return ("", 204)
+    with _autocrooner_train_lock:
+        job = _autocrooner_train_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    payload = {
+        "jobId": job_id,
+        "status": job.get("status"),
+        "progress": job.get("progress", ""),
+    }
+    if job.get("status") == "completed":
+        payload["result"] = job.get("result")
+    elif job.get("status") == "failed":
+        payload["error"] = job.get("error", "Unknown error")
+    return jsonify(payload)
+
+
+def _process_autocrooner_transfer_job(
+    job_id: str,
+    *,
+    name: str,
+    reference_path: Path,
+    target_path: Path,
+    epochs: int,
+    trials_per_epoch: int,
+    preview_seconds: float,
+) -> None:
+    try:
+        _require_autocrooner_training_available()
+        if sf is None:
+            raise RuntimeError("soundfile is not available (needed for preview export).")
+
+        with _autocrooner_transfer_lock:
+            job = _autocrooner_transfer_jobs.get(job_id)
+            if job:
+                job["status"] = "processing"
+                job["progress"] = "Loading Song A (reference style) / Song B (to transfer)..."
+
+        ref_y, sr = _load_audio_mono(reference_path, sr=22050, max_seconds=90.0)
+        tgt_y, _sr2 = _load_audio_mono(target_path, sr=sr, max_seconds=90.0)
+        ref_v = _vocalish_component(ref_y)
+        tgt_v = _vocalish_component(tgt_y)
+
+        with _autocrooner_transfer_lock:
+            job = _autocrooner_transfer_jobs.get(job_id)
+            if job:
+                job["progress"] = "Extracting features..."
+
+        initial = {
+            "toneLowHz": 200,
+            "toneHighHz": 6200,
+            "noiseLevel": 0.012,
+            "satDrive": 0.8,
+        }
+
+        with _autocrooner_transfer_lock:
+            job = _autocrooner_transfer_jobs.get(job_id)
+            if job:
+                job["progress"] = f"Optimizing ({epochs} epochs, creator/judger)..."
+
+        seed = int(uuid.UUID(job_id).int % 1_000_000_007)
+        adv_metrics: dict = {"judgerOk": False}
+        try:
+            def _progress(ep_now: int, ep_total: int, metrics: dict) -> None:
+                adv_loss = float(metrics.get("advLoss") or 0.0)
+                feat_loss = float(metrics.get("featureLoss") or 0.0)
+                msg = f"Epoch {ep_now}/{ep_total} — adv {adv_loss:.3f}, feat {feat_loss:.3f}"
+                with _autocrooner_transfer_lock:
+                    job2 = _autocrooner_transfer_jobs.get(job_id)
+                    if job2:
+                        job2["progress"] = msg
+
+            best_params, adv_metrics = _optimize_style_params_adversarial(
+                ref_vocal=ref_v,
+                target_vocal=tgt_v,
+                sr=sr,
+                initial=initial,
+                epochs=epochs,
+                trials_per_epoch=trials_per_epoch,
+                seed=seed,
+                window_seconds=2.5,
+                windows_per_epoch=10,
+                progress_cb=_progress,
+            )
+            best_score = float(adv_metrics.get("featureLoss") or 0.0)
+        except Exception:
+            # Fallback: original distance-based optimizer (no judger).
+            ref_feat = _compute_ref_features(ref_v, sr)
+            best_params, best_score = _optimize_style_params(
+                ref_features=ref_feat,
+                target_vocal=tgt_v,
+                sr=sr,
+                initial=initial,
+                epochs=epochs,
+                trials_per_epoch=trials_per_epoch,
+            )
+
+        # Derive rate mapping heuristics from tempo.
+        ref_tempo = float(librosa.beat.tempo(y=ref_y, sr=sr)[0]) if ref_y.size else 0.0  # type: ignore[misc]
+        tgt_tempo = float(librosa.beat.tempo(y=tgt_y, sr=sr)[0]) if tgt_y.size else 0.0  # type: ignore[misc]
+        base_rate = 0.86
+        if ref_tempo > 1 and tgt_tempo > 1:
+            base_rate = max(0.65, min(1.15, ref_tempo / tgt_tempo))
+
+        style_name = (name or "crooner-style-transfer").strip() or "crooner-style-transfer"
+        style_id = f"{re.sub(r'[^a-z0-9]+', '-', style_name.lower()).strip('-')}-{uuid.uuid4().hex[:10]}"
+
+        settings = {
+            "baseRate": round(base_rate, 4),
+            "minRate": round(max(0.5, base_rate - 0.12), 4),
+            "maxRate": round(min(1.25, base_rate + 0.12), 4),
+            "energyTilt": 0.08,
+            "wobbleDepth": 0.018,
+            "wobbleBeats": 16,
+            "jitterDepth": 0.006,
+            "fxMix": 0.14,
+            "toneLowHz": int(round(best_params["toneLowHz"])),
+            "toneHighHz": int(round(best_params["toneHighHz"])),
+            "noiseLevel": round(float(best_params["noiseLevel"]), 4),
+            "satDrive": round(float(best_params["satDrive"]), 4),
+        }
+
+        style = {
+            "id": style_id,
+            "name": style_name,
+            "createdAt": datetime.utcnow().isoformat() + "Z",
+            "source": {
+                "styleA": reference_path.name,
+                "songB": target_path.name,
+                "reference": reference_path.name,
+                "target": target_path.name,
+                "epochs": int(epochs),
+                "trialsPerEpoch": int(trials_per_epoch),
+            },
+            "scores": {"featureDistance": best_score, "adv": adv_metrics},
+            "autocroonerSettings": settings,
+        }
+
+        out_path = AUTOCROONER_STYLE_DIR / f"{style_id}.json"
+        with out_path.open("w", encoding="utf-8") as handle:
+            json.dump(style, handle, indent=2)
+
+        # Write a short preview of the transformed target (for listening).
+        preview_url = None
+        if preview_seconds and preview_seconds > 0:
+            seconds = max(2.0, min(20.0, float(preview_seconds)))
+            n = min(tgt_y.shape[0], int(sr * seconds))
+            y_preview = _apply_simple_crooner_dsp(tgt_y[:n], sr, settings)
+            preview_name = f"{style_id}-preview.wav"
+            preview_path = AUTOCROONER_TRANSFER_PREVIEW_DIR / preview_name
+            sf.write(str(preview_path), y_preview, sr)  # type: ignore[misc]
+            preview_url = f"/media/{(preview_path.resolve().relative_to(UPLOAD_FOLDER.resolve())).as_posix()}"
+
+        with _autocrooner_transfer_lock:
+            job = _autocrooner_transfer_jobs.get(job_id)
+            if job:
+                job["status"] = "completed"
+                job["progress"] = "Complete!"
+                job["result"] = {
+                    "styleId": style_id,
+                    "styleName": style_name,
+                    "downloadUrl": f"/api/autocrooner/style/{style_id}/download",
+                    "previewUrl": preview_url,
+                    "scores": style.get("scores"),
+                    "autocroonerSettings": settings,
+                }
+    except Exception as exc:  # pragma: no cover
+        app.logger.exception("Autocrooner style-transfer job failed")
+        with _autocrooner_transfer_lock:
+            job = _autocrooner_transfer_jobs.get(job_id)
+            if job:
+                job["status"] = "failed"
+                job["error"] = str(exc)
+
+
+@app.route("/api/autocrooner/style-transfer/train", methods=["POST", "OPTIONS"])
+def api_autocrooner_style_transfer_train():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    try:
+        _require_autocrooner_training_available()
+    except PermissionError as exc:
+        return jsonify({"error": str(exc)}), 403
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    name = (request.form.get("name") or "crooner-style-transfer").strip()
+    epochs = _safe_int(request.form.get("epochs"), 8)
+    trials = _safe_int(request.form.get("trials"), 24)
+    preview_seconds = _safe_float(request.form.get("preview_seconds"), 10.0)
+
+    epochs = max(1, min(40, epochs))
+    trials = max(6, min(120, trials))
+    preview_seconds = max(0.0, min(30.0, preview_seconds))
+
+    ref = (
+        request.files.get("reference_audio")
+        or request.files.get("reference")
+        or request.files.get("style_a")
+        or request.files.get("song_a")
+        or request.files.get("ref")
+    )
+    tgt = (
+        request.files.get("target_audio")
+        or request.files.get("target")
+        or request.files.get("style_b")
+        or request.files.get("song_b")
+        or request.files.get("tgt")
+    )
+    if not ref or not ref.filename:
+        return jsonify({"error": "Missing reference_audio (Song A / Style A) upload."}), 400
+    if not tgt or not tgt.filename:
+        return jsonify({"error": "Missing target_audio (Song B to transfer) upload."}), 400
+    if not allowed_file(ref.filename) or not allowed_file(tgt.filename):
+        return jsonify({"error": "Unsupported file type."}), 400
+
+    ref_id = generate_track_id()
+    tgt_id = generate_track_id()
+    ref_path = AUTOCROONER_TRANSFER_UPLOAD_DIR / secure_filename(f"{ref_id}{Path(ref.filename).suffix.lower()}")
+    tgt_path = AUTOCROONER_TRANSFER_UPLOAD_DIR / secure_filename(f"{tgt_id}{Path(tgt.filename).suffix.lower()}")
+    ref.save(ref_path)
+    tgt.save(tgt_path)
+
+    job_id = str(uuid.uuid4())
+    with _autocrooner_transfer_lock:
+        _autocrooner_transfer_jobs[job_id] = {
+            "status": "pending",
+            "progress": "Queued...",
+            "result": None,
+            "error": None,
+            "created": datetime.utcnow().isoformat() + "Z",
+            "name": name,
+            "epochs": epochs,
+            "trials": trials,
+        }
+
+    thread = threading.Thread(
+        target=_process_autocrooner_transfer_job,
+        args=(job_id,),
+        kwargs={
+            "name": name,
+            "reference_path": ref_path,
+            "target_path": tgt_path,
+            "epochs": epochs,
+            "trials_per_epoch": trials,
+            "preview_seconds": preview_seconds,
+        },
+        daemon=True,
+    )
+    thread.start()
+
+    return jsonify({"ok": True, "jobId": job_id})
+
+
+@app.route("/api/autocrooner/style-transfer/status/<job_id>", methods=["GET", "OPTIONS"])
+def api_autocrooner_style_transfer_status(job_id: str):
+    if request.method == "OPTIONS":
+        return ("", 204)
+    with _autocrooner_transfer_lock:
+        job = _autocrooner_transfer_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    payload = {
+        "jobId": job_id,
+        "status": job.get("status"),
+        "progress": job.get("progress", ""),
+    }
+    if job.get("status") == "completed":
+        payload["result"] = job.get("result")
+    elif job.get("status") == "failed":
+        payload["error"] = job.get("error", "Unknown error")
+    return jsonify(payload)
+
+
 def _require_rl_token():
     """RL labeler endpoints no longer require a token (no-op helper)."""
     return
@@ -953,6 +1965,26 @@ def ourspace_entry():
 @app.route("/ourspace")
 def ourspace_redirect():
     return redirect("/ourspace.html")
+
+
+@app.route("/autocrooner/trainer")
+def autocrooner_trainer_page():
+    if not AUTOCROONER_TRAINING_ENABLED:
+        return jsonify({"error": "Autocrooner training is disabled on this host."}), 403
+    target = FRONTEND_DIR / "autocrooner-trainer.html"
+    if target.is_file():
+        return _send_cached_file(target, treat_as_html=True)
+    abort(404)
+
+
+@app.route("/autocrooner/style-transfer")
+def autocrooner_style_transfer_page():
+    if not AUTOCROONER_TRAINING_ENABLED:
+        return jsonify({"error": "Autocrooner training is disabled on this host."}), 403
+    target = FRONTEND_DIR / "autocrooner-style-transfer.html"
+    if target.is_file():
+        return _send_cached_file(target, treat_as_html=True)
+    abort(404)
 
 
 @app.route("/auth/google")

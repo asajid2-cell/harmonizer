@@ -13648,7 +13648,13 @@ function sanitizeAutoCroonerSettings(input) {
         energyTilt: 0.08,
         wobbleDepth: 0.018,
         wobbleBeats: 16,
-        jitterDepth: 0.006
+        jitterDepth: 0.006,
+        // FX bus defaults (applied by player FX chain in jremix.js)
+        fxMix: 0.14,
+        toneLowHz: 200,
+        toneHighHz: 6200,
+        noiseLevel: 0.012,
+        satDrive: 0.8
     };
 
     var baseRate = coerceNumber(input.baseRate);
@@ -13672,6 +13678,17 @@ function sanitizeAutoCroonerSettings(input) {
     var jitterDepth = coerceNumber(input.jitterDepth);
     if (jitterDepth !== null) out.jitterDepth = clampNumber(jitterDepth, 0.0, 0.05);
 
+    var fxMix = coerceNumber(input.fxMix);
+    if (fxMix !== null) out.fxMix = clampNumber(fxMix, 0.0, 0.5);
+    var toneLowHz = coerceNumber(input.toneLowHz);
+    if (toneLowHz !== null) out.toneLowHz = clampNumber(toneLowHz, 20, 1200);
+    var toneHighHz = coerceNumber(input.toneHighHz);
+    if (toneHighHz !== null) out.toneHighHz = clampNumber(toneHighHz, out.toneLowHz + 200, 12000);
+    var noiseLevel = coerceNumber(input.noiseLevel);
+    if (noiseLevel !== null) out.noiseLevel = clampNumber(noiseLevel, 0.0, 0.15);
+    var satDrive = coerceNumber(input.satDrive);
+    if (satDrive !== null) out.satDrive = clampNumber(satDrive, 0.01, 2.5);
+
     return out;
 }
 
@@ -13681,6 +13698,25 @@ function getAutoCroonerSettings() {
         overrides = (typeof window !== "undefined" && window.autocroonerSettings) ? window.autocroonerSettings : null;
     } catch (e) {}
     return sanitizeAutoCroonerSettings(overrides);
+}
+
+function applyAutoCroonerFxSettings(player, settings) {
+    if (!player) return;
+    if (typeof player.setCroonerEnabled === "function") {
+        try { player.setCroonerEnabled(true); } catch (e) {}
+    }
+    if (typeof player.setCroonerMix === "function") {
+        try { player.setCroonerMix(settings && settings.fxMix); } catch (e2) {}
+    }
+    if (typeof player.setCroonerTone === "function") {
+        try { player.setCroonerTone(settings && settings.toneLowHz, settings && settings.toneHighHz); } catch (e3) {}
+    }
+    if (typeof player.setCroonerNoise === "function") {
+        try { player.setCroonerNoise(settings && settings.noiseLevel); } catch (e4) {}
+    }
+    if (typeof player.setCroonerSaturation === "function") {
+        try { player.setCroonerSaturation(settings && settings.satDrive); } catch (e5) {}
+    }
 }
 
 function createAutoCroonerDriver(player, options) {
@@ -13819,6 +13855,7 @@ function createAutoCroonerDriver(player, options) {
     function rebuildFromSettings(customSettings) {
         options = sanitizeAutoCroonerSettings(customSettings || getAutoCroonerSettings());
         wobblePhase = Math.random() * Math.PI * 2;
+        applyAutoCroonerFxSettings(player, options);
     }
 
     return {
