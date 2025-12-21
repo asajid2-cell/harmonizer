@@ -21030,6 +21030,10 @@ function createSectionSculptorDriver(player) {
 }
 
 function Driver(player) {
+    // Keep AutoCrooner FX isolated: only enable the crooner bus in autocrooner mode.
+    if (player && typeof player.setCroonerEnabled === "function") {
+        try { player.setCroonerEnabled(mode === "autocrooner"); } catch (e) {}
+    }
     if (mode === "jukebox") {
         var jukeboxSettings = getLoopSettingsForMode("jukebox");
         return createJukeboxDriver(player, jukeboxSettings);

@@ -436,7 +436,8 @@ function createJRemixer(context, jquery) {
 
 	            var croonerFx = createCroonerFx();
 	            try { croonerFx.output.connect(vizAnalyser); } catch (e) {}
-	            var croonerEnabled = false;
+	            // Use null to force initial routing on first call.
+	            var croonerEnabled = null;
 	            function setCroonerEnabled(enabled) {
 	                var next = !!enabled;
 	                if (next === croonerEnabled) {
@@ -938,7 +939,7 @@ function createJRemixer(context, jquery) {
 	                },
 
 	                isCroonerEnabled: function() {
-	                    return croonerEnabled;
+	                    return !!croonerEnabled;
 	                },
 
                 getSpeedFactor: function() {
