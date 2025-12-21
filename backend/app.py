@@ -1561,6 +1561,9 @@ def _process_autocrooner_transfer_job(
     epochs: int,
     trials_per_epoch: int,
     preview_seconds: float,
+    initial_params: Optional[dict] = None,
+    forced_style_id: Optional[str] = None,
+    parent_style_id: Optional[str] = None,
 ) -> None:
     try:
         _require_autocrooner_training_available()
@@ -1589,6 +1592,10 @@ def _process_autocrooner_transfer_job(
             "noiseLevel": 0.012,
             "satDrive": 0.8,
         }
+        if isinstance(initial_params, dict):
+            for key in ("toneLowHz", "toneHighHz", "noiseLevel", "satDrive"):
+                if key in initial_params:
+                    initial[key] = initial_params[key]
 
         with _autocrooner_transfer_lock:
             job = _autocrooner_transfer_jobs.get(job_id)
@@ -1640,7 +1647,10 @@ def _process_autocrooner_transfer_job(
             base_rate = max(0.65, min(1.15, ref_tempo / tgt_tempo))
 
         style_name = (name or "crooner-style-transfer").strip() or "crooner-style-transfer"
-        style_id = f"{re.sub(r'[^a-z0-9]+', '-', style_name.lower()).strip('-')}-{uuid.uuid4().hex[:10]}"
+        if forced_style_id:
+            style_id = forced_style_id
+        else:
+            style_id = f"{re.sub(r'[^a-z0-9]+', '-', style_name.lower()).strip('-')}-{uuid.uuid4().hex[:10]}"
 
         settings = {
             "baseRate": round(base_rate, 4),
@@ -1668,6 +1678,7 @@ def _process_autocrooner_transfer_job(
                 "target": target_path.name,
                 "epochs": int(epochs),
                 "trialsPerEpoch": int(trials_per_epoch),
+                "parentStyleId": parent_style_id if (parent_style_id and parent_style_id != style_id) else None,
             },
             "scores": {"featureDistance": best_score, "adv": adv_metrics},
             "autocroonerSettings": settings,
@@ -1726,9 +1737,46 @@ def api_autocrooner_style_transfer_train():
     trials = _safe_int(request.form.get("trials"), 24)
     preview_seconds = _safe_float(request.form.get("preview_seconds"), 10.0)
 
+    resume_style_id = (
+        (request.form.get("resume_style_id") or "")
+        or (request.form.get("resume") or "")
+        or (request.form.get("initial_style_id") or "")
+    ).strip()
+    use_saved_audio = (request.form.get("use_saved_audio") or "").strip().lower() in {"1", "true", "yes", "on"}
+    overwrite = (request.form.get("overwrite") or "").strip().lower() in {"1", "true", "yes", "on"}
+
     epochs = max(1, min(40, epochs))
     trials = max(6, min(120, trials))
     preview_seconds = max(0.0, min(30.0, preview_seconds))
+
+    resume_style = None
+    initial_params = None
+    forced_style_id = None
+    parent_style_id = None
+    if resume_style_id:
+        safe_resume = re.sub(r"[^a-zA-Z0-9_-]+", "", resume_style_id)
+        if not safe_resume:
+            return jsonify({"error": "Invalid resume_style_id."}), 400
+        resume_path = AUTOCROONER_STYLE_DIR / f"{safe_resume}.json"
+        if not resume_path.is_file():
+            return jsonify({"error": "Resume style not found."}), 404
+        try:
+            with resume_path.open("r", encoding="utf-8") as handle:
+                resume_style = json.load(handle)
+        except Exception:
+            return jsonify({"error": "Failed to read resume style."}), 400
+
+        parent_style_id = safe_resume
+        settings = resume_style.get("autocroonerSettings") if isinstance(resume_style, dict) else None
+        if isinstance(settings, dict):
+            initial_params = {
+                "toneLowHz": settings.get("toneLowHz", 200),
+                "toneHighHz": settings.get("toneHighHz", 6200),
+                "noiseLevel": settings.get("noiseLevel", 0.012),
+                "satDrive": settings.get("satDrive", 0.8),
+            }
+        if overwrite:
+            forced_style_id = safe_resume
 
     ref = (
         request.files.get("reference_audio")
@@ -1744,19 +1792,45 @@ def api_autocrooner_style_transfer_train():
         or request.files.get("song_b")
         or request.files.get("tgt")
     )
-    if not ref or not ref.filename:
-        return jsonify({"error": "Missing reference_audio (Song A / Style A) upload."}), 400
-    if not tgt or not tgt.filename:
-        return jsonify({"error": "Missing target_audio (Song B to transfer) upload."}), 400
-    if not allowed_file(ref.filename) or not allowed_file(tgt.filename):
-        return jsonify({"error": "Unsupported file type."}), 400
 
-    ref_id = generate_track_id()
-    tgt_id = generate_track_id()
-    ref_path = AUTOCROONER_TRANSFER_UPLOAD_DIR / secure_filename(f"{ref_id}{Path(ref.filename).suffix.lower()}")
-    tgt_path = AUTOCROONER_TRANSFER_UPLOAD_DIR / secure_filename(f"{tgt_id}{Path(tgt.filename).suffix.lower()}")
-    ref.save(ref_path)
-    tgt.save(tgt_path)
+    ref_path = None
+    tgt_path = None
+
+    if ref and ref.filename and tgt and tgt.filename:
+        if not allowed_file(ref.filename) or not allowed_file(tgt.filename):
+            return jsonify({"error": "Unsupported file type."}), 400
+        ref_id = generate_track_id()
+        tgt_id = generate_track_id()
+        ref_path = AUTOCROONER_TRANSFER_UPLOAD_DIR / secure_filename(f"{ref_id}{Path(ref.filename).suffix.lower()}")
+        tgt_path = AUTOCROONER_TRANSFER_UPLOAD_DIR / secure_filename(f"{tgt_id}{Path(tgt.filename).suffix.lower()}")
+        ref.save(ref_path)
+        tgt.save(tgt_path)
+    else:
+        if not (use_saved_audio and resume_style):
+            if not ref or not ref.filename:
+                return jsonify({"error": "Missing reference_audio (Song A / Style A) upload."}), 400
+            if not tgt or not tgt.filename:
+                return jsonify({"error": "Missing target_audio (Song B to transfer) upload."}), 400
+            return jsonify({"error": "Missing uploads."}), 400
+
+        src = resume_style.get("source") if isinstance(resume_style, dict) else None
+        if not isinstance(src, dict):
+            return jsonify({"error": "Resume style missing source audio references; re-upload Song A and Song B."}), 400
+        ref_name = (src.get("styleA") or src.get("reference") or "").strip()
+        tgt_name = (src.get("songB") or src.get("target") or "").strip()
+        if not ref_name or not tgt_name:
+            return jsonify({"error": "Resume style missing source filenames; re-upload Song A and Song B."}), 400
+        ref_name = re.sub(r"[^a-zA-Z0-9_.-]+", "", ref_name)
+        tgt_name = re.sub(r"[^a-zA-Z0-9_.-]+", "", tgt_name)
+        ref_path = (AUTOCROONER_TRANSFER_UPLOAD_DIR / ref_name).resolve()
+        tgt_path = (AUTOCROONER_TRANSFER_UPLOAD_DIR / tgt_name).resolve()
+        try:
+            ref_path.relative_to(AUTOCROONER_TRANSFER_UPLOAD_DIR.resolve())
+            tgt_path.relative_to(AUTOCROONER_TRANSFER_UPLOAD_DIR.resolve())
+        except ValueError:
+            return jsonify({"error": "Resume audio paths invalid; re-upload Song A and Song B."}), 400
+        if not ref_path.is_file() or not tgt_path.is_file():
+            return jsonify({"error": "Resume audio files not found on server; re-upload Song A and Song B."}), 404
 
     job_id = str(uuid.uuid4())
     with _autocrooner_transfer_lock:
@@ -1769,6 +1843,9 @@ def api_autocrooner_style_transfer_train():
             "name": name,
             "epochs": epochs,
             "trials": trials,
+            "resumeStyleId": resume_style_id or None,
+            "overwrite": bool(overwrite),
+            "useSavedAudio": bool(use_saved_audio),
         }
 
     thread = threading.Thread(
@@ -1776,11 +1853,14 @@ def api_autocrooner_style_transfer_train():
         args=(job_id,),
         kwargs={
             "name": name,
-            "reference_path": ref_path,
-            "target_path": tgt_path,
+            "reference_path": Path(ref_path),
+            "target_path": Path(tgt_path),
             "epochs": epochs,
             "trials_per_epoch": trials,
             "preview_seconds": preview_seconds,
+            "initial_params": initial_params,
+            "forced_style_id": forced_style_id,
+            "parent_style_id": parent_style_id,
         },
         daemon=True,
     )
@@ -1969,6 +2049,13 @@ def ourspace_redirect():
 
 @app.route("/autocrooner/trainer")
 def autocrooner_trainer_page():
+    if not AUTOCROONER_TRAINING_ENABLED:
+        return jsonify({"error": "Autocrooner training is disabled on this host."}), 403
+    return redirect("/autocrooner/style-transfer")
+
+
+@app.route("/autocrooner/trainer/simple")
+def autocrooner_trainer_simple_page():
     if not AUTOCROONER_TRAINING_ENABLED:
         return jsonify({"error": "Autocrooner training is disabled on this host."}), 403
     target = FRONTEND_DIR / "autocrooner-trainer.html"
