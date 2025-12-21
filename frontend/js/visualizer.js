@@ -9552,10 +9552,25 @@ function createJukeboxDriver(player, options) {
         return 0;
     }
 
-    function markBarVisit(beat) {
+    function markBarVisit(beatOrIndex) {
+        var beat = beatOrIndex;
+        if (typeof beatOrIndex === "number") {
+            beat = masterQs && masterQs[beatOrIndex];
+        }
         if (!beat || typeof beat.bar_index !== "number") return;
         var idx = beat.bar_index;
         visitedBars[idx] = (visitedBars[idx] || 0) + 1;
+    }
+
+    function decayVisitedBars() {
+        Object.keys(visitedBars).forEach(function(k) {
+            var v = visitedBars[k] * 0.96;
+            if (v < 0.1) {
+                delete visitedBars[k];
+            } else {
+                visitedBars[k] = v;
+            }
+        });
     }
 
     function registerEdge(src, dst, similarity, span, direction, sectionMatch) {
@@ -10058,9 +10073,6 @@ function createJukeboxDriver(player, options) {
                 if (!edge.sameSection || absSpan > maxBackward) {
                     return;
                 }
-                if (modeState === "explore") {
-                    return;
-                }
                 if (beatsSinceJump < (minDwellBeats + 2)) {
                     return;
                 }
@@ -10081,11 +10093,8 @@ function createJukeboxDriver(player, options) {
             // Visited bar penalty
             var barIdx = (typeof targetBeat.bar_index === "number") ? targetBeat.bar_index : null;
             var barVisits = barIdx !== null ? (visitedBars[barIdx] || 0) : 0;
-            if (barVisits >= 4) {
-                return;
-            }
-            var visitPenalty = barVisits * 0.08;
-            var coverageBonus = Math.max(0, 0.18 - barVisits * 0.05);
+            var visitPenalty = Math.min(0.45, barVisits * 0.08);
+            var coverageBonus = Math.max(0, 0.18 - Math.min(3, barVisits) * 0.05);
 
             // Similarity + musical bonuses
             var baseScore;
@@ -10097,6 +10106,9 @@ function createJukeboxDriver(player, options) {
             var chromaBonus = (typeof edge.chroma_similarity === "number") ? Math.max(0, edge.chroma_similarity) * 0.15 : 0;
             var sectionBonus = edge.sameSection ? sameSectionBonusBase : crossSectionBonusBase * 0.5;
             var directionBias = direction === "forward" ? 0.05 : -0.05;
+            if (direction === "backward" && modeState === "explore") {
+                directionBias -= 0.06;
+            }
             var energyBonus = 0;
             if (typeof targetEnergy === "number" && typeof sourceEnergy === "number" && sourceEnergy !== 0) {
                 var ratio = targetEnergy / sourceEnergy;
@@ -10242,11 +10254,13 @@ function createJukeboxDriver(player, options) {
         var didStackJump = stacked !== proposed;
         currentIndex = stacked;
         if (didStackJump) {
+            markBarVisit(stacked);
             registerJumpBubble(stacked);
             highlightJumpArc(prevIndex, stacked);
             var sourceBeat = masterQs[prevIndex];
             var targetBeat = masterQs[stacked];
             beatsSinceJump = 0;
+            modeState = stacked < prevIndex ? "looping" : "explore";
             emitJumpLog({
                 reason: "stack",
                 source: prevIndex,
@@ -10266,6 +10280,8 @@ function createJukeboxDriver(player, options) {
         if (currentIndex >= masterQs.length) {
             var reentry = fallbackReentryTarget();
             currentIndex = Math.max(0, Math.min(masterQs.length - 1, reentry));
+            markBarVisit(currentIndex);
+            modeState = "looping";
             scheduleNextJump(true);
         }
     }
@@ -10291,6 +10307,7 @@ function createJukeboxDriver(player, options) {
                     edgeUsage[key] = v;
                 }
             });
+            decayVisitedBars();
         }
 
 
@@ -10318,10 +10335,12 @@ function createJukeboxDriver(player, options) {
                     loopHistory.shift();
                 }
                 currentIndex = stackedTarget;
+                markBarVisit(stackedTarget);
                 registerJumpBubble(stackedTarget);
                 highlightJumpArc(retreatSourceIndex, stackedTarget);
                 var targetBeat = masterQs[stackedTarget];
                 beatsSinceJump = 0;
+                modeState = "looping";
                 emitJumpLog({
                     reason: "retreat",
                     source: retreatSourceIndex,
@@ -10375,6 +10394,7 @@ function createJukeboxDriver(player, options) {
                 }
 
                 currentIndex = stackedTarget;
+                markBarVisit(stackedTarget);
                 registerJumpBubble(stackedTarget);
                 highlightJumpArc(jumpSourceIndex, stackedTarget);
                 var targetBeat = masterQs[stackedTarget];
@@ -10407,7 +10427,6 @@ function createJukeboxDriver(player, options) {
         }
         var q = masterQs[currentIndex];
         recordSectionVisit(q.section);
-        markBarVisit(q);
         incrementBeatCount();
         trackJukeboxBeat(currentIndex);
         maybeResetJukeboxIfStuck();
