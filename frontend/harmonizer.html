@@ -21,7 +21,7 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./modern.css?v=2025112424">
     <link rel="stylesheet" href="./visualizer.css?v=2025112424">
 </head>
@@ -184,13 +184,6 @@ jgs   `-=========-`()
                                 <p>Applies a synced phaser sweep to the audio.</p>
                             </div>
                         </button>
-                        <button type="button" data-algorithm="autocrooner" class="mode-card toggle">
-                            <span class="mode-card-icon" aria-hidden="true">&#9834;</span>
-                            <div class="mode-card-body">
-                                <h3>AUTOCROONER</h3>
-                                <p>Slow, warm, vintage croon with wow/flutter.</p>
-                            </div>
-                        </button>
                         <button type="button" data-algorithm="elasticvelo" class="mode-card toggle">
                             <span class="mode-card-icon" aria-hidden="true">&#8646;</span>
                             <div class="mode-card-body">
@@ -220,6 +213,13 @@ jgs   `-=========-`()
                             </div>
                         </button>
                         <div class="mode-divider" data-experimental="1" role="separator" aria-label="Experimental modes"></div>
+                        <button type="button" data-algorithm="autocrooner" data-experimental="1" class="mode-card toggle">
+                            <span class="mode-card-icon" aria-hidden="true">&#9834;</span>
+                            <div class="mode-card-body">
+                                <h3>AUTOCROONER</h3>
+                                <p>Slow, warm, vintage croon with wow/flutter.</p>
+                            </div>
+                        </button>
                         <button type="button" data-algorithm="dopamine" data-experimental="1" class="mode-card toggle">
                             <span class="mode-card-icon" aria-hidden="true">&#9650;</span>
                             <div class="mode-card-body">
@@ -402,12 +402,12 @@ jgs   `-=========-`()
 	                                <option value="jukebox" title="Jumps between similar beats for endless loops.">Eternal Jukebox</option>
 	                                <option value="eternal" title="Combines canon overlay with jukebox looping.">Eternal Canonizer</option>
 	                                <option value="phaseshifter" title="Applies a synced phaser sweep.">Phase Shifter</option>
-	                                <option value="autocrooner" title="Slow, warm, vintage croon with wow/flutter.">Autocrooner</option>
 	                                <option value="elasticvelo" title="Maps beat energy to playback speed.">Elastic Velocity</option>
 	                                <option value="reversebloom" title="Rewinds on drops then jumps to similar peaks.">Reverse Bloom</option>
 	                                <option value="autoharmonizer" title="Blends two tracks into linked loops.">Autoharmonizer</option>
 	                                <option value="sculptor" title="Arrange detected sections into a custom timeline.">Section Sculptor</option>
 	                                <option value="" data-experimental="1" data-separator="1" title="Experimental modes" disabled>----- Experimental -----</option>
+	                                <option value="autocrooner" data-experimental="1" title="Slow, warm, vintage croon with wow/flutter.">Autocrooner</option>
 	                                <option value="dopamine" data-experimental="1" title="Locks onto peak-energy clusters and jumps within them.">Dopamine Miner</option>
 	                                <option value="harmonictrap" data-experimental="1" title="Stays in one key by rejecting out-of-key beats.">Harmonic Trap</option>
 	                                <option value="granularfreeze" data-experimental="1" title="Stutters sustained beats into repeats.">Granular Freeze</option>
@@ -545,19 +545,6 @@ jgs   `-=========-`()
                                     </div>
                                 </div>
                             </div>
-                        <!-- Queue Panel -->
-                        <div id="queue-container" class="queue-panel" style="display: none;">
-                            <div class="queue-header">
-                                <span class="queue-title">Queue</span>
-                                <div class="queue-controls">
-                                    <button type="button" id="queue-prev-btn" class="queue-nav-btn" title="Previous">&laquo;</button>
-                                    <button type="button" id="queue-play-btn" class="queue-nav-btn" title="Play Selected">&#9654;</button>
-                                    <button type="button" id="queue-next-btn" class="queue-nav-btn" title="Next">&raquo;</button>
-                                    <button type="button" id="queue-clear-btn" class="queue-nav-btn" title="Clear Queue">&times;</button>
-                                </div>
-                            </div>
-                            <div id="queue-list" class="queue-list"></div>
-                        </div>
                         </div>
                 </section>
 
@@ -597,6 +584,78 @@ jgs   `-=========-`()
             <footer class="viz-footer" id="footer-text">drive safe i fucking love you &lt;3</footer>
             <span class="cluster-separator">|</span>
             <span class="ascii-corner-art-right">♪ o2</span>
+        </div>
+        <!-- Experimental mode enabled overlay - marker doodle style -->
+        <div class="exp-enabled-overlay" id="exp-enabled-overlay" aria-hidden="true">
+            <div class="exp-enabled-content">
+                <div class="exp-enabled-text">
+                    <span class="exp-enabled-line1">EXPERIMENTAL</span>
+                    <span class="exp-enabled-line2">MODE ACTIVATED!</span>
+                </div>
+                <!-- Decorative scribbles -->
+                <svg class="exp-enabled-scribbles" viewBox="0 0 400 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path class="exp-scribble-1" d="M10 35 C80 32, 180 40, 280 34 C340 30, 370 38, 390 35" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
+                    <path class="exp-scribble-2" d="M30 85 C100 88, 200 82, 300 87 C350 89, 380 84, 395 86" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
+                    <path class="exp-scribble-3" d="M5 60 Q20 55, 25 60 Q30 65, 35 60" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+                    <path class="exp-scribble-4" d="M375 60 Q380 55, 385 60 Q390 65, 395 60" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Hint arrow for experimental mode - marker doodle style -->
+        <div class="exp-hint-arrow" id="exp-hint-arrow" aria-hidden="true">
+            <svg class="exp-hint-arrow-svg" viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Hand-drawn text: "double click" on line 1 -->
+                <g class="exp-hint-text-group">
+                    <!-- "d" -->
+                    <path class="exp-hint-letter" d="M12 18 C12 10, 22 8, 24 14 C26 20, 24 28, 16 28 C8 28, 10 18, 12 18 M24 4 L24 28" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- "o" -->
+                    <path class="exp-hint-letter" d="M36 20 C36 12, 48 12, 48 20 C48 28, 36 28, 36 20" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- "u" -->
+                    <path class="exp-hint-letter" d="M56 12 L56 22 C56 28, 68 28, 68 22 L68 12" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- "b" -->
+                    <path class="exp-hint-letter" d="M76 4 L76 28 M76 18 C76 12, 88 12, 88 18 C88 26, 76 28, 76 22" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- "l" -->
+                    <path class="exp-hint-letter" d="M96 4 L96 28" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- "e" -->
+                    <path class="exp-hint-letter" d="M104 18 L116 18 C116 12, 104 10, 104 18 C104 28, 118 26, 116 22" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- space + "c" -->
+                    <path class="exp-hint-letter" d="M138 12 C128 12, 128 26, 138 26" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- "l" -->
+                    <path class="exp-hint-letter" d="M146 4 L146 28" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- "i" -->
+                    <path class="exp-hint-letter" d="M156 12 L156 28 M156 5 L157 6" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- "c" -->
+                    <path class="exp-hint-letter" d="M175 12 C165 12, 165 26, 175 26" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- "k" -->
+                    <path class="exp-hint-letter" d="M183 4 L183 28 M183 18 L195 10 M183 18 L197 28" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                </g>
+                <!-- "me!" on line 2, centered under arrow -->
+                <g class="exp-hint-text-group-2">
+                    <!-- "m" -->
+                    <path class="exp-hint-letter-2" d="M70 58 L70 44 C70 40, 78 40, 78 46 L78 58 M78 46 C78 40, 88 40, 88 46 L88 58" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- "e" -->
+                    <path class="exp-hint-letter-2" d="M96 50 L108 50 C108 44, 96 42, 96 50 C96 60, 110 58, 108 54" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    <!-- "!" -->
+                    <path class="exp-hint-letter-2" d="M120 42 L118 54 M119 60 L120 61" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                </g>
+                <!-- Wobbly underline under "me!" -->
+                <path class="exp-hint-underline" d="M68 66 C85 68, 105 64, 124 67" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.7"/>
+                <!-- Big wobbly arrow pointing DOWN - positioned below text, arrow tip at bottom -->
+                <g class="exp-hint-arrow-group">
+                    <!-- Main arrow shaft - wobbly vertical line -->
+                    <path class="exp-hint-arrow-path" d="M100 80
+                        C 98 92, 103 104, 100 116
+                        C 97 128, 104 140, 100 152"
+                        stroke="currentColor" stroke-width="7" stroke-linecap="round" fill="none"/>
+                    <!-- Arrow head - big V pointing down -->
+                    <path class="exp-hint-arrow-head" d="M75 138 L100 168 L125 138"
+                        stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    <!-- Extra sketch strokes on arrow head for marker effect -->
+                    <path class="exp-hint-arrow-extra" d="M78 140 L99 166 M101 166 L122 140"
+                        stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity="0.6" fill="none"/>
+                </g>
+            </svg>
         </div>
         </div>
 
@@ -873,6 +932,19 @@ jgs   `-=========-`()
             if (animate && on) {
                 body.classList.add('experimental-corrupting');
                 window.setTimeout(() => body.classList.remove('experimental-corrupting'), 720);
+
+                // Show "EXPERIMENTAL MODE ACTIVATED!" doodle overlay
+                const overlay = document.getElementById('exp-enabled-overlay');
+                if (overlay) {
+                    overlay.classList.remove('visible');
+                    // Force reflow to restart animation
+                    void overlay.offsetWidth;
+                    overlay.classList.add('visible');
+                    // Remove class after animation completes
+                    setTimeout(() => {
+                        overlay.classList.remove('visible');
+                    }, 2800);
+                }
             }
 
             if (on) {
@@ -902,6 +974,7 @@ jgs   `-=========-`()
             // If we exit experimental while an experimental mode is active, snap back to canon.
             if (!on) {
                 const experimentalModes = new Set([
+                    'autocrooner',
                     'dopamine',
                     'harmonictrap',
                     'granularfreeze',
@@ -949,6 +1022,7 @@ jgs   `-=========-`()
                     const next = !getExperimentalEnabled();
                     setExperimentalEnabled(next, { animate: next });
                     lastClickTime = 0; // Reset to prevent triple-click
+                    hideHintArrow(); // Hide hint when experimental mode toggled
                 } else {
                     lastClickTime = now;
                 }
@@ -956,6 +1030,77 @@ jgs   `-=========-`()
 
             // Add cursor hint
             cornerCluster.style.cursor = 'pointer';
+
+            // Occasional hint arrow for experimental mode - doodle drawn on page
+            const hintArrow = document.getElementById('exp-hint-arrow');
+            let hintTimer = null;
+            let hideTimer = null;
+            let floatTimer = null;
+
+            function showHintArrow() {
+                if (!hintArrow || getExperimentalEnabled()) return;
+                // Reset classes for fresh draw animation
+                hintArrow.classList.remove('floating');
+                hintArrow.classList.add('visible');
+
+                // Add floating wobble after drawing animation completes (~1.6s)
+                floatTimer = setTimeout(() => {
+                    hintArrow.classList.add('floating');
+                }, 1600);
+
+                // Hide after 6-8 seconds
+                hideTimer = setTimeout(hideHintArrow, 6000 + Math.random() * 2000);
+            }
+
+            function hideHintArrow() {
+                if (!hintArrow) return;
+                hintArrow.classList.remove('visible', 'floating');
+                if (hideTimer) {
+                    clearTimeout(hideTimer);
+                    hideTimer = null;
+                }
+                if (floatTimer) {
+                    clearTimeout(floatTimer);
+                    floatTimer = null;
+                }
+            }
+
+            function isInPlayerMode() {
+                return document.body.classList.contains('state-player');
+            }
+
+            function scheduleNextHint() {
+                if (hintTimer) clearTimeout(hintTimer);
+                // In player/visualizer mode, show hint much more rarely (3-6 minutes)
+                // In home mode, show every 45-90 seconds
+                const delay = isInPlayerMode()
+                    ? 180000 + Math.random() * 180000  // 3-6 minutes in player mode
+                    : 45000 + Math.random() * 45000;   // 45-90 seconds on home
+                hintTimer = setTimeout(() => {
+                    if (!getExperimentalEnabled()) {
+                        showHintArrow();
+                    }
+                    scheduleNextHint();
+                }, delay);
+            }
+
+            // Show first hint - quickly on home (3-5s), delayed in player mode (2-4 min)
+            if (!getExperimentalEnabled()) {
+                const initialDelay = isInPlayerMode()
+                    ? 120000 + Math.random() * 120000  // 2-4 minutes in player mode
+                    : 3000 + Math.random() * 2000;     // 3-5 seconds on home
+                setTimeout(() => {
+                    showHintArrow();
+                    scheduleNextHint();
+                }, initialDelay);
+            }
+
+            // Hide hint on any click outside corner cluster
+            document.addEventListener('click', function(e) {
+                if (!cornerCluster.contains(e.target)) {
+                    hideHintArrow();
+                }
+            });
         })();
 
         const rlLoggingEnabled = Boolean(config.rlLoggingEnabled);
@@ -1252,7 +1397,7 @@ jgs   `-=========-`()
 	        const experimentalEnabledAtLoad = getExperimentalEnabled();
 	        const allowedModes = experimentalEnabledAtLoad
 	            ? new Set(['canon', 'jukebox', 'eternal', 'autocrooner', 'dopamine', 'harmonictrap', 'phaseshifter', 'granularfreeze', 'elasticvelo', 'mathrocker', 'stalker', 'timbresurf', 'chromastack', 'beatsort', 'reversebloom', 'barberpole', 'palindrome', 'spectralgravity', 'callresponse', 'orbitweaver', 'autoharmonizer', 'sculptor'])
-	            : new Set(['canon', 'jukebox', 'eternal', 'autocrooner', 'phaseshifter', 'elasticvelo', 'reversebloom', 'autoharmonizer', 'sculptor']);
+	            : new Set(['canon', 'jukebox', 'eternal', 'phaseshifter', 'elasticvelo', 'reversebloom', 'autoharmonizer', 'sculptor']);
         const normalizedMode = allowedModes.has(requestedMode) ? requestedMode : modeFromBody;
         document.body.dataset.mode = normalizedMode;
         if (vizModeSelect) {
@@ -3046,6 +3191,49 @@ jgs   `-=========-`()
                 }
             }
         });
+
+        // Back button click handler - properly stop playback and return to home
+        if (backButton) {
+            backButton.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                // Stop the player/driver
+                if (driver && typeof driver.stop === 'function') {
+                    driver.stop();
+                }
+                if (typeof window.player !== 'undefined' && window.player) {
+                    if (typeof window.player.pause === 'function') {
+                        window.player.pause();
+                    }
+                    if (typeof window.player.stop === 'function') {
+                        window.player.stop();
+                    }
+                }
+
+                // Clear the queue completely (prevents auto-play on return)
+                if (typeof window.clearQueue === 'function') {
+                    window.clearQueue();
+                }
+
+                // Clear localStorage queue as well
+                try {
+                    localStorage.removeItem('harmonizerTrackQueue');
+                    localStorage.removeItem('harmonizerTrackQueue_index');
+                } catch (e) {}
+
+                // Clear session storage that might cause auto-redirect
+                try {
+                    sessionStorage.removeItem('playlistQueue');
+                } catch (e) {}
+
+                // Clear current track reference
+                window.curTrack = null;
+
+                // Navigate to home (without trid param)
+                const cleanUrl = window.location.pathname;
+                window.location.href = cleanUrl;
+            });
+        }
 
         // Queue management
         const clearQueueBtn = document.getElementById('clear-queue-btn');

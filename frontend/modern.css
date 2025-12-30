@@ -759,6 +759,270 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     }
 }
 
+/* Experimental mode hint arrow - marker doodle drawn on page */
+.exp-hint-arrow {
+    position: fixed;
+    /* Position so arrow tip points at center of corner box */
+    bottom: clamp(65px, 8vw, 95px);
+    left: clamp(20px, 3vw, 45px);
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transform: rotate(-2deg);
+    transform-origin: bottom center;
+}
+
+.exp-hint-arrow.visible {
+    opacity: 1;
+}
+
+.exp-hint-arrow-svg {
+    width: clamp(220px, 28vw, 300px);
+    height: auto;
+    color: #FF1493;
+    filter: drop-shadow(0 0 3px rgba(255, 20, 147, 1))
+            drop-shadow(0 0 10px rgba(255, 20, 147, 0.6))
+            drop-shadow(0 0 20px rgba(255, 20, 147, 0.3));
+}
+
+/* "double click" letters - draw first, one by one */
+.exp-hint-letter {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+}
+
+.exp-hint-arrow.visible .exp-hint-letter:nth-child(1) { animation: marker-draw 0.06s linear 0.1s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter:nth-child(2) { animation: marker-draw 0.06s linear 0.15s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter:nth-child(3) { animation: marker-draw 0.06s linear 0.2s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter:nth-child(4) { animation: marker-draw 0.06s linear 0.25s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter:nth-child(5) { animation: marker-draw 0.06s linear 0.3s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter:nth-child(6) { animation: marker-draw 0.06s linear 0.35s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter:nth-child(7) { animation: marker-draw 0.06s linear 0.42s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter:nth-child(8) { animation: marker-draw 0.06s linear 0.47s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter:nth-child(9) { animation: marker-draw 0.06s linear 0.52s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter:nth-child(10) { animation: marker-draw 0.06s linear 0.57s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter:nth-child(11) { animation: marker-draw 0.06s linear 0.62s forwards; }
+
+/* "me!" letters - draw after "double click" */
+.exp-hint-letter-2 {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+}
+
+.exp-hint-arrow.visible .exp-hint-letter-2:nth-child(1) { animation: marker-draw 0.06s linear 0.7s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter-2:nth-child(2) { animation: marker-draw 0.06s linear 0.76s forwards; }
+.exp-hint-arrow.visible .exp-hint-letter-2:nth-child(3) { animation: marker-draw 0.06s linear 0.82s forwards; }
+
+/* Underline under "me!" */
+.exp-hint-underline {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+}
+
+.exp-hint-arrow.visible .exp-hint-underline {
+    animation: marker-draw 0.15s ease-out 0.88s forwards;
+}
+
+/* Arrow shaft - draws after text */
+.exp-hint-arrow-path {
+    stroke-dasharray: 200;
+    stroke-dashoffset: 200;
+}
+
+.exp-hint-arrow.visible .exp-hint-arrow-path {
+    animation: marker-draw 0.35s ease-out 1.0s forwards;
+}
+
+/* Arrow head - draws after shaft */
+.exp-hint-arrow-head {
+    stroke-dasharray: 120;
+    stroke-dashoffset: 120;
+}
+
+.exp-hint-arrow.visible .exp-hint-arrow-head {
+    animation: marker-draw 0.2s ease-out 1.3s forwards;
+}
+
+/* Extra sketch strokes on arrow head */
+.exp-hint-arrow-extra {
+    stroke-dasharray: 80;
+    stroke-dashoffset: 80;
+}
+
+.exp-hint-arrow.visible .exp-hint-arrow-extra {
+    animation: marker-draw 0.1s ease-out 1.45s forwards;
+}
+
+@keyframes marker-draw {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* After fully drawn, subtle wobble */
+.exp-hint-arrow.visible.floating {
+    animation: doodle-hover 3s ease-in-out infinite;
+}
+
+@keyframes doodle-hover {
+    0%, 100% {
+        transform: rotate(-2deg) translate(0, 0);
+    }
+    25% {
+        transform: rotate(-1deg) translate(3px, -2px);
+    }
+    50% {
+        transform: rotate(-3deg) translate(-2px, 2px);
+    }
+    75% {
+        transform: rotate(-1.5deg) translate(2px, -1px);
+    }
+}
+
+/* Hide hint in experimental mode or on small screens */
+.experimental-enabled .exp-hint-arrow {
+    display: none !important;
+}
+
+@media (max-width: 600px) {
+    .exp-hint-arrow {
+        display: none !important;
+    }
+}
+
+/* Experimental mode enabled overlay - full page doodle */
+.exp-enabled-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    pointer-events: none;
+    opacity: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(3px);
+}
+
+.exp-enabled-overlay.visible {
+    opacity: 1;
+    animation: overlay-fade 2.8s ease-out forwards;
+}
+
+.exp-enabled-content {
+    position: relative;
+    transform: rotate(-4deg);
+}
+
+.exp-enabled-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2em;
+}
+
+.exp-enabled-line1,
+.exp-enabled-line2 {
+    font-family: 'Permanent Marker', 'Marker Felt', 'Comic Sans MS', cursive;
+    font-weight: bold;
+    color: #FF1493;
+    text-shadow:
+        0 0 10px rgba(255, 20, 147, 1),
+        0 0 20px rgba(255, 20, 147, 0.8),
+        0 0 40px rgba(255, 20, 147, 0.6),
+        0 0 60px rgba(255, 20, 147, 0.4),
+        4px 4px 0 rgba(0, 0, 0, 0.8);
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transform: scale(0.8);
+}
+
+.exp-enabled-line1 {
+    font-size: clamp(2.5rem, 8vw, 5rem);
+}
+
+.exp-enabled-line2 {
+    font-size: clamp(2rem, 6vw, 4rem);
+}
+
+.exp-enabled-overlay.visible .exp-enabled-line1 {
+    animation: text-slam 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s forwards;
+}
+
+.exp-enabled-overlay.visible .exp-enabled-line2 {
+    animation: text-slam 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.35s forwards;
+}
+
+@keyframes text-slam {
+    0% {
+        opacity: 0;
+        transform: scale(1.5) rotate(-2deg);
+    }
+    60% {
+        opacity: 1;
+        transform: scale(0.95) rotate(1deg);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+/* Decorative scribbles around text */
+.exp-enabled-scribbles {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120%;
+    height: 120%;
+    color: #FF1493;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.exp-scribble-1,
+.exp-scribble-2,
+.exp-scribble-3,
+.exp-scribble-4 {
+    stroke-dasharray: 500;
+    stroke-dashoffset: 500;
+}
+
+.exp-enabled-overlay.visible .exp-scribble-1 {
+    animation: marker-draw 0.3s ease-out 0.5s forwards;
+}
+
+.exp-enabled-overlay.visible .exp-scribble-2 {
+    animation: marker-draw 0.3s ease-out 0.65s forwards;
+}
+
+.exp-enabled-overlay.visible .exp-scribble-3 {
+    animation: marker-draw 0.2s ease-out 0.55s forwards;
+}
+
+.exp-enabled-overlay.visible .exp-scribble-4 {
+    animation: marker-draw 0.2s ease-out 0.7s forwards;
+}
+
+@keyframes overlay-fade {
+    0% {
+        opacity: 1;
+        background: rgba(0, 0, 0, 0.4);
+    }
+    65% {
+        opacity: 1;
+        background: rgba(0, 0, 0, 0.4);
+    }
+    100% {
+        opacity: 0;
+        background: rgba(0, 0, 0, 0);
+    }
+}
+
 .bottom-badge {
     color: var(--color-purple);
     letter-spacing: 0.12em;
