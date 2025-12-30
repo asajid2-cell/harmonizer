@@ -466,6 +466,8 @@ function persistTrackQueue() {
             return;
         }
         localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(trackQueue));
+        // Also persist current queue index for resume on refresh
+        localStorage.setItem(QUEUE_STORAGE_KEY + "_index", String(currentQueueIndex));
     } catch (e) {
         // Ignore storage failures (quota/private mode)
     }
@@ -493,8 +495,25 @@ function loadPersistedTrackQueue() {
                     artist: t.artist || "Unknown Artist"
                 };
             });
-        currentQueueIndex = -1;
-        selectedQueueIndex = trackQueue.length ? 0 : -1;
+        // Restore the persisted queue index
+        var savedIndex = localStorage.getItem(QUEUE_STORAGE_KEY + "_index");
+        if (savedIndex !== null) {
+            var idx = parseInt(savedIndex, 10);
+            if (!isNaN(idx) && idx >= 0 && idx < trackQueue.length) {
+                currentQueueIndex = idx;
+                selectedQueueIndex = idx;
+            } else {
+                currentQueueIndex = -1;
+                selectedQueueIndex = trackQueue.length ? 0 : -1;
+            }
+        } else {
+            currentQueueIndex = -1;
+            selectedQueueIndex = trackQueue.length ? 0 : -1;
+        }
+        // Enable autoplay for restored queue
+        if (trackQueue.length > 0) {
+            autoPlayNext = true;
+        }
         updateQueueUI();
         return trackQueue.length > 0;
     } catch (e) {
@@ -583,7 +602,7 @@ var ADVANCED_DEFAULTS = {
         musicality: 100,
         minLoopBeats: 12,
         maxSequentialBeats: 90,
-        loopThreshold: 0.76,
+        loopThreshold: 0.58,  // Lowered from 0.76 to allow more jump candidates
         sectionBias: 0.20,
         jumpVariance: 0.65
     },
@@ -4838,7 +4857,27 @@ function init() {
 	        }
 
 	        if (initialTrid) {
+	            // If we have a queue, try to find this track in it and set the index
+	            if (trackQueue.length > 0) {
+	                for (var qi = 0; qi < trackQueue.length; qi++) {
+	                    if (trackQueue[qi].id === initialTrid) {
+	                        currentQueueIndex = qi;
+	                        selectedQueueIndex = qi;
+	                        autoPlayNext = true;
+	                        queueAutoPlayPending = true; // Auto-start when track loads
+	                        console.log('[Init] Found URL track in queue at index', qi);
+	                        break;
+	                    }
+	                }
+	                updateQueueUI();
+	            }
 	            fetchAnalysis(initialTrid);
+        } else if (trackQueue.length > 0) {
+            // Auto-start from queue on refresh if no URL track specified
+            // Use the restored queue index if valid, otherwise start from beginning
+            var startIndex = (currentQueueIndex >= 0 && currentQueueIndex < trackQueue.length) ? currentQueueIndex : 0;
+            console.log('[Init] No URL track, but queue has', trackQueue.length, 'tracks. Auto-starting at index', startIndex);
+            playQueueIndex(startIndex);
         } else {
             info("Load a track to begin.");
         }
@@ -5390,6 +5429,16 @@ function resetCanvasForTrackSwitch() {
     } catch (e) {
         // Ignore stop errors during hard reset.
     }
+    // Also directly stop the player to ensure its internal state is reset
+    // This ensures curQ is null and main voice will start fresh on next track
+    try {
+        var activePlayer = window.harmonizerActivePlayer;
+        if (activePlayer && typeof activePlayer.stop === "function") {
+            activePlayer.stop();
+        }
+    } catch (playerStopErr) {
+        console.warn("[resetCanvasForTrackSwitch] Failed to stop player:", playerStopErr);
+    }
     clearTiles();
     clearLoopPaths();
     clearOrbitBase();
@@ -5479,6 +5528,12 @@ function clearQueue() {
     autoPlayNext = false;
     updateQueueUI();
     persistTrackQueue();
+    // Also clear persisted index
+    try {
+        if (window.localStorage) {
+            localStorage.removeItem(QUEUE_STORAGE_KEY + "_index");
+        }
+    } catch (e) {}
     console.log('[Queue] Cleared');
 }
 
@@ -5583,6 +5638,56 @@ window.addToQueue = addToQueue;
 window.playNextInQueue = playNextInQueue;
 window.playPreviousInQueue = playPreviousInQueue;
 window.clearQueue = clearQueue;
+
+// Queue panel button handlers
+$(document).ready(function() {
+    // Queue panel navigation buttons
+    $("#queue-prev-btn").on("click", function() {
+        if (selectedQueueIndex > 0) {
+            selectQueueIndex(selectedQueueIndex - 1);
+        }
+    });
+
+    $("#queue-next-btn").on("click", function() {
+        if (selectedQueueIndex < trackQueue.length - 1) {
+            selectQueueIndex(selectedQueueIndex + 1);
+        }
+    });
+
+    $("#queue-play-btn").on("click", function() {
+        if (selectedQueueIndex >= 0 && selectedQueueIndex < trackQueue.length) {
+            playQueueIndex(selectedQueueIndex);
+        }
+    });
+
+    $("#queue-clear-btn").on("click", function() {
+        if (trackQueue.length > 0) {
+            if (confirm("Clear all " + trackQueue.length + " tracks from queue?")) {
+                clearQueue();
+            }
+        }
+    });
+
+    // Clear queue button in cached songs modal
+    $("#cached-songs-clear-queue-btn").on("click", function() {
+        if (trackQueue.length > 0) {
+            if (confirm("Clear all " + trackQueue.length + " tracks from queue?")) {
+                clearQueue();
+                // Refresh the queue view if it's currently shown
+                if (typeof window.renderQueueView === "function") {
+                    window.renderQueueView();
+                }
+                // Try to re-render if using the cached songs modal queue pane
+                var queuePane = document.getElementById('cached-queue-pane');
+                if (queuePane && queuePane.style.display !== 'none') {
+                    queuePane.innerHTML = '<p style="color: #888; text-align: center; padding: 2rem;">Queue is empty.</p>';
+                }
+            }
+        } else {
+            alert("Queue is already empty.");
+        }
+    });
+});
 
 // Queue modal handling
 $(document).ready(function() {
@@ -8983,7 +9088,8 @@ function createJukeboxDriver(player, options) {
     var JBX_STUCK_WINDOW = 64;
     var JBX_STUCK_RATIO = 0.4;
     var recentJukeboxBeats = [];
-    var minScore = 0.7;
+    // Lower minScore for eternal mode to allow more jump candidates
+    var minScore = (modeName === "eternal") ? 0.5 : 0.65;
     var minDwellBeats = 6;
     var beatsSinceJump = 0;
     var maxBackward = Math.max(24, Math.floor((masterQs && masterQs.length ? masterQs.length : 0) * 0.1));
@@ -9167,7 +9273,13 @@ function createJukeboxDriver(player, options) {
         }
     }
 
+    var stuckEscapeTarget = null; // Set when stuck loop is detected, consumed by advanceIndex
+
     function maybeResetJukeboxIfStuck() {
+        // Check if burnout/stuck escape is disabled via UI toggle
+        if (typeof window !== "undefined" && window.harmonizerDisableBurnout) {
+            return;
+        }
         if (!recentJukeboxBeats.length || recentJukeboxBeats.length < 32) {
             return;
         }
@@ -9194,11 +9306,41 @@ function createJukeboxDriver(player, options) {
                 });
             } catch (e) {}
         }
+        console.log('[maybeResetJukeboxIfStuck] Stuck detected! Unique ratio:', ratio.toFixed(2), 'Forcing escape...');
         edgeUsage = {};
         loopHistory = [];
         plannedJumps = [];
         jumpsSinceReset = 0;
         visitedBars = {};
+        recentJukeboxBeats = []; // Clear beat history to reset detection
+
+        // Force escape to a different section anchor
+        if (orderedSectionAnchors.length > 1) {
+            // Find an anchor that's far from current position
+            var candidates = orderedSectionAnchors.filter(function(anchor) {
+                var dist = Math.abs(anchor - currentIndex);
+                return dist > Math.max(16, minLoopBeats * 2);
+            });
+            if (candidates.length > 0) {
+                // Pick a random distant anchor
+                stuckEscapeTarget = candidates[Math.floor(Math.random() * candidates.length)];
+            } else {
+                // Fall back to any anchor that's not current
+                var other = orderedSectionAnchors.filter(function(a) { return a !== currentIndex; });
+                if (other.length > 0) {
+                    stuckEscapeTarget = other[Math.floor(Math.random() * other.length)];
+                }
+            }
+        }
+        // Fallback: jump to beginning or middle
+        if (stuckEscapeTarget === null) {
+            if (currentIndex > masterQs.length / 2) {
+                stuckEscapeTarget = Math.max(0, Math.floor(masterQs.length * 0.1));
+            } else {
+                stuckEscapeTarget = Math.floor(masterQs.length * 0.6);
+            }
+        }
+        console.log('[maybeResetJukeboxIfStuck] Escape target set to:', stuckEscapeTarget);
     }
 
     function takePlannedJumpIfValid() {
@@ -10068,25 +10210,49 @@ function createJukeboxDriver(player, options) {
                 return;
             }
 
-            // Phase lock (bar-aware)
+            // Phase lock (bar-aware) - relax for eternal mode by applying penalty instead of filter
             var targetPhase = edge.beat_in_bar !== undefined && edge.beat_in_bar !== null
                 ? edge.beat_in_bar
                 : beatPhase(targetBeat, 4);
-            if (srcPhase !== null && targetPhase !== null && srcPhase !== targetPhase) {
-                return;
+            var phaseMismatch = (srcPhase !== null && targetPhase !== null && srcPhase !== targetPhase);
+            // For eternal mode, allow phase mismatches with a score penalty instead of filtering
+            var phasePenalty = 0;
+            if (phaseMismatch) {
+                if (modeName === "eternal") {
+                    // Soft penalty for phase mismatch in eternal mode
+                    phasePenalty = 0.15;
+                } else {
+                    // Other modes: hard filter for phase lock
+                    return;
+                }
             }
 
             var spanVal = (typeof edge.span === "number") ? edge.span : (targetIdx - item.source);
             var absSpan = Math.abs(spanVal);
             var direction = edge.direction || (spanVal < 0 ? "backward" : "forward");
 
-            // Backward safety
+            // Backward safety - relaxed for eternal mode (circular timeline needs backward jumps)
+            var backwardPenalty = 0;
             if (direction === "backward") {
-                if (!edge.sameSection || absSpan > maxBackward) {
-                    return;
-                }
-                if (beatsSinceJump < (minDwellBeats + 2)) {
-                    return;
+                if (modeName === "eternal") {
+                    // Eternal mode: allow backward jumps with penalties instead of hard filtering
+                    if (!edge.sameSection) {
+                        backwardPenalty += 0.12; // Cross-section penalty
+                    }
+                    if (absSpan > maxBackward) {
+                        backwardPenalty += 0.08; // Long span penalty
+                    }
+                    if (beatsSinceJump < (minDwellBeats + 2)) {
+                        backwardPenalty += 0.10; // Early jump penalty
+                    }
+                } else {
+                    // Non-eternal modes: original hard filter behavior
+                    if (!edge.sameSection || absSpan > maxBackward) {
+                        return;
+                    }
+                    if (beatsSinceJump < (minDwellBeats + 2)) {
+                        return;
+                    }
                 }
             }
 
@@ -10135,7 +10301,7 @@ function createJukeboxDriver(player, options) {
                 endZoneBonus -= 0.2;
             }
 
-            var score = baseScore + chromaBonus + sectionBonus + directionBias + energyBonus + endZoneBonus - visitPenalty + coverageBonus;
+            var score = baseScore + chromaBonus + sectionBonus + directionBias + energyBonus + endZoneBonus - visitPenalty + coverageBonus - phasePenalty - backwardPenalty;
 
             // Usage penalty: discourage reusing the same edge too often this session
             var edgeKey = src + ":" + targetIdx;
@@ -10322,6 +10488,46 @@ function createJukeboxDriver(player, options) {
             decayVisitedBars();
         }
 
+
+        // Handle forced escape from stuck loop detection
+        if (stuckEscapeTarget !== null && stuckEscapeTarget !== currentIndex) {
+            console.log('[advanceIndex] Forced escape from stuck loop:', currentIndex, '->', stuckEscapeTarget);
+            var escapeSourceIndex = currentIndex;
+            var escapeTarget = stuckEscapeTarget;
+            stuckEscapeTarget = null; // Consume the escape target
+            var sourceBeat = masterQs[escapeSourceIndex];
+            var stackedTarget = applyStackedNextIndex({
+                mode: modeName,
+                currentIndex: escapeSourceIndex,
+                proposedIndex: escapeTarget,
+                beat: sourceBeat,
+                proposedReason: "stuck_escape"
+            });
+            loopHistory.push({ source: escapeSourceIndex, target: stackedTarget });
+            if (loopHistory.length > LOOP_HISTORY_LIMIT) {
+                loopHistory.shift();
+            }
+            currentIndex = stackedTarget;
+            markBarVisit(stackedTarget);
+            registerJumpBubble(stackedTarget);
+            highlightJumpArc(escapeSourceIndex, stackedTarget);
+            var targetBeat = masterQs[stackedTarget];
+            beatsSinceJump = 0;
+            modeState = "explore";
+            emitJumpLog({
+                reason: "stuck_escape",
+                source: escapeSourceIndex,
+                target: stackedTarget,
+                similarity: null,
+                beatsUntilJump: beatsUntilJump,
+                bubbleRadius: getCurrentJumpBubbleRadius(),
+                source_time: sourceBeat ? sourceBeat.start : null,
+                target_time: targetBeat ? targetBeat.start : null,
+                quality_score: null,
+            });
+            scheduleNextJump(true);
+            return;
+        }
 
         // Check if we're in the end zone and should use retreat point
         var endZoneStart = Math.floor(masterQs.length * 0.8);
@@ -11714,7 +11920,10 @@ function createDopamineMinerDriver(player, options) {
         var allowNonPeak = tinyLoop || stuckLocal || pingpong;
         var minSimOverride = allowNonPeak ? Math.max(0.5, settings.minJumpSimilarity - 0.12) : null;
 
-        if (burnoutCooldownLeft <= 0 && stuckLocalNow) {
+        // Check if burnout/stuck escape is disabled via UI toggle
+        var burnoutDisabled = (typeof window !== "undefined" && window.harmonizerDisableBurnout);
+
+        if (!burnoutDisabled && burnoutCooldownLeft <= 0 && stuckLocalNow) {
             var anchors = detectAnchorBeats(32, 0.32);
             if (anchors) {
                 // If one/two beats are acting like "gravity wells", taboo them so the miner is forced
@@ -11730,7 +11939,7 @@ function createDopamineMinerDriver(player, options) {
             }
         }
 
-        if (burnoutCooldownLeft <= 0 && pingpong) {
+        if (!burnoutDisabled && burnoutCooldownLeft <= 0 && pingpong) {
             // Hard break for A<->B ping-pong loops.
             addTaboo(pingpong.a, 28);
             addTaboo(pingpong.b, 28);
@@ -11745,7 +11954,7 @@ function createDopamineMinerDriver(player, options) {
         }
 
         // Break short deterministic cycles aggressively before they become "burnout".
-        if (burnoutCooldownLeft <= 0 && (tinyLoop || stuckLocal)) {
+        if (!burnoutDisabled && burnoutCooldownLeft <= 0 && (tinyLoop || stuckLocal)) {
             // If peak clustering collapsed into one giant cluster, rebuild a more explorable set.
             ensureExplorablePeakData();
             var loopEscape = null;
@@ -11765,7 +11974,7 @@ function createDopamineMinerDriver(player, options) {
             }
         }
 
-        if (burnoutCooldownLeft <= 0 && isBurnedOut()) {
+        if (!burnoutDisabled && burnoutCooldownLeft <= 0 && isBurnedOut()) {
             var burnoutTarget = chooseBurnoutTarget(currentClusterId);
             if (burnoutTarget !== null && burnoutTarget !== currentIndex) {
                 burnoutCooldownLeft = settings.burnoutCooldownBeats || 0;
@@ -11802,7 +12011,7 @@ function createDopamineMinerDriver(player, options) {
             allowNonPeak: allowNonPeak,
             minSimilarity: minSimOverride
         });
-        if ((tinyLoop || stuckLocal || pingpong) && (jumpTarget === null || isRecentlyVisited(jumpTarget))) {
+        if (!burnoutDisabled && (tinyLoop || stuckLocal || pingpong) && (jumpTarget === null || isRecentlyVisited(jumpTarget))) {
             var escapeTarget = chooseGlobalExploreTarget();
             if (escapeTarget !== null && escapeTarget !== currentIndex) {
                 return escapeTarget;

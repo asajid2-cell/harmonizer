@@ -445,6 +445,10 @@ jgs   `-=========-`()
                                 <input type="checkbox" id="loop-playback-toggle">
                                 <span>Loop</span>
                             </label>
+                            <label class="audio-compare-toggle" for="disable-burnout-toggle" title="Disable burnout/stuck escape - let playback loop naturally without forced escapes">
+                                <input type="checkbox" id="disable-burnout-toggle">
+                                <span>No Burnout</span>
+                            </label>
                             <div class="voice-count-control neon-range" title="Number of simultaneous canon voices (2-8)">
                                 <label for="canon-voice-count">Voices:</label>
                                 <div class="neon-range__track">
@@ -544,6 +548,19 @@ jgs   `-=========-`()
                                     </div>
                                 </div>
                             </div>
+                        <!-- Queue Panel -->
+                        <div id="queue-container" class="queue-panel" style="display: none;">
+                            <div class="queue-header">
+                                <span class="queue-title">Queue</span>
+                                <div class="queue-controls">
+                                    <button type="button" id="queue-prev-btn" class="queue-nav-btn" title="Previous">&laquo;</button>
+                                    <button type="button" id="queue-play-btn" class="queue-nav-btn" title="Play Selected">&#9654;</button>
+                                    <button type="button" id="queue-next-btn" class="queue-nav-btn" title="Next">&raquo;</button>
+                                    <button type="button" id="queue-clear-btn" class="queue-nav-btn" title="Clear Queue">&times;</button>
+                                </div>
+                            </div>
+                            <div id="queue-list" class="queue-list"></div>
+                        </div>
                         </div>
                 </section>
 
@@ -738,6 +755,7 @@ jgs   `-=========-`()
 		                <button type="button" class="viz-button ghost small" id="cached-songs-upload-btn">Upload Songs</button>
 	                <button type="button" class="viz-button ghost small" id="cached-songs-next-btn">Next Song</button>
 	                <button type="button" class="viz-button ghost small" id="cached-songs-queue-btn">View Queue</button>
+	                <button type="button" class="viz-button ghost small" id="cached-songs-clear-queue-btn">Clear Queue</button>
 	                <button type="button" class="viz-button ghost small" id="cached-songs-albums-btn">Albums</button>
 		                <button type="button" class="viz-button ghost" id="cached-songs-modal-close-btn">Close</button>
 		            </div>
@@ -3913,6 +3931,21 @@ jgs   `-=========-`()
             const enabled = !!event.target.checked;
             window.harmonizerBaseAudioOnly = enabled;
             console.log('[BaseAudioOnly] Toggle changed to:', enabled);
+        });
+    })();
+
+    // Disable burnout toggle (disable stuck/burnout escape mechanisms)
+    (function() {
+        const burnoutToggle = document.getElementById('disable-burnout-toggle');
+        if (!burnoutToggle) return;
+
+        // Initialize global flag (false = burnout enabled by default)
+        window.harmonizerDisableBurnout = !!burnoutToggle.checked;
+
+        burnoutToggle.addEventListener('change', function(event) {
+            const disabled = !!event.target.checked;
+            window.harmonizerDisableBurnout = disabled;
+            console.log('[DisableBurnout] Toggle changed to:', disabled);
         });
     })();
 

@@ -693,7 +693,9 @@ function createJRemixer(context, jquery) {
                 // without getting out of sync
 
 	                // Play main voice
-	                if (curQ == null || curQ.next != q) {
+	                // Also check if track changed (different buffer) to ensure main voice starts on new track
+	                var trackChanged = curQ != null && curQ.track && q.track && curQ.track.buffer !== q.track.buffer;
+	                if (curQ == null || curQ.next != q || trackChanged) {
 	                    if (curAudioSource) {
 	                        curAudioSource.stop();
 	                    }
