@@ -10,7 +10,7 @@
             var enabled = false;
             try {
                 var key = 'harmonizer:experimental';
-                var raw = localStorage.getItem(key);
+                var raw = sessionStorage.getItem(key);
                 enabled = raw === '1' || raw === 'true';
             } catch (e) {}
             var root = document.documentElement;
@@ -374,9 +374,6 @@ jgs   `-=========-`()
                         </button>
                         <button type="button" class="cta" id="youtube-to-mp3-btn" aria-label="YouTube to MP3 converter">
                             YouTube to MP3
-                        </button>
-                        <button type="button" class="cta" id="experimental-mode-btn" aria-label="Toggle experimental mode">
-                            Enter Experimental Mode
                         </button>
                     </div>
                 </form>
@@ -820,7 +817,6 @@ jgs   `-=========-`()
         const config = window.HARMONIZER_CONFIG || {};
         const EXPERIMENTAL_STORAGE_KEY = 'harmonizer:experimental';
         const root = document.documentElement;
-        const experimentalButton = document.getElementById('experimental-mode-btn');
         let glitchTimer = null;
         let glitchBurstTimer = null;
 
@@ -854,7 +850,7 @@ jgs   `-=========-`()
 
         function getExperimentalEnabled() {
             try {
-                const raw = localStorage.getItem(EXPERIMENTAL_STORAGE_KEY);
+                const raw = sessionStorage.getItem(EXPERIMENTAL_STORAGE_KEY);
                 return raw === '1' || raw === 'true';
             } catch (e) {
                 return false;
@@ -863,7 +859,7 @@ jgs   `-=========-`()
         function setExperimentalEnabled(enabled, { animate = false } = {}) {
             const on = !!enabled;
             try {
-                localStorage.setItem(EXPERIMENTAL_STORAGE_KEY, on ? '1' : '0');
+                sessionStorage.setItem(EXPERIMENTAL_STORAGE_KEY, on ? '1' : '0');
             } catch (e) {}
 
             root.classList.toggle('experimental-enabled', on);
@@ -877,10 +873,6 @@ jgs   `-=========-`()
             if (animate && on) {
                 body.classList.add('experimental-corrupting');
                 window.setTimeout(() => body.classList.remove('experimental-corrupting'), 720);
-            }
-
-            if (experimentalButton) {
-                experimentalButton.textContent = on ? 'Exit Experimental Mode' : 'Enter Experimental Mode';
             }
 
             if (on) {
@@ -942,12 +934,30 @@ jgs   `-=========-`()
 
         setExperimentalEnabled(getExperimentalEnabled(), { animate: false });
 
-        if (experimentalButton) {
-            experimentalButton.addEventListener('click', () => {
-                const next = !getExperimentalEnabled();
-                setExperimentalEnabled(next, { animate: next });
+        // Double-click corner-cluster to toggle experimental mode
+        (function setupCornerClusterExperimentalTrigger() {
+            const cornerCluster = document.querySelector('.corner-cluster');
+            if (!cornerCluster) return;
+
+            let lastClickTime = 0;
+            const DOUBLE_CLICK_THRESHOLD = 400; // ms
+
+            cornerCluster.addEventListener('click', function(e) {
+                const now = Date.now();
+                if (now - lastClickTime < DOUBLE_CLICK_THRESHOLD) {
+                    // Double-click detected
+                    const next = !getExperimentalEnabled();
+                    setExperimentalEnabled(next, { animate: next });
+                    lastClickTime = 0; // Reset to prevent triple-click
+                } else {
+                    lastClickTime = now;
+                }
             });
-        }
+
+            // Add cursor hint
+            cornerCluster.style.cursor = 'pointer';
+        })();
+
         const rlLoggingEnabled = Boolean(config.rlLoggingEnabled);
         const rlJumpEndpoint = buildApiUrl('/api/rl/jump-event');
         const rlModelEndpoint = buildApiUrl('/api/rl/model');
