@@ -510,8 +510,10 @@ function loadPersistedTrackQueue() {
             currentQueueIndex = -1;
             selectedQueueIndex = trackQueue.length ? 0 : -1;
         }
-        // Enable autoplay for restored queue
-        if (trackQueue.length > 0) {
+        // Only enable autoplay if we're in visualizer mode (have trid in URL)
+        // Don't auto-play on home/upload page
+        var hasTrid = new URLSearchParams(window.location.search).has('trid');
+        if (trackQueue.length > 0 && hasTrid) {
             autoPlayNext = true;
         }
         updateQueueUI();
@@ -4872,13 +4874,9 @@ function init() {
 	                updateQueueUI();
 	            }
 	            fetchAnalysis(initialTrid);
-        } else if (trackQueue.length > 0) {
-            // Auto-start from queue on refresh if no URL track specified
-            // Use the restored queue index if valid, otherwise start from beginning
-            var startIndex = (currentQueueIndex >= 0 && currentQueueIndex < trackQueue.length) ? currentQueueIndex : 0;
-            console.log('[Init] No URL track, but queue has', trackQueue.length, 'tracks. Auto-starting at index', startIndex);
-            playQueueIndex(startIndex);
         } else {
+            // No trid means we're on the home/upload page - don't auto-play
+            // Queue auto-play should only happen when a track ends in the visualizer
             info("Load a track to begin.");
         }
     }
@@ -5350,8 +5348,11 @@ function loadPlaylistQueue() {
                 selectedQueueIndex = 0;
             }
 
-            // Enable auto-play for playlists
-            autoPlayNext = true;
+            // Only enable auto-play if we're in visualizer mode (have trid in URL)
+            var hasTrid = new URLSearchParams(window.location.search).has('trid');
+            if (hasTrid) {
+                autoPlayNext = true;
+            }
             updateQueueUI();
             persistTrackQueue();
 

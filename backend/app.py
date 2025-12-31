@@ -2224,6 +2224,31 @@ def projects_page():
     abort(404)
 
 
+# ===== VENPOD Routes =====
+VENPOD_DIR = FRONTEND_DIR / "venpod"
+
+
+@app.route("/venpod/")
+@app.route("/venpod/<path:filename>")
+def venpod_files(filename: str = "venpod.js"):
+    """Serve VENPOD WebGPU files."""
+    if not VENPOD_DIR.exists():
+        abort(404, "VENPOD directory not found")
+
+    target = VENPOD_DIR / filename
+    if not target.exists():
+        abort(404, f"File not found: {filename}")
+
+    # Set appropriate MIME types for WASM
+    mimetype = None
+    if filename.endswith('.wasm'):
+        mimetype = 'application/wasm'
+    elif filename.endswith('.js'):
+        mimetype = 'application/javascript'
+
+    return send_from_directory(VENPOD_DIR, filename, mimetype=mimetype)
+
+
 # ===== CodeSniff Routes =====
 CODESNIFF_APP_DIR = FRONTEND_DIR / "codesniff-app"
 CODESNIFF_BACKEND_URL = os.environ.get("CODESNIFF_BACKEND_URL", "http://localhost:8000")
