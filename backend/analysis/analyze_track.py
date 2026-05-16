@@ -1302,7 +1302,7 @@ def generate_loop_candidates(
     """
     n_beats = len(beats)
     if thresholds is None:
-        thresholds = [0.76, 0.65, 0.55]  # Multi-tier: tight → medium → loose
+        thresholds = [0.72, 0.60, 0.48]  # Multi-tier: tight, medium, exploratory
     if max_span is None:
         max_span = n_beats // 2  # Don't allow jumps larger than half the song
 
@@ -1340,7 +1340,7 @@ def generate_loop_candidates(
             return tempos[idx]
         return 120.0
 
-    max_backward_span = max(12, int(n_beats * 0.1))
+    max_backward_span = max(24, int(n_beats * 0.18))
     span_band = max(min_span, 8)
     for source_idx in range(n_beats):
         candidates = []
@@ -1395,9 +1395,7 @@ def generate_loop_candidates(
             tempo_tgt = tempo_for(target_idx)
             tempo_ratio = abs(tempo_src - tempo_tgt) / max(tempo_src, tempo_tgt)
 
-            # Backward clamp
-            if direction == "backward" and abs_span > max_backward_span:
-                continue
+            backward_long = direction == "backward" and abs_span > max_backward_span
 
             # Composite score
             score = similarity * 0.3 + chroma_sim * 0.3
@@ -1424,6 +1422,8 @@ def generate_loop_candidates(
             # backward penalty
             if direction == "backward":
                 score -= min(0.2, abs_span / (max_backward_span or n_beats))
+                if backward_long:
+                    score -= 0.16
 
             candidates.append({
                 "target": target_idx,
@@ -1441,7 +1441,7 @@ def generate_loop_candidates(
                 "target_energy": float(tgt_energy),
             })
 
-        phase_gate_threshold = max(max_candidates_per_beat, 12)
+        phase_gate_threshold = max(max_candidates_per_beat * 2, 24)
         phase_match_count = sum(1 for cand in candidates if cand.get("phase_match") is True)
         if phase_match_count >= phase_gate_threshold:
             candidates = [cand for cand in candidates if cand.get("phase_match") is True]
@@ -1589,8 +1589,8 @@ def build_profile(
         sections=sections,
         min_span=6,
         max_span=None,  # Auto-computed as n_beats // 2
-        thresholds=[0.76, 0.65, 0.55],  # Tight + medium + loose
-        max_candidates_per_beat=20,
+        thresholds=[0.72, 0.60, 0.48],  # Tight, medium, exploratory
+        max_candidates_per_beat=48,
         energies=beat_energies,
         chroma=beat_chroma,
         tempos=beat_tempos,
