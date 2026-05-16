@@ -1,15 +1,29 @@
 # Security Policy
 
-## Supported Versions
+## Supported Branch
 
-This public branch is the only supported source snapshot. Older branches may contain private development history and are not maintained as public release branches.
+Use `main` for the public source snapshot. Older branches are development history and are not maintained as public release branches.
 
-## Reporting
+## Report A Vulnerability
 
-Open a private security advisory on GitHub if available, or contact the repository owner directly. Do not publish working exploits, secrets, or private user data in an issue.
+Use a private GitHub security advisory if available, or contact the repository owner directly. Do not publish working exploits, credentials, private data, or reproduction material that exposes another system.
 
-## Secrets And Runtime Data
+## Secrets
 
-The app expects secrets in `.env`, which is ignored. Runtime databases, uploads, generated analysis data, cookies, model checkpoints, and local SDK installs should not be committed.
+Secrets belong in a local `.env` file. The example file contains placeholders only.
 
-If a real credential has ever been committed, rotate it. Removing it from the current tree is not enough.
+If a real credential is ever committed, rotate it immediately. Deleting it from the current tree is not enough because Git history can still expose it.
+
+## Runtime Data
+
+Do not commit:
+
+- uploads or downloaded media;
+- local SQLite databases;
+- generated analysis data;
+- browser cookies;
+- model checkpoints;
+- local SDK installs;
+- generated Playwright artifacts.
+
+The public tree is designed so these paths are ignored by default.

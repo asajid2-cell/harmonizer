@@ -1,19 +1,20 @@
 # Contributing
 
-This repo is primarily a public snapshot of an experimental creative lab. Contributions are welcome when they are scoped and easy to review.
+Harmonizer is a public research and demo workspace. Contributions should be scoped, reproducible, and clear about which tool they affect.
 
-## Setup
+## Set Up
 
 1. Copy `.env.example` to `.env`.
 2. Set `SECRET_KEY`.
-3. Run `docker compose up --build` or follow `docs/tutorials/getting-started.md`.
+3. Follow [Getting started](docs/tutorials/getting-started.md).
 
-## Before Opening A Pull Request
+## Before A Pull Request
 
 Run the checks that match the area you changed:
 
 ```bash
 python -m compileall backend
+node --check frontend/js/eldrichify.js
 docker compose config
 ```
 
@@ -24,22 +25,33 @@ cd codesniff/backend
 python -m pytest
 ```
 
+## Documentation
+
+Use the Diataxis layout:
+
+- tutorials for first-time learning paths;
+- how-to guides for task recipes;
+- reference pages for settings, paths, and endpoints;
+- explanation pages for design context.
+
+Avoid private planning notes, generated audit logs, and one-off implementation diaries in public docs.
+
 ## Do Not Commit
 
-- `.env` files
-- database files
-- uploads or downloaded media
-- browser cookies
-- model checkpoints
-- `node_modules/`
-- build outputs
-- Playwright screenshots or traces unless they are curated docs assets
+- `.env` files or secrets;
+- database files;
+- uploaded or downloaded media;
+- browser cookies;
+- model checkpoints;
+- dependency folders;
+- build outputs;
+- raw Playwright screenshots, traces, or reports.
 
 ## Pull Request Notes
 
 Include:
 
 - what changed;
-- how you tested it;
+- how it was tested;
 - any new environment variables;
-- any migration or cleanup needed for runtime data.
+- any local data migration or cleanup needed.

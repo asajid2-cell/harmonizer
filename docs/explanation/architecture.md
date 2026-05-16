@@ -1,38 +1,48 @@
 # Architecture
 
-Harmonizer is a monorepo for related creative tools served through one Flask application.
+Harmonizer is a monorepo for related creative tools rather than a single-purpose application. The shared shape keeps experiments easy to run together, at the cost of looser boundaries between prototypes.
 
 ## Runtime Shape
 
 ```text
 browser
   -> Flask app in backend/app.py
-  -> static pages and JavaScript in frontend/
+  -> static HTML, CSS, and JavaScript in frontend/
   -> optional CodeSniff FastAPI service
-  -> ignored runtime data folders
+  -> ignored local runtime folders
 ```
 
-The Flask app serves the retro front end, proxies CodeSniff API calls, handles media upload/download workflows, and exposes experimental endpoints for image generation, RL labeling, and OurSpace profiles.
+The Flask app serves the retro front end, handles media workflows, exposes OurSpace and RL endpoints, and proxies CodeSniff when that service is running.
 
 ## Main Components
 
-- `backend/`: Flask app, audio/image pipelines, OurSpace database helpers, and route definitions.
-- `frontend/`: static HTML/CSS/JavaScript applications.
-- `codesniff/`: separate semantic code search application with FastAPI backend and React frontend source.
-- `backend/eldrichify.py`: upload-based image transformation pipeline. Large local model artifacts are not tracked.
-- `rl_models/`: small checked-in RL model metadata/artifacts used by the audio experiments.
-- `venpod/`: early voxel/WebGPU prototype kept for context, not the current VENPOD engine.
-- `playwright-code/`: local Playwright test helper code. Generated dependencies and screenshots are ignored.
+| Component | Role |
+| --- | --- |
+| `backend/` | Flask routes, media processing, image pipeline source, OurSpace database helpers, and RL endpoints. |
+| `frontend/` | Static pages and browser-side applications. |
+| `codesniff/` | Semantic code search app with its own backend and front-end source. |
+| `backend/rl/` and `rl_models/` | RL-assisted jump policy experiments and small checked-in model metadata. |
+| `playwright-code/` | Local Playwright helper project. Dependencies and generated screenshots are ignored. |
+| `venpod/` | Archived early WebGPU/WASM voxel prototype. |
 
-## Design Tradeoffs
+## Why The Repo Is Structured This Way
 
-The repo favors fast experimentation over strict package boundaries. That makes it easy to share UI, media assets, and deployment wiring, but it also means public readers need clear documentation about which parts are stable and which parts are prototypes.
+The project started as a set of adjacent experiments: audio analysis, browser visuals, small social-profile surfaces, image processing, and code search. Keeping them in one repository makes local demos and shared deployment simple. It also makes it clear which ideas belong to the same creative lab.
 
-Runtime state is intentionally outside Git. Databases, uploads, model checkpoints, browser cookies, generated analysis data, and test screenshots should be recreated locally or supplied through deployment-specific storage.
+The tradeoff is that the repo is not organized like a reusable package. Shared server code and static pages are practical for experimentation, but they require careful documentation and strict ignore rules for public release.
 
-## Non-Goals
+## Data Boundary
 
-- This is not a reusable Python package.
-- This is not a hardened multi-tenant SaaS starter.
-- The checked-in VENPOD folder is not the current VENPOD engine.
-- The repo does not vendor heavyweight model weights or local SDK installs.
+Source code and curated demo assets are tracked. Runtime data is not.
+
+Ignored runtime data includes uploads, generated analysis files, local SQLite databases, browser cookies, model checkpoints, Playwright screenshots, CodeSniff indexes, and local SDK installs.
+
+## Prototype Boundary
+
+Some directories are kept for context, not as active product surfaces:
+
+- `venpod/` is the early voxel prototype, not the current VENPOD engine.
+- RL tooling is a local research loop, not a production recommendation service.
+- Eldrichify depends on model checkpoints supplied outside the repository.
+
+These boundaries are intentional. They let the public tree show useful work without pretending every experiment is a finished platform.

@@ -1,32 +1,42 @@
 # Getting Started
 
-This guide gets a clean clone running locally with the Flask front end and optional Docker stack.
+This tutorial takes a fresh clone to a running Harmonizer site. It uses the main Flask app because that is the shortest path to seeing the project.
 
-## Prerequisites
+## 1. Install Prerequisites
+
+Install:
 
 - Python 3.11
-- Docker and Docker Compose
 - `ffmpeg`
-- Node.js 20 or newer if you plan to work on CodeSniff frontend code
+- Docker and Docker Compose, if you want the containerized stack
 
-## Configure
+Node.js is only needed when you work on CodeSniff front-end code.
+
+## 2. Create Local Configuration
+
+From the repository root:
 
 ```bash
 cp .env.example .env
 ```
 
-Set `SECRET_KEY` in `.env`. Leave optional API keys blank unless you need that feature.
+Open `.env` and set:
 
-## Run With Docker
-
-```bash
-docker compose build
-docker compose up
+```text
+SECRET_KEY=<any-long-local-secret>
 ```
 
-Open `http://localhost:5000`.
+Leave the other values blank for this tutorial. Blank optional values disable or limit the features that need credentials.
 
-## Run Flask Locally
+## 3. Start The Main App
+
+With Docker:
+
+```bash
+docker compose up --build
+```
+
+Without Docker:
 
 ```bash
 python -m venv .venv
@@ -35,15 +45,37 @@ pip install -r requirements.txt
 python backend/app.py
 ```
 
-Open `http://localhost:5000`.
+On Windows PowerShell:
 
-## Expected Result
+```powershell
+.venv\Scripts\Activate.ps1
+```
 
-The Internet Discotheque launcher loads. From there, open Harmonizer, OurSpace, Eldrichify, CodeSniff, or the notebook pages.
+## 4. Open The Site
 
-## Validate
+Open:
+
+```text
+http://localhost:5000
+```
+
+You should see the Internet Discotheque launcher. Open Harmonizer from the launcher, then try the included demo audio or upload a local audio file.
+
+## 5. Check The Clone
+
+Run:
 
 ```bash
 python -m compileall backend
+node --check frontend/js/eldrichify.js
+```
+
+If Docker is installed, also run:
+
+```bash
 docker compose config
 ```
+
+## 6. Know Where Data Goes
+
+Runtime data is written to ignored folders such as `backend/uploads/`, `backend/data/`, and `backend/ourspace_data/`. Those folders are local working data, not source files.

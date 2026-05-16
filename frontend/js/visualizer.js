@@ -6545,9 +6545,9 @@ $(document).ready(function() {
         $("#queue-container").toggleClass("minimized");
         var minimizeBtn = $("#queue-minimize-btn");
         if ($("#queue-container").hasClass("minimized")) {
-            minimizeBtn.html("Ã¢â€“Â¡");
+            minimizeBtn.html("+");
         } else {
-            minimizeBtn.html("Ã¢Ë†â€™");
+            minimizeBtn.html("-");
         }
     });
 
@@ -6567,7 +6567,7 @@ $(document).ready(function() {
         $("#queue-container").hide();
         // Remove minimized class when closing
         $("#queue-container").removeClass("minimized");
-        $("#queue-minimize-btn").html("Ã¢Ë†â€™");
+        $("#queue-minimize-btn").html("-");
     });
 
 	    // Make queue window draggable
@@ -7608,7 +7608,7 @@ function createAutoharmonizerTiles(qlist) {
     var track1Beats = autoharmonizerData.track1 && autoharmonizerData.track1.beats ? autoharmonizerData.track1.beats : [];
     var track2Beats = autoharmonizerData.track2 && autoharmonizerData.track2.beats ? autoharmonizerData.track2.beats : [];
     if (!track1Beats.length || !track2Beats.length) {
-        console.warn("[Viz] Autoharmonizer beats missing Ã¢â‚¬â€œ reverting to circular view", {
+        console.warn("[Viz] Autoharmonizer beats missing; reverting to circular view", {
             track1Beats: track1Beats.length,
             track2Beats: track2Beats.length
         });
@@ -8948,7 +8948,7 @@ function createCanonDriver(player) {
                     var si = align.start_index;
                     var duration = trackDuration || (masterQs && masterQs.length ? masterQs[masterQs.length - 1].start + masterQs[masterQs.length - 1].duration : 0);
                     var beats = masterQs || [];
-                    // clamp recommended start if itÃŽâ€œÃƒâ€¡Ãƒâ€“s too deep into the song
+                    // Clamp recommended start if it is too deep into the song.
                     var maxStartTime = Math.min(45, duration * 0.25);
                     if (typeof si === "number" && si >= 0 && si < beats.length) {
                         var siTime = beats[si].start || 0;
@@ -9457,7 +9457,7 @@ function createJukeboxDriver(player, options) {
         }
         sectionBias = num;
         recalcLoopWeightParams();
-        console.log('[updateSectionBias]', num, 'Ã¢â€ â€™ sameSectionBonus:', sameSectionBonusBase.toFixed(3), 'crossSectionBonus:', crossSectionBonusBase.toFixed(3));
+        console.log('[updateSectionBias]', num, '-> sameSectionBonus:', sameSectionBonusBase.toFixed(3), 'crossSectionBonus:', crossSectionBonusBase.toFixed(3));
         if (!opts || opts.skipReschedule !== true) {
             scheduleNextJump(true);
         }
@@ -9475,7 +9475,7 @@ function createJukeboxDriver(player, options) {
         }
         jumpVariance = num;
         recalcLoopWeightParams();
-        console.log('[updateJumpVariance]', num, 'Ã¢â€ â€™ weightJitter:', weightJitterStrength.toFixed(3), 'spanScale:', spanScaleBase.toFixed(3));
+        console.log('[updateJumpVariance]', num, '-> weightJitter:', weightJitterStrength.toFixed(3), 'spanScale:', spanScaleBase.toFixed(3));
         if (!opts || opts.skipReschedule !== true) {
             scheduleNextJump(true);
         }
@@ -10061,7 +10061,7 @@ function createJukeboxDriver(player, options) {
 
         retreatPoint = bestRetreat;
         if (retreatPoint) {
-            console.log('[findRetreatPoint] Found retreat anchor:', retreatPoint.source, 'Ã¢â€ â€™', retreatPoint.target,
+            console.log('[findRetreatPoint] Found retreat anchor:', retreatPoint.source, '->', retreatPoint.target,
                         'similarity:', retreatPoint.similarity.toFixed(3), '| This prevents end-zone loops');
         } else {
             console.log('[findRetreatPoint] No suitable retreat point found - may loop at end');
@@ -10538,7 +10538,7 @@ function createJukeboxDriver(player, options) {
         if (inEndZone && retreatPoint && currentIndex >= retreatPoint.source - 4) {
             // Force a retreat when we're very close to or past the retreat source point
             if (currentIndex >= retreatPoint.source || beatsUntilJump <= 2) {
-                console.log('[advanceIndex] Using retreat point:', currentIndex, 'Ã¢â€ â€™', retreatPoint.target);
+                console.log('[advanceIndex] Using retreat point:', currentIndex, '->', retreatPoint.target);
                 var retreatSourceIndex = currentIndex;
                 var sourceBeat = masterQs[retreatSourceIndex];
                 var proposedTarget = retreatPoint.target;

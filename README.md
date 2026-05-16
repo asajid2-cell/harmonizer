@@ -1,40 +1,29 @@
 # Harmonizer
 
-Harmonizer is a public snapshot of a creative web lab for audio experiments, generative image tools, social-profile prototypes, and semantic code search. The repo is a monorepo because the pieces share one Flask/Docker deployment and a retro browser front end.
+Harmonizer is a creative browser lab for music analysis, visual playback, profile experiments, image processing, and semantic code search. It is built as a monorepo because the tools share a Flask server, static front-end shell, deployment wiring, and a small set of local runtime conventions.
 
-The code is useful as a working demo and research playground. It is not packaged as a production SaaS template, and several features require local credentials or model downloads before they are useful.
+The project is best read as a public research and demo workspace. Some features are stable enough to use locally, while others are preserved as prototypes so the design and implementation history remain understandable.
 
-## What Is Included
+## Included Tools
 
-| area | status | proof or entry point | notes |
+| Tool | Status | Entry point | Notes |
 | --- | --- | --- | --- |
-| Internet Discotheque shell | active | `frontend/index.html` | Retro desktop-style launcher for the public pages. |
-| Harmonizer audio visualizer | active | `frontend/harmonizer.html`, `frontend/js/visualizer.js` | Upload and analyze tracks, then explore beat jumps, queues, loops, and visual modes. |
-| Eldrichify image transform | experimental | `frontend/eldrichify.html`, `backend/eldrichify.py` | Requires local model checkpoints supplied outside Git. Large model artifacts are intentionally not tracked. |
-| OurSpace | experimental | `frontend/ourspace.html`, `backend/ourspace_db.py` | Local social-profile builder with auth and media uploads. Runtime databases and uploads are ignored. |
-| CodeSniff | active prototype | `codesniff/` | Semantic code search backed by CodeBERT and FAISS. |
-| RL jump labeler | research tool | `docs/RL_LOGGING.md`, `rl_models/` | Logs and labels audio jump events for policy experiments. Runtime data is ignored. |
-| VENPOD prototype | archived prototype | `venpod/` | Early WebGPU/WASM voxel prototype kept for provenance. The Emscripten SDK is not vendored. |
+| Internet Discotheque | active shell | `frontend/index.html` | Retro desktop launcher for the public pages. |
+| Harmonizer | active prototype | `frontend/harmonizer.html` | Upload audio, inspect analysis data, and explore beat jumps, loops, queues, and visual modes. |
+| Eldrichify | experimental | `frontend/eldrichify.html`, `backend/eldrichify.py` | Upload-based image transformation. Large local model checkpoints are not committed. |
+| OurSpace | experimental | `frontend/ourspace.html` | Local profile builder with account, media, and customization flows. Runtime data stays outside Git. |
+| CodeSniff | active prototype | `codesniff/` | Semantic code search with a FastAPI backend and React front end. |
+| RL jump labeling | research tool | `backend/rl/`, `rl_models/` | Local feedback loop for rating and training jump-selection policies. |
+| VENPOD prototype | archived prototype | `venpod/` | Early voxel/WebGPU experiment. The Emscripten SDK is intentionally not vendored. |
 
-## Repository Status
-
-This branch is prepared for public source review:
-
-- generated dependency folders and build outputs are not tracked;
-- local databases, uploads, cookies, and model checkpoints are ignored;
-- public setup uses placeholders in `.env.example`;
-- large audio demo assets under `frontend/assets/audio/` are intentionally kept.
-
-Git history may still contain older runtime files from before this cleanup. If you need a clean public import with no historical databases or uploads, rewrite history or export this tree into a fresh repository.
-
-## Quickstart
+## Quick Start
 
 Prerequisites:
 
 - Python 3.11
-- Node.js 20 or newer for CodeSniff frontend work
 - Docker and Docker Compose for the full stack
-- `ffmpeg` for audio analysis and download workflows
+- `ffmpeg` for audio workflows
+- Node.js 20 or newer for CodeSniff front-end work
 
 Create local configuration:
 
@@ -42,23 +31,12 @@ Create local configuration:
 cp .env.example .env
 ```
 
-At minimum, set `SECRET_KEY` in `.env`. Optional features use the other keys:
+Set `SECRET_KEY` in `.env`. Leave optional keys blank until you need the related feature.
 
-| variable | required for |
-| --- | --- |
-| `SECRET_KEY` | Flask sessions |
-| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | Spotify/spotdl workflows |
-| `YOUTUBE_API_KEY` | optional YouTube metadata |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth download flow |
-| `GEMINI_API_KEY` | Talk to Disco-teque via Gemini |
-| `GROQ_API_KEY` | Talk to Disco-teque via Groq |
-| `CHEATSHEET_PASSWORD` | enables cheatsheet uploads; blank disables uploads |
-
-Run the full stack with Docker:
+Run the main app with Docker:
 
 ```bash
-docker compose build
-docker compose up
+docker compose up --build
 ```
 
 Open:
@@ -67,71 +45,66 @@ Open:
 http://localhost:5000
 ```
 
-Run the Flask app locally without Docker:
+Run the Flask app without Docker:
 
 ```bash
 python -m venv .venv
-. .venv/Scripts/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
+. .venv/Scripts/activate
 pip install -r requirements.txt
 python backend/app.py
 ```
 
-CodeSniff runs as a separate FastAPI service during local development:
+On Windows PowerShell, use:
 
-```bash
-cd codesniff/backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+```powershell
+.venv\Scripts\Activate.ps1
 ```
 
-## Validation
+## Documentation
 
-Use these checks after a clean clone:
+The docs follow the Diataxis structure:
 
-```bash
-python -m compileall backend
-docker compose config
-```
+- [Tutorial: Getting started](docs/tutorials/getting-started.md)
+- [How-to: Common tasks](docs/how-to/common-tasks.md)
+- [How-to: Configure OurSpace auth](docs/how-to/configure-ourspace-auth.md)
+- [How-to: Validate RL labeling](docs/how-to/validate-rl-labeling.md)
+- [How-to: Record a demo](docs/how-to/record-a-demo.md)
+- [Reference: Configuration](docs/reference/configuration.md)
+- [Reference: RL logging](docs/reference/rl-logging.md)
+- [Explanation: Architecture](docs/explanation/architecture.md)
 
-For CodeSniff:
+## Repository Hygiene
 
-```bash
-cd codesniff/backend
-python -m pytest
-```
-
-If a command needs credentials, run it with a local `.env` and do not commit generated runtime files.
-
-## Data And Generated Files
-
-The repo ignores runtime data by default:
+Generated files and local data are ignored by default:
 
 - `backend/uploads/`
 - `backend/data/`
 - `backend/ourspace_data/`
 - `codesniff/backend/storage/`
 - `playwright-code/artifacts/`
-- model checkpoints and local fine-tune artifacts
-- local Emscripten SDK installs under `venpod/emsdk/`
+- local model checkpoints
+- local SDK installs such as `venpod/emsdk/`
 
 The checked-in audio files under `frontend/assets/audio/` are part of the demo experience and are kept intentionally.
 
-## Documentation
+For public releases, publish from the clean `main` branch. Do not publish old branches that contain runtime data, vendored dependencies, generated model artifacts, or private planning notes.
 
-- [Getting started](docs/tutorials/getting-started.md)
-- [Common tasks](docs/how-to/common-tasks.md)
-- [Configuration reference](docs/reference/configuration.md)
-- [Architecture overview](docs/explanation/architecture.md)
-- [Demo script](docs/demo/demo-script.md)
-- [OurSpace authentication guide](OURSPACE_AUTH_GUIDE.md)
-- [RL logging](docs/RL_LOGGING.md)
+## Validation
 
-## Limitations
+Run these checks after a clean clone:
 
-- Several features are prototypes sharing one Flask app, so the code is not as modular as a single-purpose package.
-- Image generation and chat features depend on external APIs or local model setup.
-- VENPOD is kept as historical prototype code; use the separate VENPOD/voxelrender repo for current development.
-- Public release hygiene applies to the current tree. Older Git history may need rewriting before a formal public relaunch.
+```bash
+python -m compileall backend
+docker compose config
+node --check frontend/js/eldrichify.js
+```
+
+For CodeSniff backend work:
+
+```bash
+cd codesniff/backend
+python -m pytest
+```
 
 ## License
 
