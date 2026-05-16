@@ -1,0 +1,62 @@
+services:
+  harmonizer:
+    container_name: harmonizer
+    build: .
+    image: harmonizer:prod
+    env_file:
+      - .env
+    environment:
+      - CODESNIFF_BACKEND_URL=http://codesniff:8000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./uploads:/app/backend/uploads
+      - ./data:/app/backend/data
+      - ./backend/ourspace_data:/app/backend/ourspace_data
+    restart: unless-stopped
+    depends_on:
+      - codesniff
+    # Resource limits for 2GB RAM VPS
+    deploy:
+      resources:
+        limits:
+          memory: 999M
+          cpus: '0.7' 
+        reservations:
+          memory: 128M
+          cpus: '0.15'
+
+  codesniff:
+    container_name: codesniff
+    build: ./codesniff/backend
+    image: codesniff:prod
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - codesniff_storage:/app/storage
+    environment:
+      - CODESCOPE_STORAGE_DIR=/app/storage
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1200M  # CodeBERT needs ~800MB to load
+          cpus: '0.5'
+        reservations:
+          memory: 768M
+          cpus: '0.25'
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    command: --cleanup --rolling-restart harmonizer
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DOCKER_API_VERSION=1.46
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+volumes:
+  codesniff_storage:

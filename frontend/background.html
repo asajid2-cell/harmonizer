@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ethereal Audio Visualizer</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            z-index: 10;
+        }
+
+        h1 {
+            font-weight: 300;
+            letter-spacing: 5px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            line-height: 1.6;
+        }
+
+        .highlight {
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        #file-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>Sonic Nebulae</h1>
+        <p>Click anywhere to use <strong>Microphone</strong></p>
+        <p>or</p>
+        <p>Drag & Drop an <strong>Audio File</strong> here</p>
+    </div>
+
+    <input type="file" id="file-input" accept="audio/*">
+    <canvas id="canvas"></canvas>
+
+<script>
+/**
+ * COMPLEX AUDIO VISUALIZER
+ * ------------------------
+ * Concept: A radial spectrum analyzer overlaid with a particle system
+ * that mimics warp speed, reacting to bass (kick) and treble (snares/hi-hats).
+ */
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const fileInput = document.getElementById('file-input');
+
+let width, height, centerX, centerY;
+let audioCtx, analyser, source;
+let dataArray;
+let isRunning = false;
+let audioEl; // Element for file playback
+let externalMode = false;
+let externalFrequencyBuffer = null;
+let externalMeta = { currentTime: 0, paused: true, trackId: null, mode: null, canonVoices: null };
+let externalFramesReceived = 0;
+let lastExternalFrameAt = 0;
+let externalChannel = null;
+let externalDirectAnalyser = null;
+let vizClassesReady = false;
+let pendingVizStart = false;
+
+function requestVizStart() {
+    pendingVizStart = true;
+    maybeStartViz();
+}
+
+function maybeStartViz() {
+    if (isRunning) return;
+    if (!pendingVizStart) return;
+    if (!vizClassesReady) return;
+    isRunning = true;
+    initParticles();
+    animate();
+}
+
+function handleExternalInit() {
+    externalMode = true;
+    overlay.style.opacity = 1;
+    overlay.style.display = '';
+    overlay.innerHTML = `
+        <h1>Sonic Nebulae</h1>
+        <p><span class="highlight">Connected</span> to Harmonizer</p>
+        <p>Press play / change modes on the main page.</p>
+    `;
+    try {
+        if (window.opener && typeof window.opener.postMessage === 'function') {
+            window.opener.postMessage({ type: 'HARMONIZER_VIZ_READY' }, '*');
+        }
+    } catch (e) {}
+    requestVizStart();
+}
+
+function handleExternalFrame(msg) {
+    externalMode = true;
+    externalFramesReceived += 1;
+    lastExternalFrameAt = performance.now ? performance.now() : Date.now();
+
+    if (Array.isArray(msg?.freq)) {
+        try {
+            dataArray = new Uint8Array(msg.freq);
+        } catch (e) {}
+        externalFrequencyBuffer = null;
+    } else if (msg?.freq instanceof ArrayBuffer) {
+        externalFrequencyBuffer = msg.freq;
+    } else if (msg?.freq && msg.freq.buffer instanceof ArrayBuffer) {
+        externalFrequencyBuffer = msg.freq.buffer;
+    } else {
+        externalFrequencyBuffer = null;
+    }
+
+    externalMeta = {
+        currentTime: typeof msg?.currentTime === 'number' ? msg.currentTime : 0,
+        paused: !!msg?.paused,
+        trackId: msg?.trackId || null,
+        mode: msg?.mode || null,
+        canonVoices: typeof msg?.canonVoices === 'number' ? msg.canonVoices : null,
+    };
+
+    overlay.style.opacity = 0;
+    setTimeout(() => overlay.style.display = 'none', 250);
+    requestVizStart();
+}
+
+// Configuration
+const FFT_SIZE = 512; // Frequency resolution (must be power of 2)
+const SMOOTHING = 0.85; // Fallback speed for bars
+const PARTICLE_COUNT = 150;
+const SHOCKWAVE_decay = 0.95;
+
+// State
+let particles = [];
+let shockwaves = [];
+let hue = 0;
+let bassVal = 0; // Average volume of low freqs
+let mouseX = 0;
+let mouseY = 0;
+
+// --- RESIZE HANDLER ---
+function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+    centerX = width / 2;
+    centerY = height / 2;
+    
+    // Initialize mouse at center
+    if(mouseX === 0) mouseX = centerX;
+    if(mouseY === 0) mouseY = centerY;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- MOUSE PARALLAX ---
+window.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+});
+
+// --- EXTERNAL (HARMONIZER) MODE ---
+(() => {
+    try {
+        const params = new URLSearchParams(location.search);
+        externalMode = params.get('src') === 'harmonizer';
+        const sid = params.get('sid');
+        if (typeof BroadcastChannel !== 'undefined') {
+            const names = [];
+            if (externalMode && sid) names.push(`harmonizer-viz-${sid}`);
+            // Fallback channel for older cached launchers
+            names.push('harmonizer-viz-default');
+            names.forEach((name) => {
+                try {
+                    const ch = new BroadcastChannel(name);
+                    ch.addEventListener('message', (e) => {
+                        const msg = e && e.data ? e.data : null;
+                        if (!msg || typeof msg !== 'object') return;
+                        if (msg.type === 'init') {
+                            handleExternalInit();
+                        } else if (msg.type === 'frame') {
+                            handleExternalFrame(msg);
+                        }
+                    });
+                    externalChannel = externalChannel || ch;
+                } catch (e) {}
+            });
+        }
+    } catch (e) {}
+
+    function enterExternalMode() {
+        if (externalMode) return;
+        externalMode = true;
+        try {
+            fileInput.style.display = 'none';
+        } catch (e) {}
+    }
+
+    function tryAttachDirectAnalyser() {
+        if (externalDirectAnalyser) return externalDirectAnalyser;
+        try {
+            const opener = window.opener;
+            if (!opener) return null;
+            const player = opener.harmonizerActivePlayer;
+            if (!player || typeof player.getVizAnalyser !== 'function') return null;
+            const analyserNode = player.getVizAnalyser();
+            if (analyserNode && typeof analyserNode.getByteFrequencyData === 'function') {
+                externalDirectAnalyser = analyserNode;
+                return analyserNode;
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    window.addEventListener('message', (event) => {
+        const msg = event && event.data ? event.data : null;
+        if (!msg || typeof msg !== 'object') return;
+
+        if (msg.type === 'HARMONIZER_VIZ_INIT') {
+            enterExternalMode();
+            handleExternalInit();
+            return;
+        }
+
+        if (msg.type === 'HARMONIZER_VIZ_FRAME') {
+            enterExternalMode();
+            handleExternalFrame(msg);
+        }
+    });
+
+    if (externalMode) {
+        try {
+            fileInput.style.display = 'none';
+        } catch (e) {}
+        overlay.style.opacity = 1;
+        overlay.style.display = '';
+        overlay.innerHTML = `
+            <h1>Sonic Nebulae</h1>
+            <p>Waiting for Harmonizer audio…</p>
+            <p style="opacity: 0.8; font-size: 0.85rem;">Keep the Harmonizer tab open and playing.</p>
+        `;
+        requestVizStart();
+        // Best-effort: if same-origin opener is available, read analyser directly (no messaging required).
+        tryAttachDirectAnalyser();
+        try {
+            if (window.opener && typeof window.opener.postMessage === 'function') {
+                window.opener.postMessage({ type: 'HARMONIZER_VIZ_READY' }, '*');
+            }
+        } catch (e) {}
+    }
+})();
+
+// --- AUDIO SETUP ---
+function initAudio(stream = null, file = null) {
+    if (externalMode) return;
+    if (audioCtx) audioCtx.close();
+    
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = FFT_SIZE;
+    analyser.smoothingTimeConstant = SMOOTHING;
+
+    if (file) {
+        // File playback
+        if (audioEl) audioEl.remove();
+        audioEl = new Audio();
+        audioEl.src = URL.createObjectURL(file);
+        audioEl.play();
+        source = audioCtx.createMediaElementSource(audioEl);
+        source.connect(analyser);
+        analyser.connect(audioCtx.destination); // Connect to speakers
+    } else if (stream) {
+        // Microphone
+        source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+    }
+
+    const bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+    
+    overlay.style.opacity = 0;
+    setTimeout(() => overlay.style.display = 'none', 500);
+    
+    requestVizStart();
+}
+
+// --- INPUT HANDLERS ---
+fileInput.addEventListener('change', (e) => {
+    if (externalMode) return;
+    if (e.target.files.length > 0) {
+        initAudio(null, e.target.files[0]);
+    }
+});
+
+// Click fallback for microphone
+document.body.addEventListener('click', () => {
+    if (externalMode) return;
+    if (!audioCtx) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => initAudio(stream))
+            .catch(err => console.error('Mic access denied:', err));
+    }
+    // Resume context if suspended (browser policy)
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+});
+
+
+// --- GRAPHICS CLASSES ---
+
+class Particle {
+    constructor() {
+        this.reset();
+    }
+
+    reset() {
+        this.x = (Math.random() * width - centerX) * 2;
+        this.y = (Math.random() * height - centerY) * 2;
+        this.z = Math.random() * 1000 + 500; // Depth
+        this.size = Math.random() * 2;
+        this.color = `hsl(${Math.random() * 360}, 70%, 50%)`;
+    }
+
+    update(speed) {
+        // Move towards user (Z-axis)
+        this.z -= (5 + speed * 15); // Speed affected by bass
+
+        // Reset if passed camera
+        if (this.z <= 1) {
+            this.reset();
+            this.z = 2000;
+        }
+    }
+
+    draw(ctx, angleOffset) {
+        // 3D projection formula
+        const perspective = 300 / this.z;
+        const xProj = (this.x) * perspective + centerX;
+        const yProj = (this.y) * perspective + centerY;
+        const rProj = this.size * perspective * 4;
+
+        // Parallax offset
+        const pX = (mouseX - centerX) * 0.05 * perspective;
+        const pY = (mouseY - centerY) * 0.05 * perspective;
+
+        ctx.beginPath();
+        ctx.fillStyle = this.color;
+        ctx.arc(xProj + pX, yProj + pY, rProj, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+class Shockwave {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 1;
+        this.alpha = 1;
+        this.lineWidth = 10;
+        this.hue = hue;
+    }
+
+    update() {
+        this.radius += 15; // Expansion speed
+        this.alpha *= SHOCKWAVE_decay;
+        this.lineWidth *= 0.95;
+    }
+
+    draw(ctx) {
+        ctx.beginPath();
+        ctx.strokeStyle = `hsla(${this.hue}, 100%, 50%, ${this.alpha})`;
+        ctx.lineWidth = this.lineWidth;
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+}
+
+// Mark classes ready now that Particle + Shockwave exist.
+vizClassesReady = true;
+maybeStartViz();
+
+// --- MAIN LOOP ---
+
+function initParticles() {
+    // Avoid runaway growth if we re-enter start.
+    particles.length = 0;
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+        particles.push(new Particle());
+    }
+}
+
+function calculateBass() {
+    // Grab low frequencies (first 20 bins)
+    if (!dataArray || !dataArray.length) return 0;
+    let sum = 0;
+    const count = Math.min(20, dataArray.length);
+    for (let i = 0; i < count; i++) {
+        sum += dataArray[i];
+    }
+    return sum / count; // Average 0-255
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    if (externalMode && overlay && externalFramesReceived === 0) {
+        // If we haven't received anything yet, keep a helpful waiting message visible.
+        const since = lastExternalFrameAt ? ((performance.now ? performance.now() : Date.now()) - lastExternalFrameAt) : null;
+        if (since === null || since > 500) {
+            overlay.style.opacity = 1;
+            overlay.style.display = '';
+        }
+    }
+
+    // 1. Get Audio Data
+    if (externalMode) {
+        if (externalDirectAnalyser && typeof externalDirectAnalyser.getByteFrequencyData === 'function') {
+            try {
+                const bins = externalDirectAnalyser.frequencyBinCount || (FFT_SIZE / 2);
+                if (!dataArray || dataArray.length !== bins) {
+                    dataArray = new Uint8Array(bins);
+                }
+                externalDirectAnalyser.getByteFrequencyData(dataArray);
+                if (externalFramesReceived === 0) {
+                    externalFramesReceived = 1;
+                    overlay.style.opacity = 0;
+                    setTimeout(() => overlay.style.display = 'none', 250);
+                }
+                // Prefer direct analyser data over any buffered frames.
+                externalFrequencyBuffer = null;
+            } catch (e) {}
+        }
+        if (externalFrequencyBuffer instanceof ArrayBuffer) {
+            dataArray = new Uint8Array(externalFrequencyBuffer);
+        } else if (!dataArray) {
+            dataArray = new Uint8Array(FFT_SIZE / 2);
+        }
+    } else if (analyser && dataArray) {
+        analyser.getByteFrequencyData(dataArray);
+    } else {
+        if (!dataArray) dataArray = new Uint8Array(FFT_SIZE / 2);
+    }
+    
+    // Calculate metrics
+    const currentBass = calculateBass();
+    const normalizedBass = currentBass / 255; // 0.0 to 1.0
+    
+    // Beat Detection Logic
+    if (normalizedBass > 0.7 && bassVal < 200) { // Simple threshold check
+        shockwaves.push(new Shockwave(centerX, centerY));
+        // Randomize hue drastically on beat
+        hue += 20; 
+    }
+    bassVal = currentBass;
+
+    // Cycle hue slowly
+    hue += 0.5;
+
+    // 2. Clear Screen (with fade effect for trails)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // The alpha 0.2 creates trails
+    ctx.fillRect(0, 0, width, height);
+
+    // 3. Set Global Composite for GLOW
+    ctx.globalCompositeOperation = 'lighter';
+
+    // 4. Update & Draw Particles (Background)
+    particles.forEach(p => {
+        p.update(normalizedBass);
+        p.draw(ctx);
+    });
+
+    // 5. Update & Draw Shockwaves (Midground)
+    for (let i = shockwaves.length - 1; i >= 0; i--) {
+        let sw = shockwaves[i];
+        sw.update();
+        sw.draw(ctx);
+        if (sw.alpha < 0.01) {
+            shockwaves.splice(i, 1);
+        }
+    }
+
+    // 6. Draw Circular Frequency Analyzer (Foreground)
+    const radius = 150 + (normalizedBass * 50); // Pulse radius
+    const bars = 100; // How many bars in the circle
+    const step = (Math.PI * 2) / bars;
+
+    // We only use the lower half of frequency data for better visuals
+    const freqStep = Math.max(1, Math.floor(dataArray.length / 2 / bars)); 
+
+    for (let i = 0; i < bars; i++) {
+        const dataIndex = i * freqStep;
+        const val = dataArray[dataIndex];
+        const barHeight = (val / 255) * 200; // scale bar height
+
+        const angle = i * step;
+        
+        // Polar coordinates
+        // Inner point
+        const x1 = centerX + Math.cos(angle) * radius;
+        const y1 = centerY + Math.sin(angle) * radius;
+        
+        // Outer point
+        const x2 = centerX + Math.cos(angle) * (radius + barHeight);
+        const y2 = centerY + Math.sin(angle) * (radius + barHeight);
+
+        // Color based on height/intensity
+        const barHue = (hue + (i * 2)) % 360;
+
+        ctx.beginPath();
+        ctx.strokeStyle = `hsl(${barHue}, 80%, 50%)`;
+        ctx.lineWidth = 4;
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        
+        // Add a dot at the end
+        ctx.beginPath();
+        ctx.fillStyle = `hsl(${barHue}, 100%, 80%)`;
+        ctx.arc(x2, y2, 2, 0, Math.PI*2);
+        ctx.fill();
+    }
+    
+    // 7. Reset Composite
+    ctx.globalCompositeOperation = 'source-over';
+}
+
+</script>
+</body>
+</html>

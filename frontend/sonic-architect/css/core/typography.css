@@ -1,0 +1,366 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * Typography System
+ */
+
+/* ========================================
+   Font Imports (Google Fonts)
+   ======================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500;600;700&display=swap');
+
+/* ========================================
+   Base Typography
+   ======================================== */
+
+.text-xs { font-size: var(--text-xs); }
+.text-sm { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-md { font-size: var(--text-md); }
+.text-lg { font-size: var(--text-lg); }
+.text-xl { font-size: var(--text-xl); }
+.text-2xl { font-size: var(--text-2xl); }
+.text-3xl { font-size: var(--text-3xl); }
+.text-4xl { font-size: var(--text-4xl); }
+.text-5xl { font-size: var(--text-5xl); }
+.text-6xl { font-size: var(--text-6xl); }
+
+.font-normal { font-weight: var(--font-weight-normal); }
+.font-medium { font-weight: var(--font-weight-medium); }
+.font-semibold { font-weight: var(--font-weight-semibold); }
+.font-bold { font-weight: var(--font-weight-bold); }
+.font-black { font-weight: var(--font-weight-black); }
+
+.tracking-tight { letter-spacing: var(--letter-spacing-tight); }
+.tracking-normal { letter-spacing: var(--letter-spacing-normal); }
+.tracking-wide { letter-spacing: var(--letter-spacing-wide); }
+.tracking-wider { letter-spacing: var(--letter-spacing-wider); }
+.tracking-widest { letter-spacing: var(--letter-spacing-widest); }
+
+.leading-tight { line-height: var(--line-height-tight); }
+.leading-normal { line-height: var(--line-height-normal); }
+.leading-relaxed { line-height: var(--line-height-relaxed); }
+
+.uppercase { text-transform: uppercase; }
+.lowercase { text-transform: lowercase; }
+.capitalize { text-transform: capitalize; }
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.text-primary { color: var(--theme-primary); }
+.text-secondary { color: var(--theme-secondary); }
+.text-accent { color: var(--theme-accent); }
+.text-muted { color: var(--theme-text-muted); }
+
+/* ========================================
+   Display Typography (Orbitron)
+   ======================================== */
+
+.font-display {
+    font-family: var(--font-family-display);
+}
+
+.title {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-black);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+}
+
+.title--lg {
+    font-size: clamp(var(--text-2xl), 5vw, var(--text-5xl));
+}
+
+.title--md {
+    font-size: clamp(var(--text-xl), 4vw, var(--text-3xl));
+}
+
+.title--sm {
+    font-size: clamp(var(--text-md), 3vw, var(--text-xl));
+}
+
+/* ========================================
+   Neon Glow Text Effect
+   ======================================== */
+
+.neon-text {
+    color: var(--theme-primary);
+    text-shadow:
+        0 0 5px var(--theme-primary),
+        0 0 10px var(--theme-primary),
+        0 0 20px var(--theme-primary),
+        0 0 40px var(--theme-primary);
+}
+
+.neon-text--secondary {
+    color: var(--theme-secondary);
+    text-shadow:
+        0 0 5px var(--theme-secondary),
+        0 0 10px var(--theme-secondary),
+        0 0 20px var(--theme-secondary),
+        0 0 40px var(--theme-secondary);
+}
+
+.neon-text--subtle {
+    text-shadow:
+        0 0 5px var(--theme-primary),
+        0 0 10px var(--theme-primary);
+}
+
+/* Neon flicker animation */
+.neon-text--flicker {
+    animation: neon-flicker 3s infinite;
+}
+
+/* ========================================
+   Glitch Text Effect
+   ======================================== */
+
+.glitch {
+    position: relative;
+    animation: glitch-skew 1s infinite linear alternate-reverse;
+}
+
+.glitch::before,
+.glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.glitch::before {
+    color: var(--theme-secondary);
+    animation: glitch-anim-1 0.6s infinite linear alternate-reverse;
+    clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+    transform: translate(-2px, -2px);
+}
+
+.glitch::after {
+    color: var(--theme-primary);
+    animation: glitch-anim-2 0.6s infinite linear alternate-reverse;
+    clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
+    transform: translate(2px, 2px);
+}
+
+/* Subtle glitch variant */
+.glitch--subtle::before,
+.glitch--subtle::after {
+    animation-duration: 2s;
+}
+
+.glitch--subtle::before {
+    transform: translate(-1px, 0);
+}
+
+.glitch--subtle::after {
+    transform: translate(1px, 0);
+}
+
+/* ========================================
+   Holographic Text Effect
+   ======================================== */
+
+.holographic {
+    background: linear-gradient(
+        135deg,
+        hsl(0, 100%, 70%) 0%,
+        hsl(60, 100%, 70%) 17%,
+        hsl(120, 100%, 70%) 33%,
+        hsl(180, 100%, 70%) 50%,
+        hsl(240, 100%, 70%) 67%,
+        hsl(300, 100%, 70%) 83%,
+        hsl(360, 100%, 70%) 100%
+    );
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: holo-shift 3s linear infinite;
+}
+
+.holographic--slow {
+    animation-duration: 6s;
+}
+
+/* ========================================
+   Typewriter Effect
+   ======================================== */
+
+.typewriter {
+    overflow: hidden;
+    white-space: nowrap;
+    border-right: 2px solid var(--theme-primary);
+    animation:
+        typewriter 3s steps(40) 1s 1 normal both,
+        blink-caret 0.75s step-end infinite;
+}
+
+/* ========================================
+   Gradient Text
+   ======================================== */
+
+.gradient-text {
+    background: var(--theme-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.gradient-text--animated {
+    background-size: 200% 200%;
+    animation: gradient-shift 4s ease infinite;
+}
+
+/* ========================================
+   Matrix Rain Character Style
+   ======================================== */
+
+.matrix-char {
+    font-family: 'MS Gothic', 'Hiragino Kaku Gothic Pro', monospace;
+    color: var(--theme-primary);
+    text-shadow: 0 0 10px var(--theme-primary);
+}
+
+/* ========================================
+   Cyberpunk Stylization
+   ======================================== */
+
+.cyber-label {
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-widest);
+    color: var(--theme-text-muted);
+}
+
+.cyber-value {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-bold);
+    color: var(--theme-primary);
+}
+
+/* Stats display styling */
+.stat {
+    font-family: var(--font-family-display);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--letter-spacing-wide);
+    color: var(--theme-text-muted);
+    padding: var(--space-1) var(--space-2);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm);
+}
+
+/* ========================================
+   Text Truncation
+   ======================================== */
+
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ========================================
+   Keyboard Shortcuts Display
+   ======================================== */
+
+kbd {
+    display: inline-block;
+    padding: var(--space-1) var(--space-2);
+    font-family: var(--font-family);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--theme-text);
+    background: var(--theme-bg-alt);
+    border: 1px solid var(--theme-border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 2px 0 var(--theme-border);
+    min-width: 1.5em;
+    text-align: center;
+}
+
+/* ========================================
+   Badge / Label
+   ======================================== */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5em;
+    height: 1.5em;
+    padding: 0 var(--space-1);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--theme-bg);
+    background: var(--theme-primary);
+    border-radius: var(--radius-full);
+}
+
+.badge--secondary {
+    background: var(--theme-secondary);
+}
+
+.badge--muted {
+    background: var(--theme-text-muted);
+}
+
+/* ========================================
+   Animated Text Underline
+   ======================================== */
+
+.link-underline {
+    position: relative;
+}
+
+.link-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--theme-gradient);
+    transition: width var(--transition-normal);
+}
+
+.link-underline:hover::after {
+    width: 100%;
+}
+
+/* ========================================
+   Scramble Text (requires JS)
+   ======================================== */
+
+.scramble-text {
+    display: inline-block;
+}
+
+.scramble-text .char {
+    display: inline-block;
+    transition: transform 0.1s ease;
+}
+
+.scramble-text:hover .char {
+    animation: scramble-char 0.3s ease forwards;
+}

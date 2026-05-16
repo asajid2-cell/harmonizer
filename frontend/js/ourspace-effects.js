@@ -1,0 +1,976 @@
+﻿// OurSpace Effects - Visual Effects (Falling Objects, Cursor Trail, etc.)
+
+(function() {
+    'use strict';
+
+    const root = document.documentElement;
+
+    let fallingInterval = null;
+    let cursorTrailActive = false;
+    let cursorTrailConfig = null;
+    let particles = [];
+    let sparkleRainInterval = null;
+    let polaroidInterval = null;
+    let matrixRainInterval = null;
+    let discoBallTimer = null;
+    let floatingEmojiInterval = null;
+    let lightningTimeout = null;
+    let pixelBurstHandler = null;
+    let bubbleWarpHandler = null;
+    let chromaticTrailHandler = null;
+    let prismTrailConfig = null;
+    let emojiBurstInterval = null;
+    let emojiWaveInterval = null;
+    let emojiLanternInterval = null;
+    let emojiPopHandler = null;
+    let stardustTrailHandler = null;
+
+    function getEffectsStore() {
+        return (window.OurSpace && window.OurSpace.profile && window.OurSpace.profile.theme && window.OurSpace.profile.theme.effects) || {};
+    }
+
+    function getEffectConfig(key, defaults = {}) {
+        const store = getEffectsStore();
+        let config = store[key];
+        if (!config || typeof config !== 'object') {
+            config = { enabled: !!config };
+        }
+        config = Object.assign({ enabled: false }, defaults, config);
+        store[key] = config;
+        return config;
+    }
+
+    function hexToRgba(hex, alpha) {
+        if (!hex) return `rgba(255,255,255,${alpha})`;
+        const normalized = hex.replace('#', '');
+        const bigint = parseInt(normalized.length === 3
+            ? normalized.split('').map(c => c + c).join('')
+            : normalized, 16);
+        const r = (bigint >> 16) & 255;
+        const g = (bigint >> 8) & 255;
+        const b = bigint & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    window.OurSpaceEffects = {
+        updateFallingEffect: updateFallingEffect,
+        toggleCursorTrail: toggleCursorTrail,
+        refreshDynamicEffects: refreshDynamicEffects
+    };
+
+    window.addEventListener('DOMContentLoaded', function() {
+        initEffects();
+    });
+
+    function initEffects() {
+        console.log("[Effects] Initializing visual effects...");
+
+        const fallingDefaults = { type: "hearts", speed: 2, density: 1 };
+        const cursorDefaults = { style: "sparkle", colorMode: "rainbow", customColor: "#ff7cf5", length: 1, size: 1 };
+
+        if (getEffectConfig('falling', fallingDefaults).enabled) {
+            startFallingEffect(fallingDefaults);
+        }
+
+        if (getEffectConfig('cursorTrail', cursorDefaults).enabled) {
+            startCursorTrail(cursorDefaults);
+        }
+
+        refreshDynamicEffects();
+
+        console.log("[Effects] Initialization complete");
+    }
+
+    function refreshDynamicEffects() {
+        if (!window.OurSpace || !window.OurSpace.profile) return;
+        toggleGlitterBorders(getEffectConfig('glitter', { intensity: 0.7 }));
+        toggleBlinkingText(getEffectConfig('blink', { speed: 1 }));
+        toggleSparkleRain(getEffectConfig('sparkleRain', { density: 1 }));
+        toggleAuroraWaves(getEffectConfig('auroraWaves', { intensity: 0.4, speed: 1, colorA: "#47ffe3", colorB: "#ff4ffb" }));
+        togglePixelBurst(getEffectConfig('pixelBurst', {}));
+        toggleNeonPulse(getEffectConfig('neonPulse', { color: "#00fff5", accent: "#ff00ff", speed: 1.2 }));
+        togglePolaroidPopups(getEffectConfig('polaroidPopups', { interval: 4 }));
+        toggleBubbleWarp(getEffectConfig('bubbleWarp', { size: 1 }));
+        toggleRetroScanlines(getEffectConfig('retroScanlines', { opacity: 0.18 }));
+        toggleChromaticTrails(getEffectConfig('chromaticTrails', { length: 0.9, mode: "sunset" }));
+        toggleFloatingEmojis(getEffectConfig('floatingEmojis', { density: 1 }));
+        toggleLightningFlickers(getEffectConfig('lightningFlickers', { intensity: 0.8, frequency: 6 }));
+        toggleEmojiOrbit(getEffectConfig('emojiOrbit', { emojis: ['💫', '🦋', '🌙', '⭐', '💖'] }));
+        toggleEmojiBurst(getEffectConfig('emojiBurst', { frequency: 2, emojis: ['🎉', '💥', '💎', '✨'] }));
+        toggleEmojiWave(getEffectConfig('emojiWave', { speed: 4000, emojis: ['🌈', '🌊', '💜', '⭐'] }));
+        toggleEmojiPop(getEffectConfig('emojiPop', { emojis: ['✨', '💛', '💙', '💜'] }));
+        toggleEmojiLanterns(getEffectConfig('emojiLanterns', { speed: 1.2, emojis: ['🏮', '🌙', '🪷', '🦋'] }));
+        toggleScreenVignette(getEffectConfig('screenVignette', {}));
+        toggleScreenHaze(getEffectConfig('screenHaze', {}));
+        toggleScreenGrid(getEffectConfig('screenGrid', {}));
+        toggleScreenHolo(getEffectConfig('screenHolo', {}));
+        toggleScreenPrism(getEffectConfig('screenPrism', {}));
+        toggleMatrixRain(getEffectConfig('matrixRain', { density: 1 }));
+        toggleDiscoBall(getEffectConfig('discoBall', { color: '#ff00ff', accent: '#00ffff', sparkle: 1 }));
+        toggleTvStatic(getEffectConfig('tvStatic', { opacity: 0.25 }));
+        toggleKaleidoscope(getEffectConfig('kaleidoscope', { speed: 18 }));
+        toggleVhsGlitch(getEffectConfig('vhsGlitch', { intensity: 0.3 }));
+        toggleStardustTrail(getEffectConfig('stardustTrail', { density: 1.2, color: '#ffffff' }));
+    }
+
+    // Falling Effects
+    function updateFallingEffect() {
+        const config = getEffectConfig('falling', { type: "hearts", speed: 2, density: 1 });
+        if (config.enabled) {
+            startFallingEffect(config);
+        } else {
+            stopFallingEffect();
+        }
+    }
+
+    function startFallingEffect(config) {
+        stopFallingEffect();
+
+        const container = document.getElementById('falling-effects-container');
+        if (!container) return;
+
+        const cfg = config || getEffectConfig('falling', { type: "hearts", speed: 2, density: 1 });
+        const type = cfg.type || 'hearts';
+        const speed = cfg.speed || 2;
+        const density = Math.max(0.2, cfg.density || 1);
+
+        const emojis = {
+            hearts: ['❤', '💕', '💖', '💗', '💞'],
+            stars: ['✦', '✧', '★', '☆', '✩'],
+            snow: ['❄', '❅', '❆', '✼', '✻'],
+            sparkles: ['✨', '✺', '✷', '❇', '✹']
+        };
+
+        const objectsToFall = emojis[type] || emojis.hearts;
+        const intervalDelay = Math.max(160, 600 / density);
+
+        fallingInterval = setInterval(function() {
+            createFallingObject(container, objectsToFall, cfg);
+        }, intervalDelay);
+
+        console.log("[Effects] Falling effect started:", type);
+    }
+
+    function stopFallingEffect() {
+        if (fallingInterval) {
+            clearInterval(fallingInterval);
+            fallingInterval = null;
+        }
+
+        const container = document.getElementById('falling-effects-container');
+        if (container) {
+            container.innerHTML = '';
+        }
+
+        console.log("[Effects] Falling effect stopped");
+    }
+
+    function createFallingObject(container, objects, config) {
+        const object = document.createElement('div');
+        object.className = 'falling-object';
+        object.textContent = objects[Math.floor(Math.random() * objects.length)];
+
+        object.style.left = Math.random() * 100 + '%';
+
+        const speed = config.speed || 2;
+        const sizeMultiplier = config.size || 1;
+
+        const duration = (5 + Math.random() * 5) / speed;
+        object.style.animationDuration = duration + 's';
+        object.style.animationDelay = Math.random() * 2 + 's';
+        object.style.fontSize = (18 + Math.random() * 14) * sizeMultiplier + 'px';
+
+        container.appendChild(object);
+
+        setTimeout(function() {
+            if (object.parentNode) {
+                object.parentNode.removeChild(object);
+            }
+        }, (duration + 2) * 1000);
+    }
+
+    // Cursor Trail
+    function toggleCursorTrail() {
+        const config = getEffectConfig('cursorTrail', {
+            style: 'sparkle',
+            colorMode: 'rainbow',
+            customColor: '#ff7cf5',
+            length: 1,
+            size: 1
+        });
+        if (config.enabled) {
+            startCursorTrail(config);
+        } else {
+            stopCursorTrail();
+        }
+    }
+
+    function startCursorTrail(config) {
+        if (cursorTrailActive) {
+            cursorTrailConfig = config;
+            return;
+        }
+
+        const canvas = document.getElementById('cursor-trail-canvas');
+        if (!canvas) return;
+
+        cursorTrailConfig = config;
+        canvas.classList.add('active');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const ctx = canvas.getContext('2d');
+        cursorTrailActive = true;
+
+        document.addEventListener('mousemove', handleMouseMove);
+
+        animateCursorTrail(ctx, canvas);
+
+        window.addEventListener('resize', function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        console.log("[Effects] Cursor trail started");
+    }
+
+    function stopCursorTrail() {
+        cursorTrailActive = false;
+        cursorTrailConfig = null;
+        particles = [];
+
+        const canvas = document.getElementById('cursor-trail-canvas');
+        if (canvas) {
+            canvas.classList.remove('active');
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        document.removeEventListener('mousemove', handleMouseMove);
+
+        console.log("[Effects] Cursor trail stopped");
+    }
+
+    function handleMouseMove(e) {
+        if (!cursorTrailActive) return;
+
+        const cfg = cursorTrailConfig || {
+            length: 1,
+            size: 1,
+            colorMode: 'rainbow',
+            customColor: '#ff7cf5'
+        };
+        const sizeBoost = cfg.size || 1;
+        const life = 1.0;
+        particles.push({
+            x: e.clientX,
+            y: e.clientY,
+            size: (Math.random() * 5 + 2) * sizeBoost,
+            color: getTrailColor(cfg),
+            life
+        });
+
+        // Limit particles
+        const maxParticles = Math.max(20, Math.round(50 * (cfg.length || 1)));
+        if (particles.length > maxParticles) {
+            particles.shift();
+        }
+    }
+
+    function animateCursorTrail(ctx, canvas) {
+        if (!cursorTrailActive) return;
+        const cfg = cursorTrailConfig || { length: 1 };
+        const decay = 0.02 / (cfg.length || 1);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Update and draw particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+
+            p.life -= decay;
+            p.size *= 0.95;
+
+            if (p.life <= 0 || p.size < 0.5) {
+                particles.splice(i, 1);
+                continue;
+            }
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.life;
+            ctx.fill();
+        }
+
+        ctx.globalAlpha = 1.0;
+
+        requestAnimationFrame(function() {
+            animateCursorTrail(ctx, canvas);
+        });
+    }
+
+    function getTrailColor(config) {
+        const mode = config.colorMode || 'rainbow';
+        if (mode === 'custom' && config.customColor) {
+            return config.customColor;
+        }
+        if (mode === 'neon') {
+            const palette = ['#00fff5', '#ff00ff', '#ffe066'];
+            return palette[Math.floor(Math.random() * palette.length)];
+        }
+        if (mode === 'cool') {
+            const palette = ['#74ebd5', '#ACB6E5', '#5ef0ff'];
+            return palette[Math.floor(Math.random() * palette.length)];
+        }
+        // rainbow default
+        return `hsl(${Math.random() * 360}, 100%, 70%)`;
+    }
+
+    // Glitter Borders
+    function toggleGlitterBorders(config) {
+        const enabled = !!(config && config.enabled);
+        const intensity = config && config.intensity !== undefined ? config.intensity : 0.7;
+        root.style.setProperty('--glitter-border-strength', intensity);
+        const elements = document.querySelectorAll('.widget, .picture-item, .friend-slot');
+        elements.forEach(el => {
+            el.classList.toggle('glitter-border', enabled);
+        });
+    }
+
+    // Blinking Text
+    function toggleBlinkingText(config) {
+        const enabled = !!(config && config.enabled);
+        const speed = (config && config.speed) ? config.speed : 1;
+        root.style.setProperty('--blink-speed', speed + 's');
+        const headers = document.querySelectorAll('.widget-header h2, .profile-name');
+        headers.forEach(header => {
+            header.classList.toggle('blink', enabled);
+        });
+    }
+
+    // Sparkle Rain
+    function toggleSparkleRain(config) {
+        const enabled = !!(config && config.enabled);
+        let container = document.getElementById('sparkle-rain-container');
+        if (!enabled) {
+            if (container) {
+                container.innerHTML = '';
+                container.classList.remove('active');
+            }
+            if (sparkleRainInterval) {
+                clearInterval(sparkleRainInterval);
+                sparkleRainInterval = null;
+            }
+            return;
+        }
+
+        if (!container) {
+            container = ensureOverlay('sparkle-rain-container', 'sparkle-rain-container');
+        }
+
+        const density = Math.max(0.2, config.density || 1);
+        container.classList.add('active');
+        if (sparkleRainInterval) {
+            clearInterval(sparkleRainInterval);
+        }
+        sparkleRainInterval = setInterval(() => {
+            const drop = document.createElement('span');
+            drop.className = 'sparkle-raindrop';
+            drop.style.left = Math.random() * 100 + '%';
+            const hue = Math.floor(Math.random() * 360);
+            drop.style.setProperty('--sparkle-color', `hsla(${hue}, 90%, 70%, 0.8)`);
+            drop.style.animationDuration = (3 + Math.random() * 3) / density + 's';
+            container.appendChild(drop);
+            setTimeout(() => drop.remove(), 6000);
+        }, Math.max(120, 300 / density));
+    }
+
+    // Aurora Waves
+    function toggleAuroraWaves(config) {
+        const enabled = !!(config && config.enabled);
+        let layer = document.getElementById('aurora-waves-overlay');
+        if (!enabled) {
+            if (layer) layer.classList.remove('active');
+            return;
+        }
+        if (!layer) {
+            layer = ensureOverlay('aurora-waves-overlay', 'aurora-waves-overlay');
+        }
+        const intensity = config.intensity !== undefined ? config.intensity : 0.4;
+        const speedMultiplier = config.speed || 1;
+        const baseDuration = 18;
+        root.style.setProperty('--aurora-opacity', intensity);
+        root.style.setProperty('--aurora-speed', (baseDuration / speedMultiplier) + 's');
+        const colorA = config.colorA || '#47ffe3';
+        const colorB = config.colorB || '#ff4ffb';
+        layer.style.background = `
+            radial-gradient(circle at 20% 20%, ${hexToRgba(colorA, 0.4)}, transparent 60%),
+            radial-gradient(circle at 80% 30%, ${hexToRgba(colorB, 0.35)}, transparent 55%),
+            radial-gradient(circle at 50% 80%, rgba(80, 120, 255, 0.35), transparent 60%)
+        `;
+        layer.classList.add('active');
+    }
+
+    // Pixel Burst
+    function togglePixelBurst(config) {
+        const enabled = !!(config && config.enabled);
+        if (enabled) {
+            if (pixelBurstHandler) return;
+            pixelBurstHandler = function(e) {
+                createPixelBurst(e.clientX, e.clientY);
+            };
+            document.addEventListener('click', pixelBurstHandler);
+        } else if (pixelBurstHandler) {
+            document.removeEventListener('click', pixelBurstHandler);
+            pixelBurstHandler = null;
+        }
+    }
+
+    function createPixelBurst(x, y) {
+        const burst = document.createElement('div');
+        burst.className = 'pixel-burst';
+        burst.style.left = x + 'px';
+        burst.style.top = y + 'px';
+
+        for (let i = 0; i < 10; i++) {
+            const particle = document.createElement('span');
+            particle.className = 'pixel-burst-particle';
+            particle.style.setProperty('--angle', Math.random() * 360 + 'deg');
+            particle.style.setProperty('--distance', 30 + Math.random() * 50 + 'px');
+            particle.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 70%)`;
+            burst.appendChild(particle);
+        }
+
+        document.body.appendChild(burst);
+        setTimeout(() => burst.remove(), 800);
+    }
+
+    // Neon Pulse
+    function toggleNeonPulse(config) {
+        const enabled = !!(config && config.enabled);
+        document.body.classList.toggle('neon-pulse-active', enabled);
+        if (!config) return;
+        const color = config.color || '#00fff5';
+        const accent = config.accent || '#ff00ff';
+        const speed = config.speed || 1.2;
+        root.style.setProperty('--neon-primary', color);
+        root.style.setProperty('--neon-secondary', accent);
+        root.style.setProperty('--neon-pulse-speed', (2.5 / speed) + 's');
+    }
+
+    // Polaroid Popups
+    function togglePolaroidPopups(config) {
+        const enabled = !!(config && config.enabled);
+        let container = document.getElementById('polaroid-popups');
+        if (!enabled) {
+            if (container) container.innerHTML = '';
+            if (polaroidInterval) {
+                clearInterval(polaroidInterval);
+                polaroidInterval = null;
+            }
+            return;
+        }
+
+        if (!container) {
+            container = ensureOverlay('polaroid-popups', 'polaroid-popups');
+        }
+
+        const quotes = [
+            "Stay weird ✨",
+            "Live, laugh, loop",
+            "BRB vibing",
+            "Sparkle mode: ON",
+            "404: Chill not found",
+            "Scene queen energy",
+            "Trust the glitter"
+        ];
+
+        if (polaroidInterval) clearInterval(polaroidInterval);
+        const interval = Math.max(2, config && config.interval ? config.interval : 4) * 1000;
+        polaroidInterval = setInterval(() => {
+            const frame = document.createElement('div');
+            frame.className = 'polaroid-popup';
+            frame.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+            frame.style.left = Math.random() * 80 + '%';
+            frame.style.top = 10 + Math.random() * 60 + '%';
+            frame.style.setProperty('--rotation', (Math.random() * 20 - 10) + 'deg');
+            container.appendChild(frame);
+            setTimeout(() => frame.remove(), 6000);
+        }, interval);
+    }
+
+    // Bubble Warp
+    function toggleBubbleWarp(config) {
+        const enabled = !!(config && config.enabled);
+        const handler = function(e) {
+            const sizeMult = config && config.size ? config.size : 1;
+            const bubble = document.createElement('span');
+            bubble.className = 'bubble-warp';
+            bubble.style.left = e.clientX + 'px';
+            bubble.style.top = e.clientY + 'px';
+            bubble.style.setProperty('--bubble-size', (20 + Math.random() * 40) * sizeMult + 'px');
+            bubble.style.setProperty('--bubble-color', `hsla(${Math.random() * 360}, 70%, 80%, 0.35)`);
+            document.body.appendChild(bubble);
+            setTimeout(() => bubble.remove(), 1200);
+        };
+
+        if (enabled) {
+            if (bubbleWarpHandler) return;
+            bubbleWarpHandler = handler;
+            document.addEventListener('mousemove', bubbleWarpHandler);
+        } else if (bubbleWarpHandler) {
+            document.removeEventListener('mousemove', bubbleWarpHandler);
+            bubbleWarpHandler = null;
+        }
+    }
+
+    // Retro Scanlines
+    function toggleRetroScanlines(config) {
+        const enabled = !!(config && config.enabled);
+        let overlay = document.getElementById('retro-scanlines');
+        if (!enabled) {
+            if (overlay) {
+                overlay.classList.remove('active');
+                overlay.remove();
+            }
+            return;
+        }
+        if (!overlay) {
+            overlay = ensureOverlay('retro-scanlines', 'retro-scanlines');
+        }
+        const opacity = config.opacity !== undefined ? config.opacity : 0.18;
+        overlay.style.opacity = opacity;
+        overlay.classList.add('active');
+    }
+
+    const PRISM_PALETTES = {
+        sunset: ['#ff9a9e', '#fad0c4'],
+        ocean: ['#00c6ff', '#0072ff'],
+        neon: ['#0ff0fc', '#ff2d95'],
+        pastel: ['#a18cd1', '#fbc2eb']
+    };
+    let lastTrailPoint = null;
+
+    function toggleChromaticTrails(config) {
+        const cfg = config || getEffectConfig('chromaticTrails', { length: 0.9, mode: 'sunset' });
+        prismTrailConfig = cfg;
+        const enabled = !!cfg.enabled;
+        if (enabled) {
+            if (chromaticTrailHandler) return;
+            chromaticTrailHandler = function(e) {
+                const activeCfg = prismTrailConfig || cfg;
+                const trail = document.createElement('div');
+                trail.className = 'prism-trail';
+                const palette = PRISM_PALETTES[activeCfg.mode] || PRISM_PALETTES.sunset;
+                trail.style.setProperty('--trail-gradient', `linear-gradient(90deg, ${palette[0]}, ${palette[1]})`);
+                const duration = Math.max(0.3, 0.6 * (activeCfg.length || 1));
+                trail.style.setProperty('--trail-duration', duration + 's');
+                trail.style.left = e.clientX + 'px';
+                trail.style.top = e.clientY + 'px';
+                const prev = lastTrailPoint;
+                let angle = Math.random() * 360;
+                if (prev) {
+                    angle = Math.atan2(e.clientY - prev.y, e.clientX - prev.x) * 180 / Math.PI;
+                }
+                trail.style.transform = `rotate(${angle}deg)`;
+                document.body.appendChild(trail);
+                setTimeout(() => trail.remove(), duration * 1000);
+                lastTrailPoint = { x: e.clientX, y: e.clientY };
+            };
+            document.addEventListener('mousemove', chromaticTrailHandler);
+        } else if (chromaticTrailHandler) {
+            document.removeEventListener('mousemove', chromaticTrailHandler);
+            chromaticTrailHandler = null;
+            lastTrailPoint = null;
+            prismTrailConfig = null;
+        }
+    }
+
+    // Floating Emojis
+    function toggleFloatingEmojis(config) {
+        const enabled = !!(config && config.enabled);
+        let container = document.getElementById('floating-emoji-container');
+        if (!enabled) {
+            if (container) container.innerHTML = '';
+            if (floatingEmojiInterval) {
+                clearInterval(floatingEmojiInterval);
+                floatingEmojiInterval = null;
+            }
+            return;
+        }
+
+        if (!container) {
+            container = ensureOverlay('floating-emoji-container', 'floating-emoji-container');
+        }
+
+        const emojis = ['✨', '🎧', '💜', '🌈', '⭐', '💌', '🦋'];
+        if (floatingEmojiInterval) clearInterval(floatingEmojiInterval);
+        const density = Math.max(0.3, config.density || 1);
+        floatingEmojiInterval = setInterval(() => {
+            const emoji = document.createElement('span');
+            emoji.className = 'floating-emoji';
+            emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            emoji.style.left = Math.random() * 100 + '%';
+            emoji.style.fontSize = (24 + Math.random() * 12) * density + 'px';
+            container.appendChild(emoji);
+            setTimeout(() => emoji.remove(), 7000);
+        }, Math.max(300, 1000 / density));
+    }
+
+    // Matrix Rain
+    function toggleMatrixRain(config) {
+        const container = ensureOverlay('matrix-rain-overlay', 'matrix-rain-overlay');
+        if (matrixRainInterval) {
+            clearInterval(matrixRainInterval);
+            matrixRainInterval = null;
+        }
+        container.innerHTML = '';
+        if (!config.enabled) {
+            container.classList.remove('active');
+            return;
+        }
+        container.classList.add('active');
+        const density = Math.max(0.2, config.density || 1);
+        matrixRainInterval = setInterval(() => {
+            const column = document.createElement('span');
+            column.className = 'matrix-column';
+            column.style.left = Math.random() * 100 + '%';
+            const length = 6 + Math.floor(Math.random() * 12);
+            column.style.animationDuration = (4 / density + Math.random() * 2) + 's';
+            const chars = [];
+            for (let i = 0; i < length; i++) {
+                const code = 0x30A0 + Math.floor(Math.random() * 96);
+                chars.push(String.fromCharCode(code));
+            }
+            column.textContent = chars.join('');
+            container.appendChild(column);
+            setTimeout(() => column.remove(), 6000);
+        }, Math.max(120, 240 / density));
+    }
+
+    // Disco Ball Overlay
+    function toggleDiscoBall(config) {
+        const overlay = ensureOverlay('disco-ball-overlay', 'disco-ball-overlay');
+        if (discoBallTimer) {
+            clearInterval(discoBallTimer);
+            discoBallTimer = null;
+        }
+        overlay.innerHTML = '';
+        if (!config.enabled) {
+            overlay.classList.remove('active');
+            return;
+        }
+        overlay.classList.add('active');
+        const ball = document.createElement('div');
+        ball.className = 'disco-ball';
+        overlay.appendChild(ball);
+        const color = config.color || '#ff00ff';
+        const accent = config.accent || '#00ffff';
+        root.style.setProperty('--disco-ball-primary', color);
+        root.style.setProperty('--disco-ball-accent', accent);
+        const sparkle = Math.max(0.4, config.sparkle || 1);
+        root.style.setProperty('--disco-ball-sparkle', sparkle);
+        discoBallTimer = setInterval(() => {
+            ball.classList.toggle('pulse');
+        }, 2000);
+    }
+
+    // TV Static Overlay
+    function toggleTvStatic(config) {
+        let overlay = document.getElementById('tv-static-overlay');
+        if (!config.enabled) {
+            if (overlay) {
+                overlay.classList.remove('active');
+                overlay.remove();
+            }
+            return;
+        }
+        if (!overlay) {
+            overlay = ensureOverlay('tv-static-overlay', 'tv-static-overlay');
+        }
+        const opacity = config.opacity !== undefined ? config.opacity : 0.25;
+        overlay.style.setProperty('--tv-static-opacity', opacity);
+        overlay.classList.add('active');
+    }
+
+    // Kaleidoscope Spin
+    function toggleKaleidoscope(config) {
+        const overlay = ensureOverlay('kaleidoscope-overlay', 'kaleidoscope-overlay');
+        if (!config.enabled) {
+            overlay.classList.remove('active');
+            return;
+        }
+        const speed = Math.max(6, config.speed || 18);
+        overlay.style.setProperty('--kaleidoscope-speed', speed + 's');
+        overlay.classList.add('active');
+    }
+
+    // VHS Glitch
+    function toggleVhsGlitch(config) {
+        const overlay = ensureOverlay('vhs-glitch-overlay', 'vhs-glitch-overlay');
+        if (!config.enabled) {
+            overlay.classList.remove('active');
+            return;
+        }
+        const intensity = config.intensity !== undefined ? config.intensity : 0.3;
+        overlay.style.setProperty('--vhs-glitch-strength', intensity);
+        overlay.classList.add('active');
+    }
+
+    // Lightning Flickers
+    function toggleLightningFlickers(config) {
+        const enabled = !!(config && config.enabled);
+        let overlay = document.getElementById('lightning-overlay');
+        if (!enabled) {
+            if (overlay) overlay.classList.remove('active');
+            if (lightningTimeout) {
+                clearTimeout(lightningTimeout);
+                lightningTimeout = null;
+            }
+            document.body.classList.remove('lightning-rumble');
+            return;
+        }
+
+        if (!overlay) {
+            overlay = ensureOverlay('lightning-overlay', 'lightning-overlay');
+        }
+
+        const intensity = config.intensity !== undefined ? config.intensity : 0.8;
+        const frequency = config.frequency || 6;
+        root.style.setProperty('--lightning-brightness', intensity);
+
+        if (lightningTimeout) clearTimeout(lightningTimeout);
+        const schedule = () => {
+            overlay.classList.add('active');
+            document.body.classList.add('lightning-rumble');
+            setTimeout(() => {
+                overlay.classList.remove('active');
+                document.body.classList.remove('lightning-rumble');
+            }, 280);
+            lightningTimeout = setTimeout(schedule, frequency * 1000 + Math.random() * 800);
+        };
+        schedule();
+    }
+
+    // Stardust Trail
+    function toggleStardustTrail(config) {
+        if (stardustTrailHandler) {
+            document.removeEventListener('mousemove', stardustTrailHandler);
+            stardustTrailHandler = null;
+        }
+
+        if (!config.enabled) {
+            return;
+        }
+
+        const density = Math.max(0.3, config.density || 1);
+        const color = config.color || '#ffffff';
+        stardustTrailHandler = function(e) {
+            for (let i = 0; i < density; i++) {
+                createStardustParticle(e.clientX, e.clientY, color);
+            }
+        };
+        document.addEventListener('mousemove', stardustTrailHandler);
+    }
+
+    function createStardustParticle(x, y, color) {
+        const particle = document.createElement('span');
+        particle.className = 'stardust-particle';
+        const offsetX = (Math.random() * 20 - 10);
+        const offsetY = (Math.random() * 20 - 10);
+        particle.style.left = (x + offsetX) + 'px';
+        particle.style.top = (y + offsetY) + 'px';
+        particle.style.backgroundColor = color;
+        particle.style.setProperty('--stardust-size', (4 + Math.random() * 6) + 'px');
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 700);
+    }
+
+    function ensureOverlay(id, className) {
+        let el = document.getElementById(id);
+        if (!el) {
+            el = document.createElement('div');
+            el.id = id;
+            el.className = className;
+            document.body.appendChild(el);
+        }
+        return el;
+    }
+
+    function toggleEmojiOrbit(config) {
+        const overlay = ensureOverlay('emoji-orbit-overlay', 'emoji-orbit-overlay');
+        if (!config.enabled) {
+            overlay.classList.remove('active');
+            overlay.innerHTML = '';
+            return;
+        }
+        const emojiSet = Array.isArray(config.emojis) && config.emojis.length ? config.emojis : ['💫', '🦋', '🌙', '⭐', '💖'];
+        overlay.classList.add('active');
+        overlay.innerHTML = '';
+        const count = Math.max(emojiSet.length, 6);
+        for (let i = 0; i < count; i++) {
+            const span = document.createElement('span');
+            span.textContent = emojiSet[i % emojiSet.length];
+            span.style.setProperty('--orbit-angle', `${(360 / count) * i}deg`);
+            span.style.setProperty('--orbit-radius', `${120 + (i % 4) * 18}px`);
+            overlay.appendChild(span);
+        }
+    }
+
+    function toggleEmojiBurst(config) {
+        const container = ensureOverlay('emoji-burst-container', 'emoji-burst-container');
+        if (emojiBurstInterval) {
+            clearInterval(emojiBurstInterval);
+            emojiBurstInterval = null;
+        }
+        container.innerHTML = '';
+        if (!config.enabled) {
+            container.classList.remove('active');
+            return;
+        }
+        container.classList.add('active');
+        const emojis = Array.isArray(config.emojis) && config.emojis.length ? config.emojis : ['🎉', '💥', '💎', '✨', '🦄'];
+        const frequency = Math.max(1, config.frequency || 2) * 1000;
+        emojiBurstInterval = setInterval(() => createEmojiBurst(container, emojis), frequency);
+    }
+
+    function toggleEmojiWave(config) {
+        const container = ensureOverlay('emoji-wave-container', 'emoji-wave-container');
+        if (emojiWaveInterval) {
+            clearInterval(emojiWaveInterval);
+            emojiWaveInterval = null;
+        }
+        container.innerHTML = '';
+        if (!config.enabled) {
+            container.classList.remove('active');
+            return;
+        }
+        container.classList.add('active');
+        const emojis = Array.isArray(config.emojis) && config.emojis.length ? config.emojis : ['🌈', '🌊', '💜', '⭐'];
+        const delay = Math.max(1500, config.speed || 3500);
+        emojiWaveInterval = setInterval(() => createEmojiWave(container, emojis), delay);
+    }
+
+    function toggleEmojiPop(config) {
+        const layer = ensureOverlay('emoji-pop-layer', 'emoji-pop-layer');
+        if (emojiPopHandler) {
+            document.removeEventListener('mousemove', emojiPopHandler);
+            emojiPopHandler = null;
+        }
+        layer.innerHTML = '';
+        if (!config.enabled) {
+            layer.classList.remove('active');
+            return;
+        }
+        const emojis = Array.isArray(config.emojis) && config.emojis.length ? config.emojis : ['✨', '💛', '💙', '💜', '🌟'];
+        layer.classList.add('active');
+        emojiPopHandler = function(e) {
+            createEmojiPop(layer, emojis, e.clientX, e.clientY);
+        };
+        document.addEventListener('mousemove', emojiPopHandler);
+    }
+
+    function toggleEmojiLanterns(config) {
+        const layer = ensureOverlay('emoji-lantern-layer', 'emoji-lantern-layer');
+        if (emojiLanternInterval) {
+            clearInterval(emojiLanternInterval);
+            emojiLanternInterval = null;
+        }
+        layer.innerHTML = '';
+        if (!config.enabled) {
+            layer.classList.remove('active');
+            return;
+        }
+        layer.classList.add('active');
+        const emojis = Array.isArray(config.emojis) && config.emojis.length ? config.emojis : ['🏮', '🌙', '🪷', '🦋'];
+        const speed = Math.max(0.4, config.speed || 1.2);
+        emojiLanternInterval = setInterval(() => createEmojiLantern(layer, emojis, speed), 900);
+    }
+
+    function toggleScreenVignette(config) {
+        const overlay = ensureOverlay('screen-vignette', 'screen-vignette');
+        overlay.classList.toggle('active', !!config.enabled);
+    }
+
+    function toggleScreenHaze(config) {
+        const overlay = ensureOverlay('screen-haze', 'screen-haze');
+        if (config.enabled) {
+            overlay.classList.add('active');
+            root.style.setProperty('--screen-haze-hue', `${Math.floor(Math.random() * 360)}deg`);
+        } else {
+            overlay.classList.remove('active');
+        }
+    }
+
+    function toggleScreenGrid(config) {
+        const overlay = ensureOverlay('screen-grid', 'screen-grid');
+        overlay.classList.toggle('active', !!config.enabled);
+    }
+
+    function toggleScreenHolo(config) {
+        const overlay = ensureOverlay('screen-holo', 'screen-holo');
+        overlay.classList.toggle('active', !!config.enabled);
+    }
+
+    function toggleScreenPrism(config) {
+        const overlay = ensureOverlay('screen-prism', 'screen-prism');
+        if (config.enabled) {
+            overlay.classList.add('active');
+            root.style.setProperty('--screen-prism-rotation', `${Math.floor(Math.random() * 360)}deg`);
+        } else {
+            overlay.classList.remove('active');
+        }
+    }
+
+    function createEmojiBurst(container, emojis) {
+        const count = 6;
+        for (let i = 0; i < count; i++) {
+            const burst = document.createElement('span');
+            burst.className = 'emoji-burst';
+            burst.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            burst.style.setProperty('--burst-angle', `${Math.random() * 360}deg`);
+            burst.style.setProperty('--burst-distance', `${100 + Math.random() * 100}px`);
+            container.appendChild(burst);
+            setTimeout(() => burst.remove(), 1200);
+        }
+    }
+
+    function createEmojiWave(container, emojis) {
+        const wave = document.createElement('span');
+        wave.className = 'emoji-wave';
+        wave.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        wave.style.top = Math.random() * 80 + '%';
+        wave.style.fontSize = 18 + Math.random() * 12 + 'px';
+        wave.style.animationDuration = 6 + Math.random() * 4 + 's';
+        container.appendChild(wave);
+        setTimeout(() => wave.remove(), 7000);
+    }
+
+    function createEmojiPop(layer, emojis, x, y) {
+        const pop = document.createElement('span');
+        pop.className = 'emoji-pop';
+        pop.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        pop.style.left = x + (Math.random() * 20 - 10) + 'px';
+        pop.style.top = y + (Math.random() * 20 - 10) + 'px';
+        layer.appendChild(pop);
+        setTimeout(() => pop.remove(), 600);
+    }
+
+    function createEmojiLantern(layer, emojis, speed) {
+        const lantern = document.createElement('span');
+        lantern.className = 'emoji-lantern';
+        lantern.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        lantern.style.left = Math.random() * 90 + '%';
+        lantern.style.animationDuration = (10 / speed) + 's';
+        layer.appendChild(lantern);
+        setTimeout(() => lantern.remove(), (11 / speed) * 1000);
+    }
+
+})();
+
+
+
+

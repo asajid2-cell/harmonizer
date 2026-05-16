@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VENPOD - 3D Voxel Physics Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            color: #eee;
+            font-family: 'Manrope', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Site banner */
+        .site-landing-banner {
+            background: linear-gradient(90deg, #e94560 0%, #0f3460 50%, #e94560 100%);
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .site-landing-banner a {
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .site-landing-banner a:hover {
+            text-decoration: underline;
+        }
+
+        header {
+            background: #16213e;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #0f3460;
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            color: #e94560;
+            letter-spacing: 0.1em;
+        }
+
+        .controls-hint {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .controls-hint kbd {
+            background: #0f3460;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin: 0 2px;
+            font-family: monospace;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d1a 100%);
+        }
+
+        #canvas {
+            max-width: 100%;
+            max-height: 100%;
+            cursor: none;
+        }
+
+        #canvas:focus {
+            outline: none;
+        }
+
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .crosshair::before,
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            background: white;
+            box-shadow: 0 0 2px rgba(0,0,0,0.8);
+        }
+
+        .crosshair::before {
+            width: 20px;
+            height: 2px;
+            left: -10px;
+            top: -1px;
+        }
+
+        .crosshair::after {
+            width: 2px;
+            height: 20px;
+            left: -1px;
+            top: -10px;
+        }
+
+        .crosshair-dot {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #e94560;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 51;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+        }
+
+        #loading.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #333;
+            border-top: 4px solid #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #status {
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(22, 33, 62, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            max-width: 280px;
+            border: 1px solid #0f3460;
+            backdrop-filter: blur(10px);
+        }
+
+        .ui-overlay h3 {
+            color: #e94560;
+            margin-bottom: 10px;
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+        }
+
+        .ui-overlay ul {
+            list-style: none;
+        }
+
+        .ui-overlay li {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .ui-overlay li span:first-child {
+            color: #888;
+        }
+
+        .material-palette {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .material-swatch {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .material-swatch:hover {
+            border-color: #fff;
+            transform: scale(1.1);
+        }
+
+        .material-swatch.selected {
+            border-color: #e94560;
+            box-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+        }
+
+        footer {
+            background: #16213e;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #666;
+            border-top: 2px solid #0f3460;
+            flex-shrink: 0;
+        }
+
+        footer a {
+            color: #e94560;
+            text-decoration: none;
+        }
+
+        #webgpu-error {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(45, 31, 31, 0.95);
+            border: 2px solid #e94560;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 500px;
+            backdrop-filter: blur(10px);
+        }
+
+        #webgpu-error h2 {
+            color: #e94560;
+            margin-bottom: 15px;
+        }
+
+        #webgpu-error p {
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+
+        #webgpu-error ul {
+            text-align: left;
+            margin: 10px 30px;
+        }
+
+        #webgpu-error li {
+            margin: 5px 0;
+            color: #aaa;
+        }
+
+        .ascii-cube {
+            font-family: monospace;
+            font-size: 8px;
+            color: #e94560;
+            line-height: 1;
+            margin: 20px 0;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .controls-hint {
+                font-size: 0.75rem;
+            }
+            .ui-overlay {
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="site-landing-banner">
+        <a href="/">&#8592; Return to Internet Discotheque</a>
+    </div>
+
+    <header>
+        <h1>VENPOD - 3D Voxel Physics</h1>
+        <div class="controls-hint">
+            <kbd>WASD</kbd> Move
+            <kbd>Mouse</kbd> Look
+            <kbd>LMB</kbd> Paint
+            <kbd>RMB</kbd> Erase
+            <kbd>1-9</kbd> Materials
+        </div>
+    </header>
+
+    <main>
+        <canvas id="canvas" tabindex="0"></canvas>
+
+        <div class="crosshair"></div>
+        <div class="crosshair-dot"></div>
+
+        <div id="loading">
+            <pre class="ascii-cube">
+       +-------+
+      /       /|
+     /       / |
+    +-------+  |
+    |       |  +
+    |  3D   | /
+    | VOXEL |/
+    +-------+
+            </pre>
+            <div class="spinner"></div>
+            <div id="status">Initializing WebGPU...</div>
+        </div>
+
+        <div id="webgpu-error">
+            <h2>WebGPU Not Available</h2>
+            <p>Your browser doesn't support WebGPU yet.</p>
+            <p>Please try one of the following:</p>
+            <ul>
+                <li>Chrome/Edge 113+ with WebGPU enabled</li>
+                <li>Firefox Nightly with dom.webgpu.enabled</li>
+                <li>Safari Technology Preview</li>
+            </ul>
+            <p style="margin-top: 20px; color: #888;">
+                WebGPU is the next generation graphics API for the web,
+                enabling GPU compute shaders for physics simulation.
+            </p>
+        </div>
+
+        <div class="ui-overlay" id="ui-panel" style="display: none;">
+            <h3>Materials</h3>
+            <div class="material-palette">
+                <div class="material-swatch selected" style="background: rgb(194,179,128);" title="Sand (1)"></div>
+                <div class="material-swatch" style="background: rgba(51,102,204,0.7);" title="Water (2)"></div>
+                <div class="material-swatch" style="background: rgb(128,128,128);" title="Stone (3)"></div>
+                <div class="material-swatch" style="background: rgb(140,89,43);" title="Dirt (4)"></div>
+                <div class="material-swatch" style="background: rgb(255,102,26);" title="Fire (5)"></div>
+                <div class="material-swatch" style="background: rgb(255,77,0);" title="Lava (6)"></div>
+                <div class="material-swatch" style="background: rgb(26,13,51);" title="Oil (7)"></div>
+                <div class="material-swatch" style="background: rgba(51,230,51,0.8);" title="Acid (8)"></div>
+                <div class="material-swatch" style="background: rgb(51,51,64);" title="Gunpowder (9)"></div>
+            </div>
+
+            <h3 style="margin-top: 15px;">Stats</h3>
+            <ul>
+                <li><span>Grid:</span> <span id="stat-grid">128x64x128</span></li>
+                <li><span>FPS:</span> <span id="stat-fps">--</span></li>
+                <li><span>Frame:</span> <span id="stat-frame">0</span></li>
+            </ul>
+        </div>
+    </main>
+
+    <footer>
+        VENPOD WebGPU Tech Demo | 3D Falling Sand Physics Engine
+    </footer>
+
+    <script src="/venpod/venpod.js"></script>
+    <script>
+        // Update status
+        function updateStatus(msg) {
+            document.getElementById('status').textContent = msg;
+        }
+
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        function resizeCanvas() {
+            const main = document.querySelector('main');
+            const rect = main.getBoundingClientRect();
+            canvas.width = Math.floor(rect.width);
+            canvas.height = Math.floor(rect.height);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Material selection
+        document.querySelectorAll('.material-swatch').forEach((swatch, index) => {
+            swatch.addEventListener('click', () => {
+                document.querySelectorAll('.material-swatch').forEach(s => s.classList.remove('selected'));
+                swatch.classList.add('selected');
+                if (window.VENPOD) {
+                    VENPOD.currentMaterial = index + 1;
+                }
+            });
+        });
+
+        // FPS counter
+        let frameCount = 0;
+        let lastFpsTime = performance.now();
+
+        // Main game loop
+        let lastTime = performance.now();
+        function gameLoop() {
+            const now = performance.now();
+            const dt = Math.min((now - lastTime) / 1000, 0.1);
+            lastTime = now;
+
+            if (window.VENPOD && VENPOD.device) {
+                try {
+                    VENPOD.update(dt);
+                    VENPOD.render();
+                    frameCount++;
+                    document.getElementById('stat-frame').textContent = VENPOD.frameIndex;
+                } catch (e) {
+                    console.error('VENPOD render error:', e);
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // FPS display update
+        setInterval(() => {
+            const now = performance.now();
+            const fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
+            document.getElementById('stat-fps').textContent = fps;
+            frameCount = 0;
+            lastFpsTime = now;
+        }, 1000);
+
+        // Initialize VENPOD
+        async function initVenpod() {
+            console.log('initVenpod called');
+            console.log('navigator.gpu:', navigator.gpu);
+            console.log('window.VENPOD:', window.VENPOD);
+
+            if (!navigator.gpu) {
+                console.error('WebGPU not available - navigator.gpu is falsy');
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('webgpu-error').style.display = 'block';
+                return;
+            }
+
+            updateStatus('Initializing WebGPU...');
+
+            try {
+                await VENPOD.init(canvas);
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('ui-panel').style.display = 'block';
+                document.getElementById('stat-grid').textContent =
+                    `${VENPOD.GRID_SIZE_X}x${VENPOD.GRID_SIZE_Y}x${VENPOD.GRID_SIZE_Z}`;
+
+                canvas.focus();
+                updateStatus('Ready!');
+
+                // Start game loop
+                gameLoop();
+
+                console.log('VENPOD initialized successfully');
+                console.log('Controls: WASD to move, Mouse to look, LMB to paint, RMB to erase');
+            } catch (e) {
+                console.error('Failed to initialize VENPOD:', e);
+                updateStatus('Error: ' + e.message);
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('webgpu-error').style.display = 'block';
+            }
+        }
+
+        // Start when page loads
+        initVenpod();
+    </script>
+</body>
+</html>

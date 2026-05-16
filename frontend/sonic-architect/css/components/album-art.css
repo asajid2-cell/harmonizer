@@ -1,0 +1,225 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * Album Art Component Styles
+ */
+
+/* ========================================
+   ALBUM ART CONTAINER
+   ======================================== */
+
+.album-art {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--theme-panel);
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+}
+
+.album-art:hover {
+    transform: scale(1.05);
+}
+
+.album-art.has-image {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* ========================================
+   ALBUM ART IMAGE
+   ======================================== */
+
+.album-art__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.album-art__image.is-loaded {
+    opacity: 1;
+}
+
+/* ========================================
+   PLACEHOLDER
+   ======================================== */
+
+.album-art__placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--theme-text-muted);
+    transition: opacity var(--transition-fast);
+}
+
+.album-art__placeholder.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.album-art__placeholder svg {
+    width: 50%;
+    height: 50%;
+}
+
+/* ========================================
+   SPINNING DISC EFFECT
+   ======================================== */
+
+.album-art__disc {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, 0.3) 70%),
+        radial-gradient(circle at center, rgba(0, 0, 0, 0.8) 10%, transparent 11%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-fast);
+}
+
+.album-art.has-image .album-art__disc {
+    opacity: 0.3;
+}
+
+/* Spinning animation when playing */
+.album-art.is-playing .album-art__disc {
+    animation: spin 3s linear infinite;
+}
+
+/* ========================================
+   ALBUM ART MODAL
+   ======================================== */
+
+.album-art-modal {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.album-art-modal.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.album-art-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.album-art-modal__content {
+    position: relative;
+    max-width: 90vmin;
+    max-height: 90vmin;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: scale(0.9);
+    transition: transform var(--transition-normal);
+}
+
+.album-art-modal.is-open .album-art-modal__content {
+    transform: scale(1);
+}
+
+.album-art-modal__image {
+    max-width: 100%;
+    max-height: 70vh;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.album-art-modal__close {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--theme-text-muted);
+    font-size: 2rem;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+}
+
+.album-art-modal__close:hover {
+    color: var(--theme-text);
+}
+
+.album-art-modal__info {
+    margin-top: var(--space-4);
+    text-align: center;
+}
+
+.album-art-modal__title {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--theme-text);
+    margin-bottom: var(--space-1);
+}
+
+.album-art-modal__artist {
+    font-size: var(--text-md);
+    color: var(--theme-primary);
+}
+
+.album-art-modal__album {
+    font-size: var(--text-sm);
+    color: var(--theme-text-muted);
+    margin-top: var(--space-1);
+}
+
+/* ========================================
+   PLAYER BAR ALBUM ART
+   ======================================== */
+
+.player-bar__art {
+    flex-shrink: 0;
+}
+
+.player-bar__art .album-art {
+    width: 56px;
+    height: 56px;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (min-width: 768px) {
+    .album-art {
+        width: 56px;
+        height: 56px;
+    }
+
+    .player-bar__art .album-art {
+        width: 64px;
+        height: 64px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .player-bar__art .album-art {
+        width: 72px;
+        height: 72px;
+    }
+}

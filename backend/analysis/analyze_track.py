@@ -1,0 +1,2232 @@
+#!/usr/bin/env python3
+"""Generate an Autocanonizer-compatible analysis profile for a local audio file."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+from collections import defaultdict
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+
+import librosa
+import numpy as np
+
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_DATA_DIR = BASE_DIR.parent / "data"
+
+
+# Analysis constants
+HOP_LENGTH = 512
+SEGMENT_MIN_DURATION = 0.08  # seconds
+DEFAULT_TIME_SIGNATURE = 4
+TATUMS_PER_BEAT = 3
+SILENCE_DB = -60.0
+MIN_SECTION_DURATION = 2.0
+
+CANON_CONTEXT_BEATS = 5
+CANON_SIMILARITY_THRESHOLD = 0.50
+CANON_MIN_PHASE_ALIGNMENT = 0.70
+CANON_MIN_PAIRS = 6
+CANON_TOP_CANDIDATES = 8
+
+
+@dataclass
+class Quantum:
+    start: float
+    duration: float
+    confidence: float
+
+    def as_dict(self) -> Dict[str, float]:
+        return {
+            "start": float(self.start),
+            "duration": float(self.duration),
+            "confidence": float(self.confidence),
+        }
+
+
+def normalize(values: np.ndarray) -> np.ndarray:
+    """Scale values into [0, 1] with safe fallback."""
+    if values.size == 0:
+        return values
+    vmin = float(np.min(values))
+    vmax = float(np.max(values))
+    if math.isclose(vmin, vmax):
+        return np.ones_like(values) * 0.5
+    return (values - vmin) / (vmax - vmin)
+
+
+def compute_beats(y: np.ndarray, sr: int) -> Tuple[List[Quantum], np.ndarray, float]:
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
+    tempo, beat_frames = librosa.beat.beat_track(
+        onset_envelope=onset_env, sr=sr, hop_length=HOP_LENGTH
+    )
+    tempo = float(np.atleast_1d(tempo)[0])
+    beat_times = librosa.frames_to_time(beat_frames, sr=sr, hop_length=HOP_LENGTH)
+    strengths = onset_env[beat_frames] if beat_frames.size else np.array([])
+    confidences = normalize(strengths) if strengths.size else np.array([])
+
+    duration = librosa.get_duration(y=y, sr=sr)
+    beats = []
+    for idx, start in enumerate(beat_times):
+        end = (
+            beat_times[idx + 1]
+            if idx + 1 < len(beat_times)
+            else duration
+        )
+        beats.append(
+            Quantum(
+                start=start,
+                duration=max(end - start, 1e-5),
+                confidence=float(confidences[idx] if idx < len(confidences) else 0.7),
+            )
+        )
+    return beats, beat_times, tempo
+
+def _build_beat_metadata(beats: List[Quantum], bars: List[Dict], segments: List[Dict], tempo: float) -> Tuple[List[Dict], List[float], List[np.ndarray], List[float]]:
+    """
+    Build beat dictionaries with bar metadata and per-beat energy/chroma/tempo for loop generation.
+    """
+    beats_dicts = [
+        {
+            "start": float(b.start),
+            "duration": float(b.duration),
+            # carry onset proxy from beat confidence (normalized onset strength)
+            "onset_strength": float(getattr(b, "confidence", 0.0)),
+        }
+        for b in beats
+    ]
+    if bars:
+        beats_dicts = _annotate_beats_with_bar_info(beats_dicts, bars)
+    # midband vocal proxy can help avoid jumps into active vocals
+    vocality = _compute_vocal_activity(beats_dicts, segments)
+    for i, v in enumerate(vocality):
+        if i < len(beats_dicts):
+            beats_dicts[i]["vocal_activity"] = float(v)
+    energies = _compute_beat_energy(beats_dicts, segments)
+    chroma = _compute_beat_chroma(beats_dicts, segments)
+    tempos = [float(tempo) for _ in beats_dicts]
+    return beats_dicts, energies, chroma, tempos
+
+
+def derive_bars(
+    beats: List[Quantum],
+    beat_times: np.ndarray,
+    duration: float,
+    time_signature: int = DEFAULT_TIME_SIGNATURE,
+) -> List[Quantum]:
+    bars: List[Quantum] = []
+    for i in range(0, len(beats), time_signature):
+        start = beats[i].start
+        if i + time_signature < len(beats):
+            end = beats[i + time_signature].start
+        else:
+            end = duration
+        conf_slice = [b.confidence for b in beats[i : i + time_signature]]
+        confidence = float(np.mean(conf_slice)) if conf_slice else 0.7
+        bars.append(
+            Quantum(
+                start=start,
+                duration=max(end - start, 1e-5),
+                confidence=confidence,
+            )
+        )
+    return bars
+
+
+def derive_tatums(
+    beats: List[Quantum],
+    duration: float,
+    tatums_per_beat: int = TATUMS_PER_BEAT,
+) -> List[Quantum]:
+    tatums: List[Quantum] = []
+    for beat in beats:
+        step = beat.duration / tatums_per_beat
+        for sub in range(tatums_per_beat):
+            start = beat.start + sub * step
+            end = start + step if sub < tatums_per_beat - 1 else beat.start + beat.duration
+            tatums.append(
+                Quantum(
+                    start=start,
+                    duration=max(end - start, 1e-5),
+                    confidence=beat.confidence,
+                )
+            )
+    # ensure final tatum hits track end
+    if tatums:
+        tatums[-1].duration = max(duration - tatums[-1].start, 1e-5)
+    return tatums
+
+
+def estimate_sections(
+    y: np.ndarray,
+    sr: int,
+    duration: float,
+    desired_sections: int,
+    bars: List[Quantum],
+) -> List[Quantum]:
+    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=HOP_LENGTH)
+    features = np.vstack(
+        (librosa.util.normalize(chroma), librosa.util.normalize(mfcc))
+    )
+
+    n_frames = features.shape[1]
+    k = max(2, min(desired_sections, n_frames))
+    labels = librosa.segment.agglomerative(features.T, k=k)
+    boundaries = [0]
+    for idx in range(1, len(labels)):
+        if labels[idx] != labels[idx - 1]:
+            boundaries.append(idx)
+    boundaries.append(n_frames - 1)
+    boundaries = sorted(set(boundaries))
+    raw_times = librosa.frames_to_time(boundaries, sr=sr, hop_length=HOP_LENGTH)
+    times: List[float] = [0.0]
+    for idx in range(1, len(raw_times)):
+        current = float(raw_times[idx])
+        delta = current - times[-1]
+        is_last = idx == len(raw_times) - 1
+        if delta < MIN_SECTION_DURATION and not is_last:
+            continue
+        times.append(current)
+    if times[-1] < duration:
+        times.append(duration)
+    sections: List[Quantum] = []
+    for idx, start in enumerate(times[:-1]):
+        end = times[idx + 1]
+        duration = max(float(end - start), 1e-5)
+        new_section = Quantum(
+            start=float(start),
+            duration=duration,
+            confidence=1.0,
+        )
+        if sections and new_section.duration < MIN_SECTION_DURATION:
+            # merge into previous section
+            prev = sections[-1]
+            prev_end = prev.start + prev.duration
+            prev.duration = max(prev_end, new_section.start + new_section.duration) - prev.start
+        else:
+            sections.append(new_section)
+    # pad last section to end if needed
+    if sections:
+        last = sections[-1]
+        last.duration = max(duration - last.start, 1e-5)
+    if len(sections) >= max(2, desired_sections // 2):
+        return sections
+
+    # Fallback: derive sections from bar groups
+    if not bars:
+        return [Quantum(0.0, duration, 1.0)]
+
+    target_sections = max(2, min(desired_sections, len(bars)))
+    bars_per_section = max(1, len(bars) // target_sections)
+    fallback_sections: List[Quantum] = []
+    idx = 0
+    while idx < len(bars):
+        bar = bars[idx]
+        start = float(bar.start if idx > 0 else 0.0)
+        end_idx = min(len(bars) - 1, idx + bars_per_section - 1)
+        end_bar = bars[end_idx]
+        end = float(end_bar.start + end_bar.duration)
+        fallback_sections.append(
+            Quantum(
+                start=start,
+                duration=max(end - start, 1e-5),
+                confidence=0.8,
+            )
+        )
+        idx += bars_per_section
+
+    if fallback_sections:
+        fallback_sections[-1].duration = max(
+            duration - fallback_sections[-1].start, 1e-5
+        )
+    return fallback_sections or [Quantum(0.0, duration, 1.0)]
+
+
+def compute_segments(
+    y: np.ndarray,
+    sr: int,
+    duration: float,
+) -> List[Dict[str, object]]:
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
+    onset_frames = librosa.onset.onset_detect(
+        onset_envelope=onset_env,
+        sr=sr,
+        hop_length=HOP_LENGTH,
+        backtrack=True,
+    )
+
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=HOP_LENGTH)
+    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
+    rms = librosa.feature.rms(y=y, hop_length=HOP_LENGTH)[0]
+
+    boundaries: List[int] = [0]
+    boundaries.extend(sorted(set(int(b) for b in onset_frames)))
+    end_frame = int(math.ceil(duration * sr / HOP_LENGTH))
+    boundaries.append(end_frame)
+    boundaries = sorted(boundaries)
+
+    onset_strength_norm = normalize(onset_env)
+    segments: List[Dict[str, object]] = []
+    for start_frame, end_frame in zip(boundaries[:-1], boundaries[1:]):
+        if end_frame <= start_frame:
+            end_frame = start_frame + 1
+        start_time = librosa.frames_to_time(start_frame, sr=sr, hop_length=HOP_LENGTH)
+        end_time = librosa.frames_to_time(end_frame, sr=sr, hop_length=HOP_LENGTH)
+        duration_sec = max(end_time - start_time, SEGMENT_MIN_DURATION)
+
+        frame_slice = slice(start_frame, end_frame)
+        seg_mfcc = mfcc[:, frame_slice]
+        seg_chroma = chroma[:, frame_slice]
+        seg_rms = rms[frame_slice]
+        seg_onset_strength = onset_strength_norm[frame_slice]
+
+        if seg_mfcc.size == 0:
+            seg_mfcc = mfcc[:, start_frame : start_frame + 1]
+        if seg_chroma.size == 0:
+            seg_chroma = chroma[:, start_frame : start_frame + 1]
+        if seg_rms.size == 0:
+            seg_rms = np.array([0.0])
+        if seg_onset_strength.size == 0:
+            seg_onset_strength = np.array([0.5])
+
+        timbre = np.mean(seg_mfcc[1:13, :], axis=1)
+        pitches = np.mean(seg_chroma, axis=1)
+        pitches = pitches / np.sum(pitches) if np.sum(pitches) > 0 else pitches
+
+        loudness = librosa.amplitude_to_db(seg_rms, ref=1.0)
+        loud_start = float(loudness[0]) if loudness.size else SILENCE_DB
+        max_idx = int(np.argmax(loudness)) if loudness.size else 0
+        loud_max = float(loudness[max_idx]) if loudness.size else SILENCE_DB
+        loud_max_time = (
+            librosa.frames_to_time(start_frame + max_idx, sr=sr, hop_length=HOP_LENGTH)
+            - start_time
+        )
+
+        confidence = float(np.mean(seg_onset_strength))
+
+        segments.append(
+            {
+                "start": float(start_time),
+                "duration": float(duration_sec),
+                "confidence": confidence,
+                "loudness_start": loud_start,
+                "loudness_max": loud_max,
+                "loudness_max_time": float(max(loud_max_time, 0.0)),
+                "pitches": [float(v) for v in pitches.tolist()],
+                "timbre": [float(v) for v in timbre.tolist()],
+            }
+        )
+
+    # force final segment to land exactly on track end
+    if segments:
+        last = segments[-1]
+        last["duration"] = float(max(duration - last["start"], SEGMENT_MIN_DURATION))
+    return segments
+
+
+def estimate_key(chroma: np.ndarray) -> Tuple[int, int]:
+    """Return (key_index, mode) where key_index is 0=C ... 11=B."""
+    # Temperley-style key profiles (Krumhansl-Schmuckler)
+    major_profile = np.array(
+        [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88]
+    )
+    minor_profile = np.array(
+        [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17]
+    )
+    chroma_mean = np.mean(chroma, axis=1)
+    if np.allclose(chroma_mean.sum(), 0):
+        return 0, 1
+    scores_major = [
+        np.correlate(np.roll(major_profile, i), chroma_mean, mode="valid")[0]
+        for i in range(12)
+    ]
+    scores_minor = [
+        np.correlate(np.roll(minor_profile, i), chroma_mean, mode="valid")[0]
+        for i in range(12)
+    ]
+    major_key = int(np.argmax(scores_major))
+    minor_key = int(np.argmax(scores_minor))
+    if max(scores_major) >= max(scores_minor):
+        return major_key, 1
+    return minor_key, 0
+
+
+def _safe_slice_2d(matrix: np.ndarray, start: int, end: int) -> np.ndarray:
+    n_frames = matrix.shape[1]
+    start = max(0, min(start, n_frames - 1))
+    end = max(start + 1, min(end, n_frames))
+    return matrix[:, start:end]
+
+
+def _safe_slice_1d(vector: np.ndarray, start: int, end: int) -> np.ndarray:
+    n_frames = vector.shape[0]
+    start = max(0, min(start, n_frames - 1))
+    end = max(start + 1, min(end, n_frames))
+    return vector[start:end]
+
+
+@dataclass
+class BeatContext:
+    index: int
+    start: float
+    duration: float
+    phase: int
+    normalized_vector: np.ndarray
+
+
+def _stack_beat_features(
+    y: np.ndarray,
+    sr: int,
+    beat_times: Sequence[float],
+    duration: float,
+    beats_per_bar: int,
+    hop_length: int,
+    context_window: int,
+) -> Tuple[np.ndarray, List[BeatContext]]:
+    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop_length)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20, hop_length=hop_length)
+    mfcc_delta = librosa.feature.delta(mfcc)
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
+    rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
+
+    beat_boundaries = np.append(np.asarray(beat_times), float(duration))
+    beat_frames = librosa.time_to_frames(beat_boundaries, sr=sr, hop_length=hop_length)
+
+    contexts: List[BeatContext] = []
+    base_vectors: List[np.ndarray] = []
+    for idx, start in enumerate(beat_times):
+        end = float(beat_boundaries[idx + 1])
+        phase = idx % beats_per_bar
+
+        frame_start = int(beat_frames[idx])
+        frame_end = int(beat_frames[idx + 1])
+
+        chroma_slice = _safe_slice_2d(chroma, frame_start, frame_end)
+        mfcc_slice = _safe_slice_2d(mfcc, frame_start, frame_end)
+        mfcc_delta_slice = _safe_slice_2d(mfcc_delta, frame_start, frame_end)
+        onset_slice = _safe_slice_1d(onset_env, frame_start, frame_end)
+        rms_slice = _safe_slice_1d(rms, frame_start, frame_end)
+
+        chroma_mean = np.mean(chroma_slice, axis=1)
+        chroma_std = np.std(chroma_slice, axis=1)
+        mfcc_mean = np.mean(mfcc_slice, axis=1)
+        mfcc_std = np.std(mfcc_slice, axis=1)
+        mfcc_delta_mean = np.mean(mfcc_delta_slice, axis=1)
+
+        onset_stats = np.array(
+            [
+                float(np.mean(onset_slice)),
+                float(np.max(onset_slice)),
+                float(np.percentile(onset_slice, 90)),
+            ]
+        )
+        rms_stats = np.array(
+            [
+                float(np.mean(rms_slice)),
+                float(np.max(rms_slice)),
+                float(np.std(rms_slice)),
+            ]
+        )
+        beat_duration = np.array([float(end - start)])
+
+        base_vec = np.concatenate(
+            (
+                chroma_mean,
+                chroma_std,
+                mfcc_mean,
+                mfcc_std,
+                mfcc_delta_mean,
+                onset_stats,
+                rms_stats,
+                beat_duration,
+            )
+        )
+        base_vectors.append(base_vec)
+        contexts.append(
+            BeatContext(
+                index=idx,
+                start=float(start),
+                duration=float(end - start),
+                phase=phase,
+                normalized_vector=np.zeros_like(base_vec),
+            )
+        )
+
+    base_matrix = np.vstack(base_vectors)
+    mean = np.mean(base_matrix, axis=0)
+    std = np.std(base_matrix, axis=0)
+    std[std == 0] = 1.0
+    normalized = (base_matrix - mean) / std
+
+    feature_dim = normalized.shape[1]
+    zero_vec = np.zeros(feature_dim, dtype=np.float32)
+    stacked_rows: List[np.ndarray] = []
+    for idx, context in enumerate(contexts):
+        context.normalized_vector = normalized[idx]
+        window_vectors = []
+        for offset in range(context_window):
+            source = idx - (context_window - 1 - offset)
+            if source < 0:
+                window_vectors.append(zero_vec)
+            else:
+                window_vectors.append(normalized[source])
+        stacked_rows.append(np.concatenate(window_vectors))
+
+    stacked_matrix = np.vstack(stacked_rows)
+    return stacked_matrix, contexts
+
+
+def _cosine_ssm(matrix: np.ndarray) -> np.ndarray:
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    normalized = matrix / norms
+    ssm = np.clip(normalized @ normalized.T, -1.0, 1.0)
+    np.fill_diagonal(ssm, 1.0)
+    return ssm.astype(np.float32)
+
+
+@dataclass
+class OffsetScore:
+    offset: int
+    mean: float
+    std: float
+    length: int
+    phase_alignment: float
+    high_similarity_ratio: float
+
+
+@dataclass
+class CanonCandidate:
+    offset: int
+    start: int
+    end: int
+    threshold: float
+    mean_similarity: float
+    median_similarity: float
+    min_similarity: float
+    max_similarity: float
+    score: float
+
+    @property
+    def length(self) -> int:
+        return max(0, self.end - self.start)
+
+
+def _collect_canon_candidates(
+    ssm: np.ndarray,
+    offset_scores: Sequence[OffsetScore],
+    similarity_threshold: float,
+    min_pairs: int,
+) -> List[CanonCandidate]:
+    """Extract promising contiguous runs for candidate offsets."""
+    n_beats = ssm.shape[0]
+    if n_beats == 0:
+        return []
+
+    diag_cache: Dict[int, np.ndarray] = {}
+    # try a couple of relaxed thresholds so we can stitch coverage later
+    threshold_values = sorted(
+        {
+            round(similarity_threshold + 0.05, 3),
+            round(similarity_threshold, 3),
+            round(similarity_threshold - 0.05, 3),
+            round(similarity_threshold - 0.1, 3),
+        },
+        reverse=True,
+    )
+    candidates: List[CanonCandidate] = []
+    for score in offset_scores:
+        offset = score.offset
+        if offset <= 0 or offset >= n_beats:
+            continue
+        if offset not in diag_cache:
+            diag_cache[offset] = np.diag(ssm, k=offset)
+        diag = diag_cache[offset]
+        if diag.size < min_pairs:
+            continue
+        for thr in threshold_values:
+            threshold = float(max(0.2, thr))
+            runs = _detect_runs(
+                ssm=ssm,
+                offset=offset,
+                threshold=threshold,
+                min_length=min_pairs,
+            )
+            for start, end in runs:
+                if end <= start:
+                    continue
+                window = diag[start:end]
+                if window.size < min_pairs:
+                    continue
+                mean_val = float(np.mean(window))
+                median_val = float(np.median(window))
+                min_val = float(np.min(window))
+                max_val = float(np.max(window))
+                variability_penalty = float(np.std(window))
+                length = end - start
+                # balance similarity, stability, and length. Encourage broader runs.
+                run_score = (
+                    mean_val * (1.0 + 0.12 * math.log1p(length))
+                    + 0.05 * max_val
+                    - 0.03 * variability_penalty
+                    + 0.08 * score.high_similarity_ratio * length
+                )
+                if threshold < similarity_threshold:
+                    run_score *= 0.92
+                candidates.append(
+                    CanonCandidate(
+                        offset=int(offset),
+                        start=int(start),
+                        end=int(min(end, diag.size)),
+                        threshold=threshold,
+                        mean_similarity=mean_val,
+                        median_similarity=median_val,
+                        min_similarity=min_val,
+                        max_similarity=max_val,
+                        score=float(run_score),
+                    )
+                )
+    # keep only the best handful per offset to avoid quadratic assignment later
+    by_offset: Dict[int, List[CanonCandidate]] = defaultdict(list)
+    for cand in candidates:
+        by_offset[cand.offset].append(cand)
+    trimmed: List[CanonCandidate] = []
+    for offset, cand_list in by_offset.items():
+        cand_list.sort(key=lambda c: c.score, reverse=True)
+        trimmed.extend(cand_list[:16])
+    trimmed.sort(key=lambda c: c.score, reverse=True)
+    # global cap so later stages stay tractable on very long songs
+    return trimmed[:128]
+
+
+def _evaluate_offsets(
+    ssm: np.ndarray,
+    contexts: Sequence[BeatContext],
+    beats_per_bar: int,
+    min_pairs: int,
+    min_phase_alignment: float,
+    similarity_threshold: float,
+) -> List[OffsetScore]:
+    n_beats = ssm.shape[0]
+    scores: List[OffsetScore] = []
+    for offset in range(1, n_beats):
+        diag = np.diag(ssm, k=offset)
+        if diag.size < min_pairs:
+            continue
+        phase_matches = 0
+        high_sim = 0
+        for idx, value in enumerate(diag):
+            src = idx
+            dst = idx + offset
+            if dst >= len(contexts):
+                break
+            if contexts[src].phase == contexts[dst].phase:
+                phase_matches += 1
+            if value >= similarity_threshold:
+                high_sim += 1
+        phase_alignment = phase_matches / diag.size
+        if phase_alignment < min_phase_alignment:
+            continue
+        high_ratio = high_sim / diag.size
+        scores.append(
+            OffsetScore(
+                offset=offset,
+                mean=float(np.mean(diag)),
+                std=float(np.std(diag)),
+                length=int(diag.size),
+                phase_alignment=float(phase_alignment),
+                high_similarity_ratio=float(high_ratio),
+            )
+        )
+    scores.sort(key=lambda s: (s.mean - 0.4 * s.std, s.high_similarity_ratio), reverse=True)
+    return scores
+
+
+def _detect_runs(
+    ssm: np.ndarray,
+    offset: int,
+    threshold: float,
+    min_length: int,
+) -> List[Tuple[int, int]]:
+    diag = np.diag(ssm, k=offset)
+    runs: List[Tuple[int, int]] = []
+    start: Optional[int] = None
+    for idx, value in enumerate(diag):
+        if value >= threshold:
+            if start is None:
+                start = idx
+        else:
+            if start is not None and idx - start >= min_length:
+                runs.append((start, idx))
+            start = None
+    if start is not None and len(diag) - start >= min_length:
+        runs.append((start, len(diag)))
+    return runs
+
+
+def _apply_canon_candidates(
+    candidates: Sequence[CanonCandidate],
+    ssm: np.ndarray,
+    contexts: Sequence[BeatContext],
+    min_phase_alignment: float,
+    similarity_threshold: float,
+    min_pairs: int,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[Dict[str, object]]]:
+    """Assign high-quality segments while keeping offsets contiguous."""
+    n_beats = ssm.shape[0]
+    assignments = np.full(n_beats, -1, dtype=np.int32)
+    pair_similarity = np.zeros(n_beats, dtype=np.float32)
+    coverage = np.zeros(n_beats, dtype=bool)
+    segments: List[Dict[str, object]] = []
+
+    for cand in candidates:
+        if cand.offset <= 0:
+            continue
+        start = max(0, min(cand.start, n_beats - 1))
+        end = max(start + 1, min(cand.end, n_beats))
+        length = end - start
+        if length < min_pairs:
+            continue
+        idx_range = range(start, end)
+        unassigned = [idx for idx in idx_range if not coverage[idx]]
+        if not unassigned:
+            continue
+        coverage_ratio = len(unassigned) / float(length)
+        # avoid tiny contributions from heavily assigned segments
+        if coverage_ratio < 0.6:
+            continue
+        sims: List[float] = []
+        phases = 0
+        for idx in idx_range:
+            dst = (idx + cand.offset) % n_beats
+            sims.append(float(ssm[idx, dst]))
+            if contexts[idx].phase == contexts[dst].phase:
+                phases += 1
+        phase_ratio = phases / float(length)
+        if phase_ratio < min_phase_alignment:
+            continue
+        mean_sim = float(np.mean(sims))
+        median_sim = float(np.median(sims))
+        min_sim = float(np.min(sims))
+        max_sim = float(np.max(sims))
+        if mean_sim < similarity_threshold * 0.75 and max_sim < similarity_threshold:
+            continue
+        for idx in idx_range:
+            dst = (idx + cand.offset) % n_beats
+            assignments[idx] = dst
+            pair_similarity[idx] = float(ssm[idx, dst])
+            coverage[idx] = True
+        segments.append(
+            {
+                "start": int(start),
+                "end": int(end),
+                "offset": int(cand.offset),
+                "length": int(length),
+                "mean_similarity": mean_sim,
+                "median_similarity": median_sim,
+                "min_similarity": min_sim,
+                "max_similarity": max_sim,
+                "threshold": float(cand.threshold),
+                "phase_alignment": float(phase_ratio),
+                "coverage_ratio": float(coverage_ratio),
+                "score": float(cand.score),
+                "label": "primary",
+            }
+        )
+    return assignments, pair_similarity, coverage, segments
+
+
+def _fill_unassigned_ranges(
+    assignments: np.ndarray,
+    pair_similarity: np.ndarray,
+    coverage: np.ndarray,
+    ssm: np.ndarray,
+    contexts: Sequence[BeatContext],
+    offset_scores: Sequence[OffsetScore],
+    similarity_threshold: float,
+    min_phase_alignment: float,
+    min_pairs: int,
+) -> List[Dict[str, object]]:
+    """Fill remaining gaps by choosing the best offset per contiguous region."""
+    n_beats = ssm.shape[0]
+    extra_segments: List[Dict[str, object]] = []
+
+    if not n_beats:
+        return extra_segments
+
+    default_offset = offset_scores[0].offset if offset_scores else 1
+    default_offset = max(1, min(default_offset, n_beats - 1))
+
+    # build list of contiguous uncovered ranges
+    ranges: List[Tuple[int, int]] = []
+    current_start: Optional[int] = None
+    for idx in range(n_beats):
+        if not coverage[idx]:
+            if current_start is None:
+                current_start = idx
+        else:
+            if current_start is not None:
+                ranges.append((current_start, idx))
+                current_start = None
+    if current_start is not None:
+        ranges.append((current_start, n_beats))
+
+    for start, end in ranges:
+        length = end - start
+        if length <= 0:
+            continue
+        candidate_offsets = {default_offset}
+        candidate_offsets.update(
+            score.offset
+            for score in offset_scores[: min(8, len(offset_scores))]
+            if 0 < score.offset < n_beats
+        )
+        # consider strong matches for the first beat in the range
+        row = ssm[start]
+        top_indices = np.argsort(row)[::-1][: min(10, n_beats)]
+        for idx_candidate in top_indices:
+            if idx_candidate == start:
+                continue
+            offset = (idx_candidate - start) % n_beats
+            if offset == 0:
+                continue
+            candidate_offsets.add(offset)
+
+        best_choice: Optional[Tuple[int, float, float, float, float, float]] = None
+        for offset in candidate_offsets:
+            sims: List[float] = []
+            phase_matches = 0
+            for idx in range(start, end):
+                dst = (idx + offset) % n_beats
+                sims.append(float(ssm[idx, dst]))
+                if contexts[idx].phase == contexts[dst].phase:
+                    phase_matches += 1
+            phase_ratio = phase_matches / float(length)
+            mean_sim = float(np.mean(sims))
+            min_sim = float(np.min(sims))
+            max_sim = float(np.max(sims))
+            relaxed_phase = min_phase_alignment - 0.1
+            if length <= min_pairs:
+                relaxed_phase = max(0.45, relaxed_phase)
+            if phase_ratio < relaxed_phase:
+                continue
+            score = (
+                mean_sim
+                + 0.05 * phase_ratio
+                + 0.015 * length
+                + 0.02 * max_sim
+                - max(0.0, (similarity_threshold * 0.4) - min_sim)
+            )
+            if best_choice is None or score > best_choice[1]:
+                best_choice = (
+                    offset,
+                    score,
+                    mean_sim,
+                    min_sim,
+                    max_sim,
+                    phase_ratio,
+                )
+
+        if best_choice is None:
+            offset = default_offset
+            sims = [float(ssm[idx, (idx + offset) % n_beats]) for idx in range(start, end)]
+            phase_matches = sum(
+                1 for idx in range(start, end)
+                if contexts[idx].phase == contexts[(idx + offset) % n_beats].phase
+            )
+            phase_ratio = phase_matches / float(length)
+            mean_sim = float(np.mean(sims))
+            min_sim = float(np.min(sims))
+            max_sim = float(np.max(sims))
+        else:
+            offset, _, mean_sim, min_sim, max_sim, phase_ratio = best_choice
+
+        for idx in range(start, end):
+            dst = (idx + offset) % n_beats
+            assignments[idx] = dst
+            pair_similarity[idx] = float(ssm[idx, dst])
+            coverage[idx] = True
+        extra_segments.append(
+            {
+                "start": int(start),
+                "end": int(end),
+                "offset": int(offset),
+                "length": int(length),
+                "mean_similarity": float(mean_sim),
+                "min_similarity": float(min_sim),
+                "max_similarity": float(max_sim),
+                "threshold": float(similarity_threshold),
+                "phase_alignment": float(phase_ratio),
+                "coverage_ratio": 1.0,
+                "score": float(mean_sim),
+                "label": "fallback",
+            }
+        )
+    return extra_segments
+
+
+def _compute_loop_candidates(
+    ssm: np.ndarray,
+    contexts: Sequence[BeatContext],
+    min_similarity: float,
+    max_neighbors: int = 8,
+) -> List[Dict[str, float]]:
+    """Generate high-similarity edges to seed the jukebox jump graph."""
+    n_beats = ssm.shape[0]
+    loop_edges: List[Dict[str, float]] = []
+    if n_beats == 0:
+        return loop_edges
+
+    min_similarity = float(max(-1.0, min_similarity))
+    for src in range(n_beats):
+        row = ssm[src]
+        indices = np.argsort(row)[::-1]
+        added = 0
+        for dst in indices:
+            if dst == src:
+                continue
+            if abs(dst - src) <= 1:
+                continue
+            if contexts[src].phase != contexts[dst].phase:
+                continue
+            sim = float(row[dst])
+            if sim < min_similarity:
+                break
+            loop_edges.append(
+                {
+                    "source": int(src),
+                    "target": int(dst),
+                    "similarity": sim,
+                }
+            )
+            added += 1
+            if added >= max_neighbors:
+                break
+    return loop_edges
+
+
+def compute_canon_alignment(
+    y: np.ndarray,
+    sr: int,
+    beats: List[Quantum],
+    duration: float,
+    beats_per_bar: int = DEFAULT_TIME_SIGNATURE,
+    context_window: int = CANON_CONTEXT_BEATS,
+    similarity_threshold: float = CANON_SIMILARITY_THRESHOLD,
+    min_phase_alignment: float = CANON_MIN_PHASE_ALIGNMENT,
+    min_pairs: int = CANON_MIN_PAIRS,
+    top_candidates: int = CANON_TOP_CANDIDATES,
+) -> Optional[Dict[str, object]]:
+    if len(beats) <= 1:
+        return None
+
+    beat_times = [float(b.start) for b in beats]
+    stacked, contexts = _stack_beat_features(
+        y=y,
+        sr=sr,
+        beat_times=beat_times,
+        duration=duration,
+        beats_per_bar=beats_per_bar,
+        hop_length=HOP_LENGTH,
+        context_window=context_window,
+    )
+    ssm = _cosine_ssm(stacked)
+    offsets = _evaluate_offsets(
+        ssm=ssm,
+        contexts=contexts,
+        beats_per_bar=beats_per_bar,
+        min_pairs=min_pairs,
+        min_phase_alignment=min_phase_alignment,
+        similarity_threshold=similarity_threshold,
+    )
+    n_beats = len(beats)
+    loop_candidates = _compute_loop_candidates(
+        ssm=ssm,
+        contexts=contexts,
+        min_similarity=similarity_threshold * 0.8,
+    )
+
+    if not offsets:
+        if n_beats == 0:
+            return None
+        fallback_offset = 1 if n_beats > 1 else 0
+        assignments = np.array(
+            [(idx + fallback_offset) % n_beats for idx in range(n_beats)],
+            dtype=np.int32,
+        )
+        pair_similarity = np.array(
+            [float(ssm[idx, assignments[idx]]) for idx in range(n_beats)],
+            dtype=np.float32,
+        )
+        transitions = [
+            {
+                "source": int(idx),
+                "target": int(assignments[idx]),
+                "similarity": float(pair_similarity[idx]),
+            }
+            for idx in range(n_beats)
+        ]
+        return {
+            "offset": int(fallback_offset),
+            "context_window": int(context_window),
+            "similarity_threshold": float(similarity_threshold),
+            "min_phase_alignment": float(min_phase_alignment),
+            "min_pairs": int(min_pairs),
+            "offset_candidates": [],
+            "segments": [],
+            "runs": [],
+            "pairs": [int(val) for val in assignments.tolist()],
+            "pair_similarity": [float(val) for val in pair_similarity.tolist()],
+            "transitions": transitions,
+            "coverage": {
+                "ratio": 1.0 if n_beats else 0.0,
+                "uncovered": 0,
+                "segments": 0,
+            },
+            "loop_candidates": loop_candidates,
+            "notes": {
+                "message": "Fallback sequential offset applied due to insufficient similarity data.",
+            },
+        }
+
+    top = offsets[:top_candidates]
+    default_offset = top[0].offset
+
+    candidates = _collect_canon_candidates(
+        ssm=ssm,
+        offset_scores=top,
+        similarity_threshold=similarity_threshold,
+        min_pairs=min_pairs,
+    )
+    assignments, pair_similarity, coverage, primary_segments = _apply_canon_candidates(
+        candidates=candidates,
+        ssm=ssm,
+        contexts=contexts,
+        min_phase_alignment=min_phase_alignment,
+        similarity_threshold=similarity_threshold,
+        min_pairs=min_pairs,
+    )
+    extra_segments = _fill_unassigned_ranges(
+        assignments=assignments,
+        pair_similarity=pair_similarity,
+        coverage=coverage,
+        ssm=ssm,
+        contexts=contexts,
+        offset_scores=top,
+        similarity_threshold=similarity_threshold,
+        min_phase_alignment=min_phase_alignment,
+        min_pairs=min_pairs,
+    )
+    segments = primary_segments + extra_segments
+
+    # ensure every beat has an assignment
+    n_beats = len(beats)
+    if n_beats:
+        fallback_offset = default_offset if default_offset > 0 else 1
+        for idx in range(n_beats):
+            if assignments[idx] < 0:
+                dst = (idx + fallback_offset) % n_beats
+                assignments[idx] = dst
+                pair_similarity[idx] = float(ssm[idx, dst])
+                coverage[idx] = True
+    coverage_ratio = float(np.mean(coverage.astype(np.float32))) if n_beats else 0.0
+
+    transition_candidates: Dict[int, List[Tuple[int, float]]] = defaultdict(list)
+    for idx in range(n_beats):
+        dst = int(assignments[idx])
+        if dst < 0:
+            continue
+        sim = float(pair_similarity[idx])
+        transition_candidates[idx].append((dst, sim))
+
+    transitions: List[Dict[str, object]] = []
+    for src, edges in transition_candidates.items():
+        edges.sort(key=lambda item: item[1], reverse=True)
+        for dst, sim in edges[:6]:
+            transitions.append(
+                {
+                    "source": int(src),
+                    "target": int(dst),
+                    "similarity": float(sim),
+                }
+            )
+
+    # Provide legacy run data for the primary offset
+    diag = np.diag(ssm, k=default_offset) if default_offset > 0 else np.array([])
+    runs = _detect_runs(
+        ssm=ssm,
+        offset=default_offset,
+        threshold=similarity_threshold,
+        min_length=min_pairs,
+    ) if default_offset > 0 else []
+    run_dicts = [
+        {"start": int(start), "end": int(end), "length": int(end - start)}
+        for start, end in runs
+    ]
+
+    candidate_dicts = [
+        {
+            "offset": int(score.offset),
+            "mean_similarity": float(score.mean),
+            "std_similarity": float(score.std),
+            "pairs_evaluated": int(score.length),
+            "phase_alignment": float(score.phase_alignment),
+            "high_similarity_ratio": float(score.high_similarity_ratio),
+        }
+        for score in top
+    ]
+
+    segments.sort(key=lambda seg: (seg["start"], seg["offset"]))
+
+    uncovered = int(np.sum(~coverage)) if n_beats else 0
+    coverage_info = {
+        "ratio": float(coverage_ratio),
+        "uncovered": uncovered,
+        "segments": len(segments),
+    }
+
+    return {
+        "offset": int(default_offset),
+        "context_window": int(context_window),
+        "similarity_threshold": float(similarity_threshold),
+        "min_phase_alignment": float(min_phase_alignment),
+        "min_pairs": int(min_pairs),
+        "offset_candidates": candidate_dicts,
+        "runs": run_dicts,
+        "segments": segments,
+        "pairs": [int(val) for val in assignments.tolist()],
+        "pair_similarity": [float(val) for val in pair_similarity.tolist()],
+        "transitions": transitions,
+        "coverage": coverage_info,
+        "loop_candidates": loop_candidates,
+        "notes": {
+            "candidate_count": len(candidates),
+            "primary_segments": len(primary_segments),
+            "fallback_segments": len(extra_segments),
+            "overall_similarity": float(
+                float(np.mean(pair_similarity)) if n_beats else 0.0
+            ),
+        },
+    }
+
+
+def euclidean_distance(v1: np.ndarray, v2: np.ndarray) -> float:
+    """Compute Euclidean distance between two vectors."""
+    return float(np.sqrt(np.sum((v1 - v2) ** 2)))
+
+
+def cosine_similarity(v1: np.ndarray, v2: np.ndarray) -> float:
+    """Compute cosine similarity between two vectors (returns 0-1, higher is more similar)."""
+    dot = np.dot(v1, v2)
+    norm1 = np.linalg.norm(v1)
+    norm2 = np.linalg.norm(v2)
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+    return float(max(0.0, min(1.0, (dot / (norm1 * norm2) + 1) / 2)))
+
+
+def compute_segment_similarity(seg1: Dict, seg2: Dict, timbre_weight: float = 0.7) -> float:
+    """
+    Compute similarity between two segments using timbre and pitch.
+    Returns similarity score 0-1, where 1 is most similar.
+
+    Args:
+        seg1, seg2: Segment dictionaries with 'timbre' and 'pitches' keys
+        timbre_weight: Weight for timbre similarity (0-1), default 0.7
+    """
+    timbre1 = np.array(seg1.get("timbre", []))
+    timbre2 = np.array(seg2.get("timbre", []))
+    pitches1 = np.array(seg1.get("pitches", []))
+    pitches2 = np.array(seg2.get("pitches", []))
+
+    if len(timbre1) == 0 or len(timbre2) == 0:
+        return 0.0
+
+    # Timbre similarity - use cosine for MFCC-like features
+    timbre_sim = cosine_similarity(timbre1, timbre2)
+
+    # Pitch similarity - use cosine for chroma features
+    pitch_sim = 0.5
+    if len(pitches1) > 0 and len(pitches2) > 0:
+        pitch_sim = cosine_similarity(pitches1, pitches2)
+
+    # Combined similarity with configurable weight
+    pitch_weight = 1.0 - timbre_weight
+    combined = timbre_weight * timbre_sim + pitch_weight * pitch_sim
+
+    return float(combined)
+
+
+def compute_beat_to_beat_similarity(
+    beats: List[Quantum],
+    segments: List[Dict],
+) -> np.ndarray:
+    """
+    Compute similarity matrix between beats.
+
+    The previous implementation compared every segment pair inside every beat
+    pair, which was O(N^2 * S^2) and frequently caused analysis to stall or
+    timeout for normal-length tracks. We now summarize each beat into a fixed
+    feature vector (average segment timbre + pitches) and compute cosine
+    similarity in vectorized blocks. This preserves 0..1 similarity semantics
+    while making processing robust for queued uploads.
+    """
+    n_beats = len(beats)
+    if n_beats == 0:
+        return np.zeros((0, 0), dtype=np.float32)
+
+    segments_sorted = sorted(segments, key=lambda s: s.get("start", 0.0))
+
+    timbre_dim = next((len(s["timbre"]) for s in segments_sorted if s.get("timbre")), 12)
+    pitch_dim = next((len(s["pitches"]) for s in segments_sorted if s.get("pitches")), 12)
+    feature_dim = timbre_dim + pitch_dim
+
+    def _coerce_vec(values: Optional[List[float]], dim: int) -> np.ndarray:
+        if not values:
+            return np.zeros(dim, dtype=np.float32)
+        arr = np.asarray(values, dtype=np.float32).flatten()
+        if arr.size == dim:
+            return arr
+        if arr.size > dim:
+            return arr[:dim]
+        padded = np.zeros(dim, dtype=np.float32)
+        padded[:arr.size] = arr
+        return padded
+
+    beat_features = np.zeros((n_beats, feature_dim), dtype=np.float32)
+
+    seg_idx = 0
+    n_segments = len(segments_sorted)
+    for i, beat in enumerate(beats):
+        beat_start = float(getattr(beat, "start", 0.0))
+        beat_end = beat_start + float(getattr(beat, "duration", 0.0))
+
+        while seg_idx < n_segments:
+            seg = segments_sorted[seg_idx]
+            seg_start = float(seg.get("start", 0.0))
+            seg_end = seg_start + float(seg.get("duration", 0.0))
+            if seg_end <= beat_start:
+                seg_idx += 1
+            else:
+                break
+
+        scan = seg_idx
+        timbre_accum: List[np.ndarray] = []
+        pitch_accum: List[np.ndarray] = []
+        while scan < n_segments:
+            seg = segments_sorted[scan]
+            seg_start = float(seg.get("start", 0.0))
+            if seg_start >= beat_end:
+                break
+            seg_end = seg_start + float(seg.get("duration", 0.0))
+            if seg_end > beat_start:
+                timbre = seg.get("timbre")
+                pitches = seg.get("pitches")
+                if timbre:
+                    timbre_accum.append(_coerce_vec(timbre, timbre_dim))
+                if pitches:
+                    pitch_accum.append(_coerce_vec(pitches, pitch_dim))
+            scan += 1
+
+        if timbre_accum or pitch_accum:
+            timbre_vec = np.mean(np.stack(timbre_accum), axis=0) if timbre_accum else np.zeros(timbre_dim, dtype=np.float32)
+            pitch_vec = np.mean(np.stack(pitch_accum), axis=0) if pitch_accum else np.zeros(pitch_dim, dtype=np.float32)
+            beat_features[i, :timbre_dim] = timbre_vec
+            beat_features[i, timbre_dim:] = pitch_vec
+
+    norms = np.linalg.norm(beat_features, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    beat_features = beat_features / norms
+
+    similarity_matrix = np.empty((n_beats, n_beats), dtype=np.float32)
+    block = 1024
+    beat_features_t = beat_features.T
+    for start in range(0, n_beats, block):
+        sub = beat_features[start:start + block] @ beat_features_t
+        sub = (sub + 1.0) * 0.5
+        np.clip(sub, 0.0, 1.0, out=sub)
+        similarity_matrix[start:start + block, :] = sub.astype(np.float32, copy=False)
+
+    np.fill_diagonal(similarity_matrix, 1.0)
+    return similarity_matrix
+
+
+def circular_distance(src: int, dst: int, n_beats: int) -> int:
+    """
+    Compute circular distance from src to dst.
+    Returns positive for forward jumps, negative for backward jumps.
+    """
+    forward_dist = (dst - src) % n_beats
+    backward_dist = (src - dst) % n_beats
+
+    if forward_dist <= backward_dist:
+        return forward_dist
+    else:
+        return -backward_dist
+
+
+def generate_loop_candidates(
+    beats: List[Quantum],
+    similarity_matrix: np.ndarray,
+    sections: List[Dict] = None,
+    min_span: int = 6,
+    max_span: int = None,
+    thresholds: List[float] = None,
+    max_candidates_per_beat: int = 20,
+    energies: Optional[List[float]] = None,
+    chroma: Optional[List[np.ndarray]] = None,
+    tempos: Optional[List[float]] = None,
+    silence_floor: float = -50.0,
+    energy_drop_ratio: float = 0.45,
+) -> Dict[int, List[Dict]]:
+    """
+    Generate bidirectional loop candidates for each beat using multi-tier thresholds.
+    Treats timeline as circular (wraps end → start).
+
+    Args:
+        beats: List of beat quantums
+        similarity_matrix: NxN similarity matrix
+        sections: Optional list of section boundaries for section bias
+        min_span: Minimum distance between beats (in beats)
+        max_span: Maximum distance between beats (None = no limit)
+        thresholds: List of similarity thresholds to try [tight, medium, loose]
+        max_candidates_per_beat: Maximum candidates to keep per beat
+
+    Returns:
+        Dict mapping beat_index -> list of {target, similarity, span, direction, section_match, score, beat_in_bar, bar_length_beats}
+        where direction is 'forward' or 'backward'
+    """
+    n_beats = len(beats)
+    if thresholds is None:
+        thresholds = [0.76, 0.65, 0.55]  # Multi-tier: tight → medium → loose
+    if max_span is None:
+        max_span = n_beats // 2  # Don't allow jumps larger than half the song
+
+    # Build section map if provided
+    beat_sections = None
+    if sections:
+        beat_sections = []
+        for beat in beats:
+            beat_section = None
+            # Handle both Quantum objects and dicts
+            beat_start = beat.start if hasattr(beat, 'start') else beat.get("start", 0)
+            for idx, section in enumerate(sections):
+                # Handle both Quantum objects and dicts
+                sec_start = section.start if hasattr(section, 'start') else section.get("start", 0)
+                sec_dur = section.duration if hasattr(section, 'duration') else section.get("duration", 0)
+                if sec_start <= beat_start < sec_start + sec_dur:
+                    beat_section = idx
+                    break
+            beat_sections.append(beat_section)
+
+    loop_candidates = {}
+
+    def energy_for(idx: int) -> float:
+        if energies and 0 <= idx < len(energies):
+            return energies[idx]
+        return silence_floor
+
+    def chroma_for(idx: int) -> Optional[np.ndarray]:
+        if chroma and 0 <= idx < len(chroma):
+            return chroma[idx]
+        return None
+
+    def tempo_for(idx: int) -> float:
+        if tempos and 0 <= idx < len(tempos):
+            return tempos[idx]
+        return 120.0
+
+    max_backward_span = max(12, int(n_beats * 0.1))
+    span_band = max(min_span, 8)
+    for source_idx in range(n_beats):
+        candidates = []
+
+        # Try all possible targets in circular manner
+        for target_idx in range(n_beats):
+            if source_idx == target_idx:
+                continue
+
+            # Compute circular span
+            span = circular_distance(source_idx, target_idx, n_beats)
+            abs_span = abs(span)
+
+            # Check span constraints
+            if abs_span < min_span or abs_span > max_span:
+                continue
+
+            similarity = similarity_matrix[source_idx, target_idx]
+
+            # Check if meets any threshold tier
+            if similarity < thresholds[-1]:  # Must at least meet lowest threshold
+                continue
+
+            # Determine direction
+            direction = "forward" if span > 0 else "backward"
+
+            # Check section match for bias
+            section_match = False
+            if beat_sections and beat_sections[source_idx] is not None:
+                section_match = (beat_sections[source_idx] == beat_sections[target_idx])
+
+            src_beat = beats[source_idx]
+            tgt_beat = beats[target_idx]
+            src_phase = getattr(src_beat, "indexInParent", None)
+            tgt_phase = getattr(tgt_beat, "indexInParent", None)
+            phase_match = None
+            if src_phase is not None and tgt_phase is not None:
+                phase_match = (src_phase == tgt_phase)
+
+            src_energy = energy_for(source_idx)
+            tgt_energy = energy_for(target_idx)
+            if tgt_energy <= silence_floor:
+                continue
+            if tgt_energy < src_energy * energy_drop_ratio:
+                continue
+
+            src_chroma = chroma_for(source_idx)
+            tgt_chroma = chroma_for(target_idx)
+            chroma_sim = float(np.dot(src_chroma, tgt_chroma)) if (src_chroma is not None and tgt_chroma is not None) else 0.0
+
+            tempo_src = tempo_for(source_idx)
+            tempo_tgt = tempo_for(target_idx)
+            tempo_ratio = abs(tempo_src - tempo_tgt) / max(tempo_src, tempo_tgt)
+
+            # Backward clamp
+            if direction == "backward" and abs_span > max_backward_span:
+                continue
+
+            # Composite score
+            score = similarity * 0.3 + chroma_sim * 0.3
+            # energy match bonus
+            score += max(0.0, min(0.2, (tgt_energy - silence_floor) / 80.0))
+            # phase bonus
+            if phase_match is True:
+                score += 0.2
+            elif phase_match is False:
+                score -= 0.05
+            # downbeat bonus
+            if tgt_phase == 0:
+                score += 0.1
+            # onset bonus (use beat confidence as proxy when available)
+            src_onset = getattr(src_beat, "confidence", None)
+            tgt_onset = getattr(tgt_beat, "confidence", None)
+            if tgt_onset is not None and tgt_onset > 0.65:
+                score += 0.05
+            # section bonus
+            if section_match:
+                score += 0.05
+            # tempo penalty (soft guard instead of drop)
+            score -= min(0.25, tempo_ratio * 0.8)
+            # backward penalty
+            if direction == "backward":
+                score -= min(0.2, abs_span / (max_backward_span or n_beats))
+
+            candidates.append({
+                "target": target_idx,
+                "similarity": float(similarity),
+                "span": int(span),
+                "abs_span": int(abs_span),
+                "direction": direction,
+                "section_match": section_match,
+                "phase_match": phase_match,
+                "score": float(score),
+                "beat_in_bar": getattr(tgt_beat, "beat_in_bar", None),
+                "bar_length_beats": getattr(tgt_beat, "bar_length_beats", None),
+                "chroma_similarity": chroma_sim,
+                "source_energy": float(src_energy),
+                "target_energy": float(tgt_energy),
+            })
+
+        phase_gate_threshold = max(max_candidates_per_beat, 12)
+        phase_match_count = sum(1 for cand in candidates if cand.get("phase_match") is True)
+        if phase_match_count >= phase_gate_threshold:
+            candidates = [cand for cand in candidates if cand.get("phase_match") is True]
+
+        # Band by span/direction to avoid near-duplicates, then limit
+        best_by_band: Dict[Tuple[str, int], Dict] = {}
+        for cand in candidates:
+            band = int(cand["abs_span"] // span_band)
+            key = (cand["direction"], band)
+            prev = best_by_band.get(key)
+            if prev is None or cand.get("score", cand["similarity"]) > prev.get("score", prev["similarity"]):
+                best_by_band[key] = cand
+        deduped = list(best_by_band.values())
+
+        deduped.sort(key=lambda x: x.get("score", x["similarity"]), reverse=True)
+        loop_candidates[source_idx] = deduped[:max_candidates_per_beat]
+
+    return loop_candidates
+
+
+def compute_canon_candidates(
+    beats: List[Dict],
+    energies: List[float],
+    chroma: List[np.ndarray],
+    max_offsets: int = 7,
+    bar_offsets: Optional[List[int]] = None,
+) -> Tuple[Dict[int, List[Dict]], List[int]]:
+    """
+    Build bar-locked canon candidates per beat and rank global bar offsets for multi-voice use.
+    Score = 0.4 * chroma - 0.3 * energy_diff (energy in dB scaled).
+    max_offsets=7 to support up to 8 voices (1 main + 7 overlays).
+    """
+    if bar_offsets is None:
+        # More offsets for richer multi-voice canons
+        bar_offsets = [4, 8, 16, 32, -4, -8, -16, -32, 2, 6, 12, 24]
+    candidates: Dict[int, List[Dict]] = {}
+    offset_scores: Dict[int, List[float]] = {o: [] for o in bar_offsets}
+
+    def beat_by_bar_and_phase(bar: int, phase: int) -> Optional[Tuple[int, Dict]]:
+        for idx, b in enumerate(beats):
+            if b.get("bar_index") == bar and b.get("beat_in_bar") == phase:
+                return idx, b
+        return None
+
+    for i, b in enumerate(beats):
+        bar_idx = b.get("bar_index")
+        phase = b.get("beat_in_bar")
+        if bar_idx is None or phase is None:
+            continue
+        e_src = energies[i] if i < len(energies) else -40.0
+        c_src = chroma[i] if i < len(chroma) else None
+        local: List[Dict] = []
+        for off in bar_offsets:
+            target = beat_by_bar_and_phase(bar_idx + off, phase)
+            if not target:
+                continue
+            tgt_idx, tgt_beat = target
+            e_tgt = energies[tgt_idx] if tgt_idx < len(energies) else -40.0
+            c_tgt = chroma[tgt_idx] if tgt_idx < len(chroma) else None
+            chroma_sim = float(np.dot(c_src, c_tgt)) if c_src is not None and c_tgt is not None else 0.0
+            energy_diff = abs(e_src - e_tgt)
+            score = 0.4 * chroma_sim - 0.3 * (energy_diff / 40.0)
+            local.append({
+                "target": int(tgt_idx),
+                "bar_offset": int(off),
+                "score": float(score),
+            })
+            offset_scores[off].append(score)
+        if local:
+            local.sort(key=lambda x: x["score"], reverse=True)
+            candidates[i] = local
+
+    ranked_offsets = sorted(
+        [(off, np.mean(vals)) for off, vals in offset_scores.items() if vals],
+        key=lambda x: x[1],
+        reverse=True,
+    )
+    top_offsets = [off for off, _ in ranked_offsets[:max_offsets]]
+    return candidates, top_offsets
+
+
+def build_profile(
+    audio_path: Path,
+    track_id: str,
+    title: str,
+    artist: str,
+    audio_url: str,
+    output_path: Path,
+) -> Dict[str, object]:
+    y, sr = librosa.load(audio_path, sr=None, mono=True)
+    duration = librosa.get_duration(y=y, sr=sr)
+
+    beats, beat_times, tempo = compute_beats(y, sr)
+    if not beats:
+        # fallback: create a simple evenly spaced grid
+        grid = np.linspace(0, duration, num=max(int(duration * 2), 2), endpoint=False)
+        beats = [
+            Quantum(
+                start=float(t),
+                duration=float(min(duration - t, duration / len(grid))),
+                confidence=0.5,
+            )
+            for t in grid
+        ]
+        beat_times = np.array([b.start for b in beats])
+        tempo = 60.0 / beats[0].duration if beats and beats[0].duration > 0 else 120.0
+
+    bars = derive_bars(beats, beat_times, duration)
+    tatums = derive_tatums(beats, duration)
+
+    desired_sections = max(2, min(12, len(beats) // 8 or 2))
+    sections = estimate_sections(y, sr, duration, desired_sections, bars)
+    segments = compute_segments(y, sr, duration)
+    beats_meta, beat_energies, beat_chroma, beat_tempos = _build_beat_metadata(beats, [b.as_dict() for b in bars], segments, tempo)
+
+    chroma_full = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
+    key_index, mode = estimate_key(chroma_full)
+    loudness_global = float(np.mean(librosa.amplitude_to_db(np.abs(y), ref=1.0)))
+
+    canon_alignment = compute_canon_alignment(
+        y=y,
+        sr=sr,
+        beats=beats,
+        duration=duration,
+        beats_per_bar=DEFAULT_TIME_SIGNATURE,
+        context_window=CANON_CONTEXT_BEATS,
+        similarity_threshold=CANON_SIMILARITY_THRESHOLD,
+        min_phase_alignment=CANON_MIN_PHASE_ALIGNMENT,
+        min_pairs=CANON_MIN_PAIRS,
+        top_candidates=CANON_TOP_CANDIDATES,
+    )
+    loop_candidates = (
+        canon_alignment.get("loop_candidates", []) if canon_alignment else []
+    )
+
+    # Compute segment-based similarity matrix for eternal jukebox
+    print("[Analysis] Computing beat-to-beat similarity matrix (circular, bidirectional)...", flush=True)
+    similarity_matrix = compute_beat_to_beat_similarity(beats, segments)
+
+    # Generate circular bidirectional loop candidates with multi-tier thresholds
+    print("[Analysis] Generating eternal loop candidates (circular timeline)...", flush=True)
+    eternal_loop_candidates = generate_loop_candidates(
+        beats=beats_meta,
+        similarity_matrix=similarity_matrix,
+        sections=sections,
+        min_span=6,
+        max_span=None,  # Auto-computed as n_beats // 2
+        thresholds=[0.76, 0.65, 0.55],  # Tight + medium + loose
+        max_candidates_per_beat=20,
+        energies=beat_energies,
+        chroma=beat_chroma,
+        tempos=beat_tempos,
+        silence_floor=SILENCE_DB,
+        energy_drop_ratio=0.45,
+    )
+
+    # Convert to string keys for JSON serialization
+    eternal_loop_candidates_json = {
+        str(src): cand_list
+        for src, cand_list in eternal_loop_candidates.items()
+    }
+
+    print(f"[Analysis] Generated {sum(len(v) for v in eternal_loop_candidates.values())} eternal jukebox loop candidates", flush=True)
+
+    # Canon candidates for multivoice canon
+    canon_candidates, global_voice_offsets = compute_canon_candidates(beats_meta, beat_energies, beat_chroma)
+
+    profile = {
+        "response": {
+            "status": {"code": 0, "message": "OK"},
+            "track": {
+                "id": track_id,
+                "title": title,
+                "artist": artist,
+                "status": "complete",
+                "info": {"url": audio_url},
+                "audio_url": audio_url,
+                "audio_summary": {
+                    "duration": float(duration),
+                    "tempo": float(tempo),
+                    "time_signature": DEFAULT_TIME_SIGNATURE,
+                    "key": int(key_index),
+                    "mode": int(mode),
+                    "loudness": loudness_global,
+                    "analysis_sample_rate": sr,
+                },
+                "analysis": {
+                    "version": "local-1.0",
+                    "sample_rate": sr,
+                    "counts": {
+                        "sections": len(sections),
+                        "bars": len(bars),
+                        "beats": len(beats),
+                        "tatums": len(tatums),
+                        "segments": len(segments),
+                    },
+                    "sections": [s.as_dict() for s in sections],
+                    "bars": [b.as_dict() for b in bars],
+                    "beats": [b.as_dict() for b in beats],
+                    "tatums": [t.as_dict() for t in tatums],
+                    "segments": segments,
+                    "canon_alignment": canon_alignment,
+                    "loop_candidates": loop_candidates,
+                    "eternal_loop_candidates": eternal_loop_candidates_json,
+                    "canon_candidates": canon_candidates,
+                    "global_voice_offsets": global_voice_offsets,
+                },
+            },
+        }
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as sink:
+        json.dump(profile, sink, indent=2)
+    return profile
+
+
+def compute_cross_track_similarity(
+    beats1: List[Dict],
+    beats2: List[Dict],
+    segments1: List[Dict],
+    segments2: List[Dict],
+) -> Dict[str, List[Dict]]:
+    """
+    Compute cross-track beat-to-beat similarity between two tracks.
+
+    For each beat in track1, find similar beats in track2 (and vice versa).
+    Uses segment timbre and pitch features for comparison.
+
+    Returns a dict mapping:
+        "track1_to_track2": List of candidate jumps from track1 to track2
+        "track2_to_track1": List of candidate jumps from track2 to track1
+    """
+    # Build feature vectors for each beat by finding the nearest segment
+    def get_beat_features(beats: List[Dict], segments: List[Dict]) -> np.ndarray:
+        features = []
+        for beat in beats:
+            beat_start = beat["start"]
+            # Find the segment that contains or is closest to this beat
+            best_seg = min(segments, key=lambda s: abs(s["start"] - beat_start))
+            # Concatenate timbre (12) and pitches (12) = 24 features
+            timbre = np.array(best_seg.get("timbre", [0.0] * 12), dtype=np.float32)
+            pitches = np.array(best_seg.get("pitches", [0.0] * 12), dtype=np.float32)
+            feat = np.concatenate([timbre, pitches])
+            features.append(feat)
+        return np.array(features, dtype=np.float32)
+
+    features1 = get_beat_features(beats1, segments1)
+    features2 = get_beat_features(beats2, segments2)
+
+    # Normalize features
+    features1_norm = features1 / (np.linalg.norm(features1, axis=1, keepdims=True) + 1e-8)
+    features2_norm = features2 / (np.linalg.norm(features2, axis=1, keepdims=True) + 1e-8)
+
+    # Compute cross-similarity matrix: shape (n_beats1, n_beats2)
+    cross_sim = features1_norm @ features2_norm.T
+
+    # For each beat in track1, find top candidates in track2
+    track1_to_track2 = {}
+    for i in range(len(beats1)):
+        similarities = cross_sim[i, :]
+        # Get top 12 candidates above threshold
+        threshold = 0.50
+        candidates = []
+        for j in range(len(beats2)):
+            if similarities[j] >= threshold:
+                candidates.append({
+                    "source_track": 1,
+                    "target_track": 2,
+                    "source_index": i,
+                    "target_index": j,
+                    "similarity": float(similarities[j]),
+                    "source_time": beats1[i]["start"],
+                    "target_time": beats2[j]["start"],
+                })
+        # Sort by similarity and keep top 12
+        candidates.sort(key=lambda x: x["similarity"], reverse=True)
+        track1_to_track2[str(i)] = candidates[:12]
+
+    # For each beat in track2, find top candidates in track1
+    track2_to_track1 = {}
+    for j in range(len(beats2)):
+        similarities = cross_sim[:, j]
+        threshold = 0.50
+        candidates = []
+        for i in range(len(beats1)):
+            if similarities[i] >= threshold:
+                candidates.append({
+                    "source_track": 2,
+                    "target_track": 1,
+                    "source_index": j,
+                    "target_index": i,
+                    "similarity": float(similarities[i]),
+                    "source_time": beats2[j]["start"],
+                    "target_time": beats1[i]["start"],
+                })
+        candidates.sort(key=lambda x: x["similarity"], reverse=True)
+        track2_to_track1[str(j)] = candidates[:12]
+
+    return {
+        "track1_to_track2": track1_to_track2,
+        "track2_to_track1": track2_to_track1,
+    }
+
+
+def _annotate_beats_with_bar_info(beats: List[Dict], bars: List[Dict]) -> List[Dict]:
+    """
+    Add bar-relative metadata to beats: beat_in_bar (0-indexed), bar_length_beats, bar_index.
+    """
+    annotated: List[Dict] = []
+    bar_idx = 0
+    beats_in_bar = 0
+    for i, beat in enumerate(beats):
+        beat_start = float(beat.get("start", 0.0))
+        while bar_idx + 1 < len(bars) and bars[bar_idx + 1].get("start", 0.0) <= beat_start:
+            bar_idx += 1
+            beats_in_bar = 0
+        bar_start = float(bars[bar_idx].get("start", 0.0))
+        bar_dur = float(bars[bar_idx].get("duration", 0.0)) or 1.0
+        beat_in_current_bar = beats_in_bar
+        beats_in_bar += 1
+        # Count beats in this bar to set bar length
+        bar_beats = beats_in_bar
+        j = i + 1
+        while j < len(beats) and float(beats[j].get("start", 0.0)) < bar_start + bar_dur:
+            bar_beats += 1
+            j += 1
+        annotated_beat = dict(beat)
+        annotated_beat["beat_in_bar"] = beat_in_current_bar
+        annotated_beat["bar_length_beats"] = bar_beats
+        annotated_beat["bar_index"] = bar_idx
+        annotated.append(annotated_beat)
+    return annotated
+
+
+def _compute_vocal_activity(beats: List[Dict], segments: List[Dict]) -> List[float]:
+    """
+    Lightweight vocal proxy: average absolute MFCC mid-band (dims 2-5) for segments overlapping each beat.
+    """
+    vocality: List[float] = []
+    seg_idx = 0
+    for beat in beats:
+        start = float(beat.get("start", 0.0))
+        end = start + float(beat.get("duration", 0.0))
+        acc = []
+        while seg_idx < len(segments) and (segments[seg_idx].get("start", 0.0) + segments[seg_idx].get("duration", 0.0)) < start:
+            seg_idx += 1
+        j = seg_idx
+        while j < len(segments):
+            seg = segments[j]
+            seg_start = float(seg.get("start", 0.0))
+            seg_end = seg_start + float(seg.get("duration", 0.0))
+            if seg_start > end:
+                break
+            if seg_end >= start:
+                timbre = seg.get("timbre", [])
+                mid = timbre[2:6] if len(timbre) >= 6 else timbre
+                if mid:
+                    acc.append(float(np.mean(np.abs(mid))))
+            j += 1
+        vocality.append(float(np.mean(acc)) if acc else 0.0)
+    return vocality
+
+def _compute_beat_chroma(beats: List[Dict], segments: List[Dict]) -> List[np.ndarray]:
+    """
+    Compute a per-beat chroma vector using the closest segment's pitches.
+    """
+    chromas: List[np.ndarray] = []
+    for beat in beats:
+        beat_start = beat.get("start", 0.0)
+        if not segments:
+            chromas.append(np.zeros(12, dtype=np.float32))
+            continue
+        best_seg = min(segments, key=lambda s: abs(s.get("start", 0.0) - beat_start))
+        pitches = np.array(best_seg.get("pitches", [0.0] * 12), dtype=np.float32)
+        norm = np.linalg.norm(pitches) + 1e-8
+        chromas.append(pitches / norm)
+    return chromas
+
+def _compute_beat_energy(beats: List[Dict], segments: List[Dict], default_db: float = -40.0) -> List[float]:
+    """
+    Estimate per-beat loudness (dB) using overlapping segments' loudness values.
+    Uses loudness_max/loudness_start averages for robustness.
+    """
+    energies: List[float] = []
+    seg_idx = 0
+    for beat in beats:
+        start = float(beat.get("start", 0.0))
+        end = start + float(beat.get("duration", 0.0))
+        acc = []
+        # advance seg_idx to first segment that might overlap
+        while seg_idx < len(segments) and (segments[seg_idx].get("start", 0.0) + segments[seg_idx].get("duration", 0.0)) < start:
+            seg_idx += 1
+        j = seg_idx
+        while j < len(segments):
+            seg = segments[j]
+            seg_start = float(seg.get("start", 0.0))
+            seg_end = seg_start + float(seg.get("duration", 0.0))
+            if seg_start > end:
+                break
+            if seg_end >= start:
+                loud_start = float(seg.get("loudness_start", default_db))
+                loud_max = float(seg.get("loudness_max", default_db))
+                acc.append((loud_start + loud_max) * 0.5)
+            j += 1
+        if acc:
+            energies.append(float(np.mean(acc)))
+        else:
+            energies.append(default_db)
+    return energies
+
+def _build_autoharmonizer_edges(
+    track1: Dict,
+    track2: Dict,
+    cross_similarity: Dict[str, List[Dict]],
+    silence_db: float = -45.0,
+    similarity_threshold: float = 0.35,
+) -> List[Dict]:
+    """
+    Build a joint edge list across both tracks, combining intra-track and cross-track jumps.
+    Filters out silent targets and low-similarity candidates, and embeds a score for ranking.
+    """
+    beats1 = track1["beats"]
+    beats2 = track2["beats"]
+    sections1 = track1.get("sections", [])
+    sections2 = track2.get("sections", [])
+    energies1 = track1.get("energies", [])
+    energies2 = track2.get("energies", [])
+    chroma1 = track1.get("chroma", [])
+    chroma2 = track2.get("chroma", [])
+    vocal1 = track1.get("vocality", [])
+    vocal2 = track2.get("vocality", [])
+    tempo1 = float(track1.get("tempo", 120.0)) or 120.0
+    tempo2 = float(track2.get("tempo", 120.0)) or 120.0
+
+    # Maps beat index -> section index
+    def map_sections(beats: List[Dict], sections: List[Dict]) -> List[int]:
+        mapping = [-1] * len(beats)
+        for s_idx, sec in enumerate(sections):
+            s_start = float(sec.get("start", 0.0))
+            s_end = s_start + float(sec.get("duration", 0.0))
+            for i, b in enumerate(beats):
+                if s_start <= float(b.get("start", 0.0)) < s_end:
+                    mapping[i] = s_idx
+        return mapping
+
+    sec_map1 = map_sections(beats1, sections1)
+    sec_map2 = map_sections(beats2, sections2)
+
+    def section_match(src_track: int, src_idx: int, tgt_track: int, tgt_idx: int) -> bool:
+        if src_track == 1 and tgt_track == 1:
+            return sec_map1[src_idx] == sec_map1[tgt_idx]
+        if src_track == 2 and tgt_track == 2:
+            return sec_map2[src_idx] == sec_map2[tgt_idx]
+        if src_track == 1 and tgt_track == 2:
+            return sec_map1[src_idx] == sec_map2[tgt_idx]
+        if src_track == 2 and tgt_track == 1:
+            return sec_map2[src_idx] == sec_map1[tgt_idx]
+        return False
+
+    def energy_for(track_num: int, idx: int) -> float:
+        if track_num == 1 and 0 <= idx < len(energies1):
+            return energies1[idx]
+        if track_num == 2 and 0 <= idx < len(energies2):
+            return energies2[idx]
+        return silence_db
+
+    def chroma_for(track_num: int, idx: int) -> Optional[np.ndarray]:
+        if track_num == 1 and 0 <= idx < len(chroma1):
+            return chroma1[idx]
+        if track_num == 2 and 0 <= idx < len(chroma2):
+            return chroma2[idx]
+        return None
+
+    def vocal_for(track_num: int, idx: int) -> float:
+        if track_num == 1 and 0 <= idx < len(vocal1):
+            return vocal1[idx]
+        if track_num == 2 and 0 <= idx < len(vocal2):
+            return vocal2[idx]
+        return 0.0
+
+    edges: List[Dict] = []
+
+    def add_edge(src_track: int, src_idx: int, tgt_track: int, tgt_idx: int, sim: float, reason: str):
+        if sim < similarity_threshold:
+            return
+        tgt_energy = energy_for(tgt_track, tgt_idx)
+        if tgt_energy <= silence_db:
+            return
+        same_section = section_match(src_track, src_idx, tgt_track, tgt_idx)
+        c_src = chroma_for(src_track, src_idx)
+        c_tgt = chroma_for(tgt_track, tgt_idx)
+        chroma_sim = float(np.dot(c_src, c_tgt)) if c_src is not None and c_tgt is not None else 0.0
+        tgt_vocal = vocal_for(tgt_track, tgt_idx)
+
+        beat_in_bar_src = beats1[src_idx].get("beat_in_bar") if src_track == 1 else beats2[src_idx].get("beat_in_bar")
+        beat_in_bar_tgt = beats1[tgt_idx].get("beat_in_bar") if tgt_track == 1 else beats2[tgt_idx].get("beat_in_bar")
+        bar_len_src = beats1[src_idx].get("bar_length_beats") if src_track == 1 else beats2[src_idx].get("bar_length_beats")
+        bar_len_tgt = beats1[tgt_idx].get("bar_length_beats") if tgt_track == 1 else beats2[tgt_idx].get("bar_length_beats")
+        phase_penalty = 0.0
+        if beat_in_bar_src is not None and beat_in_bar_tgt is not None:
+            mod = max(1, min(bar_len_src or 4, bar_len_tgt or 4))
+            phase_penalty = abs((beat_in_bar_src % mod) - (beat_in_bar_tgt % mod)) / mod
+
+        # Tempo guard for cross-track jumps: soft penalty, not a drop
+        tempo_ratio = abs(tempo1 - tempo2) / max(tempo1, tempo2) if src_track != tgt_track else 0.0
+
+        score = sim * 0.4 + chroma_sim * 0.4
+        if same_section:
+            score += 0.08
+        score += max(0.0, min(0.15, (tgt_energy - silence_db) / 80.0))
+        if beat_in_bar_tgt == 0:
+            score += 0.12
+        score -= min(0.3, phase_penalty)
+        if src_track != tgt_track:
+            score += 0.40  # aggressive cross-track encouragement
+            score -= min(0.2, tempo_ratio * 0.8)
+        # Penalize very vocal targets slightly to prefer instrumental landings
+        if tgt_vocal > 4.0:
+            score -= 0.08
+        edges.append(
+            {
+                "source_track": src_track,
+                "source_index": int(src_idx),
+                "target_track": tgt_track,
+                "target_index": int(tgt_idx),
+                "similarity": float(sim),
+                "score": float(score),
+                "same_section": bool(same_section),
+                "target_energy": float(tgt_energy),
+                "target_vocal": float(tgt_vocal),
+                "chroma_similarity": float(chroma_sim),
+                "beat_in_bar": beat_in_bar_tgt if beat_in_bar_tgt is not None else 0,
+                "bar_length_beats": bar_len_tgt if bar_len_tgt is not None else 4,
+                "phase_delta": float(phase_penalty),
+                "reason": reason,
+            }
+        )
+
+    # Intra-track edges from eternal_loop_candidates
+    def add_intra_edges(track_num: int, loop_candidates: Dict[str, List[Dict]]):
+        for key, cand_list in loop_candidates.items():
+            try:
+                src_idx = int(key)
+            except ValueError:
+                continue
+            for cand in cand_list:
+                tgt_idx = cand.get("target")
+                if tgt_idx is None:
+                    continue
+                sim = float(cand.get("similarity", 0.0))
+                add_edge(track_num, src_idx, track_num, int(tgt_idx), sim, "intra-track")
+
+    add_intra_edges(1, track1.get("eternal_loop_candidates", {}))
+    add_intra_edges(2, track2.get("eternal_loop_candidates", {}))
+
+    # Cross-track edges from cross_similarity
+    for key, cand_list in (cross_similarity.get("track1_to_track2") or {}).items():
+        try:
+            src_idx = int(key)
+        except ValueError:
+            continue
+        for cand in cand_list:
+            add_edge(1, src_idx, 2, int(cand.get("target_index", 0)), float(cand.get("similarity", 0.0)), "cross-track")
+    for key, cand_list in (cross_similarity.get("track2_to_track1") or {}).items():
+        try:
+            src_idx = int(key)
+        except ValueError:
+            continue
+        for cand in cand_list:
+            add_edge(2, src_idx, 1, int(cand.get("target_index", 0)), float(cand.get("similarity", 0.0)), "cross-track")
+
+    return edges
+
+
+def build_autoharmonizer_profile(
+    track1_path: Path,
+    track2_path: Path,
+    combined_track_id: str,
+    output_path: Path,
+) -> Dict:
+    """
+    Build a combined autoharmonizer profile from two existing track profiles.
+
+    Loads both track analyses, computes cross-track similarity, and creates
+    a combined profile with both tracks' data plus cross-track jump candidates.
+    """
+    # Load both track profiles
+    with track1_path.open("r", encoding="utf-8") as f:
+        profile1 = json.load(f)
+
+    with track2_path.open("r", encoding="utf-8") as f:
+        profile2 = json.load(f)
+
+    track1 = profile1["response"]["track"]
+    track2 = profile2["response"]["track"]
+
+    # Extract beats and segments from both tracks
+    beats1 = track1["analysis"]["beats"]
+    beats2 = track2["analysis"]["beats"]
+    segments1 = track1["analysis"]["segments"]
+    segments2 = track2["analysis"]["segments"]
+
+    bars1 = track1["analysis"].get("bars", [])
+    bars2 = track2["analysis"].get("bars", [])
+    if bars1:
+        beats1 = _annotate_beats_with_bar_info(beats1, bars1)
+    if bars2:
+        beats2 = _annotate_beats_with_bar_info(beats2, bars2)
+
+    # Per-beat energy and proxies for vocal/chroma
+    energies1 = _compute_beat_energy(beats1, segments1)
+    energies2 = _compute_beat_energy(beats2, segments2)
+    chroma1 = _compute_beat_chroma(beats1, segments1)
+    chroma2 = _compute_beat_chroma(beats2, segments2)
+    vocality1 = _compute_vocal_activity(beats1, segments1)
+    vocality2 = _compute_vocal_activity(beats2, segments2)
+
+    # Compute cross-track similarity
+    print(f"[Autoharmonizer] Computing cross-track similarity between {len(beats1)} and {len(beats2)} beats...")
+    cross_similarity = compute_cross_track_similarity(beats1, beats2, segments1, segments2)
+
+    # Build joint edge list across tracks
+    silence_db = -45.0
+    joint_edges = _build_autoharmonizer_edges(
+        {
+            "beats": beats1,
+            "sections": track1["analysis"].get("sections", []),
+            "eternal_loop_candidates": track1["analysis"].get("eternal_loop_candidates", {}),
+            "energies": energies1,
+            "chroma": chroma1,
+            "vocality": vocality1,
+            "tempo": track1["audio_summary"].get("tempo", 120.0),
+        },
+        {
+            "beats": beats2,
+            "sections": track2["analysis"].get("sections", []),
+            "eternal_loop_candidates": track2["analysis"].get("eternal_loop_candidates", {}),
+            "energies": energies2,
+            "chroma": chroma2,
+            "vocality": vocality2,
+            "tempo": track2["audio_summary"].get("tempo", 120.0),
+        },
+        cross_similarity=cross_similarity,
+        silence_db=silence_db,
+        similarity_threshold=0.35,
+    )
+
+    # Build combined profile
+    track1_audio_url = track1.get("audio_url") or track1.get("info", {}).get("url", "")
+    track2_audio_url = track2.get("audio_url") or track2.get("info", {}).get("url", "")
+
+    combined_profile = {
+        "response": {
+            "status": {"version": "4.2", "code": 0, "message": "Success"},
+            "track": {
+                "id": combined_track_id,
+                "status": "complete",
+                "title": f"{track1['title']} + {track2['title']}",
+                "artist": track1.get("artist", "Unknown"),
+                "audio_url": track1_audio_url,
+                "info": {
+                    "url": track1_audio_url,
+                },
+                "audio_summary": {
+                    "duration": max(
+                        track1["audio_summary"]["duration"],
+                        track2["audio_summary"]["duration"]
+                    ),
+                    "tempo": (track1["audio_summary"]["tempo"] + track2["audio_summary"]["tempo"]) / 2,
+                    "time_signature": track1["audio_summary"]["time_signature"],
+                    "key": track1["audio_summary"]["key"],
+                    "mode": track1["audio_summary"]["mode"],
+                    "loudness": (track1["audio_summary"]["loudness"] + track2["audio_summary"]["loudness"]) / 2,
+                    "analysis_sample_rate": track1["audio_summary"]["analysis_sample_rate"],
+                },
+                "analysis": {
+                    "beats": beats1,  # Use track1 beats as primary timeline
+                    "bars": track1["analysis"]["bars"],
+                    "sections": track1["analysis"]["sections"],
+                    "segments": segments1,
+                    "tatums": track1["analysis"]["tatums"],
+                    # Add autoharmonizer-specific data
+                    "autoharmonizer": {
+                        "track1": {
+                            "id": track1["id"],
+                            "title": track1["title"],
+                            "audio_url": track1_audio_url,
+                            "beats": beats1,
+                            "bars": track1["analysis"]["bars"],
+                            "segments": segments1,
+                            "energies": energies1,
+                            "duration": track1["audio_summary"]["duration"],
+                            "tempo": track1["audio_summary"]["tempo"],
+                            "eternal_loop_candidates": track1["analysis"].get("eternal_loop_candidates", {}),
+                            "canon_alignment": track1["analysis"].get("canon_alignment", {}),
+                        },
+                        "track2": {
+                            "id": track2["id"],
+                            "title": track2["title"],
+                            "audio_url": track2_audio_url,
+                            "beats": beats2,
+                            "bars": track2["analysis"]["bars"],
+                            "segments": segments2,
+                            "energies": energies2,
+                            "duration": track2["audio_summary"]["duration"],
+                            "tempo": track2["audio_summary"]["tempo"],
+                            "eternal_loop_candidates": track2["analysis"].get("eternal_loop_candidates", {}),
+                            "canon_alignment": track2["analysis"].get("canon_alignment", {}),
+                        },
+                        "cross_similarity": cross_similarity,
+                        "joint_edges": joint_edges,
+                        "params": {
+                            "silence_threshold": silence_db,
+                            "min_dwell_beats": 6,
+                            "cross_min_beats": 8,
+                            "max_backward_beats": 12,
+                            "min_edge_score": 0.7,
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    # Save combined profile
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as sink:
+        json.dump(combined_profile, sink, indent=2)
+
+    print(f"[Autoharmonizer] Created combined profile: {combined_track_id}")
+    return combined_profile
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Generate an Infinite Jukebox compatible analysis profile."
+    )
+    parser.add_argument("--audio", required=True, type=Path, help="Path to the audio file.")
+    parser.add_argument("--track-id", required=True, help="Identifier used in go.html?trid=...")
+    parser.add_argument("--title", default=None, help="Human friendly track title.")
+    parser.add_argument("--artist", default="(unknown artist)", help="Artist name.")
+    parser.add_argument(
+        "--audio-url",
+        default=None,
+        help="Public or relative URL the web app can stream. Defaults to the audio path basename.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Destination JSON path. Defaults to data/<track_id>.json",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    audio_path = args.audio.resolve()
+    if not audio_path.exists():
+        raise SystemExit(f"Audio file not found: {audio_path}")
+
+    track_id = args.track_id
+    title = args.title or audio_path.stem
+    audio_url = args.audio_url or audio_path.name
+    output_path = args.output or DEFAULT_DATA_DIR / f"{track_id}.json"
+
+    profile = build_profile(
+        audio_path=audio_path,
+        track_id=track_id,
+        title=title,
+        artist=args.artist,
+        audio_url=audio_url,
+        output_path=output_path,
+    )
+
+    print(f"Wrote analysis to {output_path}")
+    print(
+        f"Track: {profile['response']['track']['title']} "
+        f"({profile['response']['track']['audio_summary']['duration']:.2f}s)"
+    )
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+

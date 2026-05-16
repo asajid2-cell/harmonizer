@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ourspace - i see you</title>
+    <link rel="icon" type="image/svg+xml" href="/img/ourspace-favicon.svg">
+    <style id="custom-global-style"></style>
+    <link rel="stylesheet" href="css/ourspace-base.css?v=clean">
+    <link rel="stylesheet" href="css/ourspace-themes.css">
+    <link rel="stylesheet" href="css/ourspace-effects.css">
+    <style>
+        body {
+            overflow-x: hidden;
+        }
+
+        ::-webkit-scrollbar {
+            width: 0px;
+            height: 0px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: transparent;
+        }
+
+        * {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="eld-nav ourspace-nav">
+        <span>OurSpace Directory</span>
+    </nav>
+
+    <!-- Falling Effects Container -->
+    <div id="falling-effects-container"></div>
+
+    <!-- Cursor Trail Canvas -->
+    <canvas id="cursor-trail-canvas"></canvas>
+
+    <!-- Background Layer -->
+    <div id="ourspace-background"></div>
+    
+    <div id="custom-html-global" aria-hidden="true"></div>
+    <div id="custom-global-content" aria-hidden="true"></div>
+
+    <!-- Mode Toggle Button -->
+    <button id="mode-toggle-btn" class="mode-toggle-btn" title="Toggle Customize/View Mode">
+        <span class="mode-icon"></span>
+        <span class="mode-text">Customize</span>
+    </button>
+
+    <!-- Main Container -->
+    <div id="ourspace-container">
+        <!-- Customization Sidebar -->
+        <aside id="customization-panel" class="customize-panel">
+            <div class="panel-header">
+                <h2> CUSTOMIZE </h2>
+                <button id="toggle-panel" class="toggle-btn" aria-label="Collapse sidebar">&#x2039;&#x2039;</button>
+            </div>
+            <div class="mobile-panel-handle" aria-hidden="true"></div>
+
+            <div class="panel-content tabbed-panel" data-active-tab="themes">
+                <div class="panel-summary" id="customizer-summary">
+                    <div class="summary-item">
+                        <span>Theme</span>
+                        <strong id="summary-theme-name">Classic</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>Layout</span>
+                        <strong id="summary-layout-name">Classic</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span>Status</span>
+                        <strong id="summary-save-state">Unsaved</strong>
+                    </div>
+                </div>
+
+                <div class="panel-tabs">
+                    <button class="panel-tab active" data-tab="themes">Themes</button>
+                    <button class="panel-tab" data-tab="background">Background</button>
+                    <button class="panel-tab" data-tab="widgets">Widgets</button>
+                    <button class="panel-tab" data-tab="scenes">Scenes</button>
+                    <button class="panel-tab" data-tab="effects">Effects</button>
+                    <button class="panel-tab" data-tab="layout">Layout</button>
+                    <button class="panel-tab" data-tab="account">Account</button>
+                </div>
+
+                <!-- Theme Presets -->
+                        <section class="panel-section" data-panel="themes">
+                            <h3>Theme Presets</h3>
+                            <input type="text" id="theme-filter" class="theme-filter" placeholder="Search themes..." aria-label="Search themes">
+                            <div class="theme-grid">
+                                <button class="theme-btn" data-theme="classic">Classic</button>
+                                <button class="theme-btn" data-theme="glitter">Glitter Girl</button>
+                                <button class="theme-btn" data-theme="emo">Emo Scene</button>
+                                <button class="theme-btn" data-theme="rainbow">Rainbow Bright</button>
+                                <button class="theme-btn" data-theme="goth">Goth Dark</button>
+                                <button class="theme-btn" data-theme="y2k">Y2K Cyber</button>
+                                <button class="theme-btn" data-theme="tigerprint">Tigerprint</button>
+                                <button class="theme-btn" data-theme="mallgoth">Mall Goth</button>
+                                <button class="theme-btn" data-theme="checkers">Checkers</button>
+                                <button class="theme-btn" data-theme="poppunk">Pop Punk</button>
+                                <button class="theme-btn" data-theme="evanescent">Evanescent</button>
+                                <button class="theme-btn" data-theme="candyrave">Candy Rave</button>
+                                <button class="theme-btn" data-theme="neongrunge">Neon Grunge</button>
+                                <button class="theme-btn" data-theme="holographic">Holographic Dreams</button>
+                                <button class="theme-btn" data-theme="vaporwave">Vaporwave Sunset</button>
+                                <button class="theme-btn" data-theme="acidwash">Acid Wash</button>
+                                <button class="theme-btn" data-theme="kawaiigore">Kawaii Gore</button>
+                                <button class="theme-btn" data-theme="glitchcore">Glitchdream</button>
+                                <button class="theme-btn" data-theme="stargaze">Stargaze</button>
+                                <button class="theme-btn" data-theme="plasticfantastic">Plastic Fantastic</button>
+                                <button class="theme-btn" data-theme="hyperpop">Hyperpop Chaos</button>
+                                <button class="theme-btn" data-theme="cosmichorror">Cosmic Horror</button>
+                                <button class="theme-btn" data-theme="rainbowvomit">Rainbow Vomit</button>
+                                <button class="theme-btn" data-theme="electricdream">Electric Dream</button>
+                                <button class="theme-btn" data-theme="cyberpsycho">Cyber Psycho</button>
+                                <button class="theme-btn" data-theme="unicornblood">Unicorn Blood</button>
+                                <button class="theme-btn" data-theme="stagebloom">Stage Bloom</button>
+                                <button class="theme-btn" data-theme="liminalveil">Liminal Veil</button>
+                                <button class="theme-btn" data-theme="lucidmirage">Lucid Mirage</button>
+                                <button class="theme-btn" data-theme="stickerparade">Sticker Parade</button>
+                                <button class="theme-btn" data-theme="haloaurora">Halo Aurora</button>
+                                <button class="theme-btn" data-theme="moonlitcoven">Moonlit Coven</button>
+                                <button class="theme-btn" data-theme="mosswild">Moss Wild</button>
+                                <button class="theme-btn" data-theme="prismfae">Prism Fae</button>
+                                <button class="theme-btn" data-theme="cryptidnight">Cryptid Night</button>
+                                <button class="theme-btn" data-theme="sirenlagoon">Siren Lagoon</button>
+                                <button class="theme-btn" data-theme="opulentthrone">Opulent Throne</button>
+                                <button class="theme-btn" data-theme="dumpsterpop">Dumpster Pop</button>
+                                <button class="theme-btn" data-theme="bloodrave">Bloodrave</button>
+                                <button class="theme-btn" data-theme="pastelgore">Sugar Shock</button>
+                                <button class="theme-btn" data-theme="neonoir">Neon Noir</button>
+                                <button class="theme-btn" data-theme="acidfairy">Acid Fairy</button>
+                                <button class="theme-btn" data-theme="cybergoth">Cybergoth 2077</button>
+                                <button class="theme-btn" data-theme="gloomwave">Gloomwave</button>
+                                <button class="theme-btn" data-theme="sparklevoid">Sparkle Void</button>
+                                <button class="theme-btn" data-theme="chaosangel">Chaos Angel</button>
+                                <button class="theme-btn" data-theme="toxiccandy">Toxic Candy</button>
+                                <button class="theme-btn" data-theme="midnightsun">Midnightsun</button>
+                                <button class="theme-btn" data-theme="neonforest">Neon Forest</button>
+                                <button class="theme-btn" data-theme="desertmirage">Desert Mirage</button>
+                                <button class="theme-btn" data-theme="frostbite">Frostbite</button>
+                                <button class="theme-btn" data-theme="lavahaze">Lava Haze</button>
+                        <button class="theme-btn" data-theme="oilslick">Oil Slick</button>
+                        <button class="theme-btn" data-theme="candyfloss">Candyfloss Nightmare</button>
+                        <button class="theme-btn" data-theme="rustpunk">Rust Punk</button>
+                        <button class="theme-btn" data-theme="electropastel">Electro Pastel</button>
+                        <button class="theme-btn" data-theme="myceliumdream">Mycelium Dream</button>
+                        <button class="theme-btn" data-theme="prismshock">Prism Shock</button>
+                        <button class="theme-btn" data-theme="ancientfrequency">Ancient Frequency</button>
+                        <button class="theme-btn" data-theme="cyberrelic">Cyber Relic</button>
+                        <button class="theme-btn" data-theme="spectrumritual">Spectrum Ritual</button>
+                        <button class="theme-btn" data-theme="abyssalbloom">Abyssal Bloom</button>
+                        <button class="theme-btn" data-theme="auroracode">Aurora Code</button>
+                        <button class="theme-btn" data-theme="starforged">Starforged</button>
+                        <button class="theme-btn" data-theme="petalstorm">Petal Storm</button>
+                        <button class="theme-btn" data-theme="peacockpunk">Peacock Punk</button>
+                    </div>
+                </section>
+
+                <!-- Colors -->
+                <section class="panel-section" data-panel="themes">
+                    <h3>Colors</h3>
+                    <div class="color-controls">
+                        <label>
+                            Background
+                            <input type="color" id="color-bg" value="#ff69b4">
+                        </label>
+                        <label>
+                            Text
+                            <input type="color" id="color-text" value="#ffffff">
+                        </label>
+                        <label>
+                            Links
+                            <input type="color" id="color-links" value="#00ffff">
+                        </label>
+                        <label>
+                            Borders
+                            <input type="color" id="color-borders" value="#ffffff">
+                        </label>
+                        <label>
+                            Labels (Music, TV, etc)
+                            <input type="color" id="color-labels" value="#00aaff">
+                        </label>
+                        <label>
+                            Widget BG
+                            <input type="color" id="color-widget-bg" value="#000000">
+                            <input type="range" id="widget-bg-opacity" min="0" max="100" value="70">
+                            <span id="opacity-value">70%</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Widget Styling -->
+                <section class="panel-section" data-panel="widgets">
+                    <h3>Widget Styling</h3>
+                    <div class="style-controls">
+                        <label>
+                            Corner Radius: <span id="widget-radius-display">10px</span>
+                            <input type="range" id="widget-radius" min="0" max="40" value="10">
+                        </label>
+                        <label>
+                            Border Thickness: <span id="widget-border-display">3px</span>
+                            <input type="range" id="widget-border" min="1" max="12" value="3">
+                        </label>
+                        <label>
+                            Glass Blur: <span id="widget-blur-display">0px</span>
+                            <input type="range" id="widget-blur" min="0" max="20" value="0">
+                        </label>
+                        <label>
+                            Glow Strength: <span id="widget-glow-strength-display">20px</span>
+                            <input type="range" id="widget-glow-strength" min="0" max="40" value="20">
+                        </label>
+                        <label>
+                            Glow Color
+                            <input type="color" id="widget-glow-color" value="#00ffff">
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Scene Manager -->
+                <section class="panel-section" data-panel="scenes">
+                    <h3>Scene Memory</h3>
+                    <p class="scene-helper-text">Capture complete looks (themes, widgets, layouts) and swap between them with one click.</p>
+                    <div class="scene-editor">
+                        <label>
+                            Name
+                            <input type="text" id="scene-name" placeholder="e.g. Midnight Neon">
+                        </label>
+                        <label>
+                            Notes
+                            <textarea id="scene-description" rows="2" placeholder="What makes this scene special?"></textarea>
+                        </label>
+                        <div class="scene-editor-actions">
+                            <button id="scene-capture-btn" class="scene-btn primary">Capture Current Scene</button>
+                            <button id="scene-clear-btn" class="scene-btn subtle">Clear</button>
+                        </div>
+                    </div>
+                    <div id="scene-empty-state" class="scene-empty">
+                        <p>No scenes saved yet.</p>
+                        <p>Use &ldquo;Capture Current Scene&rdquo; to store this vibe forever.</p>
+                    </div>
+                    <div id="scene-list" class="scene-list"></div>
+                </section>
+
+                <!-- Background -->
+                <section class="panel-section" data-panel="background">
+                    <h3>Background</h3>
+                    <select id="bg-type">
+                        <option value="solid">Solid Color</option>
+                        <option value="gradient">Gradient</option>
+                        <option value="pattern" selected>Pattern</option>
+                        <option value="image">Custom Image</option>
+                    </select>
+
+                    <div id="pattern-grid" class="pattern-grid">
+                        <div class="pattern-item" data-pattern="stars"> Stars</div>
+                        <div class="pattern-item" data-pattern="hearts"> Hearts</div>
+                        <div class="pattern-item" data-pattern="flames"> Flames</div>
+                        <div class="pattern-item" data-pattern="sparkles"> Sparkles</div>
+                        <div class="pattern-item" data-pattern="checkers"> Checkers</div>
+                        <div class="pattern-item" data-pattern="dots"> Dots</div>
+                        <div class="pattern-item" data-pattern="stripes"> Stripes</div>
+                        <div class="pattern-item" data-pattern="glitter"> Glitter</div>
+                        <div class="pattern-item" data-pattern="clouds"> Clouds</div>
+                        <div class="pattern-item" data-pattern="butterflies"> Butterflies</div>
+                        <div class="pattern-item" data-pattern="roses"> Roses</div>
+                        <div class="pattern-item" data-pattern="skulls"> Skulls</div>
+                        <div class="pattern-item" data-pattern="music"> Music Notes</div>
+                        <div class="pattern-item" data-pattern="lightning"> Lightning</div>
+                        <div class="pattern-item" data-pattern="chains"> Chains</div>
+                        <div class="pattern-item" data-pattern="plaid"> Plaid</div>
+                        <div class="pattern-item" data-pattern="galaxy"> Galaxy</div>
+                        <div class="pattern-item" data-pattern="gradmesh"> Gradient Mesh</div>
+                        <div class="pattern-item" data-pattern="spiderweb"> Spiderweb Lace</div>
+                        <div class="pattern-item" data-pattern="tribal"> Tribal Echoes</div>
+                        <div class="pattern-item" data-pattern="circuit"> Circuit Board</div>
+                        <div class="pattern-item" data-pattern="scales"> Dragon Scales</div>
+                        <div class="pattern-item" data-pattern="honeycomb"> Honeycomb</div>
+                        <div class="pattern-item" data-pattern="graffiti"> Graffiti Drips</div>
+                        <div class="pattern-item" data-pattern="morse"> Morse Code</div>
+                        <div class="pattern-item" data-pattern="hieroglyphs"> Neon Glyphs</div>
+                        <div class="pattern-item" data-pattern="constellation"> Constellation</div>
+                        <div class="pattern-item" data-pattern="crystals"> Crystal Shards</div>
+                        <div class="pattern-item" data-pattern="vines"> Jungle Vines</div>
+                        <div class="pattern-item" data-pattern="binary"> Binary Rain</div>
+                        <div class="pattern-item" data-pattern="runes"> Mystic Runes</div>
+                        <div class="pattern-item" data-pattern="sakura"> Sakura Storm</div>
+                        <div class="pattern-item" data-pattern="houndstooth"> Houndstooth</div>
+                        <div class="pattern-item" data-pattern="peacock"> Peacock Feathers</div>
+                        <div class="pattern-item" data-pattern="mandala"> Mandala Bloom</div>
+                        <div class="pattern-item" data-pattern="tentacles"> Abyssal Tentacles</div>
+                        <div class="pattern-item" data-pattern="pixel"> Pixel Sunset</div>
+                        <div class="pattern-item" data-pattern="prism"> Prism Aurora</div>
+                    </div>
+
+                    <input type="file" id="bg-image-upload" accept="image/*" style="display: none;">
+                    <button id="upload-bg-btn" class="upload-btn">Upload Background</button>
+                    <button id="remove-bg-btn" class="remove-btn" style="display: none; margin-top: 10px; background: #ff3366;">Remove Custom Background</button>
+
+                    <!-- Background Transformations (shown only for image type) -->
+                    <div id="bg-transform-panel" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
+                        <h4 style="margin-bottom: 10px; font-size: 14px;"> Image Transformations</h4>
+
+                        <!-- Repeat & Size -->
+                        <label style="font-size: 12px;">
+                            Repeat:
+                            <select id="bg-repeat" style="width: 100%; margin-top: 5px;">
+                                <option value="no-repeat">No Repeat</option>
+                                <option value="repeat">Tile (Repeat)</option>
+                                <option value="repeat-x">Repeat Horizontally</option>
+                                <option value="repeat-y">Repeat Vertically</option>
+                                <option value="space">Space</option>
+                                <option value="round">Round</option>
+                            </select>
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 10px; display: block;">
+                            Size:
+                            <select id="bg-size" style="width: 100%; margin-top: 5px;">
+                                <option value="cover">Cover (Fill)</option>
+                                <option value="contain">Contain (Fit)</option>
+                                <option value="auto">Auto (Original)</option>
+                                <option value="10%">10% (Tiny Tiles)</option>
+                                <option value="20%">20% (Small Tiles)</option>
+                                <option value="30%">30%</option>
+                                <option value="50%">50%</option>
+                                <option value="75%">75%</option>
+                                <option value="100%">100%</option>
+                                <option value="150%">150%</option>
+                                <option value="200%">200%</option>
+                                <option value="300%">300%</option>
+                                <option value="400%">400%</option>
+                                <option value="custom">Custom (px)</option>
+                            </select>
+                        </label>
+
+                        <label id="bg-size-custom-label" style="font-size: 12px; margin-top: 8px; display: none;">
+                            Custom Size (px): <span id="bg-size-custom-display">100px</span>
+                            <input type="range" id="bg-size-custom" min="10" max="500" step="10" value="100" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 10px; display: block;">
+                            Position:
+                            <select id="bg-position" style="width: 100%; margin-top: 5px;">
+                                <option value="center">Center</option>
+                                <option value="top">Top</option>
+                                <option value="bottom">Bottom</option>
+                                <option value="left">Left</option>
+                                <option value="right">Right</option>
+                                <option value="top left">Top Left</option>
+                                <option value="top right">Top Right</option>
+                                <option value="bottom left">Bottom Left</option>
+                                <option value="bottom right">Bottom Right</option>
+                            </select>
+                        </label>
+
+                        <!-- Transforms -->
+                        <h4 style="margin: 15px 0 10px 0; font-size: 13px;">Transform</h4>
+
+                        <label style="font-size: 12px;">
+                            Scale: <span id="bg-scale-display">1.0</span>
+                            <input type="range" id="bg-scale" min="0.1" max="3" step="0.1" value="1" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Rotate: <span id="bg-rotate-display">0 deg</span>
+                            <input type="range" id="bg-rotate" min="0" max="360" step="1" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Skew X: <span id="bg-skewx-display">0 deg</span>
+                            <input type="range" id="bg-skewx" min="-45" max="45" step="1" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Skew Y: <span id="bg-skewy-display">0 deg</span>
+                            <input type="range" id="bg-skewy" min="-45" max="45" step="1" value="0" style="width: 100%;">
+                        </label>
+
+                        <div class="checkbox-group" style="margin-top: 10px;">
+                            <label style="font-size: 12px;"><input type="checkbox" id="bg-flipx"> Flip Horizontal</label>
+                            <label style="font-size: 12px;"><input type="checkbox" id="bg-flipy"> Flip Vertical</label>
+                        </div>
+
+                        <!-- Filters -->
+                        <h4 style="margin: 15px 0 10px 0; font-size: 13px;">Filters</h4>
+
+                        <label style="font-size: 12px;">
+                            Blur: <span id="bg-blur-display">0px</span>
+                            <input type="range" id="bg-blur" min="0" max="20" step="1" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Brightness: <span id="bg-brightness-display">100%</span>
+                            <input type="range" id="bg-brightness" min="0" max="200" step="5" value="100" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Contrast: <span id="bg-contrast-display">100%</span>
+                            <input type="range" id="bg-contrast" min="0" max="200" step="5" value="100" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Saturation: <span id="bg-saturate-display">100%</span>
+                            <input type="range" id="bg-saturate" min="0" max="200" step="5" value="100" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Hue Rotate: <span id="bg-hue-display">0 deg</span>
+                            <input type="range" id="bg-hue" min="0" max="360" step="5" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Invert: <span id="bg-invert-display">0%</span>
+                            <input type="range" id="bg-invert" min="0" max="100" step="5" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Sepia: <span id="bg-sepia-display">0%</span>
+                            <input type="range" id="bg-sepia" min="0" max="100" step="5" value="0" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Grayscale: <span id="bg-grayscale-display">0%</span>
+                            <input type="range" id="bg-grayscale" min="0" max="100" step="5" value="0" style="width: 100%;">
+                        </label>
+
+                        <!-- Blend Mode -->
+                        <h4 style="margin: 15px 0 10px 0; font-size: 13px;">Blend</h4>
+
+                        <label style="font-size: 12px;">
+                            Mode:
+                            <select id="bg-blend-mode" style="width: 100%; margin-top: 5px;">
+                                <option value="normal">Normal</option>
+                                <option value="multiply">Multiply</option>
+                                <option value="screen">Screen</option>
+                                <option value="overlay">Overlay</option>
+                                <option value="darken">Darken</option>
+                                <option value="lighten">Lighten</option>
+                                <option value="color-dodge">Color Dodge</option>
+                                <option value="color-burn">Color Burn</option>
+                                <option value="hard-light">Hard Light</option>
+                                <option value="soft-light">Soft Light</option>
+                                <option value="difference">Difference</option>
+                                <option value="exclusion">Exclusion</option>
+                                <option value="hue">Hue</option>
+                                <option value="saturation">Saturation</option>
+                                <option value="color">Color</option>
+                                <option value="luminosity">Luminosity</option>
+                            </select>
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Opacity: <span id="bg-opacity-display">100%</span>
+                            <input type="range" id="bg-opacity" min="0" max="100" step="5" value="100" style="width: 100%;">
+                        </label>
+
+                        <button id="bg-reset-transforms" style="margin-top: 15px; width: 100%; padding: 8px; background: #ff3366; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Reset All Transformations
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Stickers -->
+                <section class="panel-section" id="sticker-panel" data-panel="widgets">
+                    <h3>Stickers</h3>
+                    <input type="file" id="sticker-upload" accept="image/*" style="display: none;">
+                    <button id="add-sticker-btn" class="action-btn">Add Sticker</button>
+                    <div class="sticker-controls">
+                        <label>
+                            Size
+                            <input type="range" id="sticker-scale" min="0.3" max="2.5" step="0.1" value="1">
+                        </label>
+                        <label>
+                            Z-Index (controls what shows on top vs bottom)
+                            <input type="number" id="sticker-z" min="1" max="999" value="30">
+                        </label>
+                        <div class="sticker-frame-panel">
+                            <p class="frame-panel-title">Border Style</p>
+                            <div class="sticker-frame-presets" id="sticker-frame-style">
+                                <button type="button" data-sticker-frame="none" class="frame-preset">None</button>
+                                <button type="button" data-sticker-frame="notebook" class="frame-preset">Notebook</button>
+                                <button type="button" data-sticker-frame="magazine" class="frame-preset">Magazine</button>
+                                <button type="button" data-sticker-frame="polaroid" class="frame-preset">Polaroid</button>
+                                <button type="button" data-sticker-frame="photocard" class="frame-preset">Photo Card</button>
+                                <button type="button" data-sticker-frame="holographic" class="frame-preset">Holographic</button>
+                                <button type="button" data-sticker-frame="glitter" class="frame-preset">Glitter Veil</button>
+                                <button type="button" data-sticker-frame="taped" class="frame-preset">Taped Scrap</button>
+                                <button type="button" data-sticker-frame="neon" class="frame-preset">Neon Glow</button>
+                                <button type="button" data-sticker-frame="burnt" class="frame-preset">Burnt Edge</button>
+                            </div>
+                        <div class="frame-text-controls hidden" id="frame-text-controls">
+                                <label>
+                                    Border Label
+                                    <input type="text" id="sticker-frame-text" placeholder="e.g. FEATURED" maxlength="40">
+                                </label>
+                                <label>
+                                    Label Color
+                                    <input type="color" id="sticker-frame-text-color" value="#3c3c3c">
+                                </label>
+                                <small>Used on frames that include printed text (Magazine, Polaroid).</small>
+                            </div>
+                        </div>
+                        <div class="sticker-action-row">
+                            <button id="sticker-cutout-btn" class="action-btn">Cutout Mode</button>
+                            <button id="sticker-reset-cutout" class="action-btn">Reset Cutout</button>
+                        </div>
+                        <button id="sticker-delete-btn" class="action-btn danger">Delete Sticker</button>
+                        <p id="sticker-hint">Click any sticker to select it. Drag to move when in Customize mode.</p>
+                        <div class="sticker-deck" aria-live="polite">
+                            <p class="sticker-deck-empty" id="sticker-deck-empty">
+                                Uploaded stickers and cutouts will live here. Click one to place it again or delete it.
+                            </p>
+                            <div class="sticker-deck-grid" id="sticker-deck-grid"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Fonts -->
+                <section class="panel-section" data-panel="themes">
+                    <h3>Fonts</h3>
+                    <select id="font-family">
+                        <option value="Comic Sans MS">Comic Sans</option>
+                        <option value="Papyrus">Papyrus</option>
+                        <option value="Impact">Impact</option>
+                        <option value="Arial">Arial</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Courier New">Courier New</option>
+                        <option value="Brush Script MT">Brush Script</option>
+                        <option value="Lucida Console">Lucida Console</option>
+                        <option value="Trebuchet MS">Trebuchet</option>
+                        <option value="Garamond">Garamond</option>
+                        <option value="Palatino">Palatino</option>
+                        <option value="Book Antiqua">Book Antiqua</option>
+                        <option value="Century Gothic">Century Gothic</option>
+                        <option value="Copperplate">Copperplate</option>
+                        <option value="Rockwell">Rockwell</option>
+                        <option value="Luminari">Luminari</option>
+                        <option value="Chalkduster">Chalkduster</option>
+                        <option value="Marker Felt">Marker Felt</option>
+                        <option value="Bradley Hand">Bradley Hand</option>
+                        <option value="Brush Script MT">Brush Script</option>
+                        <option value="Lucida Handwriting">Lucida Handwriting</option>
+                        <option value="Stencil">Stencil</option>
+                    </select>
+
+                    <label>
+                        Size: <span id="font-size-display">14px</span>
+                        <input type="range" id="font-size" min="10" max="24" value="14">
+                    </label>
+
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="text-shadow"> Text Shadow</label>
+                        <label class="glow-toggle">
+                            <input type="checkbox" id="text-glow"> Text Glow
+                        </label>
+                        <label id="text-glow-color-wrapper" style="display: none; width: 100%; margin-top: 8px;">
+                            Glow Color
+                            <input type="color" id="text-glow-color" value="#ffffff" style="width: 100%; margin-top: 4px;">
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Layout Editor -->
+                <section class="panel-section" data-panel="layout">
+                    <h3>Layout Editor</h3>
+
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="layout-editor-toggle">
+                            Enable Grid Editor
+                        </label>
+                        <label>
+                            <input type="checkbox" id="allow-overlap-toggle">
+                            Allow Overlap
+                        </label>
+                    </div>
+
+                    <div id="layout-editor-controls" style="display: none; margin-top: 15px;">
+                        <p style="font-size: 11px; color: #ccc; margin-bottom: 10px;">
+                            Drag widgets to reposition, resize from corner, adjust z-index with arrows.
+                            Hold SHIFT while dragging to snap to grid.
+                        </p>
+
+                        <label style="font-size: 12px;">
+                            Snap Threshold: <span id="snap-threshold-display">10px</span>
+                            <input type="range" id="snap-threshold" min="0" max="50" step="5" value="10" style="width: 100%;">
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Grid Size: <span id="grid-size-display">20px</span>
+                            <input type="range" id="grid-size" min="5" max="50" step="5" value="20" style="width: 100%;">
+                        </label>
+
+                        <h4 style="margin: 15px 0 10px 0; font-size: 13px;">Mobile Breakpoints</h4>
+
+                        <label style="font-size: 12px;">
+                            Breakpoint Width:
+                            <select id="mobile-breakpoint" style="width: 100%; margin-top: 5px;">
+                                <option value="480px">480px (Phone)</option>
+                                <option value="768px" selected>768px (Tablet)</option>
+                                <option value="1024px">1024px (Small Desktop)</option>
+                                <option value="1280px">1280px (Desktop)</option>
+                            </select>
+                        </label>
+
+                        <label style="font-size: 12px; margin-top: 8px; display: block;">
+                            Mobile Behavior:
+                            <select id="mobile-behavior" style="width: 100%; margin-top: 5px;">
+                                <option value="stack" selected>Stack Vertically</option>
+                                <option value="hide">Hide</option>
+                                <option value="shrink">Shrink to Fit</option>
+                                <option value="scroll">Horizontal Scroll</option>
+                            </select>
+                        </label>
+
+                        <button id="layout-reset" style="margin-top: 15px; width: 100%; padding: 8px; background: #ff3366; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Reset Layout to Default
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Effects -->
+                <section class="panel-section" data-panel="effects">
+                    <h3>Effects</h3>
+                    <button id="reset-effects-btn" class="action-btn danger" style="width: 100%; margin-bottom: 12px;">
+                        Reset All Effects
+                    </button>
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="effect-falling">
+                            Falling Objects
+                        </label>
+                        <select id="falling-type">
+                            <option value="hearts">Hearts</option>
+                            <option value="stars">Stars</option>
+                            <option value="snow">Snow</option>
+                            <option value="sparkles">Sparkles</option>
+                            <option value="butterflies">Butterflies</option>
+                            <option value="roses">Roses</option>
+                            <option value="skulls">Skulls</option>
+                            <option value="music">Music Notes</option>
+                            <option value="cherries">Cherries</option>
+                            <option value="raindrops">Raindrops</option>
+                            <option value="confetti">Confetti</option>
+                            <option value="petals">Flower Petals</option>
+                        </select>
+
+                        <label><input type="checkbox" id="effect-cursor-trail"> Cursor Trail</label>
+                        <label><input type="checkbox" id="effect-glitter"> Glitter Borders</label>
+                        <label><input type="checkbox" id="effect-blink"> Blinking Text</label>
+                        <label><input type="checkbox" id="effect-sparkle-rain"> Sparkle Rain</label>
+                        <label><input type="checkbox" id="effect-aurora-waves"> Aurora Waves</label>
+                        <label><input type="checkbox" id="effect-pixel-burst"> Pixel Burst</label>
+                        <label><input type="checkbox" id="effect-neon-pulse"> Neon Pulse</label>
+                        <label><input type="checkbox" id="effect-polaroid-popups"> Polaroid Popups</label>
+                        <label><input type="checkbox" id="effect-bubble-warp"> Bubble Warp</label>
+                        <label><input type="checkbox" id="effect-retro-scanlines"> Retro Scanlines</label>
+                        <label><input type="checkbox" id="effect-chromatic-trails"> Chromatic Trails</label>
+                        <label><input type="checkbox" id="effect-floating-emojis"> Floating Emojis</label>
+                        <label><input type="checkbox" id="effect-lightning-flickers"> Lightning Flickers</label>
+                        <label><input type="checkbox" id="effect-matrix-rain"> Matrix Rain</label>
+                        <label><input type="checkbox" id="effect-disco-ball"> Disco Ball</label>
+                        <label><input type="checkbox" id="effect-tv-static"> TV Static</label>
+                        <label><input type="checkbox" id="effect-kaleidoscope"> Kaleidoscope Spin</label>
+                        <label><input type="checkbox" id="effect-vhs-glitch"> VHS Glitch</label>
+                        <label><input type="checkbox" id="effect-stardust"> Stardust Trail</label>
+                        <label><input type="checkbox" id="effect-emoji-orbit"> Emoji Orbit Halo</label>
+                        <label><input type="checkbox" id="effect-emoji-burst"> Emoji Burst Fireworks</label>
+                        <label><input type="checkbox" id="effect-emoji-wave"> Emoji Drift Wave</label>
+                        <label><input type="checkbox" id="effect-emoji-pop"> Emoji Pop Trail</label>
+                        <label><input type="checkbox" id="effect-emoji-lanterns"> Emoji Lantern Lift</label>
+                        <label><input type="checkbox" id="effect-screen-vignette"> Screen Vignette Glow</label>
+                        <label><input type="checkbox" id="effect-screen-haze"> Screen Haze Wash</label>
+                        <label><input type="checkbox" id="effect-screen-grid"> Neon Grid Overlay</label>
+                        <label><input type="checkbox" id="effect-screen-holo"> Holographic Screen</label>
+                        <label><input type="checkbox" id="effect-screen-prism"> Prism Glass Overlay</label>
+                    </div>
+                    <div class="effect-control-grid">
+                        <div class="effect-group">
+                            <h4>Falling Objects</h4>
+                            <label>
+                                Speed: <span id="falling-speed-display">2.0x</span>
+                                <input type="range" id="falling-speed" min="0.5" max="4" step="0.1" value="2">
+                            </label>
+                            <label>
+                                Density: <span id="falling-density-display">1.0x</span>
+                                <input type="range" id="falling-density" min="0.3" max="2" step="0.1" value="1">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Cursor Trail</h4>
+                            <label>
+                                Trail Length: <span id="cursor-trail-length-display">1.0x</span>
+                                <input type="range" id="cursor-trail-length" min="0.3" max="1.5" step="0.05" value="1">
+                            </label>
+                            <label>
+                                Particle Size: <span id="cursor-trail-size-display">1.0x</span>
+                                <input type="range" id="cursor-trail-size" min="0.5" max="2" step="0.1" value="1">
+                            </label>
+                            <label>
+                                Color Mode
+                                <select id="cursor-trail-color-mode">
+                                    <option value="rainbow">Rainbow</option>
+                                    <option value="neon">Electric Neon</option>
+                                    <option value="cool">Icy Blue</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                            </label>
+                            <label id="cursor-trail-custom-wrapper" style="display: none;">
+                                Custom Color
+                                <input type="color" id="cursor-trail-custom-color" value="#ff7cf5">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Glitter & Blink</h4>
+                            <label>
+                                Glitter Intensity: <span id="glitter-intensity-display">70%</span>
+                                <input type="range" id="glitter-intensity" min="0.2" max="1" step="0.05" value="0.7">
+                            </label>
+                            <label>
+                                Blink Speed: <span id="blink-speed-display">1.0s</span>
+                                <input type="range" id="blink-speed" min="0.4" max="1.6" step="0.1" value="1">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Sparkle Rain</h4>
+                            <label>
+                                Density: <span id="sparkle-rain-density-display">1.0x</span>
+                                <input type="range" id="sparkle-rain-density" min="0.3" max="2" step="0.1" value="1">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Aurora Waves</h4>
+                            <label>
+                                Intensity: <span id="aurora-intensity-display">40%</span>
+                                <input type="range" id="aurora-intensity" min="0.1" max="1" step="0.05" value="0.4">
+                            </label>
+                            <label>
+                                Speed: <span id="aurora-speed-display">1.0x</span>
+                                <input type="range" id="aurora-speed" min="0.5" max="2" step="0.1" value="1">
+                            </label>
+                            <label>
+                                Primary Color
+                                <input type="color" id="aurora-color-a" value="#47ffe3">
+                            </label>
+                            <label>
+                                Accent Color
+                                <input type="color" id="aurora-color-b" value="#ff4ffb">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Neon Pulse</h4>
+                            <label>
+                                Glow Color
+                                <input type="color" id="neon-color" value="#00fff5">
+                            </label>
+                            <label>
+                                Accent Color
+                                <input type="color" id="neon-accent-color" value="#ff00ff">
+                            </label>
+                            <label>
+                                Pulse Speed: <span id="neon-speed-display">1.2x</span>
+                                <input type="range" id="neon-speed" min="0.5" max="2" step="0.1" value="1.2">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Lightning</h4>
+                            <label>
+                                Frequency: <span id="lightning-frequency-display">6s</span>
+                                <input type="range" id="lightning-frequency" min="2" max="12" step="0.5" value="6">
+                            </label>
+                            <label>
+                                Intensity: <span id="lightning-intensity-display">80%</span>
+                                <input type="range" id="lightning-intensity" min="0.3" max="1.2" step="0.05" value="0.8">
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Prism Trails</h4>
+                            <label>
+                                Trail Length: <span id="trail-length-display">0.9x</span>
+                                <input type="range" id="trail-length" min="0.3" max="1.5" step="0.05" value="0.9">
+                            </label>
+                            <label>
+                                Palette
+                                <select id="trail-mode">
+                                    <option value="sunset">Sunset</option>
+                                    <option value="ocean">Ocean</option>
+                                    <option value="neon">Neon</option>
+                                    <option value="pastel">Pastel</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="effect-group">
+                            <h4>Floating Emojis</h4>
+                            <label>
+                                Density: <span id="emoji-density-display">1.0x</span>
+                                <input type="range" id="emoji-density" min="0.5" max="2" step="0.1" value="1">
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Layout -->
+                <section class="panel-section" data-panel="layout">
+                    <h3>Layout</h3>
+                    <div class="layout-btns">
+                        <button class="layout-btn active" data-layout="classic">Classic</button>
+                        <button class="layout-btn" data-layout="split">Split</button>
+                        <button class="layout-btn" data-layout="centered">Centered</button>
+                        <button class="layout-btn" data-layout="sidebar">Sidebar</button>
+                        <button class="layout-btn" data-layout="magazine">Magazine</button>
+                        <button class="layout-btn" data-layout="minimal">Minimal</button>
+                    </div>
+                </section>
+
+                <!-- Custom Widgets -->
+                <section class="panel-section" data-panel="widgets">
+                    <h3>Widget Visibility</h3>
+                    <div class="widget-visibility-grid">
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="aboutMe" checked> About Me</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="interests" checked> Interests</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="pictureWall" checked> Picture Wall</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="comments" checked> Comments</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="topFriends" checked> Top Friends</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="music" checked> Music Player</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="customHtml" checked> Custom HTML</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="customWidgets" checked> Custom Widgets</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="stats" checked> Stats</label>
+                        <label><input type="checkbox" class="widget-visibility-toggle" data-widget="contact" checked> Contact Panel</label>
+                    </div>
+
+                    <h3>Custom Widgets</h3>
+                    <div class="custom-widget-form">
+                        <label>
+                            Title
+                            <input type="text" id="custom-widget-title" placeholder="e.g. My Favorite Quotes">
+                        </label>
+                        <label>
+                            Type
+                            <select id="custom-widget-type">
+                                <option value="text" selected>Text</option>
+                                <option value="image">Image</option>
+                                <option value="gif">GIF</option>
+                                <option value="video">Video</option>
+                                <option value="audio">Audio</option>
+                            </select>
+                        </label>
+                        <div class="custom-widget-upload-row">
+                            <button type="button" id="custom-widget-upload-btn" class="action-btn subtle">Upload Media</button>
+                            <span id="custom-widget-upload-label">No media uploaded</span>
+                            <input type="file" id="custom-widget-file" accept="image/*,video/*,audio/*" style="display: none;">
+                        </div>
+                        <label>
+                            Text / Description
+                            <textarea id="custom-widget-text" rows="3" placeholder="Write something fun or meaningful..."></textarea>
+                        </label>
+                        <label>
+                            Media URL (optional)
+                            <input type="url" id="custom-widget-media" placeholder="https://example.com/media.png">
+                        </label>
+                        <button id="add-custom-widget" class="action-btn">Add Widget</button>
+                        <p class="custom-widget-hint">Widgets you create here appear instantly on your page. Mix text with images, GIFs, videos, or audio embeds.</p>
+                    </div>
+                    <div id="custom-widget-list" class="custom-widget-list"></div>
+                </section>
+
+                <!-- Authentication & Account -->
+                <section class="panel-section" data-panel="account">
+                    <h3>Account</h3>
+                    <div id="auth-info" class="auth-info">
+                        <span class="auth-message">Checking login status...</span>
+                    </div>
+                    <div id="auth-actions" class="auth-actions">
+                        <!-- Auth buttons will be injected here -->
+                    </div>
+                    <button id="save-publish-btn" class="action-btn" style="display: none; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); margin-top: 10px;">
+                         Save & Publish Profile
+                    </button>
+                    <button id="change-username-btn" class="action-btn" style="display: none; background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); margin-top: 10px;">
+                         Change Username
+                    </button>
+                </section>
+
+                <!-- Save/Load -->
+                <section class="panel-section" data-panel="account">
+                    <button id="save-profile" class="action-btn"> Save Profile</button>
+                    <button id="load-from-database" class="action-btn" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);"> Load from Database</button>
+                    <button id="load-profile" class="action-btn"> Load from File</button>
+                    <button id="export-profile" class="action-btn"> Export</button>
+                    <button id="reset-profile" class="action-btn danger"> Reset All</button>
+                </section>
+            </div>
+        </aside>
+
+        <div id="mobile-panel-overlay" aria-hidden="true"></div>
+
+        <!-- Main Content -->
+        <main id="ourspace-main">
+            <div id="sticker-stage" class="sticker-stage">
+                <div id="sticker-layer" aria-live="polite"></div>
+            <!-- Header Banner -->
+            <header id="profile-header" class="widget">
+                <input type="file" id="banner-upload" accept="image/*" style="display: none;">
+                <div id="banner-image" class="banner-image">
+                    <button class="upload-overlay" onclick="document.getElementById('banner-upload').click()">
+                        + Upload Banner
+                    </button>
+                    <button class="remove-banner-btn" id="remove-banner-btn" style="display: none;">
+                        x Remove
+                    </button>
+                </div>
+                <div class="profile-header-content">
+                    <div class="profile-pic-container">
+                        <input type="file" id="profile-pic-upload" accept="image/*" style="display: none;">
+                        <img id="profile-pic" src="" alt="Profile" class="profile-pic">
+                        <button class="pic-upload-btn" onclick="document.getElementById('profile-pic-upload').click()">
+                            
+                        </button>
+                        <button class="pic-remove-btn" id="remove-profile-pic-btn" style="display: none;">
+                            x
+                        </button>
+                    </div>
+                    <div class="profile-info">
+                        <h1 contenteditable="true" id="profile-name" class="profile-name">Your Name Here</h1>
+                        <p contenteditable="true" id="profile-tagline" class="profile-tagline">&#x2728; living my best life &#x2728;</p>
+                        <div class="profile-status">
+                            <span class="mood">
+                                Mood: <span contenteditable="true" id="mood-text">chillin</span>
+                                <span id="mood-icon">&#x1F60E;</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Grid -->
+            <div id="content-grid" class="content-grid layout-classic">
+                <!-- Left Column -->
+                <div class="column column-left">
+                    <!-- About Me Widget -->
+                    <div class="widget" id="about-me-widget">
+                        <div class="widget-header">
+                            <h2>About Me</h2>
+                            <button class="widget-toggle">-</button>
+                        </div>
+                        <div class="widget-content" contenteditable="true" id="about-me-content">
+                            <p>Hey! Thanks for visiting my page! </p>
+                            <p>This is my corner of the internet where I share my pics, music, and vibes.</p>
+                            <p>Feel free to leave a comment! </p>
+                        </div>
+                    </div>
+
+                    <!-- Interests Widget -->
+                    <div class="widget" id="interests-widget">
+                        <div class="widget-header">
+                            <h2>Interests</h2>
+                            <button class="widget-toggle">-</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="interest-section">
+                                <strong>Music:</strong>
+                                <div contenteditable="true" id="interest-music">Artist 1, Artist 2, Artist 3</div>
+                            </div>
+                            <div class="interest-section">
+                                <strong>Movies:</strong>
+                                <div contenteditable="true" id="interest-movies">Movie 1, Movie 2, Movie 3</div>
+                            </div>
+                            <div class="interest-section">
+                                <strong>TV Shows:</strong>
+                                <div contenteditable="true" id="interest-tv">Show 1, Show 2, Show 3</div>
+                            </div>
+                            <div class="interest-section">
+                                <strong>Books:</strong>
+                                <div contenteditable="true" id="interest-books">Book 1, Book 2, Book 3</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom HTML Widget -->
+                    <div class="widget" id="custom-html-widget">
+                        <div class="widget-header">
+                            <h2>Custom HTML</h2>
+                            <button class="widget-toggle">-</button>
+                        </div>
+                    <div class="widget-content">
+                        <div class="custom-html-editor">
+                            <textarea id="custom-html-input" placeholder="Paste your custom HTML here..."></textarea>
+                            <label class="custom-html-label">
+                                <span>Global Code (for custom backgrounds, styles, etc.)</span>
+                                <textarea id="custom-html-global-input" placeholder="Paste HTML / CSS that should apply to the whole page&#10;Example: &lt;style&gt;body{background: url(...)}&lt;/style&gt;"></textarea>
+                            </label>
+                            <button id="apply-custom-html">Save Custom Code</button>
+                        </div>
+                        <div id="custom-html-output"></div>
+                    </div>
+                    </div>
+
+                    <!-- Custom Widgets Rendered -->
+                    <div id="custom-widgets-container" class="custom-widgets-board"></div>
+                </div>
+
+                <!-- Center Column -->
+                <div class="column column-center">
+                    <!-- Music Player Widget -->
+                    <div class="widget" id="music-widget">
+                        <div class="widget-header">
+                            <h2> My Music </h2>
+                            <button class="widget-toggle">-</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="music-player">
+                                <div class="now-playing">
+                                    <marquee id="track-title">No track loaded</marquee>
+                                </div>
+                                <audio id="audio-player" preload="auto"></audio>
+                                <div class="player-controls">
+                                    <button id="play-btn" class="player-btn" aria-label="Play">&#9654;</button>
+                                    <button id="pause-btn" class="player-btn" aria-label="Pause">&#10074;&#10074;</button>
+                                    <button id="stop-btn" class="player-btn" aria-label="Stop">&#9632;</button>
+                                    <input type="range" id="volume-slider" min="0" max="100" value="70">
+                                    <span id="volume-display">70%</span>
+                                </div>
+                                <div class="visualizer" id="audio-visualizer">
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                </div>
+                                <div class="music-upload">
+                                    <input type="file" id="audio-upload" accept="audio/*" style="display: none;">
+                                    <button onclick="document.getElementById('audio-upload').click()" class="upload-btn">
+                                         Upload Song
+                                    </button>
+                                    <button id="remove-audio-btn" class="upload-btn" style="display: none; background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);">
+                                         Remove Song
+                                    </button>
+                                    <label>
+                                        <input type="checkbox" id="autoplay-checkbox"> Autoplay on page load
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Picture Wall Widget -->
+                    <div class="widget" id="picture-wall-widget">
+                        <div class="widget-header">
+                            <h2> My Pictures </h2>
+                            <button class="widget-toggle">-</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="picture-wall-controls">
+                                <input type="file" id="picture-upload" accept="image/*" multiple style="display: none;">
+                                <button onclick="document.getElementById('picture-upload').click()" class="upload-btn">
+                                    + Add Photos
+                                </button>
+                                <label class="customize-mode-only">
+                                    Columns:
+                                    <select id="grid-columns">
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4" selected>4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                    </select>
+                                </label>
+                                <label class="customize-mode-only">
+                                    Rows:
+                                    <select id="grid-rows">
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4" selected>4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    Frame Style:
+                                    <select id="picture-frame-style">
+                                        <option value="classic">Classic</option>
+                                        <option value="notebook">Notebook</option>
+                                        <option value="magazine">Magazine</option>
+                                        <option value="polaroid">Polaroid</option>
+                                        <option value="photocard">Photocard</option>
+                                    </select>
+                                </label>
+                                <button id="pictures-reorder-btn" style="margin-left: 10px;">Reorder</button>
+                                <button id="theatre-mode-btn" style="margin-left: 10px;">🎭 Theatre Mode</button>
+                            </div>
+                            <div id="picture-grid" class="picture-grid" data-columns="4">
+                                <!-- Pictures will be added here dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comments Widget -->
+                    <div class="widget" id="comments-widget">
+                        <div class="widget-header">
+                            <h2> Comments </h2>
+                            <button class="widget-toggle">-</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="add-comment">
+                                <input type="text" id="comment-author" placeholder="Your name...">
+                                <textarea id="comment-text" placeholder="Leave a comment..."></textarea>
+                                <button id="add-comment-btn">Post Comment</button>
+                            </div>
+                            <div id="comments-list" class="comments-list">
+                                <!-- Comments will be added here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="column column-right">
+                    <!-- Top Friends Widget -->
+                    <div class="widget" id="top-friends-widget">
+                        <div class="widget-header">
+                            <h2>Top Friends</h2>
+                            <button class="widget-toggle">-</button>
+                        </div>
+                        <div class="widget-content">
+                             <div class="friends-controls">
+                                 <label class="customize-mode-only">
+                                     Slots:
+                                     <select id="friends-slots">
+                                         <option value="4">4</option>
+                                         <option value="8" selected>8</option>
+                                         <option value="12">12</option>
+                                         <option value="16">16</option>
+                                     </select>
+                                 </label>
+                                 <label class="customize-mode-only">
+                                     Columns:
+                                     <select id="friends-columns">
+                                         <option value="2">2</option>
+                                         <option value="3">3</option>
+                                         <option value="4" selected>4</option>
+                                         <option value="5">5</option>
+                                     </select>
+                                 </label>
+                                 <label class="customize-mode-only">
+                                     Rows:
+                                     <select id="friends-rows">
+                                         <option value="1">1</option>
+                                         <option value="2" selected>2</option>
+                                         <option value="3">3</option>
+                                         <option value="4">4</option>
+                                     </select>
+                                 </label>
+                                 <button id="friends-reorder-btn" style="margin-left: 10px;">Reorder</button>
+                             </div>
+                            <div id="friends-grid" class="friends-grid" data-slots="8">
+                                <!-- Friend slots will be added here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats Widget -->
+                    <div class="widget" id="stats-widget">
+                        <div class="widget-header">
+                            <h2>Profile Stats</h2>
+                            <button class="widget-toggle">-</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="stats">
+                                <div class="stat-item">
+                                    <strong>Page Views:</strong>
+                                    <span id="page-views">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <strong>Last Login:</strong>
+                                    <span id="last-login">Just now</span>
+                                </div>
+                                <div class="stat-item">
+                                    <strong>Member Since:</strong>
+                                    <span id="member-since">Today</span>
+                                </div>
+                            </div>
+                            <div class="hit-counter">
+                                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="counter" style="display: none;">
+                                <div class="counter-display">
+                                    <span class="counter-digit">0</span>
+                                    <span class="counter-digit">0</span>
+                                    <span class="counter-digit">0</span>
+                                    <span class="counter-digit">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Widget -->
+                    <div class="widget" id="contact-widget">
+                        <div class="widget-header">
+                            <h2>Contact Me</h2>
+                            <button class="widget-toggle">-</button>
+                        </div>
+                        <div class="widget-content">
+                            <div class="contact-tabs">
+                                <button class="contact-tab active" data-tab="actions">Actions</button>
+                                <button class="contact-tab" data-tab="inbox">Inbox</button>
+                                <button class="contact-tab" data-tab="accounts">Accounts</button>
+                            </div>
+                            <div class="contact-tab-content active" data-tab="actions">
+                                <div class="contact-links">
+                                    <button class="contact-btn">Send Message</button>
+                                    <button class="contact-btn">Add to Friends</button>
+                                    <button class="contact-btn">Forward to Friend</button>
+                                    <button class="contact-btn">View All Friends</button>
+                                    <button class="contact-btn">Block User</button>
+                                    <button class="contact-btn">View Blocked Users</button>
+                                </div>
+                            </div>
+                            <div class="contact-tab-content" data-tab="inbox">
+                                <div id="inbox-login-message" class="inbox-empty">
+                                    Log in to view your messages and friend requests.
+                                </div>
+                                <div class="inbox-lists" id="inbox-lists">
+                                    <div class="inbox-section">
+                                        <h4>Messages</h4>
+                                        <div id="inbox-messages"></div>
+                                    </div>
+                                    <div class="inbox-section">
+                                        <h4>Friend Requests</h4>
+                                        <div id="inbox-requests"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="contact-tab-content" data-tab="accounts">
+                                <div class="accounts-search">
+                                    <input type="text" id="accounts-search" placeholder="Search usernames...">
+                                </div>
+                                <div id="accounts-list" class="accounts-list">
+                                    <!-- Accounts rendered here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Image Lightbox -->
+    <div id="lightbox" class="lightbox">
+        <span class="lightbox-close">&times;</span>
+        <img class="lightbox-content" id="lightbox-img">
+        <div class="lightbox-caption" id="lightbox-caption"></div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="auth-modal" style="display: none;">
+        <div class="auth-modal-content">
+            <span class="auth-modal-close" id="close-auth-modal">x</span>
+            <h2 id="auth-modal-title">Login to OurSpace</h2>
+            <form id="auth-form">
+                <div class="auth-form-group">
+                    <label for="auth-username">Username:</label>
+                    <input type="text" id="auth-username" name="username" required autocomplete="username">
+                </div>
+                <div class="auth-form-group" id="auth-password-group">
+                    <label for="auth-password">Password:</label>
+                    <input type="password" id="auth-password" name="password" required autocomplete="current-password">
+                </div>
+                <div class="auth-form-group" id="auth-admin-password-group" style="display: none;">
+                    <label for="auth-admin-password">Admin Password:</label>
+                    <input type="password" id="auth-admin-password" name="admin_password" autocomplete="off">
+                </div>
+                <div class="auth-form-group" id="auth-new-password-group" style="display: none;">
+                    <label for="auth-new-password">New Password:</label>
+                    <input type="password" id="auth-new-password" name="new_password" autocomplete="new-password">
+                </div>
+                <div class="auth-error" id="auth-error"></div>
+                <button type="submit" id="auth-submit-btn" class="auth-submit-btn">Login</button>
+            </form>
+            <div class="auth-switch" id="auth-switch-link">
+                Don't have an account? <a href="#" id="switch-to-register">Sign up</a>
+                <br>
+                <a href="#" id="forgot-password-link" style="margin-top: 5px; display: inline-block;">Forgot password?</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theatre Mode Overlay (Outside all containers for true fullscreen) -->
+    <div id="theatre-mode-overlay" class="theatre-mode-overlay">
+        <div class="theatre-controls">
+            <button id="theatre-close" class="theatre-btn">✕ Close</button>
+            <div class="theatre-info">
+                <span id="theatre-counter">0 / 0</span>
+            </div>
+        </div>
+        <button id="theatre-prev" class="theatre-nav theatre-nav-left">‹</button>
+        <div id="theatre-image-container" class="theatre-image-container">
+            <img id="theatre-image" src="" alt="">
+        </div>
+        <button id="theatre-next" class="theatre-nav theatre-nav-right">›</button>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/persistent-player.js"></script>
+    <script src="js/ourspace-core.js"></script>
+    <script src="js/ourspace-customizer.js"></script>
+    <script src="js/ourspace-widgets.js"></script>
+    <script src="js/ourspace-images.js"></script>
+    <script src="js/ourspace-audio.js"></script>
+    <script src="js/ourspace-effects.js"></script>
+    <script src="js/ourspace-auth.js"></script>
+    <script src="js/ourspace-friends.js"></script>
+    <script src="js/ourspace-layout-editor.js"></script>
+</body>
+</html>
+
+
+
+

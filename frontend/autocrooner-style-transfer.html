@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Autocrooner Style Transfer (Server-local)</title>
+  <link rel="stylesheet" href="./modern.css?v=2025112424" />
+  <link rel="stylesheet" href="./visualizer.css?v=2025112424" />
+  <style>
+    .shell{max-width:1040px;margin:0 auto;padding:24px}
+    .card{background:rgba(10,10,12,.85);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:18px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    .field{display:block}
+    .field .label{color:rgba(255,255,255,.75);font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+    .field input[type="text"], .field input[type="file"], .field input[type="number"]{
+      width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);
+      background:rgba(0,0,0,.35);color:#fff
+    }
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg,#5cff8a22,#ff7ac822);border-color:rgba(255,255,255,.24)}
+    .btn[disabled]{opacity:.55;cursor:not-allowed}
+    .status{margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.35);min-height:44px;white-space:pre-wrap}
+    .muted{color:rgba(255,255,255,.7);font-size:13px}
+    .pill{display:inline-block;padding:2px 8px;border:1px solid rgba(255,255,255,.18);border-radius:999px;background:rgba(255,255,255,.06);font-size:12px}
+    audio{width:100%}
+  </style>
+</head>
+<body class="page">
+  <div class="site-landing-banner"><a href="/harmonizer.html">&#8592; Back to Harmonizer</a></div>
+  <div class="shell">
+    <h1 style="margin:8px 0 14px;">Autocrooner Style Transfer (Server-local)</h1>
+    <p class="muted" style="margin:0 0 18px;">
+      This is a <span class="pill">non-identifying</span> style matcher: it learns mix/timbre characteristics from a reference track and tunes the Autocrooner DSP settings to match.
+      It uses a multi-epoch creator/judger loop and does not attempt to clone a singer identity.
+    </p>
+
+    <div class="card">
+      <div class="grid">
+        <label class="field">
+          <div class="label">Reference (Song A / Style A)</div>
+          <input id="ref-file" type="file" accept="audio/*" />
+          <div class="muted" style="margin-top:6px;">The style to mimic (tone/saturation/noise envelope).</div>
+        </label>
+        <label class="field">
+          <div class="label">Target (Song B to transfer)</div>
+          <input id="tgt-file" type="file" accept="audio/*" />
+          <div class="muted" style="margin-top:6px;">The song you’ll apply Autocrooner to.</div>
+        </label>
+      </div>
+
+      <div class="grid" style="margin-top:12px;">
+        <label class="field">
+          <div class="label">Resume from style (optional)</div>
+          <input id="resume-style" type="text" placeholder="paste a saved style id (or pick from list)" list="resume-style-list" />
+          <datalist id="resume-style-list"></datalist>
+          <div class="muted" style="margin-top:6px;">
+            Continue iterating from a previously saved style. You can optionally reuse the saved Song A/B on this server.
+          </div>
+        </label>
+        <div class="row" style="align-items:flex-end;">
+          <label class="field" style="flex:1;">
+            <div class="label">Reuse saved A/B audio</div>
+            <input id="use-saved-audio" type="checkbox" />
+            <div class="muted" style="margin-top:6px;">Train without re-upload (works only if the server still has the last A/B files).</div>
+          </label>
+          <label class="field" style="flex:1;">
+            <div class="label">Overwrite same style id</div>
+            <input id="overwrite-style" type="checkbox" />
+            <div class="muted" style="margin-top:6px;">Otherwise saves a new style file.</div>
+          </label>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:12px;">
+        <label class="field">
+          <div class="label">Style name</div>
+          <input id="style-name" type="text" value="My Crooner Transfer" />
+        </label>
+        <div class="row" style="align-items:flex-end;">
+          <label class="field" style="flex:1;">
+            <div class="label">Epochs</div>
+            <input id="epochs" type="number" min="1" max="40" value="8" />
+          </label>
+          <label class="field" style="flex:1;">
+            <div class="label">Trials/Epoch</div>
+            <input id="trials" type="number" min="6" max="120" value="24" />
+          </label>
+          <label class="field" style="flex:1;">
+            <div class="label">Preview Seconds</div>
+            <input id="preview-seconds" type="number" min="0" max="30" value="10" />
+          </label>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:14px;">
+        <button class="btn primary" id="train-btn">Train</button>
+        <a class="btn" href="/autocrooner/trainer/simple" title="Simple style-pack trainer">Simple Trainer</a>
+        <button class="btn" id="open-btn" title="Open Harmonizer in Autocrooner mode">Open Autocrooner</button>
+      </div>
+
+      <div class="status" id="status">Ready.</div>
+      <div id="preview-wrap" class="muted" style="display:none;margin-top:12px;">
+        <div class="label" style="margin:0 0 6px;">Preview</div>
+        <audio id="preview-audio" controls></audio>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const statusEl = document.getElementById('status');
+      const trainBtn = document.getElementById('train-btn');
+      const openBtn = document.getElementById('open-btn');
+      const nameEl = document.getElementById('style-name');
+      const refEl = document.getElementById('ref-file');
+      const tgtEl = document.getElementById('tgt-file');
+      const resumeEl = document.getElementById('resume-style');
+      const resumeListEl = document.getElementById('resume-style-list');
+      const useSavedAudioEl = document.getElementById('use-saved-audio');
+      const overwriteEl = document.getElementById('overwrite-style');
+      const epochsEl = document.getElementById('epochs');
+      const trialsEl = document.getElementById('trials');
+      const previewSecondsEl = document.getElementById('preview-seconds');
+      const previewWrap = document.getElementById('preview-wrap');
+      const previewAudio = document.getElementById('preview-audio');
+
+      const STORAGE_KEY = 'autocrooner:styleId';
+
+      function setStatus(msg) { statusEl.textContent = msg || ''; }
+
+      function setActiveStyleId(id) {
+        try { window.localStorage.setItem(STORAGE_KEY, id || ''); } catch (e) {}
+      }
+
+      async function listStyles() {
+        const res = await fetch('/api/autocrooner/style/list', { cache: 'no-store' });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (data && Array.isArray(data.styles)) ? data.styles : [];
+      }
+
+      async function hydrateResumeList() {
+        if (!resumeListEl) return;
+        try {
+          const styles = await listStyles();
+          resumeListEl.innerHTML = '';
+          styles.forEach((s) => {
+            if (!s || !s.id) return;
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.label = s.name ? `${s.name} (${s.id})` : s.id;
+            resumeListEl.appendChild(opt);
+          });
+        } catch (e) {}
+      }
+
+      async function poll(jobId) {
+        const maxAttempts = 1800; // 30 minutes
+        for (let i = 0; i < maxAttempts; i++) {
+          const res = await fetch(`/api/autocrooner/style-transfer/status/${encodeURIComponent(jobId)}`, { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.progress) setStatus(data.progress);
+            if (data.status === 'completed') return data.result;
+            if (data.status === 'failed') throw new Error(data.error || 'Training failed');
+          }
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        throw new Error('Training timeout');
+      }
+
+      trainBtn.addEventListener('click', async () => {
+        const ref = refEl.files && refEl.files[0];
+        const tgt = tgtEl.files && tgtEl.files[0];
+        const resumeStyleId = (resumeEl && resumeEl.value) ? (resumeEl.value || '').trim() : '';
+        const useSavedAudio = !!(useSavedAudioEl && useSavedAudioEl.checked);
+        const overwrite = !!(overwriteEl && overwriteEl.checked);
+
+        const hasUploads = !!(ref && tgt);
+        if (!hasUploads && !(resumeStyleId && useSavedAudio)) {
+          if (!ref) { setStatus('Pick a Reference (Song A / Style A) file (or resume + reuse saved audio).'); return; }
+          if (!tgt) { setStatus('Pick a Target (Song B to transfer) file (or resume + reuse saved audio).'); return; }
+          return;
+        }
+
+        previewWrap.style.display = 'none';
+        previewAudio.removeAttribute('src');
+
+        const name = (nameEl.value || '').trim() || 'crooner-style-transfer';
+        const epochs = Math.max(1, Math.min(40, parseInt(epochsEl.value, 10) || 8));
+        const trials = Math.max(6, Math.min(120, parseInt(trialsEl.value, 10) || 24));
+        const previewSeconds = Math.max(0, Math.min(30, parseFloat(previewSecondsEl.value) || 0));
+
+        const form = new FormData();
+        form.append('name', name);
+        form.append('epochs', String(epochs));
+        form.append('trials', String(trials));
+        form.append('preview_seconds', String(previewSeconds));
+        if (resumeStyleId) form.append('resume_style_id', resumeStyleId);
+        if (useSavedAudio) form.append('use_saved_audio', '1');
+        if (overwrite) form.append('overwrite', '1');
+        if (ref) form.append('reference_audio', ref, ref.name);
+        if (tgt) form.append('target_audio', tgt, tgt.name);
+
+        trainBtn.disabled = true;
+        setStatus('Uploading…');
+        try {
+          const res = await fetch('/api/autocrooner/style-transfer/train', { method: 'POST', body: form });
+          const data = await res.json();
+          if (!res.ok) throw new Error((data && data.error) ? data.error : 'Train failed');
+          const jobId = data.jobId;
+          if (!jobId) throw new Error('No jobId returned');
+          const result = await poll(jobId);
+          const dl = result && result.downloadUrl ? result.downloadUrl : '';
+          const pv = result && result.previewUrl ? result.previewUrl : '';
+          const styleId = result && result.styleId ? result.styleId : '';
+          const styleName = result && result.styleName ? result.styleName : '';
+          const scores = result && result.scores ? result.scores : null;
+          const adv = scores && scores.adv ? scores.adv : null;
+          if (styleId) setActiveStyleId(styleId);
+
+          let msg = 'Done.';
+          if (styleName) msg += `\nName: ${styleName}`;
+          msg += `\nStyle: ${styleId || '(unknown)'}`;
+          if (adv && typeof adv === 'object') {
+            if (typeof adv.judgerOk === 'boolean') msg += `\nJudger: ${adv.judgerOk ? 'trained' : 'fallback'}`;
+            if (typeof adv.advLoss === 'number') msg += `\nAdv loss: ${adv.advLoss.toFixed(3)}`;
+            if (typeof adv.featureLoss === 'number') msg += `\nFeature loss: ${adv.featureLoss.toFixed(3)}`;
+          }
+          msg += `\nDownload: ${dl}`;
+          if (styleId) msg += `\nActive style saved. Click "Open Autocrooner" to use it.`;
+          setStatus(msg);
+          if (pv) {
+            previewAudio.src = pv;
+            previewWrap.style.display = '';
+          }
+        } catch (e) {
+          setStatus(e && e.message ? e.message : String(e));
+        } finally {
+          trainBtn.disabled = false;
+        }
+      });
+
+      openBtn.addEventListener('click', () => {
+        window.location.href = '/harmonizer.html?mode=autocrooner';
+      });
+
+      // initial
+      hydrateResumeList();
+    })();
+  </script>
+</body>
+</html>

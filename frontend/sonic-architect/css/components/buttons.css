@@ -1,0 +1,489 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * Button Components - Morphing, Glowing, Liquid Effects
+ */
+
+/* ========================================
+   BASE BUTTON
+   ======================================== */
+
+.btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-family);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+    color: var(--theme-text);
+    background: transparent;
+    border: 1px solid var(--theme-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    overflow: hidden;
+    transition:
+        background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast),
+        box-shadow var(--transition-fast);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ========================================
+   BUTTON VARIANTS
+   ======================================== */
+
+/* Primary Button - Neon glow effect */
+.btn--primary {
+    color: var(--theme-primary);
+    border-color: var(--theme-primary);
+    background: rgba(0, 240, 255, 0.1);
+}
+
+.btn--primary:hover {
+    background: var(--theme-primary);
+    color: var(--theme-bg);
+    box-shadow: var(--theme-glow);
+}
+
+.btn--primary:active {
+    transform: scale(0.98);
+    box-shadow: var(--theme-glow-intense);
+}
+
+/* Secondary Button */
+.btn--secondary {
+    color: var(--theme-secondary);
+    border-color: var(--theme-secondary);
+    background: rgba(255, 0, 60, 0.1);
+}
+
+.btn--secondary:hover {
+    background: var(--theme-secondary);
+    color: var(--theme-bg);
+    box-shadow: 0 0 20px var(--theme-secondary);
+}
+
+/* Ghost Button */
+.btn--ghost {
+    border-color: transparent;
+    background: transparent;
+}
+
+.btn--ghost:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* ========================================
+   BUTTON SIZES
+   ======================================== */
+
+.btn--sm {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text-xs);
+}
+
+.btn--lg {
+    padding: var(--space-4) var(--space-6);
+    font-size: var(--text-md);
+}
+
+.btn--full {
+    width: 100%;
+}
+
+/* ========================================
+   ICON BUTTON
+   ======================================== */
+
+.btn--icon {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: var(--radius-md);
+    border: none;
+    background: transparent;
+}
+
+.btn--icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.btn--icon:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn--icon.active {
+    color: var(--theme-primary);
+}
+
+/* ========================================
+   PLAY BUTTON (Special)
+   ======================================== */
+
+.btn--play {
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    border-radius: var(--radius-full);
+    background: var(--theme-gradient);
+    border: none;
+    color: var(--theme-bg);
+}
+
+.btn--play:hover {
+    transform: scale(1.05);
+    box-shadow: var(--theme-glow-intense);
+}
+
+.btn--play:active {
+    transform: scale(0.95);
+}
+
+.btn--play svg {
+    width: 32px;
+    height: 32px;
+}
+
+/* ========================================
+   GLOW EFFECT BUTTON
+   ======================================== */
+
+.btn--glow {
+    animation: glow-pulse 2s ease infinite;
+}
+
+.btn--glow:hover {
+    animation: none;
+    box-shadow: var(--theme-glow-intense);
+}
+
+/* ========================================
+   LIQUID BUTTON (Morphing Effect)
+   ======================================== */
+
+.btn--liquid {
+    position: relative;
+    z-index: 1;
+}
+
+.btn--liquid::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: var(--theme-gradient);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+    z-index: -1;
+}
+
+.btn--liquid:hover::before {
+    width: 300%;
+    height: 300%;
+}
+
+.btn--liquid:hover {
+    color: var(--theme-bg);
+    border-color: transparent;
+}
+
+/* ========================================
+   RIPPLE EFFECT
+   ======================================== */
+
+.btn--ripple {
+    overflow: hidden;
+}
+
+.btn--ripple .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(0);
+    animation: ripple-effect 0.6s ease-out;
+    pointer-events: none;
+}
+
+@keyframes ripple-effect {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* ========================================
+   BORDER TRACE BUTTON
+   ======================================== */
+
+.btn--trace {
+    position: relative;
+    background: transparent;
+    border: none;
+}
+
+.btn--trace::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 2px;
+    background: linear-gradient(
+        90deg,
+        var(--theme-primary),
+        var(--theme-secondary),
+        var(--theme-primary)
+    );
+    background-size: 200% 100%;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: gradient-shift 3s linear infinite;
+}
+
+/* ========================================
+   CYBERPUNK CORNER BUTTON
+   ======================================== */
+
+.btn--cyber {
+    position: relative;
+    background: transparent;
+    border: none;
+    clip-path: polygon(
+        0 0,
+        calc(100% - 10px) 0,
+        100% 10px,
+        100% 100%,
+        10px 100%,
+        0 calc(100% - 10px)
+    );
+}
+
+.btn--cyber::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--theme-panel);
+    clip-path: inherit;
+    z-index: -1;
+}
+
+.btn--cyber::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: var(--theme-gradient);
+    clip-path: inherit;
+    z-index: -2;
+}
+
+.btn--cyber:hover::before {
+    background: var(--theme-primary);
+}
+
+.btn--cyber:hover {
+    color: var(--theme-bg);
+}
+
+/* ========================================
+   PULSE RING BUTTON
+   ======================================== */
+
+.pulse-ring {
+    position: relative;
+}
+
+.pulse-ring::before,
+.pulse-ring::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 2px solid var(--theme-primary);
+    border-radius: inherit;
+    opacity: 0;
+}
+
+.pulse-ring::before {
+    animation: pulse-expand 2s ease-out infinite;
+}
+
+.pulse-ring::after {
+    animation: pulse-expand 2s ease-out 1s infinite;
+}
+
+.pulse-ring:hover::before,
+.pulse-ring:hover::after {
+    animation: none;
+    opacity: 0;
+}
+
+/* ========================================
+   BUTTON GROUP
+   ======================================== */
+
+.btn-group {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.btn-group--attached {
+    gap: 0;
+}
+
+.btn-group--attached .btn {
+    border-radius: 0;
+}
+
+.btn-group--attached .btn:first-child {
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.btn-group--attached .btn:last-child {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.btn-group--attached .btn:not(:last-child) {
+    border-right: none;
+}
+
+/* ========================================
+   TAB BUTTONS
+   ======================================== */
+
+.tab {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+    color: var(--theme-text-muted);
+    background: transparent;
+    border: 1px solid var(--theme-border);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.tab:first-child {
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.tab:last-child {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.tab:not(:last-child) {
+    border-right: none;
+}
+
+.tab--active,
+.tab.active {
+    color: var(--theme-primary);
+    background: rgba(0, 240, 255, 0.1);
+    border-color: var(--theme-primary);
+}
+
+.tab:hover:not(.tab--active):not(.active) {
+    color: var(--theme-text);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* ========================================
+   THEME BUTTON (Color Swatch)
+   ======================================== */
+
+.theme-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+}
+
+.theme-btn.active {
+    border-color: var(--theme-text);
+    transform: scale(1.1);
+}
+
+.theme-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: inherit;
+    opacity: 0.3;
+}
+
+/* Theme button colors */
+.theme-btn--cyber { background: linear-gradient(135deg, #00f0ff, #ff003c); }
+.theme-btn--vapor { background: linear-gradient(135deg, #ff71ce, #01cdfe); }
+.theme-btn--matrix { background: linear-gradient(135deg, #00ff00, #003300); }
+.theme-btn--sunset { background: linear-gradient(135deg, #ff6b35, #f7c59f); }
+.theme-btn--void { background: linear-gradient(135deg, #ffffff, #000000); }
+.theme-btn--aurora { background: linear-gradient(135deg, #00d4aa, #7b2cbf); }
+.theme-btn--retrowave { background: linear-gradient(135deg, #ff00ff, #00ffff); }
+.theme-btn--bloodmoon { background: linear-gradient(135deg, #ff0000, #8b0000); }
+.theme-btn--hologram {
+    background: linear-gradient(
+        135deg,
+        hsl(0, 100%, 50%),
+        hsl(60, 100%, 50%),
+        hsl(120, 100%, 50%),
+        hsl(180, 100%, 50%),
+        hsl(240, 100%, 50%),
+        hsl(300, 100%, 50%)
+    );
+    background-size: 200% 200%;
+    animation: holo-shift 3s linear infinite;
+}
+.theme-btn--custom {
+    background: conic-gradient(
+        from 0deg,
+        #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000
+    );
+}
+
+/* ========================================
+   THEME GRID
+   ======================================== */
+
+.theme-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--space-2);
+}
+
+/* ========================================
+   INPUT SOURCE TABS
+   ======================================== */
+
+.input-source-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: var(--space-3);
+}

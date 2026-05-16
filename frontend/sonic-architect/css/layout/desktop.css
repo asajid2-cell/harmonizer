@@ -1,0 +1,401 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * Desktop Layout (1024px+)
+ * LG Breakpoint - Full 3-column layout
+ */
+
+/* ========================================
+   LG BREAKPOINT (1024px+) - Desktop
+   ======================================== */
+
+@media (min-width: 1024px) {
+    /* Full 3-column layout */
+    .ui-layer {
+        grid-template-columns: var(--panel-width) 1fr var(--panel-width);
+        grid-template-rows: auto 1fr auto;
+        grid-template-areas:
+            "left header right"
+            "left main right"
+            "left player right";
+        padding: var(--space-4);
+        gap: var(--space-4);
+    }
+
+    /* Hide mobile navigation completely */
+    .mobile-nav {
+        display: none;
+    }
+
+    /* Both panels visible by default */
+    .panel--left,
+    .panel--right {
+        display: flex;
+        border-radius: var(--radius-lg);
+        border: var(--glass-border);
+    }
+
+    .panel--left {
+        grid-area: left;
+    }
+
+    .panel--right {
+        grid-area: right;
+    }
+
+    /* Show panel toggle buttons */
+    .panel__toggle {
+        display: flex;
+    }
+
+    /* Header in center column */
+    .header {
+        grid-area: header;
+        border-radius: var(--radius-lg);
+        margin: 0;
+    }
+
+    /* Player bar in center column */
+    .player-bar {
+        grid-area: player;
+        border-radius: var(--radius-lg);
+        margin: 0;
+        grid-template-columns: auto minmax(200px, 300px) 1fr auto auto;
+    }
+
+    /* Larger album art */
+    .album-art {
+        width: 72px;
+        height: 72px;
+    }
+
+    /* Track info */
+    .track-name {
+        font-size: var(--text-lg);
+    }
+
+    .track-artist {
+        font-size: var(--text-base);
+    }
+
+    /* Volume slider */
+    .slider--volume {
+        width: 120px;
+    }
+
+    /* HUD corners visible and positioned for center area */
+    .hud-corner {
+        display: block;
+    }
+
+    .hud-corner--tl {
+        top: calc(var(--space-4) + var(--header-height) + var(--space-4));
+        left: calc(var(--panel-width) + var(--space-4) + var(--space-4));
+    }
+
+    .hud-corner--tr {
+        top: calc(var(--space-4) + var(--header-height) + var(--space-4));
+        right: calc(var(--panel-width) + var(--space-4) + var(--space-4));
+    }
+
+    .hud-corner--bl {
+        bottom: calc(var(--space-4) + var(--player-bar-height) + var(--space-4));
+        left: calc(var(--panel-width) + var(--space-4) + var(--space-4));
+    }
+
+    .hud-corner--br {
+        bottom: calc(var(--space-4) + var(--player-bar-height) + var(--space-4));
+        right: calc(var(--panel-width) + var(--space-4) + var(--space-4));
+    }
+
+    /* Panel content */
+    .panel__content {
+        padding: var(--space-4);
+        gap: var(--space-5);
+    }
+
+    /* Control sections */
+    .control-section {
+        padding-bottom: var(--space-5);
+    }
+
+    .control-section__title {
+        font-size: var(--text-xs);
+        margin-bottom: var(--space-3);
+    }
+
+    /* Theme grid - full display */
+    .theme-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: var(--space-2);
+    }
+
+    .theme-btn {
+        width: 100%;
+        aspect-ratio: 1;
+    }
+
+    /* Spectrum canvas */
+    .spectrum-canvas {
+        height: 80px;
+    }
+
+    /* Playlist */
+    .playlist {
+        max-height: none;
+        flex: 1;
+    }
+
+    /* Progress bar with full waveform */
+    .waveform-container {
+        display: block;
+        height: 40px;
+    }
+
+    /* Notifications */
+    .notifications {
+        top: calc(var(--space-4) + var(--header-height) + var(--space-4));
+        right: calc(var(--panel-width) + var(--space-4) + var(--space-4));
+    }
+
+    /* Modal adjustments */
+    .modal__content {
+        max-width: 500px;
+        border-radius: var(--radius-xl);
+    }
+
+    /* Collapsed panel states */
+    .panel.is-collapsed {
+        width: 56px;
+        min-width: 56px;
+    }
+
+    .panel.is-collapsed .panel__content {
+        display: none;
+    }
+
+    .panel.is-collapsed .panel__title {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        transform: rotate(180deg);
+        padding: var(--space-4) var(--space-2);
+    }
+
+    .panel.is-collapsed .panel__toggle {
+        margin: 0 auto;
+    }
+
+    .panel--left.is-collapsed .panel__toggle svg {
+        transform: rotate(180deg);
+    }
+
+    .panel--right.is-collapsed .panel__toggle svg {
+        transform: rotate(180deg);
+    }
+
+    /* Adjust grid when panels collapse */
+    .ui-layer:has(.panel--left.is-collapsed) {
+        grid-template-columns: 56px 1fr var(--panel-width);
+    }
+
+    .ui-layer:has(.panel--right.is-collapsed) {
+        grid-template-columns: var(--panel-width) 1fr 56px;
+    }
+
+    .ui-layer:has(.panel--left.is-collapsed):has(.panel--right.is-collapsed) {
+        grid-template-columns: 56px 1fr 56px;
+    }
+}
+
+/* ========================================
+   XL BREAKPOINT (1280px+) - Large Desktop
+   ======================================== */
+
+@media (min-width: 1280px) {
+    /* Wider panels */
+    .ui-layer {
+        grid-template-columns: var(--panel-width-lg) 1fr var(--panel-width-lg);
+        padding: var(--space-5);
+        gap: var(--space-5);
+    }
+
+    /* Larger header */
+    .header {
+        padding: var(--space-3) var(--space-5);
+    }
+
+    .header__title {
+        font-size: var(--text-xl);
+    }
+
+    /* Larger player bar */
+    .player-bar {
+        padding: var(--space-4) var(--space-5);
+        min-height: 90px;
+    }
+
+    .album-art {
+        width: 80px;
+        height: 80px;
+    }
+
+    /* Control group spacing */
+    .control-group {
+        gap: var(--space-2);
+    }
+
+    /* Update HUD corner positions */
+    .hud-corner--tl {
+        left: calc(var(--panel-width-lg) + var(--space-5) + var(--space-4));
+    }
+
+    .hud-corner--tr {
+        right: calc(var(--panel-width-lg) + var(--space-5) + var(--space-4));
+    }
+
+    .hud-corner--bl {
+        left: calc(var(--panel-width-lg) + var(--space-5) + var(--space-4));
+    }
+
+    .hud-corner--br {
+        right: calc(var(--panel-width-lg) + var(--space-5) + var(--space-4));
+    }
+
+    /* Notifications */
+    .notifications {
+        right: calc(var(--panel-width-lg) + var(--space-5) + var(--space-4));
+    }
+}
+
+/* ========================================
+   2XL BREAKPOINT (1536px+) - Ultra Wide
+   ======================================== */
+
+@media (min-width: 1536px) {
+    .ui-layer {
+        max-width: 1920px;
+        margin: 0 auto;
+        grid-template-columns: 400px 1fr 400px;
+    }
+
+    /* Even larger panels */
+    .panel__content {
+        padding: var(--space-5);
+    }
+
+    /* Theme grid can show more */
+    .theme-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+/* ========================================
+   FULLSCREEN MODE
+   ======================================== */
+
+.app.is-fullscreen .ui-layer {
+    padding: var(--space-4);
+}
+
+.app.is-fullscreen .header,
+.app.is-fullscreen .player-bar {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.app.is-fullscreen .panel {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+/* ========================================
+   HOVER EFFECTS (Desktop only)
+   ======================================== */
+
+@media (hover: hover) and (pointer: fine) {
+    /* Panel expand on hover when collapsed */
+    .panel.is-collapsed:hover {
+        width: var(--panel-width);
+        transition: width var(--transition-normal);
+    }
+
+    .panel.is-collapsed:hover .panel__content {
+        display: flex;
+        animation: fade-in var(--transition-fast);
+    }
+
+    .panel.is-collapsed:hover .panel__title {
+        writing-mode: horizontal-tb;
+        transform: none;
+        padding: var(--space-3) var(--space-4);
+    }
+
+    /* Button hover effects */
+    .btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .btn--icon:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn--primary:hover {
+        box-shadow: var(--theme-glow);
+    }
+
+    /* Slider track hover */
+    .slider:hover::-webkit-slider-thumb {
+        transform: scale(1.2);
+    }
+
+    /* Playlist item hover */
+    .playlist-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Theme button hover */
+    .theme-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 15px currentColor;
+    }
+}
+
+/* ========================================
+   KEYBOARD NAVIGATION (Desktop)
+   ======================================== */
+
+@media (min-width: 1024px) {
+    /* Focus states for keyboard navigation */
+    .btn:focus-visible,
+    .slider:focus-visible,
+    .select:focus-visible,
+    .toggle input:focus-visible + .toggle__slider,
+    .tab:focus-visible {
+        outline: 2px solid var(--theme-primary);
+        outline-offset: 2px;
+    }
+
+    /* Skip link for accessibility */
+    .skip-link {
+        position: absolute;
+        top: -100%;
+        left: var(--space-4);
+        padding: var(--space-2) var(--space-4);
+        background: var(--theme-primary);
+        color: var(--theme-bg);
+        border-radius: var(--radius-md);
+        z-index: var(--z-tooltip);
+        transition: top var(--transition-fast);
+    }
+
+    .skip-link:focus {
+        top: var(--space-4);
+    }
+}
+
+/* ========================================
+   PRINT STYLES (just in case)
+   ======================================== */
+
+@media print {
+    .app {
+        display: none;
+    }
+}

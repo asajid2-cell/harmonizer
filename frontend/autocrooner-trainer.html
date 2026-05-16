@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Autocrooner Trainer</title>
+  <link rel="stylesheet" href="./modern.css?v=2025112424" />
+  <link rel="stylesheet" href="./visualizer.css?v=2025112424" />
+  <style>
+    .trainer-shell{max-width:980px;margin:0 auto;padding:24px}
+    .trainer-card{background:rgba(10,10,12,.85);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:18px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .row > *{flex:1}
+    .field{display:block}
+    .field input[type="text"], .field input[type="file"], .field select{
+      width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);
+      background:rgba(0,0,0,.35);color:#fff
+    }
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg,#5cff8a22,#ff7ac822);border-color:rgba(255,255,255,.24)}
+    .btn[disabled]{opacity:.55;cursor:not-allowed}
+    .status{margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.35);min-height:44px;white-space:pre-wrap}
+    .styles{margin-top:14px}
+    .styles table{width:100%;border-collapse:collapse}
+    .styles th,.styles td{border-bottom:1px solid rgba(255,255,255,.10);padding:10px 8px;text-align:left;font-size:14px;vertical-align:top}
+    .muted{color:rgba(255,255,255,.7);font-size:13px}
+    .link{color:#9fffc0;text-decoration:underline;cursor:pointer}
+    .pill{display:inline-block;padding:2px 8px;border:1px solid rgba(255,255,255,.18);border-radius:999px;background:rgba(255,255,255,.06);font-size:12px}
+  </style>
+</head>
+<body class="page">
+  <div class="site-landing-banner"><a href="/harmonizer.html">&#8592; Back to Harmonizer</a></div>
+  <div class="trainer-shell">
+    <h1 style="margin:8px 0 14px;">Autocrooner Trainer</h1>
+    <p class="muted" style="margin:0 0 18px;">
+      Trains a portable <span class="pill">style pack</span> from your uploaded songs (local analysis + heuristics).
+      Result is a JSON file you can copy to your VPS under <code>backend/data/autocrooner_styles</code>.
+    </p>
+
+    <div class="trainer-card">
+      <div class="row">
+        <label class="field">
+          <div class="muted" style="margin-bottom:6px;">Style name</div>
+          <input id="style-name" type="text" value="My Crooner Style" />
+        </label>
+        <label class="field">
+          <div class="muted" style="margin-bottom:6px;">Training songs (1–24)</div>
+          <input id="train-files" type="file" accept="audio/*" multiple />
+        </label>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn primary" id="train-btn">Train Style</button>
+        <button class="btn" id="refresh-btn">Refresh Styles</button>
+        <a class="btn" href="/autocrooner/style-transfer" title="Creator/judger style transfer (Song A -> Song B)">Style Transfer (A→B)</a>
+        <button class="btn" id="open-harmonizer-btn" title="Open Harmonizer in Autocrooner mode">Open Autocrooner</button>
+      </div>
+      <div class="status" id="status">Ready.</div>
+    </div>
+
+    <div class="trainer-card styles">
+      <h2 style="margin:0 0 10px;font-size:18px;">Saved styles</h2>
+      <div class="muted" style="margin:0 0 10px;">Pick one to download or set as active in Autocrooner.</div>
+      <div id="styles-root" class="muted">Loading…</div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const statusEl = document.getElementById('status');
+      const trainBtn = document.getElementById('train-btn');
+      const refreshBtn = document.getElementById('refresh-btn');
+      const openHarmonizerBtn = document.getElementById('open-harmonizer-btn');
+      const nameEl = document.getElementById('style-name');
+      const filesEl = document.getElementById('train-files');
+      const stylesRoot = document.getElementById('styles-root');
+
+      const STORAGE_KEY = 'autocrooner:styleId';
+
+      function setStatus(msg) {
+        statusEl.textContent = msg || '';
+      }
+
+      function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+      }
+
+      async function listStyles() {
+        const res = await fetch('/api/autocrooner/style/list', { cache: 'no-store' });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (data && Array.isArray(data.styles)) ? data.styles : [];
+      }
+
+      function setActiveStyleId(id) {
+        try { localStorage.setItem(STORAGE_KEY, id || ''); } catch (e) {}
+      }
+
+      function getActiveStyleId() {
+        try { return localStorage.getItem(STORAGE_KEY) || ''; } catch (e) { return ''; }
+      }
+
+      function renderStyles(styles) {
+        if (!styles || !styles.length) {
+          stylesRoot.innerHTML = '<div class="muted">No styles yet. Train one above.</div>';
+          return;
+        }
+        const active = getActiveStyleId();
+        let html = '<table><thead><tr><th>Name</th><th>ID</th><th>Tracks</th><th>Actions</th></tr></thead><tbody>';
+        styles.forEach((s) => {
+          const id = s.id || '';
+          const name = s.name || id;
+          const count = (typeof s.trackCount === 'number') ? s.trackCount : '';
+          const isActive = active && id && active === id;
+          html += '<tr>';
+          html += `<td>${escapeHtml(name)} ${isActive ? '<span class="pill" style="margin-left:6px;">active</span>' : ''}</td>`;
+          html += `<td><code>${escapeHtml(id)}</code></td>`;
+          html += `<td>${escapeHtml(count)}</td>`;
+          html += '<td>';
+          html += `<a class="link" href="/api/autocrooner/style/${encodeURIComponent(id)}/download">download</a>`;
+          html += ' &middot; ';
+          html += `<span class="link" data-action="use" data-id="${escapeHtml(id)}">use</span>`;
+          html += ' &middot; ';
+          html += `<span class="link" data-action="open" data-id="${escapeHtml(id)}">open</span>`;
+          html += '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        stylesRoot.innerHTML = html;
+      }
+
+      async function refresh() {
+        const styles = await listStyles();
+        renderStyles(styles);
+      }
+
+      async function poll(jobId) {
+        const maxAttempts = 1200; // 20 minutes
+        for (let i = 0; i < maxAttempts; i++) {
+          const res = await fetch(`/api/autocrooner/train/status/${encodeURIComponent(jobId)}`, { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.progress) setStatus(data.progress);
+            if (data.status === 'completed') return data.result;
+            if (data.status === 'failed') throw new Error(data.error || 'Training failed');
+          }
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        throw new Error('Training timeout');
+      }
+
+      trainBtn.addEventListener('click', async () => {
+        const files = filesEl.files ? Array.from(filesEl.files) : [];
+        if (!files.length) {
+          setStatus('Pick at least one training song.');
+          return;
+        }
+        if (files.length > 24) {
+          setStatus('Too many files (max 24).');
+          return;
+        }
+        const name = (nameEl.value || '').trim() || 'crooner-style';
+        const form = new FormData();
+        form.append('name', name);
+        files.forEach((f) => form.append('audio_files', f, f.name));
+
+        trainBtn.disabled = true;
+        refreshBtn.disabled = true;
+        setStatus('Uploading…');
+        try {
+          const res = await fetch('/api/autocrooner/train', { method: 'POST', body: form });
+          const data = await res.json();
+          if (!res.ok) throw new Error((data && data.error) ? data.error : 'Train failed');
+          const jobId = data.jobId;
+          if (!jobId) throw new Error('No jobId returned');
+          setStatus('Queued…');
+          const result = await poll(jobId);
+          if (result && result.styleId) {
+            setActiveStyleId(result.styleId);
+          }
+          await refresh();
+          const dl = (result && result.downloadUrl) ? result.downloadUrl : '';
+          setStatus(`Done.\nStyle: ${result && result.styleId ? result.styleId : '(unknown)'}\nDownload: ${dl}`);
+        } catch (e) {
+          setStatus(e && e.message ? e.message : String(e));
+        } finally {
+          trainBtn.disabled = false;
+          refreshBtn.disabled = false;
+        }
+      });
+
+      refreshBtn.addEventListener('click', async () => {
+        setStatus('Refreshing styles…');
+        try {
+          await refresh();
+          setStatus('Ready.');
+        } catch (e) {
+          setStatus(e && e.message ? e.message : String(e));
+        }
+      });
+
+      openHarmonizerBtn.addEventListener('click', () => {
+        window.location.href = '/harmonizer.html?mode=autocrooner';
+      });
+
+      stylesRoot.addEventListener('click', (e) => {
+        const el = e.target.closest('[data-action]');
+        if (!el) return;
+        const action = el.getAttribute('data-action');
+        const id = el.getAttribute('data-id') || '';
+        if (!id) return;
+        if (action === 'use') {
+          setActiveStyleId(id);
+          refresh();
+          setStatus(`Active style set: ${id}`);
+        } else if (action === 'open') {
+          setActiveStyleId(id);
+          window.location.href = '/harmonizer.html?mode=autocrooner';
+        }
+      });
+
+      // initial
+      refresh().then(() => setStatus('Ready.'));
+    })();
+  </script>
+</body>
+</html>

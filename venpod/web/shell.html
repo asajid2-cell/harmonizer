@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VENPOD - WebGPU Voxel Physics Engine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            color: #eee;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #16213e;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #0f3460;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            color: #e94560;
+        }
+
+        .controls-hint {
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .controls-hint kbd {
+            background: #0f3460;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin: 0 2px;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        #canvas {
+            max-width: 100%;
+            max-height: 100%;
+            cursor: crosshair;
+        }
+
+        #canvas:focus {
+            outline: none;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+        }
+
+        #loading.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #333;
+            border-top: 4px solid #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #status {
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            background: rgba(22, 33, 62, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            max-width: 280px;
+            border: 1px solid #0f3460;
+        }
+
+        .ui-overlay h3 {
+            color: #e94560;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .ui-overlay ul {
+            list-style: none;
+        }
+
+        .ui-overlay li {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .ui-overlay li span:first-child {
+            color: #888;
+        }
+
+        .material-palette {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .material-swatch {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .material-swatch:hover {
+            border-color: #fff;
+        }
+
+        .material-swatch.selected {
+            border-color: #e94560;
+        }
+
+        footer {
+            background: #16213e;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #666;
+            border-top: 2px solid #0f3460;
+        }
+
+        footer a {
+            color: #e94560;
+            text-decoration: none;
+        }
+
+        #webgpu-error {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2d1f1f;
+            border: 2px solid #e94560;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 500px;
+        }
+
+        #webgpu-error h2 {
+            color: #e94560;
+            margin-bottom: 15px;
+        }
+
+        #webgpu-error p {
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🧊 VENPOD - Voxel Physics Engine</h1>
+        <div class="controls-hint">
+            <kbd>WASD</kbd> Move
+            <kbd>Mouse</kbd> Look
+            <kbd>LMB</kbd> Paint
+            <kbd>RMB</kbd> Erase
+            <kbd>1-9</kbd> Materials
+        </div>
+    </header>
+
+    <main>
+        <canvas id="canvas" tabindex="0"></canvas>
+
+        <div id="loading">
+            <div class="spinner"></div>
+            <div id="status">Initializing WebGPU...</div>
+        </div>
+
+        <div id="webgpu-error">
+            <h2>⚠️ WebGPU Not Available</h2>
+            <p>Your browser doesn't support WebGPU yet.</p>
+            <p>Please try:</p>
+            <ul style="text-align: left; margin: 10px 30px;">
+                <li>Chrome/Edge 113+ with WebGPU enabled</li>
+                <li>Firefox Nightly with dom.webgpu.enabled</li>
+                <li>Safari Technology Preview</li>
+            </ul>
+        </div>
+
+        <div class="ui-overlay" id="ui-panel" style="display: none;">
+            <h3>🎨 Materials</h3>
+            <div class="material-palette">
+                <div class="material-swatch selected" style="background: #c2b280;" title="Sand (1)" data-material="1"></div>
+                <div class="material-swatch" style="background: #3366cc;" title="Water (2)" data-material="2"></div>
+                <div class="material-swatch" style="background: #808080;" title="Stone (3)" data-material="3"></div>
+                <div class="material-swatch" style="background: #8b5a2b;" title="Dirt (4)" data-material="4"></div>
+                <div class="material-swatch" style="background: #ff4d00;" title="Lava (5)" data-material="7"></div>
+                <div class="material-swatch" style="background: #ff9933;" title="Fire (6)" data-material="6"></div>
+                <div class="material-swatch" style="background: #1a0d33;" title="Oil (7)" data-material="9"></div>
+                <div class="material-swatch" style="background: #33e633;" title="Acid (8)" data-material="12"></div>
+                <div class="material-swatch" style="background: #333340;" title="Gunpowder (9)" data-material="15"></div>
+            </div>
+
+            <h3 style="margin-top: 15px;">📊 Stats</h3>
+            <ul>
+                <li><span>Grid:</span> <span id="stat-grid">128×64×128</span></li>
+                <li><span>FPS:</span> <span id="stat-fps">--</span></li>
+                <li><span>Frame:</span> <span id="stat-frame">0</span></li>
+            </ul>
+        </div>
+    </main>
+
+    <footer>
+        VENPOD WebGPU Tech Demo | Falling Sand Physics in the Browser
+        | <a href="https://github.com/anthropics/claude-code" target="_blank">Built with Claude Code</a>
+    </footer>
+
+    <script>
+        // Check WebGPU support
+        async function checkWebGPU() {
+            if (!navigator.gpu) {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('webgpu-error').style.display = 'block';
+                return false;
+            }
+
+            try {
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter) {
+                    throw new Error('No adapter');
+                }
+                return true;
+            } catch (e) {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('webgpu-error').style.display = 'block';
+                return false;
+            }
+        }
+
+        // Update status
+        function updateStatus(msg) {
+            document.getElementById('status').textContent = msg;
+        }
+
+        // Material selection
+        document.querySelectorAll('.material-swatch').forEach(swatch => {
+            swatch.addEventListener('click', () => {
+                document.querySelectorAll('.material-swatch').forEach(s => s.classList.remove('selected'));
+                swatch.classList.add('selected');
+                // Note: Actual material selection is handled in C++
+            });
+        });
+
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        function resizeCanvas() {
+            const main = document.querySelector('main');
+            const rect = main.getBoundingClientRect();
+            canvas.width = Math.floor(rect.width);
+            canvas.height = Math.floor(rect.height);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Prevent context menu on canvas
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        // Initialize
+        checkWebGPU().then(supported => {
+            if (supported) {
+                updateStatus('Loading WASM module...');
+            }
+        });
+
+        // Module callbacks (called by Emscripten)
+        var Module = {
+            canvas: canvas,
+            onRuntimeInitialized: function() {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('ui-panel').style.display = 'block';
+                canvas.focus();
+            },
+            print: function(text) {
+                console.log(text);
+                if (text.includes('ERROR')) {
+                    updateStatus(text);
+                }
+            },
+            printErr: function(text) {
+                console.error(text);
+            }
+        };
+
+        // FPS counter
+        let frameCount = 0;
+        let lastTime = performance.now();
+        setInterval(() => {
+            const now = performance.now();
+            const fps = Math.round(frameCount * 1000 / (now - lastTime));
+            document.getElementById('stat-fps').textContent = fps;
+            frameCount = 0;
+            lastTime = now;
+        }, 1000);
+
+        // Increment frame count (called from main loop)
+        function onFrame() {
+            frameCount++;
+        }
+    </script>
+
+    {{{ SCRIPT }}}
+</body>
+</html>

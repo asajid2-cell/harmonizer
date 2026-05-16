@@ -1,0 +1,1094 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Internet Discotheque</title>
+  <meta name="description" content="Physics-inspired portfolio">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/pixelarticons@1.8.1/fonts/pixelart-icons-font.css">
+  <style>
+    :root{
+      color-scheme:dark;
+      --ink:#e9f1ff;
+      --ink-dim:#9cb0d3;
+      --chrome:#2c3750;
+      --chrome-bright:#4b5d7a;
+      --border:#17233c;
+      --accent:#3d80ff;
+      --accent-soft:#7bd7ff;
+    }
+    *{box-sizing:border-box;scrollbar-width:none!important;-ms-overflow-style:none!important}
+    *::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+    html{scrollbar-width:none!important;-ms-overflow-style:none!important}
+    body{
+      margin:0;
+      min-height:100vh;
+      background-color:#000;
+      color:var(--ink);
+      font-family:"Times New Roman",serif;
+      overflow-x:hidden;
+      overflow-y:auto;
+    }
+    a{color:#66d9ff}
+    a:hover,a:focus-visible{color:#3f9}
+    button{font-family:inherit}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    .sr-only:focus,.sr-only:focus-visible{position:static;width:auto;height:auto;margin:0;clip:auto;overflow:visible}
+
+    .retro-wrapper{min-height:100vh;padding:0;display:block}
+    .retro-window{width:100%;min-height:100vh;border:0;box-shadow:none;background-color:transparent}
+    .retro-window__chrome{
+      display:none;
+    }
+    .retro-window__brand{flex:1;z-index:1}
+    .retro-window__title{
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      text-align:center;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.18em;
+      white-space:nowrap;
+      pointer-events:none
+    }
+    .retro-window__controls{display:flex;gap:4px;z-index:1}
+    .retro-window__btn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid rgba(0,0,0,.4);background-color:#fff3;font-weight:700;line-height:1;font-size:10px}
+
+    .retro-content{padding:0;position:relative;min-height:100vh}
+
+    .desktop{
+      position:relative;
+      min-height:100vh;
+      background-color:#000;
+      background-image:radial-gradient(circle,rgba(255,255,255,.7) 1px,transparent 1px),radial-gradient(circle,rgba(255,255,255,.35) 1px,transparent 1px);
+      background-size:50px 50px,80px 80px;
+      background-position:0 0,40px 40px;
+      background-repeat:repeat,repeat;
+      background-attachment:fixed;
+      overflow:hidden;
+      isolation:isolate;
+      animation:desktopFade 800ms ease both;
+    }
+    .desktop::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.03),rgba(255,255,255,.03) 1px,transparent 1px,transparent 3px);
+      opacity:.18;
+      pointer-events:none;
+      z-index:1;
+    }
+
+    .desktop-topbar{
+      position:relative;
+      z-index:4;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:24px 16px 12px;
+      background:transparent;
+      border-bottom:0;
+      font-family:"Times New Roman",serif;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.28em;
+      color:var(--ink-dim);
+    }
+    .desktop-brand{display:flex;align-items:center;gap:0;color:#dce9ff}
+    .desktop-chip{
+      display:none;
+      padding:2px 6px;
+      border:1px solid rgba(140,180,255,.35);
+      background:#0b1528;
+      color:#8ab4ff;
+      letter-spacing:.2em;
+      font-size:10px
+    }
+    .desktop-title{
+      font-weight:700;
+      color:#1d55ff;
+      text-shadow:0 0 18px rgba(61,128,255,.65);
+      font-size:clamp(22px,4vw,38px);
+      letter-spacing:.32em;
+    }
+    .desktop-status{display:none;gap:14px;align-items:center}
+    .desktop-status-item{color:#91a5c7}
+
+    .desktop-album-bg{
+      position:absolute;
+      inset:120px 0 90px;
+      background-image:url("./assets/cover.jpg");
+      background-repeat:no-repeat;
+      background-position:center 18%;
+      background-size:min(600px,60vw);
+      opacity:.85;
+      filter:drop-shadow(0 0 18px rgba(0,0,0,.7));
+      pointer-events:none;
+      z-index:1;
+    }
+    .desktop-credits{
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      bottom:84px;
+      z-index:2;
+    }
+    .retro-credits span:nth-child(2){
+      text-transform:none;
+      font-family:"Times New Roman",serif;
+      letter-spacing:.06em;
+    }
+
+    .desktop-icons{
+      position:absolute;
+      inset:120px 24px 58px 24px;
+      display:grid;
+      grid-auto-flow:column;
+      grid-auto-columns:96px;
+      grid-template-rows:repeat(6,96px);
+      gap:18px 24px;
+      align-content:start;
+      z-index:2;
+    }
+    .desktop-icons.is-freeform{
+      display:block;
+    }
+    .desktop-icon{
+      position:relative;
+      width:96px;
+      text-decoration:none;
+      color:var(--ink);
+      font-family:"MS Sans Serif",Tahoma,sans-serif;
+      font-size:11px;
+      text-align:center;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:6px;
+      user-select:none;
+      cursor:grab;
+      touch-action:none;
+      opacity:0;
+      transform:translateY(8px);
+      animation:iconRise 600ms ease forwards;
+      animation-delay:var(--icon-delay,0ms);
+    }
+    .desktop-icons.is-freeform .desktop-icon{position:absolute}
+    .desktop-icon:active{cursor:grabbing}
+    .desktop-icon.is-dragging{opacity:.85;transform:scale(1.03)}
+    .icon-frame{
+      width:64px;
+      height:64px;
+      border-radius:6px;
+      border:1px solid rgba(255,255,255,.18);
+      background:#0d0d0d;
+      box-shadow:inset 1px 1px 0 rgba(255,255,255,.08),inset -1px -1px 0 rgba(0,0,0,.7),0 0 10px rgba(0,0,0,.6);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--icon-primary,#9fd3ff);
+    }
+    .icon-frame i{
+      display:inline-block;
+      font-size:36px;
+      line-height:1;
+      color:currentColor;
+    }
+    .desktop-icon .icon-label{
+      display:inline-block;
+      padding:0 2px;
+      background:transparent;
+      border:0;
+      text-transform:uppercase;
+      letter-spacing:.1em;
+      font-size:10px;
+      color:#f8f8f8;
+      text-shadow:0 0 6px rgba(0,0,0,.9);
+    }
+    .desktop-icon:hover .icon-frame,.desktop-icon:focus-visible .icon-frame{
+      border-color:rgba(255,255,255,.5);
+      box-shadow:inset 1px 1px 0 rgba(255,255,255,.2),inset -1px -1px 0 rgba(0,0,0,.8),0 0 14px rgba(61,128,255,.35);
+    }
+    .desktop-icon:hover .icon-label,.desktop-icon:focus-visible .icon-label{
+      color:#fff;
+      text-shadow:0 0 8px rgba(0,0,0,.9),0 0 10px rgba(255,255,255,.2);
+    }
+
+    .icon-frame--home{--icon-primary:#6dffd2;--icon-secondary:#4f7bff}
+    .icon-frame--showcase{--icon-primary:#8ab4ff;--icon-secondary:#ffb347}
+    .icon-frame--harmonizer{--icon-primary:#5cff8a;--icon-secondary:#ff7ac8}
+    .icon-frame--image{--icon-primary:#ffd86b;--icon-secondary:#7bd7ff}
+    .icon-frame--talk{--icon-primary:#8fe7ff;--icon-secondary:#ff7ab8}
+    .icon-frame--codesniff{--icon-primary:#8fff5a;--icon-secondary:#5af0ff}
+    .icon-frame--radio{--icon-primary:#ff9f5a;--icon-secondary:#ffd65a}
+    .icon-frame--ourspace{--icon-primary:#9a7bff;--icon-secondary:#53ffd6}
+    .icon-frame--sand{--icon-primary:#f8d27a;--icon-secondary:#ff7a7a}
+    .icon-frame--notebook{--icon-primary:#a5ffa5;--icon-secondary:#7ac7ff}
+    .icon-frame--quickref{--icon-primary:#ffc3ff;--icon-secondary:#7affff}
+    .icon-frame--venpod{--icon-primary:#ff6b6b;--icon-secondary:#4ecdc4}
+
+
+    .retro-credits{
+      display:grid;
+      gap:4px;
+      justify-content:center;
+      margin-top:10px;
+      font-size:12px;
+      font-family:"Courier New",monospace;
+      text-transform:uppercase;
+      letter-spacing:.08em
+    }
+    .retro-credits span:nth-child(1){color:#ff9330}
+    .retro-credits span:nth-child(2){color:#c38aff}
+    .retro-credits span:nth-child(3){color:#58ff7a}
+
+    .retro-nav{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      padding:6px 10px;
+      background-color:#0b1422;
+      border-bottom:1px solid #24324f;
+      font-family:"MS Sans Serif",Tahoma,sans-serif;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+    .retro-nav a{color:#8ab4ff;text-decoration:none}
+    .retro-nav a:hover,.retro-nav a:focus-visible,.retro-nav a[aria-current="page"]{color:#fca1ff;text-decoration:underline}
+
+    .mobile-landing{display:none}
+    .mobile-landing .retro-title{
+      font-size:clamp(26px,4vw,40px);
+      color:#1d55ff;
+      letter-spacing:.12em;
+      margin:18px 0 18px;
+      text-transform:uppercase;
+      text-shadow:0 0 16px rgba(61,128,255,.6);
+      font-family:"Times New Roman",serif;
+    }
+    .mobile-landing .retro-ascii-wall{
+      margin:10px auto;
+      padding:14px;
+      width:min(88vw,1500px);
+      min-height:60vh;
+      border:2px solid rgba(255,255,255,.24);
+      background:linear-gradient(180deg,#01060f,#000);
+      font-family:"Courier New",monospace;
+      color:#b0c9ff;
+      box-shadow:0 0 32px rgba(0,0,0,.65);
+      column-width:150px;
+      column-gap:14px;
+      text-align:left;
+      overflow:visible;
+    }
+    .mobile-landing .retro-ascii-card{
+      margin:0 0 8px;
+      padding:0;
+      background:transparent;
+      border:none;
+      white-space:pre;
+      font-size:7px;
+      line-height:.95;
+      color:inherit;
+      break-inside:avoid;
+      box-shadow:none;
+      text-align:left;
+    }
+    .mobile-landing .retro-ascii-card[aria-label="internet discotheque marquee"]{margin-top:32vh;break-before:column}
+    .mobile-landing .retro-ascii-card[aria-label="amiga workstation"]{margin-top:36vh;break-before:column;margin-left:100px}
+    .mobile-landing .retro-ascii-card[aria-label="ps2 controller"]{margin-top:40vh;break-before:column;margin-left:170px}
+    .mobile-landing .retro-ascii-card--y2k{transform:none}
+    .mobile-landing .retro-ascii-card--console{margin-left:0}
+
+    .desktop-taskbar{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:0;
+      height:44px;
+      padding:6px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      background:#0d0d0d;
+      border-top:1px solid #2b2b2b;
+      font-family:"MS Sans Serif",Tahoma,sans-serif;
+      font-size:11px;
+      letter-spacing:.08em;
+      z-index:4;
+    }
+    .taskbar-start{
+      padding:6px 14px;
+      border:1px solid #3a3a3a;
+      background:#151515;
+      color:#cfe4ff;
+      text-transform:uppercase;
+      cursor:pointer;
+      box-shadow:inset 1px 1px 0 rgba(255,255,255,.1),inset -1px -1px 0 rgba(0,0,0,.6);
+    }
+    .taskbar-center{color:#8ab4ff;text-transform:uppercase;letter-spacing:.2em}
+    .taskbar-tray{display:flex;align-items:center;gap:10px;color:#a3b6d6}
+    .taskbar-clock{padding:4px 6px;border:1px solid rgba(148,180,255,.2);background:rgba(8,14,24,.8)}
+
+    .start-menu{
+      position:absolute;
+      left:12px;
+      bottom:54px;
+      width:240px;
+      background:rgba(8,14,24,.96);
+      border:1px solid rgba(148,180,255,.35);
+      box-shadow:0 16px 36px rgba(0,0,0,.55);
+      font-family:"MS Sans Serif",Tahoma,sans-serif;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      color:#cddcff;
+      padding:10px;
+      display:none;
+      z-index:5;
+    }
+    .start-menu.is-open{display:block;animation:menuRise 200ms ease}
+    .start-menu__title{margin-bottom:8px;color:#8ab4ff}
+    .start-menu__apps{display:grid;gap:6px;margin-bottom:10px}
+    .start-menu__apps a{
+      display:block;
+      padding:6px 8px;
+      background:rgba(14,24,42,.9);
+      border:1px solid rgba(148,180,255,.2);
+      color:#cfe4ff;
+      text-decoration:none;
+    }
+    .start-menu__apps a:hover,.start-menu__apps a:focus-visible{background:rgba(40,70,130,.7);color:#fff}
+    .start-menu__reset{
+      width:100%;
+      padding:6px;
+      border:1px solid rgba(148,180,255,.3);
+      background:rgba(14,24,42,.9);
+      color:#cfe4ff;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      cursor:pointer;
+    }
+
+    @keyframes desktopFade{
+      from{opacity:0;transform:translateY(10px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+    @keyframes iconRise{
+      to{opacity:1;transform:translateY(0)}
+    }
+    @keyframes menuRise{
+      from{opacity:0;transform:translateY(8px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+
+    @media (max-width: 1024px){
+      .desktop-topbar{padding:18px 12px 10px}
+      .desktop-title{letter-spacing:.26em}
+      .desktop-album-bg{
+        inset:120px 0 90px;
+        background-size:min(460px,72vw);
+        opacity:.92;
+      }
+      .desktop-icons{
+        inset:108px 14px 58px 14px;
+        grid-auto-columns:84px;
+        grid-template-rows:repeat(6,84px);
+        gap:16px 18px;
+      }
+      .desktop-icon{width:84px;font-size:10px}
+      .icon-frame{width:56px;height:56px}
+      .icon-frame i{font-size:30px}
+      .taskbar-center{display:none}
+    }
+
+    @media (max-width: 520px){
+      .desktop{display:none}
+      .mobile-landing{display:block}
+      .retro-wrapper{display:flex;justify-content:center;align-items:flex-start;padding:24px 8px 18px;min-height:auto}
+      .retro-window{width:min(1650px,100%);min-height:auto;border:3px solid #17233c;box-shadow:0 0 32px #000000a6;background-color:#010409}
+      .retro-window__chrome{
+        display:flex;
+        background:linear-gradient(90deg,#4b5d7a,#2c3750);
+        color:#e4e8f2;
+        padding:6px 10px;
+        font-family:"MS Sans Serif",Tahoma,sans-serif;
+        font-size:12px;
+        justify-content:space-between;
+        align-items:center;
+        letter-spacing:.04em;
+        position:relative;
+      }
+      .retro-window__brand{display:none}
+      .retro-window__title{
+        position:static;
+        transform:none;
+        flex:1;
+        text-align:center;
+        letter-spacing:.12em;
+        font-size:11px;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        pointer-events:none;
+      }
+      .retro-content{padding:18px 14px;text-align:center;min-height:auto}
+      .mobile-landing .retro-title{font-size:clamp(20px,6vw,28px);letter-spacing:.08em;margin-bottom:12px;line-height:1.2}
+      .mobile-landing .retro-ascii-wall{
+        column-width:100%;
+        column-count:1;
+        padding:10px;
+        width:calc(100% - 8px);
+        min-height:auto;
+        margin:8px auto;
+        overflow:hidden!important;
+        max-width:100vw!important;
+        box-sizing:border-box!important;
+      }
+      .mobile-landing .retro-ascii-card{
+        font-size:3px!important;
+        line-height:1!important;
+        margin:12px 0;
+        break-before:auto;
+        margin-left:0!important;
+        margin-top:0!important;
+        max-width:calc(100vw - 40px)!important;
+        overflow-x:hidden!important;
+        overflow-y:hidden!important;
+        box-sizing:border-box!important;
+        word-break:break-all!important;
+        transform:scale(0.95)!important;
+        transform-origin:left top!important;
+      }
+      .mobile-landing .retro-ascii-card[aria-label="internet discotheque marquee"]{margin-top:0!important}
+      .mobile-landing .retro-ascii-card[aria-label="amiga workstation"]{margin-top:12px!important;margin-left:0!important}
+      .mobile-landing .retro-ascii-card[aria-label="ps2 controller"]{margin-top:12px!important;margin-left:0!important}
+    }
+
+    @media (max-width: 480px){
+      .retro-nav{gap:6px;font-size:10px}
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      *{animation:none!important;transition:none!important}
+    }
+  </style>
+</head>
+<body>
+  <a href="#main" class="sr-only">Skip to main content</a>
+  <div class="retro-wrapper">
+    <div class="retro-window">
+      <div class="retro-window__chrome">
+        <span class="retro-window__brand">Business Casual presents</span>
+        <span class="retro-window__title">Internet Discotheque</span>
+        <div class="retro-window__controls">
+          <span class="retro-window__btn">_</span>
+          <span class="retro-window__btn">[]</span>
+          <span class="retro-window__btn">X</span>
+        </div>
+      </div>
+      <main id="main" class="retro-content">
+        <h1 class="sr-only">Internet Discotheque</h1>
+        <section class="mobile-landing" aria-label="Internet Discotheque landing">
+          <nav aria-label="Pages" class="retro-nav">
+            <a href="/" aria-current="page"> Home </a>
+            <a href="/projects"> Showcase </a>
+            <a href="/harmonizer.html"> Harmonizer </a>
+            <a href="/eldrichify.html"> Image Playground </a>
+            <a href="/talk-to-disco-teque.html"> Talk to Disco-teque </a>
+            <a href="/codesniff.html"> CodeSniff </a>
+            <a href="https://plaza.one/" target="_blank" rel="noopener"> Radio </a>
+            <a href="/ourspace.html"> OurSpace </a>
+            <a href="/sand.html"> Sand Sim </a>
+            <a href="/venpod.html"> VENPOD (3D Voxel Engine) </a>
+            <a href="/notebook.html"> Notebook </a>
+            <a href="/cheatsheets/"> Quick Reference </a>
+
+          </nav>
+          <h1 class="retro-title">Internet Discotheque</h1>
+          <section class="retro-ascii-wall" aria-label="dancing ascii gallery">
+          <pre class="retro-ascii-card retro-ascii-card--y2k" aria-label="internet discotheque marquee">
+                              oOOOoOOo
+                             .OOoOOOo.
+                             OOOoOOOoO
+                             'OOoOOOo'
+                                |||
+                             /\  ||  /\
+                            /  \ || /  \
+                           / /\ \||/ /\ \
+                          /_/  \.**./  \_\
+                               / || \
+                              *  ||  *
+                                 **
+                                     .-'''-.
+                                    / .===. \
+                                    \/ 6 6 \/
+                                    ( \___/ )
+                            ___ooo___\_____/____ooo___
+                           /                            \
+                           |        INTERNET             |
+                           |         DISCOTHEQUE         |
+                           \____________________________/
+                                  |  |         |  |
+                                  |  |         |  |
+                                  |__|         |__|
+                                   /_\\         /_\\
+                                  // \\         // \\
+                                  *   *         *   *
+          </pre>
+
+          <pre class="retro-ascii-card" aria-label="wave dancer">
+               .oOOOo.
+               oOOOoOOo
+               .OOoOOOo.
+               OOOoOOOoO    
+              'OOoOOOo'
+                 |||
+              /\  ||  /\
+             /  \ || /  \
+            / /\ \||/ /\ \
+           /_/  \.**./  \_\
+                / || \
+               *  ||  *               
+                  **     .''''''''''.
+                      .''            ''.
+                    .'      .-^.       '.
+                   /      .'*   '*.      \
+                  ;      /   \ /   \      ;
+                  |     /     V     \     |
+                  |    /   .-----.   \    |
+                  ;    |  (  _ _  )   |   ;
+                   \    \   \___/    /   /
+                    '.   '._     _.-'  .'
+                      '.    ''-''    .'
+                        '-._       _.'
+                             '| |'
+                           __/| |\__
+                         .'-._| |_._'-.
+                        /     | |     \
+                       /  /\  | |  /\  \
+                      /  /  \ | | /  \  \
+                     /__/    \| |/    \__\
+                              * *
+          </pre>
+
+          <pre class="retro-ascii-card" aria-label="sysadmin sentinel">
+                       SysAdmin
+                        _\/|(/_
+                        >_   _ /
+                        (_)-(_)
+                         ) o (
+                         \ = /
+                          |W|
+                          | |
+                        __| |__
+                       / \ u / \
+                      |   `-'   |
+                      |__|   |__|
+                       |||ADM|||
+                       |||   |||
+                       |||   |||
+                       |||   |||
+                       |||   |||
+                       |||   |||
+                      /  |___/  \
+                      ||(|   \)||
+                       \| | |//
+                         | | |
+                         | | |
+                         | | |
+                         | | |
+                         | | |
+                         ( ( |
+                         | | |
+                         | | |
+                         | | |
+                         | | |
+                         | | |
+                      ___[_[_]
+                     / /      \ 
+                     \_\______/ 
+          </pre>
+
+          <pre class="retro-ascii-card" aria-label="glyph guardian">
+                               .;+itIYIIYIIYItt+;:                      
+                            =tXVVXItt+;=;;=+itIYVVXIi:                  
+                         ;YVXXt=:               .;tYXXX+                
+                      .tVXVt;                       .iXXVI:             
+                     tRXX;                        .;;  ;YVVY:           
+                   ;RXV;                            +RR+..YVRt          
+                 .XXR;                           :;.  ;BBY.:VXR;        
+                ;RYX                              :XBY; tBBi tVR+       
+               ;RV+                             :;  :RMB+;BMB.;RXt      
+              ;RR;                               ;RR+.tBMBiBMB::RXt     
+             :RV;                             .+;. iBBY;BMMBMMB.:RXi    
+             RYt                                =BBi:BMBXBMMMBY. ;RR;   
+            YtV                               +Y+:tMBIBMMBMR=     iIR   
+           :RR.                        .::.    .tBXtMMBMBY:        RIi  
+           XIt                     ;IRBRXVRBY;   ;BBBMR=           ;VR  
+          .RR                    ;RBt:     .+RB;  :BI:              VY; 
+          +tX                   iBt           =BX                   itY 
+          Yt=                  ;Bi             :Bt                  :XR 
+          RX:                  RX               =B:                  RX.
+          RR                  :B:                Ri                  YX:
+          RR                  ;B                 YY                  YY;
+          RR                  :B;                Ri                  YX:
+          RX:                  RX               +B:                  RX.
+          YI;                  +Ri             :Bt                  :XR 
+          +tX              .i:  iBI           iBX                   itY 
+          .RR            ;VBBB.  ;RBt:     :+RR+                    VY; 
+           XIt        .tBMMMRBB;   ;tRBVXVBRY;                     ;VR  
+           :RR.     ;RBMMBVBB;;RR;     .::.                        RIi  
+            IIR  .tBMMMBMMB;RMX:                                  tIR   
+             RII BMMBMMBiBMB;:+Vi:                               ;RR:   
+             :RV;:BMBXBMB;;VBY.                                 :RX+    
+              ;RV+:BMB;RBMY  ;t;                               ;RXt     
+               ;RXt.RMB;:tBB=                                 ;RVi      
+                :RYR.;BBY. :+t;                              IXR;       
+                  XXR+ ;RBY:                               ;RYR:        
+                   ;RYR; .;Yi:                           :XXVt          
+                     +VXV=                             ;YVVt.           
+                       +VXVI;                       ;tVXVt.             
+                         ;tVXXYi;.              ;+IXXVY;                
+                            ;tIVVXXYti=====iiIXXVVYt;                   
+                                :;iitItttttItt+;:
+          </pre>
+
+            <pre class="retro-ascii-card retro-ascii-card--console" aria-label="command console">
+                              \_/ 
+             _______________                        |*\_/*|________
+            |  ___________  |     .-.     .-.      ||_/-\_|______  |
+            | |           | |    .****. .****.     | |           | |
+            | |   0   0   | |    .*****.*****.     | |   0   0   | |
+            | |     -     | |     .*********.      | |     -     | |
+            | |   \___/   | |      .*******.       | |   \___/   | |
+            | |___     ___| |       .*****.        | |___________| |
+            |_____|\_/|_____|        .***.         |_______________|
+              _|__|/ \|_|_.............*.............._|________|_
+             / ********** \                          / ********** \
+           /  ************  \                      /  ************  \
+          --------------------                    --------------------
+            </pre>
+
+            <pre class="retro-ascii-card" aria-label="amiga workstation">
+                               ___..-.---.---.--..___
+                         _..-- `.`.   `.  `.  `.      --.._
+                        /    ___________\   \   \______    \
+                        |   |.-----------`.  `.  `.---.|   |
+                        |`. |'  \`.        \   \   \  '|   |
+                        |`. |'   \ `-._     `.  `.  `.'|   |
+                       /|   |'    `-._o)\  /(o\   \   \|   |\
+                     .' |   |'  `.     .'  '.  `.  `.  `.  | `.
+                    /  .|   |'    `.  (_.==._)   \   \   \ |.  \         _.--.
+                  .' .' |   |'      _.-======-._  `.  `.  `. `. `.    _.-_.-'\ 
+                 /  /   |   |'    .'   |_||_|   `.  \   \   \  \  \ .'_.'     ||
+                / .'    |`. |'   /_.-'========`-._\  `.  `-._`._`. \(.__      :|
+               ( '      |`. |'.______________________.'\      _.) ` )`-._`-._/ /
+                \\      |   '.------------------------.'`-._-'    //     `-._.'
+                _\\_    \    | AMIGA  O O O O * * `.`.|    '     //
+               (_  _)    '-._|________________________|_.-'|   _//_
+               /  /      /`-._      |`-._     / /      /   |  (_  _)
+             .'   \     |`-._ `-._   `-._`-._/ /      /    |    \  \
+            /      `.   |    `-._ `-._   `-._|/      /     |    /   `.
+           /  / / /. )  |  `-._  `-._ `-._          /     /   .'      \
+          | | | \ \|/   |  `-._`-._  `-._ `-._     /     /.  ( .\ \ \  \
+           \ \ \ \/     |  `-._`-._`-._  `-._ `-._/     /  \  \|/ / | | |
+            `.\_\/       `-._  `-._`-._`-._  `-._/|    /|   \   \/ / / /
+                        /    `-._  `-._`-._`-._  ||   / |    \   \/_/.'
+                      .'         `-._  `-._`-._  ||  /  |     \
+             LGB     /           / . `-._  `-._  || /   |      \
+                    '\          / /      `-._    ||/'._.'       \
+                     \`.      .' /           `-._|/              \
+                      `.`-._.' .'               \               .'
+                        `-.__\/                 `\            .' '
+                                                 \`.       _.' .'
+                                                  `.`-._.-' _.'
+                                                    `-.__.-'
+            </pre>
+
+            <pre class="retro-ascii-card" aria-label="circuit totem">
+                                                       /'.    /|    .'\
+                                                 ,._   |+i\  /++\  / +|    ,,
+                                                 |*+'._/+++\/+ ++\/+++<_.-'+|
+                                            :-.  \ ++++?++ +++++*++++++ +++ /  .-:
+                                            |*+\_/++++ +++*++ ++++++ ++?++++\_/ +|
+                                        ,    \*+++++ ++++ +++*+++ ++++ +++ +++++/   ,
+                                        \'-._> +__+*++__*+++_+__*++ ++__++++__*<_.-'/ 
+                                         `>*+++|  \++/  |+*/     `\ +|  |++/  |++++<'
+                                      _,-'+ * +*\  \/  /++|__.-.  |+ |  |+/  /+ +*+'-._
+                                      '-.*+++++++\    /+ ++++++/  / *|  |/  /+ ++++++.-'
+                                          > *+++++\  /*++++ +/` /`+++|     < *++ +++< 
+                                      _,-'* +++ ++|  |++ +*/` /` +* +|  |\  \+ ++++++'-._
+                                      `-._+ +*++?+|  |+++*|  '-----.+|  |+\  \+* ++ +_.-'
+                                         _`\++++++|__|+ *+|________|+|__|++\__|++++/`_
+                                        /*++_+* + +++++ ++ + ++++ +++++ ++ ++++ ++_+*+\
+                                        '--' `>*+++ +++++ +++++*++++  +++ ++++ ?<' '--'
+                                             /++_++ ++ ++++++ ++?+ +++++*+++ ++++ \
+                                             |_/ `\++ ++ +++*++++++++++ ++++*./`\_|
+                                                  /+*.-.*+ +_ ++*+ _+++ .-.* +\
+                                            jgs   | /   | +/ `\?+/` \*+|    \ |
+                                                   '    \.'    |/    './     '
+            </pre>
+
+            <pre class="retro-ascii-card" aria-label="ps2 controller">
+                _=====_                               _=====_
+               / _____ \                             / _____ \
+             +.-'_____'-.---------------------------.-'_____'-.+
+            /   |     |  '.        S O N Y        .'  |  _  |   \
+           / ___| /|\ |___ \                     / ___| /_\ |___ \
+          / |      |      | ;  __           _   ; | _         _ | ;
+          | | <---   ---> | | |__|         |_:> | ||_|       (_)| |
+          | |___   |   ___| ;SELECT       START ; |___       ___| ;
+          |\    | \|/ |    /  _     ___      _   \    | (X) |    /|
+          | \   |_____|  .','" "', |___|  ,'" "', '.  |_____|  .' |
+          |  '-.______.-' /       \ANALOG/       \  '-._____.-'   |
+          |               |       |------|       |                |
+          |              /\       /      \       /\               |
+          |             /  '.___.'        '.___.'  \              |
+          |            /                            \             |
+           \          /                              \           /
+            \________/                                \_________/
+                              PS2 CONTROLLER
+            </pre>
+            </section>
+          <div class="retro-credits" aria-label="Album credits">
+            <span>ID Chief</span>
+            <span>&#x30B3;&#x30F3;&#x30B7;&#x30E3;&#x30B9;THOUGHTS</span>
+            <span>Aloe Island Posse</span>
+          </div>
+        </section>
+
+        <section class="desktop" aria-label="Internet Discotheque desktop">
+          <div class="desktop-topbar">
+            <div class="desktop-brand">
+              <span class="desktop-chip">ID CHIEF</span>
+              <span class="desktop-title">My Very Own Internet Discotheque</span>
+            </div>
+            <div class="desktop-status">
+              <span class="desktop-status-item">Room 301</span>
+              <span class="desktop-status-item" id="desktop-time">12:34</span>
+            </div>
+          </div>
+          <div class="desktop-album-bg" aria-hidden="true"></div>
+
+          <div class="desktop-icons" role="list">
+            <a class="desktop-icon" href="/" data-id="home" style="--icon-delay:0ms" draggable="false">
+              <span class="icon-frame icon-frame--home">
+                <i class="pixelart-icons-font-home" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">Home</span>
+            </a>
+            <a class="desktop-icon" href="/projects" data-id="showcase" style="--icon-delay:80ms" draggable="false">
+              <span class="icon-frame icon-frame--showcase">
+                <i class="pixelart-icons-font-image-gallery" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">Showcase</span>
+            </a>
+            <a class="desktop-icon" href="/harmonizer.html" data-id="harmonizer" style="--icon-delay:160ms" draggable="false">
+              <span class="icon-frame icon-frame--harmonizer">
+                <i class="pixelart-icons-font-music" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">Harmonizer</span>
+            </a>
+            <a class="desktop-icon" href="/eldrichify.html" data-id="image" style="--icon-delay:240ms" draggable="false">
+              <span class="icon-frame icon-frame--image">
+                <i class="pixelart-icons-font-camera-alt" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">Image Playground</span>
+            </a>
+            <a class="desktop-icon" href="/talk-to-disco-teque.html" data-id="talk" style="--icon-delay:320ms" draggable="false">
+              <span class="icon-frame icon-frame--talk">
+                <i class="pixelart-icons-font-chat" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">Talk to Disco-teque</span>
+            </a>
+            <a class="desktop-icon" href="/codesniff.html" data-id="codesniff" style="--icon-delay:400ms" draggable="false">
+              <span class="icon-frame icon-frame--codesniff">
+                <i class="pixelart-icons-font-code" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">CodeSniff</span>
+            </a>
+            <a class="desktop-icon" href="https://plaza.one/" target="_blank" rel="noopener" data-id="radio" style="--icon-delay:480ms" draggable="false">
+              <span class="icon-frame icon-frame--radio">
+                <i class="pixelart-icons-font-radio-signal" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">Radio</span>
+            </a>
+            <a class="desktop-icon" href="/ourspace.html" data-id="ourspace" style="--icon-delay:560ms" draggable="false">
+              <span class="icon-frame icon-frame--ourspace">
+                <i class="pixelart-icons-font-moon-stars" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">OurSpace</span>
+            </a>
+            <a class="desktop-icon" href="/sand.html" data-id="sand" style="--icon-delay:640ms" draggable="false">
+              <span class="icon-frame icon-frame--sand">
+                <i class="pixelart-icons-font-drop" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">Sand Sim</span>
+            </a>
+            <a class="desktop-icon" href="/venpod.html" data-id="venpod" style="--icon-delay:680ms" draggable="false">
+              <span class="icon-frame icon-frame--venpod">
+                <i class="pixelart-icons-font-dice" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">VENPOD</span>
+            </a>
+            <a class="desktop-icon" href="/notebook.html" data-id="notebook" style="--icon-delay:800ms" draggable="false">
+              <span class="icon-frame icon-frame--notebook">
+                <i class="pixelart-icons-font-book-open" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">Notebook</span>
+            </a>
+            <a class="desktop-icon" href="/cheatsheets/" data-id="quickref" style="--icon-delay:880ms" draggable="false">
+              <span class="icon-frame icon-frame--quickref">
+                <i class="pixelart-icons-font-note-multiple" aria-hidden="true"></i>
+              </span>
+              <span class="icon-label">Quick Reference</span>
+            </a>
+          </div>
+          <div class="desktop-credits retro-credits" aria-label="Album credits">
+            <!-- <span>ID Chief</span>
+            <span>KONSHASUTHOUGHTS</span>
+            <span>Aloe Island Posse</span> -->
+          </div>
+
+          <div class="desktop-taskbar">
+            <button class="taskbar-start" type="button" data-start-toggle aria-expanded="false" aria-controls="start-menu">Start</button>
+            <div class="taskbar-center">An Ode to You</div>
+            <div class="taskbar-tray">
+              <span>also done, with errors on page</span>
+              <span class="taskbar-clock" id="taskbar-clock">12:34</span>
+            </div>
+          </div>
+
+          <div class="start-menu" id="start-menu" aria-hidden="true">
+            <div class="start-menu__title">Programs</div>
+            <div class="start-menu__apps">
+              <a href="/">Home</a>
+              <a href="/projects">Showcase</a>
+              <a href="/harmonizer.html">Harmonizer</a>
+              <a href="/eldrichify.html">Image Playground</a>
+              <a href="/talk-to-disco-teque.html">Talk to Disco-teque</a>
+              <a href="/codesniff.html">CodeSniff</a>
+              <a href="https://plaza.one/" target="_blank" rel="noopener">Radio</a>
+              <a href="/ourspace.html">OurSpace</a>
+              <a href="/sand.html">Sand Sim</a>
+              <a href="/venpod.html">VENPOD (3D Voxel Engine)</a>
+              <a href="/notebook.html">Notebook</a>
+              <a href="/cheatsheets/">Quick Reference</a>
+            </div>
+            <button class="start-menu__reset" type="button" id="reset-layout">Reset Icon Layout</button>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const iconLayer = document.querySelector('.desktop-icons');
+      if (!iconLayer) return;
+
+      const icons = Array.from(iconLayer.querySelectorAll('.desktop-icon'));
+      const isMobileSmall = window.matchMedia('(max-width: 520px)').matches;
+      if (isMobileSmall) return;
+
+      const bucket = window.matchMedia('(max-width: 1024px)').matches ? 'tablet' : 'desktop';
+      const storageKey = `idcDesktopLayout:${bucket}`;
+      const legacyStorageKey = 'idcDesktopLayout';
+
+      const loadLayout = () => {
+        try {
+          const raw = window.localStorage.getItem(storageKey);
+          if (raw) return JSON.parse(raw);
+          const legacyRaw = window.localStorage.getItem(legacyStorageKey);
+          if (!legacyRaw) return {};
+          const parsed = JSON.parse(legacyRaw);
+          window.localStorage.setItem(storageKey, JSON.stringify(parsed));
+          return parsed || {};
+        } catch (err) {
+          return {};
+        }
+      };
+
+      const saveLayout = (positions) => {
+        try {
+          window.localStorage.setItem(storageKey, JSON.stringify(positions));
+        } catch (err) {
+          console.warn('Layout save failed', err);
+        }
+      };
+
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+      const applyGridPositions = (saved) => {
+        const layerRect = iconLayer.getBoundingClientRect();
+        icons.forEach((icon) => {
+          const id = icon.dataset.id;
+          if (saved[id]) {
+            icon.style.left = `${saved[id].x}px`;
+            icon.style.top = `${saved[id].y}px`;
+            return;
+          }
+          const rect = icon.getBoundingClientRect();
+          const left = rect.left - layerRect.left;
+          const top = rect.top - layerRect.top;
+          icon.style.left = `${left}px`;
+          icon.style.top = `${top}px`;
+        });
+      };
+
+      const enableFreeform = () => {
+        const saved = loadLayout();
+        applyGridPositions(saved);
+        iconLayer.classList.add('is-freeform');
+
+        const positions = { ...saved };
+
+        const handlePointerDown = (event) => {
+          if (event.button !== 0) return;
+          const icon = event.currentTarget;
+          const iconRect = icon.getBoundingClientRect();
+          const layerRect = iconLayer.getBoundingClientRect();
+          const offsetX = event.clientX - iconRect.left;
+          const offsetY = event.clientY - iconRect.top;
+          const width = iconRect.width;
+          const height = iconRect.height;
+          let moved = false;
+          const startX = event.clientX;
+          const startY = event.clientY;
+
+          icon.classList.add('is-dragging');
+          icon.setPointerCapture(event.pointerId);
+
+          const move = (moveEvent) => {
+            const dx = Math.abs(moveEvent.clientX - startX);
+            const dy = Math.abs(moveEvent.clientY - startY);
+            if (dx > 4 || dy > 4) moved = true;
+            const nextX = clamp(moveEvent.clientX - layerRect.left - offsetX, 0, layerRect.width - width);
+            const nextY = clamp(moveEvent.clientY - layerRect.top - offsetY, 0, layerRect.height - height);
+            icon.style.left = `${nextX}px`;
+            icon.style.top = `${nextY}px`;
+          };
+
+          const end = () => {
+            icon.classList.remove('is-dragging');
+            icon.releasePointerCapture(event.pointerId);
+            icon.removeEventListener('pointermove', move);
+            icon.removeEventListener('pointerup', end);
+            icon.removeEventListener('pointercancel', end);
+            if (moved) {
+              icon.dataset.dragged = 'true';
+              const id = icon.dataset.id;
+              if (id) {
+                positions[id] = {
+                  x: parseFloat(icon.style.left) || 0,
+                  y: parseFloat(icon.style.top) || 0,
+                };
+                saveLayout(positions);
+              }
+            }
+          };
+
+          icon.addEventListener('pointermove', move);
+          icon.addEventListener('pointerup', end);
+          icon.addEventListener('pointercancel', end);
+        };
+
+        icons.forEach((icon) => {
+          icon.addEventListener('pointerdown', handlePointerDown);
+          icon.addEventListener('click', (event) => {
+            if (icon.dataset.dragged === 'true') {
+              event.preventDefault();
+              icon.dataset.dragged = 'false';
+            }
+          });
+        });
+      };
+      const resetLayoutButton = document.getElementById('reset-layout');
+      const resetLayout = () => {
+        try {
+          window.localStorage.removeItem(storageKey);
+          window.localStorage.removeItem(legacyStorageKey);
+          window.localStorage.removeItem('idcDesktopLayout:desktop');
+          window.localStorage.removeItem('idcDesktopLayout:tablet');
+          window.localStorage.removeItem('idcDesktopPlayButton');
+          window.localStorage.removeItem('idcDesktopPlayButton:desktop');
+          window.localStorage.removeItem('idcDesktopPlayButton:tablet');
+          const rawPlayer = window.localStorage.getItem('idcPersistentPlayerState');
+          if (rawPlayer) {
+            const parsed = JSON.parse(rawPlayer);
+            if (parsed && typeof parsed === 'object') {
+              if (parsed.uiState && typeof parsed.uiState === 'object') {
+                delete parsed.uiState.position;
+                parsed.uiState.minimized = false;
+              }
+              window.localStorage.setItem('idcPersistentPlayerState', JSON.stringify(parsed));
+            }
+          }
+        } catch (err) {
+          console.warn('Layout reset failed', err);
+        }
+        iconLayer.classList.remove('is-freeform');
+        icons.forEach((icon) => {
+          icon.style.left = '';
+          icon.style.top = '';
+        });
+        requestAnimationFrame(() => {
+          applyGridPositions({});
+          iconLayer.classList.add('is-freeform');
+        });
+        window.dispatchEvent(new Event('idc-reset-layout'));
+      };
+
+      if (resetLayoutButton) {
+        resetLayoutButton.addEventListener('click', resetLayout);
+      }
+
+      requestAnimationFrame(enableFreeform);
+
+      const startButton = document.querySelector('[data-start-toggle]');
+      const startMenu = document.getElementById('start-menu');
+      if (startButton && startMenu) {
+        const closeMenu = () => {
+          startMenu.classList.remove('is-open');
+          startMenu.setAttribute('aria-hidden', 'true');
+          startButton.setAttribute('aria-expanded', 'false');
+        };
+        const toggleMenu = () => {
+          const open = !startMenu.classList.contains('is-open');
+          startMenu.classList.toggle('is-open', open);
+          startMenu.setAttribute('aria-hidden', open ? 'false' : 'true');
+          startButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+        startButton.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleMenu();
+        });
+        startMenu.addEventListener('click', (event) => {
+          event.stopPropagation();
+        });
+        document.addEventListener('click', closeMenu);
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') closeMenu();
+        });
+      }
+
+      const clock = document.getElementById('taskbar-clock');
+      const topClock = document.getElementById('desktop-time');
+      const updateClock = () => {
+        const now = new Date();
+        const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (clock) clock.textContent = time;
+        if (topClock) topClock.textContent = time;
+      };
+      updateClock();
+      setInterval(updateClock, 30000);
+    })();
+  </script>
+  <script src="./js/persistent-player.js" defer></script>
+</body>
+</html>

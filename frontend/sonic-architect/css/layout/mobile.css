@@ -1,0 +1,393 @@
+/**
+ * SONIC ARCHITECT MK.III
+ * Mobile Layout (0-479px) - BASE STYLES
+ * Mobile-first: These are the default styles
+ */
+
+/* ========================================
+   MOBILE SPECIFIC ADJUSTMENTS
+   ======================================== */
+
+/* Ensure touch-friendly tap targets */
+@media (max-width: 479px) {
+    /* Minimum touch target size */
+    button,
+    .btn,
+    input[type="checkbox"],
+    input[type="radio"],
+    select,
+    .toggle,
+    .tab {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Simplified header */
+    .header {
+        padding: var(--space-2);
+    }
+
+    .header__title {
+        font-size: var(--text-sm);
+    }
+
+    .header__version {
+        display: none;
+    }
+
+    /* Compact player bar */
+    .player-bar {
+        padding: var(--space-2);
+        gap: var(--space-2);
+    }
+
+    /* Smaller album art on mobile */
+    .album-art {
+        width: 48px;
+        height: 48px;
+    }
+
+    /* Track info */
+    .track-name {
+        font-size: var(--text-sm);
+    }
+
+    .track-artist {
+        font-size: var(--text-xs);
+    }
+
+    /* Simplified controls - only essential buttons */
+    .player-bar__controls {
+        gap: var(--space-1);
+    }
+
+    #btn-shuffle,
+    #btn-repeat {
+        display: none; /* Hide on smallest screens */
+    }
+
+    /* Full-width progress bar */
+    .player-bar__progress {
+        padding: 0;
+    }
+
+    .progress-bar {
+        height: 32px; /* Larger touch target */
+    }
+
+    /* Time display */
+    .time {
+        font-size: var(--text-xs);
+        min-width: 32px;
+    }
+
+    /* Mobile navigation icons */
+    .mobile-nav__item svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .mobile-nav__item span {
+        font-size: 9px;
+    }
+
+    /* Overlay panels take full screen */
+    .panel.is-open {
+        top: 0;
+        bottom: 0;
+        border-radius: 0;
+    }
+
+    .panel.is-open .panel__header {
+        padding-top: calc(var(--space-3) + env(safe-area-inset-top, 0));
+    }
+
+    /* Control sections */
+    .control-section {
+        padding: var(--space-3);
+    }
+
+    .control-section__title {
+        font-size: var(--text-xs);
+    }
+
+    /* Sliders */
+    .slider {
+        height: 32px;
+    }
+
+    /* Theme grid - 5 columns on small mobile */
+    .theme-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: var(--space-2);
+    }
+
+    .theme-btn {
+        width: 100%;
+        aspect-ratio: 1;
+        min-width: unset;
+        min-height: unset;
+    }
+
+    /* Playlist items */
+    .playlist-item {
+        padding: var(--space-2);
+    }
+
+    /* Spectrum canvas */
+    .spectrum-canvas {
+        height: 48px;
+    }
+
+    /* File drop zone */
+    .file-drop-zone {
+        padding: var(--space-4);
+    }
+
+    .file-drop-zone svg {
+        width: 32px;
+        height: 32px;
+    }
+
+    /* Select dropdown */
+    .select {
+        padding: var(--space-2) var(--space-3);
+        font-size: var(--text-sm);
+    }
+}
+
+/* ========================================
+   SAFE AREAS (Notch, Home indicator, etc.)
+   ======================================== */
+
+@supports (padding: env(safe-area-inset-top)) {
+    .header {
+        padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0));
+    }
+
+    .mobile-nav {
+        padding-bottom: calc(var(--space-1) + env(safe-area-inset-bottom, 0));
+    }
+
+    .panel.is-open {
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+}
+
+/* ========================================
+   TOUCH INTERACTIONS
+   ======================================== */
+
+/* Disable hover effects on touch devices */
+@media (hover: none) {
+    .btn:hover,
+    .tab:hover,
+    .mobile-nav__item:hover {
+        background: transparent;
+    }
+
+    /* Add active states instead */
+    .btn:active {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+
+    .mobile-nav__item:active {
+        background: rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* ========================================
+   GESTURE HINTS
+   ======================================== */
+
+/* Swipe indicator for visualizer switching */
+.swipe-hint {
+    position: absolute;
+    bottom: calc(var(--player-bar-height) + var(--mobile-nav-height) + var(--space-4));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    color: var(--theme-text-muted);
+    opacity: 0;
+    animation: fade-in-up 0.5s ease 1s forwards, fade-out 0.5s ease 4s forwards;
+    pointer-events: none;
+}
+
+.swipe-hint svg {
+    width: 16px;
+    height: 16px;
+    animation: sway 1s ease-in-out infinite;
+}
+
+/* ========================================
+   LOADING STATE (Mobile)
+   ======================================== */
+
+.loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--theme-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-loader);
+}
+
+.loader__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+    text-align: center;
+    padding: var(--space-4);
+}
+
+.loader__logo {
+    font-family: var(--font-family-display);
+    font-size: var(--text-3xl);
+    font-weight: var(--font-weight-black);
+    letter-spacing: var(--letter-spacing-widest);
+    line-height: 1;
+}
+
+.loader__progress {
+    width: 200px;
+    height: 2px;
+    background: var(--theme-border);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.loader__bar {
+    width: 0%;
+    height: 100%;
+    background: var(--theme-gradient);
+    transition: width var(--transition-normal);
+}
+
+.loader__status {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-widest);
+    color: var(--theme-text-muted);
+}
+
+.loader__particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+/* Fade out loader when done */
+.loader.is-loaded {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-slow);
+}
+
+/* ========================================
+   OVERLAY (Start Screen)
+   ======================================== */
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--theme-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-overlay);
+    transition: opacity var(--transition-slower);
+}
+
+.overlay.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.overlay__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-5);
+    text-align: center;
+    padding: var(--space-4);
+    max-width: 90%;
+}
+
+.overlay__title {
+    font-family: var(--font-family-display);
+    font-size: clamp(var(--text-2xl), 8vw, var(--text-5xl));
+    font-weight: var(--font-weight-black);
+    letter-spacing: var(--letter-spacing-widest);
+    line-height: 1;
+}
+
+.overlay__subtitle {
+    font-size: clamp(var(--text-xs), 2vw, var(--text-sm));
+    letter-spacing: var(--letter-spacing-widest);
+}
+
+.overlay__hint {
+    font-size: var(--text-xs);
+    color: var(--theme-text-muted);
+    margin-top: var(--space-4);
+}
+
+.overlay__scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+/* ========================================
+   LANDSCAPE MODE ADJUSTMENTS
+   ======================================== */
+
+@media (max-width: 479px) and (orientation: landscape) {
+    /* Reduce heights for landscape */
+    .header {
+        min-height: 40px;
+        padding: var(--space-1) var(--space-2);
+    }
+
+    .player-bar {
+        min-height: 60px;
+        padding: var(--space-1) var(--space-2);
+        grid-template-rows: 1fr;
+        grid-template-columns: auto auto 1fr auto auto;
+        grid-template-areas: "art info progress controls volume";
+    }
+
+    .player-bar__progress {
+        margin: 0 var(--space-2);
+    }
+
+    .mobile-nav {
+        min-height: 48px;
+    }
+
+    .mobile-nav__item span {
+        display: none;
+    }
+
+    .album-art {
+        width: 40px;
+        height: 40px;
+    }
+}
