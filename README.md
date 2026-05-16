@@ -1,140 +1,138 @@
 # Harmonizer
 
-Creative lab combining AI-powered image generation, social profiles, and audio experiments.
+Harmonizer is a public snapshot of a creative web lab for audio experiments, generative image tools, social-profile prototypes, and semantic code search. The repo is a monorepo because the pieces share one Flask/Docker deployment and a retro browser front end.
 
-## Features
-- **Harmonizer** - Upload music and transform it, jump between beats and loop.
-- **Eldrichify** - AI image transformation using diffusion models
-- **IMGEN** - Text-to-image generation pipeline
-- **OurSpace** - MySpace-inspired customizable profiles with auth system
-- **RL Labeler** - Reinforcement learning experiment for audio jump detection
-- **Disco-Teque** - Conversational AI playground
-- **CodeSniff** - Semantic code search using CodeBERT embeddings
+The code is useful as a working demo and research playground. It is not packaged as a production SaaS template, and several features require local credentials or model downloads before they are useful.
 
-## CodeSniff
+## What Is Included
 
-Semantic code search engine that finds functions and classes by meaning, not just keywords. Index a codebase and query it in natural language.
+| area | status | proof or entry point | notes |
+| --- | --- | --- | --- |
+| Internet Discotheque shell | active | `frontend/index.html` | Retro desktop-style launcher for the public pages. |
+| Harmonizer audio visualizer | active | `frontend/harmonizer.html`, `frontend/js/visualizer.js` | Upload and analyze tracks, then explore beat jumps, queues, loops, and visual modes. |
+| Eldrichify image transform | experimental | `frontend/eldrichify.html`, `backend/eldrichify.py` | Requires local model checkpoints supplied outside Git. Large model artifacts are intentionally not tracked. |
+| OurSpace | experimental | `frontend/ourspace.html`, `backend/ourspace_db.py` | Local social-profile builder with auth and media uploads. Runtime databases and uploads are ignored. |
+| CodeSniff | active prototype | `codesniff/` | Semantic code search backed by CodeBERT and FAISS. |
+| RL jump labeler | research tool | `docs/RL_LOGGING.md`, `rl_models/` | Logs and labels audio jump events for policy experiments. Runtime data is ignored. |
+| VENPOD prototype | archived prototype | `venpod/` | Early WebGPU/WASM voxel prototype kept for provenance. The Emscripten SDK is not vendored. |
 
-### Stack
-- **Backend**: FastAPI, CodeBERT (microsoft/codebert-base), FAISS vector store
-- **Frontend**: React + TypeScript, Monaco Editor, Framer Motion
-- **Embedding Model**: CodeBERT generates 768-dimensional vectors for code snippets
+## Repository Status
 
-### How It Works
+This branch is prepared for public source review:
 
-1. **Indexing**: Parses Python/JS/TS/Java/Kotlin/HTML/CSS files, extracts functions, classes, and CSS rules with metadata
-2. **Embedding**: CodeBERT converts each code symbol into a semantic vector
-3. **Storage**: Vectors stored in FAISS index for fast similarity search
-4. **Search**: Query text is embedded, FAISS finds nearest neighbors by cosine similarity
+- generated dependency folders and build outputs are not tracked;
+- local databases, uploads, cookies, and model checkpoints are ignored;
+- public setup uses placeholders in `.env.example`;
+- large audio demo assets under `frontend/assets/audio/` are intentionally kept.
 
-### Technical Details
+Git history may still contain older runtime files from before this cleanup. If you need a clean public import with no historical databases or uploads, rewrite history or export this tree into a fresh repository.
 
-- **Symbol extraction**: Uses Python `ast` module and regex-based parsers to extract function/class definitions
-- **Chunking**: Each symbol (function, method, class) becomes one indexed unit with metadata (file path, line numbers, docstring)
-- **Vector dimensions**: 768-d embeddings from CodeBERT's `[CLS]` token
-- **Similarity threshold**: Default 0.3 minimum score, returns top 10 results
-- **File policies**: Ignores `node_modules/`, `__pycache__/`, `.git/`, `venv/`, and binary files
-- **Supported languages**: Python (`.py`), JavaScript (`.js`, `.jsx`), TypeScript (`.ts`, `.tsx`), Java (`.java`), Kotlin (`.kt`), HTML (`.html`, `.htm`), CSS (`.css`)
+## Quickstart
 
-### API Endpoints
+Prerequisites:
 
-- `POST /api/codesniff/index/upload` - Upload folder/zip for indexing
-- `POST /api/codesniff/index/github` - Clone and index a GitHub repo
-- `POST /api/codesniff/search` - Semantic search query
-- `GET /api/codesniff/stats` - Index statistics
-- `POST /api/codesniff/chat` - RAG-powered chat about your codebase
-- `DELETE /api/codesniff/index` - Clear the index
+- Python 3.11
+- Node.js 20 or newer for CodeSniff frontend work
+- Docker and Docker Compose for the full stack
+- `ffmpeg` for audio analysis and download workflows
 
-### Memory Requirements
-
-CodeBERT model loads ~500MB into memory. Container needs at least 1GB RAM allocated (we use 1.2GB limit in production).
-
-## Installation
-
-### Docker (Production)
+Create local configuration:
 
 ```bash
 cp .env.example .env
-docker compose build
-docker compose up -d
 ```
 
-Server runs on port 4000 by default.
+At minimum, set `SECRET_KEY` in `.env`. Optional features use the other keys:
 
-### Local Development
+| variable | required for |
+| --- | --- |
+| `SECRET_KEY` | Flask sessions |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | Spotify/spotdl workflows |
+| `YOUTUBE_API_KEY` | optional YouTube metadata |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth download flow |
+| `GEMINI_API_KEY` | Talk to Disco-teque via Gemini |
+| `GROQ_API_KEY` | Talk to Disco-teque via Groq |
+| `CHEATSHEET_PASSWORD` | enables cheatsheet uploads; blank disables uploads |
+
+Run the full stack with Docker:
 
 ```bash
-# Backend
-cd backend
+docker compose build
+docker compose up
+```
+
+Open:
+
+```text
+http://localhost:5000
+```
+
+Run the Flask app locally without Docker:
+
+```bash
+python -m venv .venv
+. .venv/Scripts/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python app.py
-
-# Frontend (separate terminal)
-cd frontend
-python -m http.server 8000
+python backend/app.py
 ```
 
-## Configuration
+CodeSniff runs as a separate FastAPI service during local development:
 
-Edit `.env` with your credentials:
-
-| Variable | Description |
-| --- | --- |
-| `SECRET_KEY` | Flask session key (generate: `python -c "import secrets; print(secrets.token_hex(32))"`) |
-| `YOUTUBE_API_KEY` | Optional - for video metadata |
-
-## API Endpoints
-
-### Image Generation
-- `POST /api/eldrichify` - Transform images with AI
-- `GET /api/eldrichify/status/<job_id>` - Check processing status
-- `POST /api/imgen` - Generate images from text prompts
-- `GET /api/imgen/status/<job_id>` - Check generation status
-
-### OurSpace (Social Profiles)
-- `POST /api/ourspace/register` - Create account
-- `POST /api/ourspace/login` - Login
-- `GET /api/ourspace/profile/<username>` - View profile
-- `POST /api/ourspace/upload` - Upload media
-
-### RL Experiments
-- `POST /api/rl/jump-event` - Log audio jump event
-- `GET /api/rl/policy` - Get current policy
-- `POST /api/rl/snippet/<id>/label` - Label training data
-
-Full endpoint list: see [backend/app.py](backend/app.py)
-
-## Project Structure
-
-```
-backend/
-  app.py              # Flask API
-  eldrichify.py       # Image transformation pipeline
-  imgen_pipeline.py   # Text-to-image generation
-  ourspace_db.py      # User database and auth
-frontend/
-  eldrichify.html     # Image transformer UI
-  ourspace.html       # Social profile builder
-  rl_labeler.html     # RL training interface
-  js/                 # Client-side logic
+```bash
+cd codesniff/backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
 
-## Deployment
+## Validation
 
-See [BACKUPS.md](BACKUPS.md) for VPS backup procedures.
+Use these checks after a clean clone:
 
-Basic VPS setup:
-1. Provision 2-4 vCPU server
-2. Install Docker + Compose
-3. Clone repo and configure `.env`
-4. Run `docker compose up -d`
-5. Optional: Add Traefik for TLS
+```bash
+python -m compileall backend
+docker compose config
+```
+
+For CodeSniff:
+
+```bash
+cd codesniff/backend
+python -m pytest
+```
+
+If a command needs credentials, run it with a local `.env` and do not commit generated runtime files.
+
+## Data And Generated Files
+
+The repo ignores runtime data by default:
+
+- `backend/uploads/`
+- `backend/data/`
+- `backend/ourspace_data/`
+- `codesniff/backend/storage/`
+- `playwright-code/artifacts/`
+- model checkpoints and local fine-tune artifacts
+- local Emscripten SDK installs under `venpod/emsdk/`
+
+The checked-in audio files under `frontend/assets/audio/` are part of the demo experience and are kept intentionally.
 
 ## Documentation
 
-- [OurSpace Authentication Guide](OURSPACE_AUTH_GUIDE.md) - User accounts and profile system
-- [Database Backups](BACKUPS.md) - Backup and restore procedures
+- [Getting started](docs/tutorials/getting-started.md)
+- [Common tasks](docs/how-to/common-tasks.md)
+- [Configuration reference](docs/reference/configuration.md)
+- [Architecture overview](docs/explanation/architecture.md)
+- [Demo script](docs/demo/demo-script.md)
+- [OurSpace authentication guide](OURSPACE_AUTH_GUIDE.md)
+- [RL logging](docs/RL_LOGGING.md)
+
+## Limitations
+
+- Several features are prototypes sharing one Flask app, so the code is not as modular as a single-purpose package.
+- Image generation and chat features depend on external APIs or local model setup.
+- VENPOD is kept as historical prototype code; use the separate VENPOD/voxelrender repo for current development.
+- Public release hygiene applies to the current tree. Older Git history may need rewriting before a formal public relaunch.
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE).

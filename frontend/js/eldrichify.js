@@ -15,8 +15,6 @@
   const downloadHeightInput = document.getElementById("download-height");
   const downloadResetBtn = document.getElementById("download-reset");
   const downloadButtons = document.querySelectorAll(".eld-download-btn");
-  const tracedModelLink = document.querySelector('[data-api-link="traced-model"]');
-  const modelWeightsLink = document.querySelector('[data-api-link="model-weights"]');
 
   let selectedFile = null;
   let isProcessing = false;
@@ -38,8 +36,6 @@
   };
 
   const API_OVERRIDE_BASE = resolveApiOverrideBase();
-  configureApiLinks();
-
   function resolveApiOverrideBase() {
     if (typeof window === "undefined") {
       return "";
@@ -99,24 +95,6 @@
   function getUploadStatusEndpoint(jobId) {
     const encoded = encodeURIComponent(jobId);
     return buildApiUrl(`/api/eldrichify/status/${encoded}`);
-  }
-
-  function getPromptEndpoint() {
-    return buildApiUrl("/api/imgen");
-  }
-
-  function getPromptStatusEndpoint(jobId) {
-    const encoded = encodeURIComponent(jobId);
-    return buildApiUrl(`/api/imgen/status/${encoded}`);
-  }
-
-  function configureApiLinks() {
-    if (tracedModelLink) {
-      tracedModelLink.href = buildApiUrl("/download-traced-model");
-    }
-    if (modelWeightsLink) {
-      modelWeightsLink.href = buildApiUrl("/download-model-weights");
-    }
   }
 
   async function parseJsonResponse(response, context) {
@@ -431,12 +409,6 @@
         label: "VAE Upload",
         note: "Enhance an existing photo",
         handler: () => showFilePrompt(),
-      },
-      {
-        id: "prompt",
-        label: "IMGEN",
-        note: "Generate from text prompt",
-        handler: () => showPromptInput(),
       },
     ].forEach((mode) => {
       const btn = document.createElement("button");

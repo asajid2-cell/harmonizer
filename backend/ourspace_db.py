@@ -3,6 +3,7 @@ import sqlite3
 import json
 import hashlib
 import secrets
+import os
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 from datetime import datetime
@@ -155,14 +156,14 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages ON messages(to_user_id, read)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_blocked_users ON blocked_users(user_id, blocked_user_id)")
 
-    # Initialize admin password if not exists
+    # Initialize admin password if not exists.
     cursor.execute("SELECT value FROM settings WHERE key = 'admin_password_hash'")
     if not cursor.fetchone():
-        admin_password = ""
+        admin_password = os.environ.get("OURSPACE_ADMIN_PASSWORD") or secrets.token_urlsafe(32)
         admin_hash, admin_salt = hash_password(admin_password)
         cursor.execute("INSERT INTO settings (key, value) VALUES ('admin_password_hash', ?)", (admin_hash,))
         cursor.execute("INSERT INTO settings (key, value) VALUES ('admin_password_salt', ?)", (admin_salt,))
-        print("[DB] Admin password initialized")
+        print("[DB] Admin password initialized from OURSPACE_ADMIN_PASSWORD" if os.environ.get("OURSPACE_ADMIN_PASSWORD") else "[DB] Admin password initialized to an unprinted random value")
 
     conn.commit()
     conn.close()

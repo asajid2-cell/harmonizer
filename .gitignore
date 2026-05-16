@@ -32,6 +32,7 @@ DESKTOP_*.md
 dist/
 build/
 *.egg-info/
+*.tsbuildinfo
 
 # IDE
 .vscode/
@@ -91,8 +92,11 @@ data/*.json
 
 # Playwright test artifacts
 playwright-code/artifacts/
+playwright-code/playwright-code/artifacts/
 playwright-code/test-results/
 playwright-code/plans/
+playwright-code/dist/
+playwright-code/node_modules/
 
 # ===== CodeSniff specific =====
 # Node modules
@@ -121,4 +125,13 @@ codesniff/frontend/dist/
 # Test cache
 codesniff/backend/.pytest_cache/
 codesniff/backend/tests/__pycache__/
-venpod/
+
+# VENPOD prototype local toolchain/build output
+venpod/build/
+venpod/emsdk/
+venpod/tools/
+
+# Local model/checkpoint artifacts. Publish separately if needed.
+IMGEN/finetunemodel.*
+VAE/**/*.pth
+VAE/*.pth

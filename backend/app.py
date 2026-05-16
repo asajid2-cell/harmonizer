@@ -247,11 +247,6 @@ try:
 except ImportError:  # pragma: no cover
     from eldrichify import EldrichifyPipeline  # type: ignore
 
-try:
-    from .imgen_pipeline import PromptImageGenerator
-except ImportError:  # pragma: no cover
-    from imgen_pipeline import PromptImageGenerator  # type: ignore
-
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
 STUDY_DIR = BASE_DIR.parent / "Study"
 
@@ -271,7 +266,6 @@ AUTOCROONER_TRAIN_UPLOAD_DIR = UPLOAD_FOLDER / "autocrooner_trainer"
 AUTOCROONER_TRANSFER_UPLOAD_DIR = UPLOAD_FOLDER / "autocrooner_style_transfer"
 AUTOCROONER_TRANSFER_PREVIEW_DIR = AUTOCROONER_TRANSFER_UPLOAD_DIR / "previews"
 ELDRICHIFY_OUTPUT_DIR = UPLOAD_FOLDER / "eldrichify"
-IMGEN_OUTPUT_DIR = UPLOAD_FOLDER / "imgen"
 CHEATSHEET_UPLOAD_DIR = UPLOAD_FOLDER / "cheatsheets"
 CHEATSHEET_META_PATH = CHEATSHEET_UPLOAD_DIR / "entries.json"
 CHEATSHEET_ALLOWED_EXTENSIONS = {".txt", ".md", ".markdown"}
@@ -294,7 +288,6 @@ def _save_cheatsheet_entries(entries: list[dict]) -> None:
     with CHEATSHEET_META_PATH.open("w", encoding="utf-8") as handle:
         json.dump(entries, handle, indent=2)
 ELDRICHIFY_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-IMGEN_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 AUTOCROONER_STYLE_DIR.mkdir(parents=True, exist_ok=True)
 AUTOCROONER_TRAIN_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 AUTOCROONER_TRANSFER_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
@@ -320,10 +313,6 @@ STATIC_CACHE_EXTENSIONS = {
     ".mp4",
     ".wav",
 }
-
-# Async image generation job system
-_imgen_jobs = {}  # job_id -> {"status": "pending|completed|failed", "result": {...}, "error": str, "created": datetime}
-_imgen_lock = threading.Lock()
 
 # Async eldrichify job system
 _eldrichify_jobs = {}  # job_id -> {"status": "pending|completed|failed", "result": {...}, "error": str, "created": datetime}
@@ -421,10 +410,6 @@ def _cleanup_old_jobs():
     """Remove jobs older than 10 minutes (audio jobs kept longer)."""
     cutoff = datetime.now() - timedelta(minutes=10)
     audio_cutoff = datetime.now() - timedelta(hours=2)
-    with _imgen_lock:
-        to_delete = [jid for jid, job in _imgen_jobs.items() if job["created"] < cutoff]
-        for jid in to_delete:
-            del _imgen_jobs[jid]
     with _eldrichify_lock:
         to_delete = [jid for jid, job in _eldrichify_jobs.items() if job["created"] < cutoff]
         for jid in to_delete:
@@ -473,42 +458,6 @@ def _process_eldrichify_job(job_id, file_bytes, filename, target_size):
         with _eldrichify_lock:
             _eldrichify_jobs[job_id]["status"] = "failed"
             _eldrichify_jobs[job_id]["error"] = str(exc)
-
-def _process_imgen_job(job_id, prompt, guidance, steps, seed):
-    """Background thread worker for image generation"""
-    try:
-        pipeline = get_prompt_pipeline()
-        result = pipeline.generate(
-            prompt,
-            guidance_scale=guidance,
-            num_inference_steps=steps,
-            seed=seed,
-        )
-        filename = f"prompt_{uuid.uuid4().hex}.png"
-        relative_path = Path("imgen") / filename
-        absolute_path = IMGEN_OUTPUT_DIR / filename
-        absolute_path.parent.mkdir(parents=True, exist_ok=True)
-        result.image.save(absolute_path, format="PNG")
-
-        preview_url = _image_to_data_url(result.image)
-        previews = {"hd": preview_url}
-
-        with _imgen_lock:
-            _imgen_jobs[job_id]["status"] = "completed"
-            _imgen_jobs[job_id]["result"] = {
-                "mode": "prompt",
-                "image_url": f"/media/{relative_path.as_posix()}",
-                "filename": filename,
-                "prompt": result.prompt,
-                "seed": result.seed,
-                "preview": preview_url,
-                "previews": previews,
-            }
-    except Exception as exc:
-        print(f"[imgen] Job {job_id} failed: {exc}", flush=True)
-        with _imgen_lock:
-            _imgen_jobs[job_id]["status"] = "failed"
-            _imgen_jobs[job_id]["error"] = str(exc)
 
 def _process_audio_job(job_id, audio_path, audio_path2, track_id, track_id2, title, artist, algorithm, file_hash=None):
     """Background thread worker for audio analysis"""
@@ -1931,7 +1880,6 @@ def allowed_file(filename: str) -> bool:
 
 
 _eldrichify_pipeline: Optional[EldrichifyPipeline] = None
-_prompt_pipeline: Optional[PromptImageGenerator] = None
 
 
 def get_eldrichify_pipeline() -> EldrichifyPipeline:
@@ -1939,13 +1887,6 @@ def get_eldrichify_pipeline() -> EldrichifyPipeline:
     if _eldrichify_pipeline is None:
         _eldrichify_pipeline = EldrichifyPipeline()
     return _eldrichify_pipeline
-
-
-def get_prompt_pipeline() -> PromptImageGenerator:
-    global _prompt_pipeline
-    if _prompt_pipeline is None:
-        _prompt_pipeline = PromptImageGenerator()
-    return _prompt_pipeline
 
 
 def _tensor_to_data_url(pipeline: EldrichifyPipeline, tensor) -> str:
@@ -2532,96 +2473,6 @@ def api_eldrichify_status(job_id):
     """Poll for eldrichify job completion"""
     with _eldrichify_lock:
         job = _eldrichify_jobs.get(job_id)
-        if not job:
-            return jsonify({"error": "Job not found"}), 404
-
-        if job["status"] == "completed":
-            return jsonify({"status": "completed", "result": job["result"]})
-        elif job["status"] == "failed":
-            return jsonify({"status": "failed", "error": job["error"]}), 500
-        else:
-            return jsonify({"status": "pending"})
-
-
-@app.route("/download-traced-model")
-def download_traced_model():
-    """Download the traced TorchScript model."""
-    # Use the pre-zipped model from IMGEN directory
-    model_zip = BASE_DIR.parent / "IMGEN" / "finetunemodel.zip"
-    if model_zip.exists():
-        return send_file(
-            model_zip,
-            as_attachment=True,
-            download_name='traced_diffusion_unet.zip',
-            mimetype='application/zip'
-        )
-    abort(404)
-
-
-@app.route("/download-model-weights")
-def download_model_weights():
-    """Download the VAE model weights."""
-    # Return the base VAE weights from VAE directory
-    model_path = BASE_DIR.parent / "VAE" / "base_vae_best.pth"
-    if model_path.exists():
-        return send_file(
-            model_path,
-            as_attachment=True,
-            download_name='base_vae_best.pth',
-            mimetype='application/octet-stream'
-        )
-    abort(404)
-
-
-@app.route("/api/imgen", methods=["POST"])
-def api_imgen():
-    """Start async image generation job and return job ID immediately"""
-    payload = request.get_json(silent=True) or {}
-    prompt = str(payload.get("prompt") or "").strip()
-    guidance = _coerce_float(payload.get("guidance")) or 5.5
-    steps = payload.get("steps")
-    seed = payload.get("seed")
-
-    if not prompt:
-        return jsonify({"error": "Prompt text is required."}), 400
-
-    try:
-        steps_value = int(steps) if steps is not None else None
-    except (TypeError, ValueError):
-        steps_value = None
-
-    try:
-        seed_value = int(seed) if seed is not None else None
-    except (TypeError, ValueError):
-        seed_value = None
-
-    # Create job
-    job_id = str(uuid.uuid4())
-    _cleanup_old_jobs()
-    with _imgen_lock:
-        _imgen_jobs[job_id] = {
-            "status": "pending",
-            "result": None,
-            "error": None,
-            "created": datetime.now(),
-        }
-
-    # Start background thread
-    thread = threading.Thread(
-        target=_process_imgen_job,
-        args=(job_id, prompt, guidance, steps_value, seed_value),
-        daemon=True
-    )
-    thread.start()
-
-    return jsonify({"job_id": job_id, "status": "pending"})
-
-
-@app.route("/api/imgen/status/<job_id>", methods=["GET"])
-def api_imgen_status(job_id):
-    """Poll for job completion"""
-    with _imgen_lock:
-        job = _imgen_jobs.get(job_id)
         if not job:
             return jsonify({"error": "Job not found"}), 404
 
