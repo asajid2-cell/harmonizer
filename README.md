@@ -1,51 +1,44 @@
 # Harmonizer
 
-Harmonizer is a creative browser lab for music analysis, visual playback, profile experiments, image processing, and semantic code search. It is built as a monorepo because the tools share a Flask server, static front-end shell, deployment wiring, and a small set of local runtime conventions.
+Harmonizer is a collection of browser-based creative tools built around a shared Flask backend and static front-end shell. The main application focuses on audio analysis, playback experiments, and visual music interfaces. The repository also includes companion prototypes for image transformation, profile pages, semantic code search, reinforcement-learning feedback, and voxel rendering experiments.
 
-The project is best read as a public research and demo workspace. Some features are stable enough to use locally, while others are preserved as prototypes so the design and implementation history remain understandable.
+This is a public source snapshot. Runtime data, generated artifacts, local model files, vendored SDKs, and private configuration are intentionally excluded.
 
-## Included Tools
+## What Is Included
 
-| Tool | Status | Entry point | Notes |
-| --- | --- | --- | --- |
-| Internet Discotheque | active shell | `frontend/index.html` | Retro desktop launcher for the public pages. |
-| Harmonizer | active prototype | `frontend/harmonizer.html` | Upload audio, inspect analysis data, and explore beat jumps, loops, queues, and visual modes. |
-| Eldrichify | experimental | `frontend/eldrichify.html`, `backend/eldrichify.py` | Upload-based image transformation. Large local model checkpoints are not committed. |
-| OurSpace | experimental | `frontend/ourspace.html` | Local profile builder with account, media, and customization flows. Runtime data stays outside Git. |
-| CodeSniff | active prototype | `codesniff/` | Semantic code search with a FastAPI backend and React front end. |
-| RL jump labeling | research tool | `backend/rl/`, `rl_models/` | Local feedback loop for rating and training jump-selection policies. |
-| VENPOD prototype | archived prototype | `venpod/` | Early voxel/WebGPU experiment. The Emscripten SDK is intentionally not vendored. |
+- `backend/`: Flask application, audio analysis routes, image tooling, OurSpace storage helpers, and RL labeling support.
+- `frontend/`: static pages, JavaScript modules, demo assets, and the Internet Discotheque launcher.
+- `codesniff/`: semantic code-search prototype with a FastAPI backend and React front end.
+- `playwright-code/`: local Playwright checks for browser-facing pages.
+- `venpod/`: archived voxel/WebGPU prototype source.
+- `docs/`: task-focused documentation using the Diataxis structure.
 
-## Quick Start
-
-Prerequisites:
+## Requirements
 
 - Python 3.11
-- Docker and Docker Compose for the full stack
-- `ffmpeg` for audio workflows
-- Node.js 20 or newer for CodeSniff front-end work
+- Docker and Docker Compose for the full application stack
+- `ffmpeg` for audio analysis workflows
+- Node.js 20 or newer for JavaScript tooling and CodeSniff front-end work
 
-Create local configuration:
+## Run Locally
+
+Create a local environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Set `SECRET_KEY` in `.env`. Leave optional keys blank until you need the related feature.
+Set `SECRET_KEY` in `.env`. Optional API keys can stay blank unless you are using the features that require them.
 
-Run the main app with Docker:
+Run the main application with Docker:
 
 ```bash
 docker compose up --build
 ```
 
-Open:
+Open `http://localhost:5000`.
 
-```text
-http://localhost:5000
-```
-
-Run the Flask app without Docker:
+To run the Flask server directly:
 
 ```bash
 python -m venv .venv
@@ -54,7 +47,7 @@ pip install -r requirements.txt
 python backend/app.py
 ```
 
-On Windows PowerShell, use:
+On Windows PowerShell, activate the environment with:
 
 ```powershell
 .venv\Scripts\Activate.ps1
@@ -62,49 +55,46 @@ On Windows PowerShell, use:
 
 ## Documentation
 
-The docs follow the Diataxis structure:
+- [Getting started](docs/tutorials/getting-started.md)
+- [Common tasks](docs/how-to/common-tasks.md)
+- [Configuration reference](docs/reference/configuration.md)
+- [Architecture overview](docs/explanation/architecture.md)
 
-- [Tutorial: Getting started](docs/tutorials/getting-started.md)
-- [How-to: Common tasks](docs/how-to/common-tasks.md)
-- [How-to: Configure OurSpace auth](docs/how-to/configure-ourspace-auth.md)
-- [How-to: Validate RL labeling](docs/how-to/validate-rl-labeling.md)
-- [How-to: Record a demo](docs/how-to/record-a-demo.md)
-- [Reference: Configuration](docs/reference/configuration.md)
-- [Reference: RL logging](docs/reference/rl-logging.md)
-- [Explanation: Architecture](docs/explanation/architecture.md)
+Subproject notes:
 
-## Repository Hygiene
-
-Generated files and local data are ignored by default:
-
-- `backend/uploads/`
-- `backend/data/`
-- `backend/ourspace_data/`
-- `codesniff/backend/storage/`
-- `playwright-code/artifacts/`
-- local model checkpoints
-- local SDK installs such as `venpod/emsdk/`
-
-The checked-in audio files under `frontend/assets/audio/` are part of the demo experience and are kept intentionally.
-
-For public releases, publish from the clean `main` branch. Do not publish old branches that contain runtime data, vendored dependencies, generated model artifacts, or private planning notes.
+- [CodeSniff](codesniff/README.md)
+- [Playwright helper](playwright-code/README.md)
+- [VENPOD prototype](venpod/README.md)
 
 ## Validation
 
-Run these checks after a clean clone:
+Run the checks that match the area you changed:
 
 ```bash
 python -m compileall backend
 docker compose config
 node --check frontend/js/eldrichify.js
+node --check frontend/js/visualizer.js
 ```
 
-For CodeSniff backend work:
+For CodeSniff backend changes:
 
 ```bash
 cd codesniff/backend
 python -m pytest
 ```
+
+## Release Notes
+
+The public branch should contain source, curated demo assets, and documentation only. Keep these out of Git:
+
+- `.env` files and credentials
+- uploads, generated media, and local databases
+- dependency folders and build outputs
+- generated Playwright artifacts
+- model checkpoints and local SDK installs
+
+The checked-in audio under `frontend/assets/audio/` is part of the demo material.
 
 ## License
 
