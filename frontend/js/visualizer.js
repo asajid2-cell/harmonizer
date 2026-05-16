@@ -602,13 +602,13 @@ var ADVANCED_DEFAULTS = {
     },
     eternalLoop: {
         musicality: 100,
-        minLoopBeats: 8,
-        maxSequentialBeats: 64,
+        minLoopBeats: 16,
+        maxSequentialBeats: 128,
         loopThreshold: 0.50,
         sectionBias: 0.20,
-        jumpVariance: 0.70,
-        routeLength: 10,
-        jumpTemperature: 0.36
+        jumpVariance: 0.45,
+        routeLength: 6,
+        jumpTemperature: 0.22
     },
 	    dopamineMiner: {
 	        peakFraction: 0.15,
@@ -9094,7 +9094,7 @@ function createJukeboxDriver(player, options) {
     var recentJukeboxBeats = [];
     // Lower minScore for eternal mode to allow more jump candidates
     var minScore = (modeName === "eternal") ? 0.5 : 0.65;
-    var minDwellBeats = 6;
+    var minDwellBeats = 16;
     var beatsSinceJump = 0;
     var maxBackward = Math.max(24, Math.floor((masterQs && masterQs.length ? masterQs.length : 0) * 0.1));
     var modeState = "explore"; // explore vs looping bias
@@ -9119,6 +9119,8 @@ function createJukeboxDriver(player, options) {
 
     var sectionBias = clamp01(options.sectionBias !== undefined ? options.sectionBias : 0.6);
     var jumpVariance = clamp01(options.jumpVariance !== undefined ? options.jumpVariance : 0.4);
+    var meterGrid = inferMeterGrid();
+    minDwellBeats = Math.max(minLoopBeats, Math.min(48, Math.max(12, meterGrid.length * 4)));
     var sameSectionBonusBase;
     var crossSectionBonusBase;
     var recentPenaltyScale;
@@ -9628,27 +9630,34 @@ function createJukeboxDriver(player, options) {
             return "escape";
         }
         var roll = Math.random();
-        if (roll < 0.10) {
+        if (roll < 0.04) {
             return "surprise";
         }
-        if (roll < 0.62) {
+        if (roll < 0.34) {
             return "explore";
         }
         return "continue";
     }
 
-    function shouldAttemptJukeboxJump() {
+    function shouldAttemptJukeboxJump(intent) {
         if (beatsSinceJump < minDwellBeats) {
+            return false;
+        }
+        intent = intent || chooseJumpIntent();
+        if (!isSafeJumpExit(currentIndex, intent)) {
             return false;
         }
         var span = Math.max(1, maxSequentialBeats - minDwellBeats);
         var age = Math.min(1, Math.max(0, (beatsSinceJump - minDwellBeats) / span));
         var pressure = localLoopPressure();
-        var chance = 0.035 + age * 0.24 + Math.max(0, pressure - 0.38) * 0.65;
+        var chance = 0.012 + age * 0.11 + Math.max(0, pressure - 0.44) * 0.46;
         if (linearBeatsSinceJump > maxSequentialBeats) {
-            chance = Math.max(chance, 0.55);
+            chance = Math.max(chance, 0.34);
         }
-        chance = Math.min(0.72, chance);
+        if (!isPrimaryJumpPhase(currentIndex)) {
+            chance *= 0.35;
+        }
+        chance = Math.min(0.38, chance);
         return Math.random() < chance;
     }
 
@@ -9773,6 +9782,160 @@ function createJukeboxDriver(player, options) {
         if (typeof beat.volume === "number") return beat.volume;
         if (typeof beat.loudness === "number") return beat.loudness;
         return 0;
+    }
+
+    function inferMeterGrid() {
+        var beats = masterQs || [];
+        var fallback = {
+            length: 4,
+            offset: 0,
+            confidence: 0,
+            secondaryPhases: [],
+            source: "fallback"
+        };
+        if (!beats.length) {
+            return fallback;
+        }
+
+        var metaLengthCounts = {};
+        var metaPhaseCount = 0;
+        for (var i = 0; i < beats.length; i++) {
+            var beat = beats[i];
+            if (!beat) {
+                continue;
+            }
+            var barLength = coerceNumber(beat.bar_length_beats);
+            if (barLength !== null) {
+                barLength = Math.round(barLength);
+                if (barLength >= 3 && barLength <= 8) {
+                    metaLengthCounts[barLength] = (metaLengthCounts[barLength] || 0) + 1;
+                }
+            }
+            if (typeof beat.beat_in_bar === "number" || typeof beat.indexInParent === "number") {
+                metaPhaseCount += 1;
+            }
+        }
+        var bestMetaLength = null;
+        var bestMetaCount = 0;
+        Object.keys(metaLengthCounts).forEach(function(key) {
+            var count = metaLengthCounts[key];
+            if (count > bestMetaCount) {
+                bestMetaLength = parseInt(key, 10);
+                bestMetaCount = count;
+            }
+        });
+        if (bestMetaLength && metaPhaseCount >= Math.max(12, beats.length * 0.3)) {
+            return {
+                length: bestMetaLength,
+                offset: 0,
+                confidence: 0.9,
+                secondaryPhases: bestMetaLength === 4 ? [2] : (bestMetaLength === 6 ? [3] : []),
+                source: "metadata"
+            };
+        }
+
+        var energies = [];
+        for (var eIdx = 0; eIdx < beats.length; eIdx++) {
+            energies.push(beatEnergy(beats[eIdx]));
+        }
+        var sorted = energies.slice().sort(function(a, b) { return a - b; });
+        var median = sorted[Math.floor(sorted.length / 2)] || 0;
+        var deviations = sorted.map(function(v) { return Math.abs(v - median); }).sort(function(a, b) { return a - b; });
+        var mad = deviations[Math.floor(deviations.length / 2)] || 1;
+        var norm = energies.map(function(v) { return (v - median) / Math.max(1, mad); });
+
+        var best = null;
+        for (var meter = 3; meter <= 8; meter++) {
+            for (var offset = 0; offset < meter; offset++) {
+                var down = [];
+                var other = [];
+                for (var idx = 0; idx < norm.length; idx++) {
+                    if (((idx - offset) % meter + meter) % meter === 0) {
+                        down.push(norm[idx]);
+                    } else {
+                        other.push(norm[idx]);
+                    }
+                }
+                if (down.length < 4 || other.length < 8) {
+                    continue;
+                }
+                var downMean = down.reduce(function(sum, v) { return sum + v; }, 0) / down.length;
+                var otherMean = other.reduce(function(sum, v) { return sum + v; }, 0) / other.length;
+                var score = downMean - otherMean;
+                if (!best || score > best.score) {
+                    best = { length: meter, offset: offset, score: score };
+                }
+            }
+        }
+        if (!best) {
+            return fallback;
+        }
+        var confidence = Math.max(0, Math.min(0.85, best.score / 1.4));
+        if (confidence < 0.12) {
+            best.length = 4;
+            best.offset = 0;
+        }
+        var secondary = [];
+        if (best.length === 4 && confidence >= 0.35) {
+            secondary = [2];
+        } else if (best.length === 6 && confidence >= 0.35) {
+            secondary = [3];
+        }
+        return {
+            length: best.length,
+            offset: best.offset,
+            confidence: confidence,
+            secondaryPhases: secondary,
+            source: confidence >= 0.12 ? "energy" : "fallback"
+        };
+    }
+
+    function musicalPhaseForIndex(idx) {
+        var beat = masterQs && masterQs[idx];
+        var raw = null;
+        if (beat && typeof beat.beat_in_bar === "number") {
+            raw = beat.beat_in_bar;
+        } else if (beat && typeof beat.indexInParent === "number") {
+            raw = beat.indexInParent;
+        }
+        var length = Math.max(3, (meterGrid && meterGrid.length) || 4);
+        if (raw !== null) {
+            return ((Math.round(raw) % length) + length) % length;
+        }
+        var offset = (meterGrid && typeof meterGrid.offset === "number") ? meterGrid.offset : 0;
+        return (((idx - offset) % length) + length) % length;
+    }
+
+    function isPrimaryJumpPhase(idx) {
+        return musicalPhaseForIndex(idx) === 0;
+    }
+
+    function isSecondaryJumpPhase(idx) {
+        var phase = musicalPhaseForIndex(idx);
+        var secondary = (meterGrid && meterGrid.secondaryPhases) || [];
+        return secondary.indexOf(phase) !== -1;
+    }
+
+    function isSafeJumpExit(idx, intent) {
+        if (isPrimaryJumpPhase(idx)) {
+            return true;
+        }
+        if ((meterGrid && meterGrid.confidence >= 0.35) && (intent === "escape" || intent === "continue") && isSecondaryJumpPhase(idx)) {
+            return true;
+        }
+        return false;
+    }
+
+    function phasesAreCompatible(sourceIdx, targetIdx, intent) {
+        var sourcePhase = musicalPhaseForIndex(sourceIdx);
+        var targetPhase = musicalPhaseForIndex(targetIdx);
+        if (sourcePhase === 0 && targetPhase === 0) {
+            return true;
+        }
+        if (sourcePhase === targetPhase && meterGrid && meterGrid.confidence >= 0.35 && (intent === "escape" || intent === "continue")) {
+            return isSecondaryJumpPhase(sourceIdx);
+        }
+        return false;
     }
 
     function markBarVisit(beatOrIndex) {
@@ -10155,12 +10318,13 @@ function createJukeboxDriver(player, options) {
     }
 
     function scheduleNextJump(force) {
-        var minB = minLoopBeats;
+        var phrase = Math.max(3, (meterGrid && meterGrid.length) || 4);
+        var minB = Math.max(minLoopBeats, phrase * 4);
         var maxB = Math.max(minB + 1, maxSequentialBeats);
         var span = Math.max(2, maxB - minB);
         var bias = jumpVariance;
-        var upperFrac = force ? (0.3 + bias * 0.3) : (0.55 + bias * 0.4);
-        var lowerFrac = force ? Math.max(0, bias * 0.1) : Math.max(0, bias * 0.3);
+        var upperFrac = force ? (0.45 + bias * 0.2) : (0.65 + bias * 0.3);
+        var lowerFrac = force ? Math.max(0.15, bias * 0.2) : Math.max(0.35, bias * 0.35);
         var upper = Math.max(minB + 1, Math.min(maxB, minB + Math.round(span * upperFrac)));
         var lower = Math.max(minB, Math.min(upper - 1, minB + Math.round(span * lowerFrac)));
         if (lower >= upper) {
@@ -10169,7 +10333,8 @@ function createJukeboxDriver(player, options) {
         if (lower >= upper) {
             lower = minB;
         }
-        beatsUntilJump = randomBetween(lower, upper);
+        var raw = randomBetween(lower, upper);
+        beatsUntilJump = Math.max(phrase, Math.round(raw / phrase) * phrase);
     }
 
     function recordSectionVisit(sectionIdx) {
@@ -10237,7 +10402,11 @@ function createJukeboxDriver(player, options) {
             return out;
         }
 
-        var radii = intent === "escape" ? [12, 40, 96] : (intent === "surprise" ? [10, 32, 64] : [10, 28, 48]);
+        if (!isSafeJumpExit(src, intent)) {
+            return null;
+        }
+
+        var radii = [0];
         var searchRadius = radii[0];
         var candidates = [];
         for (var radiusIdx = 0; radiusIdx < radii.length; radiusIdx++) {
@@ -10246,9 +10415,6 @@ function createJukeboxDriver(player, options) {
             if (candidates.length) {
                 break;
             }
-        }
-        if (!candidates.length && (intent === "escape" || intent === "surprise") && allLoopEdges.length) {
-            candidates = allLoopEdges.slice(0);
         }
         if (!candidates.length) {
             var loopGraphSize = Object.keys(loopGraph).length;
@@ -10344,12 +10510,14 @@ function createJukeboxDriver(player, options) {
                 ? edge.beat_in_bar
                 : beatPhase(targetBeat, 4);
             var phaseMismatch = (srcPhase !== null && targetPhase !== null && srcPhase !== targetPhase);
-            // For eternal mode, allow phase mismatches with a score penalty instead of filtering
+            if (!phasesAreCompatible(src, targetIdx, intent)) {
+                return;
+            }
+            // For eternal mode, phase mismatches are only allowed when the inferred musical phases match.
             var phasePenalty = 0;
             if (phaseMismatch) {
                 if (modeName === "eternal") {
-                    // Soft penalty for phase mismatch in eternal mode
-                    phasePenalty = 0.15;
+                    phasePenalty = 0.08;
                 } else {
                     // Other modes: hard filter for phase lock
                     return;
@@ -10437,12 +10605,16 @@ function createJukeboxDriver(player, options) {
             var energyDelta = (typeof targetEnergy === "number" && typeof sourceEnergy === "number")
                 ? Math.abs(targetEnergy - sourceEnergy)
                 : 0;
+            var maxEnergyDelta = intent === "escape" ? 18 : (intent === "surprise" ? 16 : (intent === "explore" ? 14 : 12));
+            if (energyDelta > maxEnergyDelta) {
+                return;
+            }
             var transitionScore = edge.similarity * 0.42
-                + ((typeof edge.chroma_similarity === "number") ? Math.max(0, edge.chroma_similarity) * 0.20 : 0)
-                + (phaseMismatch ? -0.08 : 0.12)
-                + (edge.sameSection ? 0.04 : 0.02)
-                - Math.min(0.25, energyDelta / 55);
-            var minTransition = intent === "surprise" ? 0.36 : (intent === "escape" ? 0.34 : 0.40);
+                + ((typeof edge.chroma_similarity === "number") ? Math.max(0, edge.chroma_similarity) * 0.22 : 0)
+                + (isPrimaryJumpPhase(src) && isPrimaryJumpPhase(targetIdx) ? 0.16 : 0.06)
+                + (edge.sameSection ? 0.06 : 0.02)
+                - Math.min(0.34, energyDelta / 42);
+            var minTransition = intent === "surprise" ? 0.44 : (intent === "escape" ? 0.40 : 0.46);
             if (transitionScore < minTransition) {
                 return;
             }
@@ -10450,30 +10622,30 @@ function createJukeboxDriver(player, options) {
             var distanceNorm = Math.min(1, circularBeatDistance(src, targetIdx) / Math.max(1, masterQs.length * 0.35));
             var novelty = 0;
             if (intent === "escape") {
-                novelty += targetRegion !== srcRegion ? 0.38 : -0.22;
-                novelty += targetSection !== null && srcSection !== null && targetSection !== srcSection ? 0.18 : -0.04;
-                novelty += distanceNorm * 0.28;
-            } else if (intent === "explore") {
-                novelty += targetRegion !== srcRegion ? 0.26 : -0.12;
-                novelty += targetSection !== null && srcSection !== null && targetSection !== srcSection ? 0.12 : 0.02;
+                novelty += targetRegion !== srcRegion ? 0.24 : -0.18;
+                novelty += targetSection !== null && srcSection !== null && targetSection !== srcSection ? 0.10 : -0.04;
                 novelty += distanceNorm * 0.18;
+            } else if (intent === "explore") {
+                novelty += targetRegion !== srcRegion ? 0.14 : -0.10;
+                novelty += targetSection !== null && srcSection !== null && targetSection !== srcSection ? 0.06 : 0.02;
+                novelty += distanceNorm * 0.10;
             } else if (intent === "surprise") {
-                novelty += targetRegion !== srcRegion ? 0.20 : -0.06;
-                novelty += distanceNorm * 0.34;
+                novelty += targetRegion !== srcRegion ? 0.12 : -0.08;
+                novelty += distanceNorm * 0.16;
             } else {
-                novelty += edge.sameSection ? 0.08 : 0;
-                novelty += distanceNorm * 0.06;
+                novelty += edge.sameSection ? 0.10 : -0.04;
+                novelty += distanceNorm * 0.03;
             }
             var sourceDriftPenalty = Math.min(0.18, item.distance * 0.012);
-            var jitter = (Math.random() - 0.5) * (intent === "continue" ? 0.08 : 0.18);
+            var jitter = (Math.random() - 0.5) * (intent === "continue" ? 0.04 : 0.10);
 
-            var score = baseScore * 0.35
-                + transitionScore
+            var score = baseScore * 0.22
+                + transitionScore * 1.25
                 + novelty
-                + chromaBonus * 0.5
-                + sectionBonus * 0.5
-                + directionBias
-                + energyBonus
+                + chromaBonus * 0.35
+                + sectionBonus * 0.35
+                + directionBias * 0.5
+                + energyBonus * 1.2
                 + endZoneBonus
                 - visitPenalty
                 + coverageBonus
@@ -10522,9 +10694,9 @@ function createJukeboxDriver(player, options) {
             return b.score - a.score;
         });
         var best = scored[0];
-        var dynamicMin = intent === "continue" ? 0.42 : (intent === "explore" ? 0.36 : 0.28);
+        var dynamicMin = intent === "continue" ? 0.58 : (intent === "explore" ? 0.52 : 0.46);
         if (localLoopPressure() > 0.48 || linearBeatsSinceJump > maxSequentialBeats) {
-            dynamicMin -= 0.08;
+            dynamicMin -= 0.06;
         }
         if (best.score < dynamicMin) {
             return null;
@@ -10532,8 +10704,8 @@ function createJukeboxDriver(player, options) {
 
         // Soft selection among the strongest candidates instead of always picking the single best
         var pool = [];
-        var maxPool = intent === "continue" ? 10 : (intent === "explore" ? 24 : 36);
-        var scoreFloor = best.score - (intent === "continue" ? 0.18 : (intent === "explore" ? 0.34 : 0.48));
+        var maxPool = intent === "continue" ? 8 : (intent === "explore" ? 14 : 18);
+        var scoreFloor = best.score - (intent === "continue" ? 0.12 : (intent === "explore" ? 0.22 : 0.30));
         for (var i = 0; i < scored.length && pool.length < maxPool; i++) {
             if (scored[i].score >= dynamicMin && scored[i].score >= scoreFloor) {
                 pool.push(scored[i]);
@@ -10551,8 +10723,8 @@ function createJukeboxDriver(player, options) {
         } else {
             // Softmax-style sampling over scores for controlled randomness
             var temperature = intent === "continue"
-                ? Math.min(JUMP_TEMPERATURE, 0.18)
-                : (intent === "explore" ? Math.max(JUMP_TEMPERATURE, 0.34) : Math.max(JUMP_TEMPERATURE, 0.52));
+                ? Math.min(JUMP_TEMPERATURE, 0.12)
+                : (intent === "explore" ? Math.max(JUMP_TEMPERATURE, 0.22) : Math.max(JUMP_TEMPERATURE, 0.34));
             var maxScore = pool[0].score;
             var weights = [];
             var totalWeight = 0;
@@ -10600,7 +10772,11 @@ function createJukeboxDriver(player, options) {
             qualityScore: chosen.score,
             transitionScore: chosen.transitionScore,
             intent: intent,
-            direction: chosen.direction
+            direction: chosen.direction,
+            sourcePhase: musicalPhaseForIndex(src),
+            targetPhase: musicalPhaseForIndex(chosen.target),
+            meterLength: meterGrid.length,
+            meterConfidence: meterGrid.confidence
         };
     }
 
@@ -10767,14 +10943,16 @@ function createJukeboxDriver(player, options) {
             }
         }
 
-        if (beatsSinceJump >= minDwellBeats && (beatsUntilJump <= 0 || shouldAttemptJukeboxJump())) {
+        var jumpIntent = chooseJumpIntent();
+        var scheduledJumpReady = beatsUntilJump <= 0 || shouldAttemptJukeboxJump(jumpIntent);
+        if (beatsSinceJump >= minDwellBeats && scheduledJumpReady && isSafeJumpExit(currentIndex, jumpIntent)) {
             var jump = takePlannedJumpIfValid();
             if (!jump && !plannedJumps.length) {
                 planRouteFrom(currentIndex);
                 jump = takePlannedJumpIfValid();
             }
             if (!jump) {
-                jump = selectJumpCandidate(currentIndex, chooseJumpIntent());
+                jump = selectJumpCandidate(currentIndex, jumpIntent);
             }
             if (jump) {
                 console.log('[advanceIndex] JUMP!', currentIndex, '->', jump.target);
@@ -10826,6 +11004,10 @@ function createJukeboxDriver(player, options) {
                     quality_score: jump.qualityScore,
                     transition_score: jump.transitionScore,
                     intent: jump.intent,
+                    source_phase: jump.sourcePhase,
+                    target_phase: jump.targetPhase,
+                    meter_length: jump.meterLength,
+                    meter_confidence: jump.meterConfidence,
                 });
                 scheduleNextJump(false);
                 return;
