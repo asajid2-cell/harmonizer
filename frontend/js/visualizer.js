@@ -2351,6 +2351,7 @@ function rebuildDriverForCurrentMode(shouldResume) {
     var initialPlayer = remixer.getPlayer();
     window.harmonizerActivePlayer = initialPlayer;
     driver = Driver(initialPlayer);
+    window.driver = driver;
     rebuildActiveStackLayers();
     if (typeof window.refreshSculptorPalette === "function") {
         try {
@@ -2487,6 +2488,7 @@ function trackReady(t) {
 function readyToPlay(t) {
     if (t.status === 'ok') {
         curTrack = t;
+        window.curTrack = curTrack;
         trackDuration = curTrack.audio_summary.duration;
 
         // Debug: Check if autoharmonizer data exists
@@ -3248,6 +3250,27 @@ if (typeof window !== "undefined") {
             enabled: isAdvancedGroupEnabled(group),
             settings: cloneAdvancedState(group),
             defaults: cloneAdvancedDefaults(group)
+        };
+    };
+
+    window.harmonizerGetBackgroundPayload = function(options) {
+        if (!curTrack || !curTrack.id) {
+            throw new Error("No track loaded yet.");
+        }
+        var minutes = options && typeof options.minutes === "number" ? options.minutes : 10;
+        var allSettings = {};
+        if (typeof window.getAdvancedSettings === "function") {
+            allSettings = window.getAdvancedSettings();
+        }
+        return {
+            trackId: curTrack.id,
+            mode: (mode || "canon").toLowerCase(),
+            minutes: minutes,
+            seed: Math.floor(Math.random() * 2147483647),
+            settings: allSettings,
+            voiceCount: window.canonVoiceCount || 2,
+            baseAudioOnly: !!window.harmonizerBaseAudioOnly,
+            loopEnabled: !!window.harmonizerLoopEnabled
         };
     };
 
@@ -4868,6 +4891,7 @@ function init() {
         var playerForDriver = remixer.getPlayer();
         window.harmonizerActivePlayer = playerForDriver;
         driver = Driver(playerForDriver);
+        window.driver = driver;
 
 	        // Load playlist queue from sessionStorage if available
 	        loadPlaylistQueue();
@@ -5434,6 +5458,7 @@ function selectQueueOffset(delta) {
 
 function resetCanvasForTrackSwitch() {
     curTrack = null;
+    window.curTrack = null;
     masterQs = null;
     pendingOrbitRedraw = false;
     window.currentVoiceStates = [];

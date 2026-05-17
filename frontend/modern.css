@@ -645,6 +645,28 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     width: min(220px, 100%);
 }
 
+.background-render-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 34px;
+}
+
+.background-render-control .viz-select {
+    min-width: 86px;
+    height: 34px;
+}
+
+.background-render-status {
+    min-width: 0;
+    max-width: 220px;
+    color: var(--color-lime);
+    font-size: 0.76rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
 .drive-helper-hint {
     margin: 10px 0 0;
     font-size: 0.8rem;

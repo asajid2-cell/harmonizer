@@ -7,6 +7,8 @@ import io
 import os
 import mimetypes
 import re
+import shutil
+import subprocess
 import uuid
 import math
 from pathlib import Path
@@ -266,6 +268,7 @@ AUTOCROONER_TRAIN_UPLOAD_DIR = UPLOAD_FOLDER / "autocrooner_trainer"
 AUTOCROONER_TRANSFER_UPLOAD_DIR = UPLOAD_FOLDER / "autocrooner_style_transfer"
 AUTOCROONER_TRANSFER_PREVIEW_DIR = AUTOCROONER_TRANSFER_UPLOAD_DIR / "previews"
 ELDRICHIFY_OUTPUT_DIR = UPLOAD_FOLDER / "eldrichify"
+BACKGROUND_RENDER_DIR = UPLOAD_FOLDER / "background_renders"
 CHEATSHEET_UPLOAD_DIR = UPLOAD_FOLDER / "cheatsheets"
 CHEATSHEET_META_PATH = CHEATSHEET_UPLOAD_DIR / "entries.json"
 CHEATSHEET_ALLOWED_EXTENSIONS = {".txt", ".md", ".markdown"}
@@ -288,6 +291,7 @@ def _save_cheatsheet_entries(entries: list[dict]) -> None:
     with CHEATSHEET_META_PATH.open("w", encoding="utf-8") as handle:
         json.dump(entries, handle, indent=2)
 ELDRICHIFY_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+BACKGROUND_RENDER_DIR.mkdir(parents=True, exist_ok=True)
 AUTOCROONER_STYLE_DIR.mkdir(parents=True, exist_ok=True)
 AUTOCROONER_TRAIN_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 AUTOCROONER_TRANSFER_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
@@ -321,6 +325,10 @@ _eldrichify_lock = threading.Lock()
 # Async audio processing job system
 _audio_jobs = {}  # job_id -> {"status": "pending|processing|completed|failed", "result": {...}, "error": str, "created": datetime, "progress": str}
 _audio_lock = threading.Lock()
+
+# Async native background render job system
+_background_render_jobs = {}  # job_id -> {"status": "...", "result": {...}, "error": str, "created": datetime, "progress": str}
+_background_render_lock = threading.Lock()
 
 # Async autocrooner training job system (local training UI)
 _autocrooner_train_jobs = {}  # job_id -> {"status": "pending|processing|completed|failed", ...}
@@ -418,6 +426,453 @@ def _cleanup_old_jobs():
         to_delete = [jid for jid, job in _audio_jobs.items() if job["created"] < audio_cutoff]
         for jid in to_delete:
             del _audio_jobs[jid]
+    with _background_render_lock:
+        to_delete = [jid for jid, job in _background_render_jobs.items() if job["created"] < audio_cutoff]
+        for jid in to_delete:
+            del _background_render_jobs[jid]
+
+
+def _background_render_job_update(job_id: str, **fields) -> None:
+    with _background_render_lock:
+        job = _background_render_jobs.get(job_id)
+        if job:
+            job.update(fields)
+
+
+def _safe_track_id(raw: str) -> str:
+    return re.sub(r"[^A-Za-z0-9+_-]+", "", raw or "")
+
+
+def _load_track_profile(track_id: str) -> dict:
+    safe_id = _safe_track_id(track_id)
+    if not safe_id:
+        raise ValueError("Missing track id.")
+    profile_path = DATA_FOLDER / f"{safe_id}.json"
+    if not profile_path.is_file():
+        raise FileNotFoundError(f"No analysis profile found for {safe_id}.")
+    with profile_path.open("r", encoding="utf-8") as handle:
+        profile = json.load(handle)
+    track = ((profile or {}).get("response") or {}).get("track")
+    if not isinstance(track, dict):
+        raise ValueError("Analysis profile is missing track data.")
+    return track
+
+
+def _audio_url_to_upload_path(audio_url: str) -> Path:
+    audio_url = (audio_url or "").split("?", 1)[0]
+    if audio_url.startswith("/media/"):
+        rel = audio_url[len("/media/") :]
+    else:
+        rel = audio_url.rsplit("/", 1)[-1]
+    rel_path = Path(rel)
+    target = (UPLOAD_FOLDER / rel_path).resolve()
+    try:
+        target.relative_to(UPLOAD_FOLDER.resolve())
+    except ValueError:
+        raise ValueError("Audio path points outside the upload folder.")
+    if not target.is_file():
+        raise FileNotFoundError(f"Audio file not found for {audio_url}.")
+    return target
+
+
+def _extract_group_settings(settings: dict, group: str) -> dict:
+    group_data = (settings or {}).get(group) or {}
+    if isinstance(group_data, dict) and isinstance(group_data.get("settings"), dict):
+        return group_data["settings"]
+    return group_data if isinstance(group_data, dict) else {}
+
+
+def _normalize_audio_array(y) -> "np.ndarray":
+    arr = np.asarray(y, dtype=np.float32)
+    if arr.ndim == 1:
+        arr = arr[:, None]
+    elif arr.shape[0] <= 8 and arr.shape[1] > arr.shape[0]:
+        arr = arr.T
+    if arr.ndim != 2:
+        raise ValueError("Unsupported audio channel layout.")
+    return np.ascontiguousarray(arr)
+
+
+def _source_slice(audio: "np.ndarray", start_sample: int, length: int) -> "np.ndarray":
+    if length <= 0:
+        return np.zeros((0, audio.shape[1]), dtype=np.float32)
+    total = audio.shape[0]
+    if total <= 0:
+        return np.zeros((length, audio.shape[1]), dtype=np.float32)
+    start = int(start_sample) % total
+    end = start + length
+    if end <= total:
+        return audio[start:end].copy()
+    first = audio[start:total]
+    remaining = length - first.shape[0]
+    reps = []
+    if first.shape[0]:
+        reps.append(first)
+    while remaining > 0:
+        take = min(total, remaining)
+        reps.append(audio[:take])
+        remaining -= take
+    return np.vstack(reps).astype(np.float32, copy=False)
+
+
+def _write_linear_or_canon_render(
+    writer,
+    audio: "np.ndarray",
+    sr: int,
+    target_samples: int,
+    track: dict,
+    mode: str,
+    settings: dict,
+    voice_count: int,
+) -> None:
+    block = sr * 5
+    analysis = track.get("analysis") or {}
+    beats = analysis.get("beats") or []
+    duration_seconds = max(0.001, float((track.get("audio_summary") or {}).get("duration") or audio.shape[0] / sr))
+    beat_seconds = [float(b.get("start", 0.0)) for b in beats if isinstance(b, dict)]
+    beat_offset_seconds = []
+    if mode in {"canon", "eternal"} and beat_seconds:
+        global_offsets = analysis.get("global_voice_offsets") or []
+        alignment = analysis.get("canon_alignment") or {}
+        fallback = int(alignment.get("offset") or max(4, len(beats) // 4))
+        chosen_offsets = []
+        for value in global_offsets:
+            try:
+                chosen_offsets.append(int(value))
+            except Exception:
+                pass
+        if not chosen_offsets:
+            chosen_offsets = [fallback]
+        overlay_count = max(1, min(7, int(voice_count or 2) - 1))
+        for idx in range(overlay_count):
+            offset_beats = chosen_offsets[idx % len(chosen_offsets)]
+            beat_index = abs(offset_beats) % len(beat_seconds)
+            offset_time = beat_seconds[beat_index]
+            if offset_beats < 0:
+                offset_time = -offset_time
+            beat_offset_seconds.append(offset_time)
+
+    base_gain = 0.82 if beat_offset_seconds else 1.0
+    overlay_gain = 0.48 / max(1, len(beat_offset_seconds))
+    written = 0
+    while written < target_samples:
+        take = min(block, target_samples - written)
+        chunk = _source_slice(audio, written, take) * base_gain
+        for offset in beat_offset_seconds:
+            offset_samples = int(round(offset * sr))
+            chunk += _source_slice(audio, written + offset_samples, take) * overlay_gain
+        peak = float(np.max(np.abs(chunk))) if chunk.size else 0.0
+        if peak > 0.98:
+            chunk *= 0.98 / peak
+        writer.write(chunk)
+        written += take
+
+
+def _build_candidate_map(analysis: dict, mode: str) -> dict[int, list[dict]]:
+    candidate_map: dict[int, list[dict]] = {}
+    if mode in {"eternal", "jukebox"}:
+        eternal = analysis.get("eternal_loop_candidates")
+        if isinstance(eternal, dict):
+            for key, items in eternal.items():
+                try:
+                    src = int(key)
+                except Exception:
+                    continue
+                if isinstance(items, list):
+                    candidate_map[src] = [item for item in items if isinstance(item, dict)]
+    if not candidate_map:
+        raw_edges = analysis.get("loop_candidates") or (analysis.get("canon_alignment") or {}).get("loop_candidates") or []
+        for edge in raw_edges:
+            if not isinstance(edge, dict):
+                continue
+            try:
+                src = int(edge.get("source"))
+                target = int(edge.get("target"))
+            except Exception:
+                continue
+            candidate_map.setdefault(src, []).append(dict(edge, target=target))
+    for src in list(candidate_map.keys()):
+        candidate_map[src].sort(
+            key=lambda item: float(item.get("score", item.get("similarity", 0.0)) or 0.0),
+            reverse=True,
+        )
+    return candidate_map
+
+
+def _choose_background_jump(
+    rng: random.Random,
+    current: int,
+    candidates: list[dict],
+    total_beats: int,
+    recent_targets: list[int],
+) -> Optional[int]:
+    if not candidates:
+        return None
+    pool = []
+    for edge in candidates[:16]:
+        try:
+            target = int(edge.get("target"))
+        except Exception:
+            continue
+        if target < 0 or target >= total_beats or target == current:
+            continue
+        if target in recent_targets[-10:]:
+            continue
+        span = abs(target - current)
+        circular_span = min(span, total_beats - span)
+        if circular_span < 8:
+            continue
+        score = float(edge.get("score", edge.get("similarity", 0.0)) or 0.0)
+        if target < current:
+            score += 0.12
+        if edge.get("section_match"):
+            score += 0.05
+        pool.append((max(0.01, score), target))
+    if not pool:
+        return None
+    pool.sort(reverse=True)
+    pool = pool[:8]
+    total = sum(item[0] for item in pool)
+    pick = rng.random() * total
+    acc = 0.0
+    for score, target in pool:
+        acc += score
+        if acc >= pick:
+            return target
+    return pool[0][1]
+
+
+def _write_jukebox_render(
+    writer,
+    audio: "np.ndarray",
+    sr: int,
+    target_seconds: float,
+    track: dict,
+    mode: str,
+    settings: dict,
+    seed: int,
+) -> None:
+    analysis = track.get("analysis") or {}
+    beats = [b for b in (analysis.get("beats") or []) if isinstance(b, dict)]
+    if not beats:
+        _write_linear_or_canon_render(writer, audio, sr, int(target_seconds * sr), track, "linear", settings, 1)
+        return
+    loop_settings = _extract_group_settings(settings, "eternalLoop" if mode == "eternal" else "jukeboxLoop")
+    min_loop_beats = int(loop_settings.get("minLoopBeats") or 24)
+    max_sequential = int(loop_settings.get("maxSequentialBeats") or 56)
+    min_loop_beats = max(8, min(128, min_loop_beats))
+    max_sequential = max(min_loop_beats + 4, min(192, max_sequential))
+    candidate_map = _build_candidate_map(analysis, mode)
+    rng = random.Random(seed)
+    current = 0
+    elapsed = 0.0
+    beats_since_jump = min_loop_beats
+    jump_after = rng.randint(min_loop_beats, max_sequential)
+    recent_targets: list[int] = []
+    crossfade_samples = max(64, int(sr * 0.045))
+    pending_tail = np.zeros((0, audio.shape[1]), dtype=np.float32)
+
+    def append_segment(segment: "np.ndarray", jumped: bool) -> None:
+        nonlocal pending_tail
+        if segment.size == 0:
+            return
+        if pending_tail.size == 0:
+            if segment.shape[0] > crossfade_samples:
+                writer.write(segment[:-crossfade_samples])
+                pending_tail = segment[-crossfade_samples:].copy()
+            else:
+                pending_tail = segment.copy()
+            return
+        if jumped and segment.shape[0] > crossfade_samples and pending_tail.shape[0] >= crossfade_samples:
+            head = segment[:crossfade_samples]
+            fade = np.linspace(0.0, 1.0, crossfade_samples, dtype=np.float32)[:, None]
+            mixed = pending_tail[-crossfade_samples:] * (1.0 - fade) + head * fade
+            if pending_tail.shape[0] > crossfade_samples:
+                writer.write(pending_tail[:-crossfade_samples])
+            writer.write(mixed)
+            body = segment[crossfade_samples:]
+        else:
+            writer.write(pending_tail)
+            body = segment
+        if body.shape[0] > crossfade_samples:
+            writer.write(body[:-crossfade_samples])
+            pending_tail = body[-crossfade_samples:].copy()
+        else:
+            pending_tail = body.copy()
+
+    while elapsed < target_seconds:
+        beat = beats[current]
+        beat_start = float(beat.get("start", 0.0) or 0.0)
+        beat_duration = float(beat.get("duration", 0.25) or 0.25)
+        remaining = max(0.0, target_seconds - elapsed)
+        seg_seconds = min(beat_duration, remaining)
+        if seg_seconds <= 0:
+            break
+        seg = _source_slice(audio, int(round(beat_start * sr)), max(1, int(round(seg_seconds * sr))))
+        next_index = (current + 1) % len(beats)
+        jumped = False
+        if beats_since_jump >= jump_after:
+            jump_target = _choose_background_jump(rng, current, candidate_map.get(current, []), len(beats), recent_targets)
+            if jump_target is not None:
+                next_index = jump_target
+                recent_targets.append(jump_target)
+                recent_targets = recent_targets[-24:]
+                beats_since_jump = 0
+                jump_after = rng.randint(min_loop_beats, max_sequential)
+                jumped = True
+        append_segment(seg, jumped)
+        elapsed += seg_seconds
+        beats_since_jump += 1
+        current = next_index
+    if pending_tail.size:
+        writer.write(pending_tail)
+
+
+def _encode_background_render(wav_path: Path, output_base: Path) -> tuple[Path, str]:
+    ffmpeg_dir = locate_ffmpeg_bin()
+    ffmpeg_path = None
+    if ffmpeg_dir:
+        candidate = ffmpeg_dir / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
+        if candidate.is_file():
+            ffmpeg_path = candidate
+    if ffmpeg_path is None:
+        found = shutil.which("ffmpeg")
+        if found:
+            ffmpeg_path = Path(found)
+    if ffmpeg_path:
+        m4a_path = output_base.with_suffix(".m4a")
+        subprocess.run(
+            [
+                str(ffmpeg_path),
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                str(wav_path),
+                "-c:a",
+                "aac",
+                "-b:a",
+                "160k",
+                "-movflags",
+                "+faststart",
+                str(m4a_path),
+            ],
+            check=True,
+        )
+        try:
+            wav_path.unlink()
+        except OSError:
+            pass
+        return m4a_path, "audio/mp4"
+    return wav_path, "audio/wav"
+
+
+def _process_background_render_job(job_id: str, payload: dict) -> None:
+    try:
+        _background_render_job_update(job_id, status="processing", progress="Loading track analysis...")
+        track_id = _safe_track_id(str(payload.get("trackId") or payload.get("track_id") or ""))
+        mode = str(payload.get("mode") or "canon").lower()
+        if mode not in {"canon", "jukebox", "eternal"}:
+            mode = "linear"
+        minutes = float(payload.get("minutes") or payload.get("lengthMinutes") or 10)
+        minutes = max(1.0, min(120.0, minutes))
+        seed_raw = payload.get("seed")
+        seed = int(seed_raw) if isinstance(seed_raw, (int, float, str)) and str(seed_raw).strip() else random.randint(1, 2**31 - 1)
+        settings = payload.get("settings") if isinstance(payload.get("settings"), dict) else {}
+        voice_count = int(payload.get("voiceCount") or 2)
+        voice_count = max(1, min(8, voice_count))
+
+        track = _load_track_profile(track_id)
+        audio_url = track.get("audio_url") or (track.get("info") or {}).get("url") or ""
+        audio_path = _audio_url_to_upload_path(audio_url)
+
+        request_hash = hashlib.sha256(
+            json.dumps(
+                {
+                    "trackId": track_id,
+                    "mode": mode,
+                    "minutes": round(minutes, 3),
+                    "seed": seed,
+                    "settings": settings,
+                    "voiceCount": voice_count,
+                },
+                sort_keys=True,
+                default=str,
+            ).encode("utf-8")
+        ).hexdigest()[:16]
+        output_base = BACKGROUND_RENDER_DIR / f"{track_id}-{mode}-{int(round(minutes * 60))}s-{request_hash}"
+        existing = next((p for p in [output_base.with_suffix(".m4a"), output_base.with_suffix(".wav")] if p.is_file()), None)
+        if existing:
+            rel = existing.relative_to(UPLOAD_FOLDER).as_posix()
+            _background_render_job_update(
+                job_id,
+                status="completed",
+                progress="Ready.",
+                result={
+                    "trackId": track_id,
+                    "mode": mode,
+                    "minutes": minutes,
+                    "seed": seed,
+                    "audioUrl": f"/media/{rel}",
+                    "title": track.get("title") or "Harmonizer background render",
+                    "artist": track.get("artist") or "",
+                    "cached": True,
+                },
+            )
+            return
+
+        if np is None or librosa is None or sf is None:
+            raise RuntimeError("Audio render dependencies are not available.")
+
+        _background_render_job_update(job_id, progress="Loading source audio...")
+        y, sr = librosa.load(str(audio_path), sr=44100, mono=False)  # type: ignore[arg-type]
+        audio = _normalize_audio_array(y)
+        target_seconds = minutes * 60.0
+        wav_path = output_base.with_suffix(".wav")
+        tmp_wav_path = output_base.with_suffix(".tmp.wav")
+
+        _background_render_job_update(job_id, progress="Rendering native background audio...")
+        with sf.SoundFile(str(tmp_wav_path), mode="w", samplerate=sr, channels=audio.shape[1], subtype="PCM_16") as writer:  # type: ignore[union-attr]
+            if mode in {"jukebox", "eternal"}:
+                _write_jukebox_render(writer, audio, sr, target_seconds, track, mode, settings, seed)
+            else:
+                _write_linear_or_canon_render(
+                    writer,
+                    audio,
+                    sr,
+                    int(round(target_seconds * sr)),
+                    track,
+                    mode,
+                    settings,
+                    voice_count,
+                )
+        tmp_wav_path.replace(wav_path)
+
+        _background_render_job_update(job_id, progress="Encoding phone-friendly audio...")
+        output_path, mime = _encode_background_render(wav_path, output_base)
+        rel = output_path.relative_to(UPLOAD_FOLDER).as_posix()
+        _background_render_job_update(
+            job_id,
+            status="completed",
+            progress="Ready.",
+            result={
+                "trackId": track_id,
+                "mode": mode,
+                "minutes": minutes,
+                "seed": seed,
+                "audioUrl": f"/media/{rel}",
+                "mimeType": mime,
+                "title": f"{track.get('title') or track_id} - Background {mode.title()}",
+                "artist": track.get("artist") or "",
+                "cached": False,
+            },
+        )
+    except Exception as exc:
+        print(f"[BackgroundRender] Job {job_id} failed: {exc}", flush=True)
+        import traceback
+        traceback.print_exc()
+        _background_render_job_update(job_id, status="failed", error=str(exc), progress="Failed.")
 
 def _process_eldrichify_job(job_id, file_bytes, filename, target_size):
     """Background thread worker for eldrichify processing"""
@@ -3621,6 +4076,64 @@ def api_process_status(job_id):
     elif job["status"] == "failed":
         response["error"] = job.get("error", "Unknown error")
 
+    return jsonify(response)
+
+
+@app.route("/api/background-render", methods=["POST", "OPTIONS"])
+def api_background_render():
+    """Start a native-audio background render for the currently loaded mode."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    payload = request.get_json(silent=True) or {}
+    track_id = _safe_track_id(str(payload.get("trackId") or payload.get("track_id") or ""))
+    if not track_id:
+        return jsonify({"error": "Missing trackId."}), 400
+
+    try:
+        # Validate early so frontend gets immediate feedback for bad track ids.
+        _load_track_profile(track_id)
+        _cleanup_old_jobs()
+        job_id = str(uuid.uuid4())
+        with _background_render_lock:
+            _background_render_jobs[job_id] = {
+                "status": "pending",
+                "progress": "Queued for rendering...",
+                "result": None,
+                "error": None,
+                "created": datetime.now(),
+            }
+        thread = threading.Thread(
+            target=_process_background_render_job,
+            args=(job_id, payload),
+            daemon=True,
+        )
+        thread.start()
+        return jsonify({"jobId": job_id, "status": "processing"})
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.route("/api/background-render/status/<job_id>", methods=["GET", "OPTIONS"])
+def api_background_render_status(job_id):
+    """Poll native background render status."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    with _background_render_lock:
+        job = _background_render_jobs.get(job_id)
+        job_copy = dict(job) if job else None
+    if not job_copy:
+        return jsonify({"error": "Job not found"}), 404
+    response = {
+        "jobId": job_id,
+        "status": job_copy.get("status"),
+        "progress": job_copy.get("progress", ""),
+    }
+    if job_copy.get("status") == "completed":
+        response["result"] = job_copy.get("result")
+    elif job_copy.get("status") == "failed":
+        response["error"] = job_copy.get("error", "Unknown error")
     return jsonify(response)
 
 

@@ -395,6 +395,16 @@ jgs   `-=========-`()
                     </div>
                     <div class="viz-actions">
                         <button id="play" class="viz-button">Play</button>
+                        <div class="background-render-control" title="Render the current mode to native phone-safe audio">
+                            <button type="button" id="background-render-btn" class="viz-button ghost">Background</button>
+                            <select id="background-render-length" class="viz-select" aria-label="Background render length">
+                                <option value="5">5 min</option>
+                                <option value="10" selected>10 min</option>
+                                <option value="30">30 min</option>
+                                <option value="60">60 min</option>
+                            </select>
+                            <span id="background-render-status" class="background-render-status" role="status" aria-live="polite"></span>
+                        </div>
                         <span class="viz-timer" id="mtime">00:00:00</span>
                         <div class="viz-mode-switch" id="viz-mode-switch">
 	                            <select id="viz-mode-select" aria-label="Switch playback mode">
@@ -860,7 +870,7 @@ jgs   `-=========-`()
             }
         })();
     </script>
-    <script src="./js/visualizer.js?v=2026051701"></script>
+    <script src="./js/visualizer.js?v=2026051702"></script>
     <script>
     (function() {
         const body = document.body;
@@ -4115,6 +4125,206 @@ jgs   `-=========-`()
             }
             return audio;
         };
+    })();
+
+    // Native background render/player
+    (function() {
+        const backgroundBtn = document.getElementById('background-render-btn');
+        const lengthSelect = document.getElementById('background-render-length');
+        const statusEl = document.getElementById('background-render-status');
+        let backgroundAudio = null;
+        let statusTimer = null;
+        let lengthTouched = false;
+
+        if (!backgroundBtn || !lengthSelect) return;
+
+        function syncDefaultLengthForMode() {
+            if (lengthTouched) return;
+            const modeKey = (document.body.getAttribute('data-mode') || 'canon').toLowerCase();
+            lengthSelect.value = modeKey === 'canon' ? '5' : '30';
+        }
+
+        lengthSelect.addEventListener('change', function() {
+            lengthTouched = true;
+        });
+        syncDefaultLengthForMode();
+        new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === 'data-mode') {
+                    syncDefaultLengthForMode();
+                }
+            });
+        }).observe(document.body, { attributes: true });
+
+        function setStatus(message) {
+            if (statusEl) {
+                statusEl.textContent = message || '';
+            }
+        }
+
+        function apiUrl(path) {
+            if (typeof resolveApiUrl === 'function') {
+                return resolveApiUrl(path, false);
+            }
+            return path;
+        }
+
+        function ensureBackgroundAudio() {
+            if (backgroundAudio) return backgroundAudio;
+            backgroundAudio = document.createElement('audio');
+            backgroundAudio.preload = 'auto';
+            backgroundAudio.playsInline = true;
+            backgroundAudio.crossOrigin = 'anonymous';
+            backgroundAudio.dataset.role = 'harmonizer-background-render-audio';
+            backgroundAudio.style.display = 'none';
+            document.body.appendChild(backgroundAudio);
+            backgroundAudio.addEventListener('ended', function() {
+                setStatus('Background render ended');
+            });
+            backgroundAudio.addEventListener('play', function() {
+                if (navigator.mediaSession) {
+                    navigator.mediaSession.playbackState = 'playing';
+                }
+            });
+            backgroundAudio.addEventListener('pause', function() {
+                if (navigator.mediaSession) {
+                    navigator.mediaSession.playbackState = 'paused';
+                }
+            });
+            return backgroundAudio;
+        }
+
+        function stopLiveEngine() {
+            try {
+                if (window.driver && typeof window.driver.isRunning === 'function' && window.driver.isRunning()) {
+                    if (typeof window.driver.pause === 'function') {
+                        window.driver.pause();
+                    } else if (typeof window.driver.stop === 'function') {
+                        window.driver.stop();
+                    }
+                }
+            } catch (err) {
+                console.warn('[BackgroundRender] Unable to stop live engine', err);
+            }
+        }
+
+        function primeNativeAudio(audio) {
+            const track = window.curTrack;
+            const rawSource = track && (track.audio_url || (track.info && track.info.url));
+            if (!rawSource) {
+                return Promise.resolve();
+            }
+            audio.volume = 0;
+            audio.muted = true;
+            audio.src = apiUrl(rawSource);
+            return audio.play().catch(function(err) {
+                console.warn('[BackgroundRender] Native audio priming failed', err);
+            });
+        }
+
+        function configureMediaSession(result) {
+            if (!navigator.mediaSession || !result) return;
+            try {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: result.title || 'Harmonizer Background Render',
+                    artist: result.artist || 'Harmonizer',
+                    album: 'Harmonizer'
+                });
+                navigator.mediaSession.setActionHandler('play', function() {
+                    ensureBackgroundAudio().play();
+                });
+                navigator.mediaSession.setActionHandler('pause', function() {
+                    ensureBackgroundAudio().pause();
+                });
+                navigator.mediaSession.setActionHandler('seekto', function(details) {
+                    const audio = ensureBackgroundAudio();
+                    if (details && typeof details.seekTime === 'number') {
+                        audio.currentTime = details.seekTime;
+                    }
+                });
+            } catch (err) {
+                console.warn('[BackgroundRender] Media Session setup failed', err);
+            }
+        }
+
+        async function pollRender(jobId) {
+            while (true) {
+                const response = await fetch(apiUrl('/api/background-render/status/' + encodeURIComponent(jobId)));
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Background render failed.');
+                }
+                setStatus(data.progress || data.status || 'Rendering...');
+                if (data.status === 'completed') {
+                    return data.result;
+                }
+                if (data.status === 'failed') {
+                    throw new Error(data.error || 'Background render failed.');
+                }
+                await new Promise((resolve) => setTimeout(resolve, 1200));
+            }
+        }
+
+        async function startBackgroundRender() {
+            if (typeof window.harmonizerGetBackgroundPayload !== 'function') {
+                setStatus('Track is not ready');
+                return;
+            }
+            const minutes = parseFloat(lengthSelect.value || '10') || 10;
+            let payload;
+            try {
+                payload = window.harmonizerGetBackgroundPayload({ minutes });
+            } catch (err) {
+                setStatus(err.message || 'No track loaded');
+                return;
+            }
+
+            const audio = ensureBackgroundAudio();
+            backgroundBtn.disabled = true;
+            lengthSelect.disabled = true;
+            setStatus('Preparing native audio...');
+            stopLiveEngine();
+            await primeNativeAudio(audio);
+
+            try {
+                setStatus('Rendering...');
+                const response = await fetch(apiUrl('/api/background-render'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const startData = await response.json();
+                if (!response.ok) {
+                    throw new Error(startData.error || 'Could not start background render.');
+                }
+                const result = await pollRender(startData.jobId);
+                configureMediaSession(result);
+                audio.pause();
+                audio.muted = false;
+                audio.volume = 1;
+                audio.loop = !!window.harmonizerLoopEnabled;
+                audio.src = apiUrl(result.audioUrl);
+                await audio.play();
+                setStatus((result.cached ? 'Playing cached ' : 'Playing ') + Math.round(result.minutes || minutes) + ' min render');
+            } catch (err) {
+                console.error('[BackgroundRender] Failed', err);
+                setStatus(err.message || 'Background render failed');
+            } finally {
+                backgroundBtn.disabled = false;
+                lengthSelect.disabled = false;
+                if (statusTimer) clearTimeout(statusTimer);
+                statusTimer = setTimeout(function() {
+                    if (statusEl && /^Playing /.test(statusEl.textContent || '')) {
+                        setStatus('');
+                    }
+                }, 5000);
+            }
+        }
+
+        backgroundBtn.addEventListener('click', function(event) {
+            event.preventDefault();
+            startBackgroundRender();
+        });
     })();
 
     // Base audio only toggle (mute overlays / extra tracks)
