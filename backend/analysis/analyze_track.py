@@ -169,6 +169,9 @@ def estimate_sections(
 ) -> List[Quantum]:
     chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=HOP_LENGTH)
+    frame_count = min(chroma.shape[1], mfcc.shape[1])
+    chroma = chroma[:, :frame_count]
+    mfcc = mfcc[:, :frame_count]
     features = np.vstack(
         (librosa.util.normalize(chroma), librosa.util.normalize(mfcc))
     )
