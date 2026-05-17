@@ -2652,6 +2652,30 @@ function prepareLoopCandidates(track) {
         return;
     }
 
+    function addServerLoopCandidate(src, cand) {
+        if (typeof src !== "number" || isNaN(src) || !cand || typeof cand.target !== "number") {
+            return;
+        }
+        var similarity = (typeof cand.similarity === "number") ? cand.similarity : 0;
+        if (!serverLoopCandidateMap[src]) {
+            serverLoopCandidateMap[src] = [];
+        }
+        serverLoopCandidateMap[src].push({
+            target: cand.target,
+            similarity: similarity,
+            span: cand.span || (cand.target - src),
+            direction: cand.direction || (cand.target >= src ? "forward" : "backward"),
+            section_match: cand.section_match || false,
+            score: cand.score,
+            abs_span: cand.abs_span,
+            beat_in_bar: cand.beat_in_bar,
+            bar_length_beats: cand.bar_length_beats,
+            chroma_similarity: cand.chroma_similarity,
+            source_energy: cand.source_energy,
+            target_energy: cand.target_energy
+        });
+    }
+
     // Priority 1: Use eternal_loop_candidates if available (circular, bidirectional)
     var eternalCandidates = track.analysis.eternal_loop_candidates;
     if (eternalCandidates && typeof eternalCandidates === "object") {
@@ -2665,29 +2689,19 @@ function prepareLoopCandidates(track) {
                 serverLoopCandidateMap[src] = [];
             }
             _.each(candidates, function(cand) {
-                if (cand && typeof cand.target === "number" && typeof cand.similarity === "number") {
-                    serverLoopCandidateMap[src].push({
-                        target: cand.target,
-                        similarity: cand.similarity,
-                        span: cand.span || 0,
-                        direction: cand.direction || 'backward',
-                        section_match: cand.section_match || false,
-                        score: cand.score,
-                        abs_span: cand.abs_span,
-                        beat_in_bar: cand.beat_in_bar,
-                        bar_length_beats: cand.bar_length_beats,
-                        chroma_similarity: cand.chroma_similarity,
-                        source_energy: cand.source_energy,
-                        target_energy: cand.target_energy
-                    });
-                }
+                addServerLoopCandidate(src, cand);
             });
         });
     }
 
-    // Priority 2: Fallback to canon loop_candidates
-    if (Object.keys(serverLoopCandidateMap).length === 0) {
-        console.log('[prepareLoopCandidates] Falling back to canon loop_candidates');
+    var sourceCount = Object.keys(serverLoopCandidateMap).length;
+    var totalCandidateCount = _.reduce(serverLoopCandidateMap, function(sum, entries) { return sum + entries.length; }, 0);
+    var sparseCandidateMap = track.analysis.beats && track.analysis.beats.length &&
+        (sourceCount < track.analysis.beats.length * 0.18 || totalCandidateCount < track.analysis.beats.length * 2);
+
+    // Priority 2: Merge canon candidates when eternal candidates are absent or too sparse.
+    if (sourceCount === 0 || sparseCandidateMap) {
+        console.log('[prepareLoopCandidates] Merging canon loop_candidates for sparse eternal graph');
         var edges = track.analysis.loop_candidates || [];
         if (!edges.length && track.analysis.canon_alignment && track.analysis.canon_alignment.loop_candidates) {
             edges = track.analysis.canon_alignment.loop_candidates;
@@ -2701,14 +2715,15 @@ function prepareLoopCandidates(track) {
             if (typeof src !== "number" || typeof dst !== "number") {
                 return;
             }
-            if (!serverLoopCandidateMap[src]) {
-                serverLoopCandidateMap[src] = [];
-            }
-            serverLoopCandidateMap[src].push({
-                target: dst,
-                similarity: (typeof edge.similarity === "number") ? edge.similarity : 0
-            });
+            addServerLoopCandidate(src, edge);
         });
+        if (track.analysis.canon_alignment && track.analysis.canon_alignment.transitions) {
+            _.each(track.analysis.canon_alignment.transitions, function(edge) {
+                if (edge && typeof edge.source === "number") {
+                    addServerLoopCandidate(edge.source, edge);
+                }
+            });
+        }
     }
 
     // Sort and limit candidates per beat
@@ -9089,6 +9104,7 @@ function createJukeboxDriver(player, options) {
     var JUMP_RESET_INTERVAL = 240; // keep edge memory over long sessions
     var beatsSinceUsageDecay = 0;
     var jumpsSinceReset = 0;
+    var sessionJumpCount = 0;
     var JBX_STUCK_WINDOW = 64;
     var JBX_STUCK_RATIO = 0.4;
     var recentJukeboxBeats = [];
@@ -9120,7 +9136,10 @@ function createJukeboxDriver(player, options) {
     var sectionBias = clamp01(options.sectionBias !== undefined ? options.sectionBias : 0.6);
     var jumpVariance = clamp01(options.jumpVariance !== undefined ? options.jumpVariance : 0.4);
     var meterGrid = inferMeterGrid();
-    minDwellBeats = Math.max(minLoopBeats, Math.min(48, Math.max(12, meterGrid.length * 4)));
+    var averageBeatDuration = estimateAverageBeatDuration();
+    var targetJumpBeats = secondsToBeats(22);
+    minDwellBeats = Math.max(minLoopBeats, secondsToBeats(12), meterGrid.length * 4);
+    maxSequentialBeats = Math.max(maxSequentialBeats, secondsToBeats(38), minDwellBeats + meterGrid.length * 3);
     var sameSectionBonusBase;
     var crossSectionBonusBase;
     var recentPenaltyScale;
@@ -9267,6 +9286,28 @@ function createJukeboxDriver(player, options) {
     function incrementBeatCount() {
         totalBeatsPlayed++;
         updateStatsDisplay();
+    }
+
+    function estimateAverageBeatDuration() {
+        if (!masterQs || !masterQs.length) {
+            return 0.5;
+        }
+        var durations = [];
+        for (var i = 0; i < masterQs.length; i++) {
+            var d = coerceNumber(masterQs[i] && masterQs[i].duration);
+            if (d !== null && d > 0.12 && d < 2.5) {
+                durations.push(d);
+            }
+        }
+        if (!durations.length) {
+            return 0.5;
+        }
+        durations.sort(function(a, b) { return a - b; });
+        return durations[Math.floor(durations.length / 2)] || 0.5;
+    }
+
+    function secondsToBeats(seconds) {
+        return Math.max(1, Math.round(seconds / Math.max(0.18, averageBeatDuration || 0.5)));
     }
 
     function trackJukeboxBeat(index) {
@@ -9527,6 +9568,10 @@ function createJukeboxDriver(player, options) {
     var RECENT_REGION_WINDOW_LIMIT = 64;
     var regionVisits = {};
     var sectionVisitCounts = {};
+    var edgeLastUsedAt = {};
+    var regionLastTargetAt = {};
+    var recentJumpDirections = [];
+    var RECENT_JUMP_DIRECTION_LIMIT = 10;
     var recentSections = [];
     var sectionAnchors = [];
     var orderedSectionAnchors = [];
@@ -9630,10 +9675,10 @@ function createJukeboxDriver(player, options) {
             return "escape";
         }
         var roll = Math.random();
-        if (roll < 0.04) {
+        if (roll < 0.06) {
             return "surprise";
         }
-        if (roll < 0.34) {
+        if (roll < 0.48) {
             return "explore";
         }
         return "continue";
@@ -9650,14 +9695,17 @@ function createJukeboxDriver(player, options) {
         var span = Math.max(1, maxSequentialBeats - minDwellBeats);
         var age = Math.min(1, Math.max(0, (beatsSinceJump - minDwellBeats) / span));
         var pressure = localLoopPressure();
-        var chance = 0.012 + age * 0.11 + Math.max(0, pressure - 0.44) * 0.46;
+        var chance = 0.090 + age * 0.36 + Math.max(0, pressure - 0.44) * 0.60;
+        if (linearBeatsSinceJump > targetJumpBeats * 1.4) {
+            chance = Math.max(chance, 0.78);
+        }
         if (linearBeatsSinceJump > maxSequentialBeats) {
-            chance = Math.max(chance, 0.34);
+            chance = Math.max(chance, 0.86);
         }
         if (!isPrimaryJumpPhase(currentIndex)) {
             chance *= 0.35;
         }
-        chance = Math.min(0.38, chance);
+        chance = Math.min(0.90, chance);
         return Math.random() < chance;
     }
 
@@ -9720,6 +9768,10 @@ function createJukeboxDriver(player, options) {
         stopStatsTracking();
         edgeUsage = {};
         usedJumpEdges = {};
+        edgeLastUsedAt = {};
+        regionLastTargetAt = {};
+        recentJumpDirections = [];
+        sessionJumpCount = 0;
         plannedJumps = [];
         recentJukeboxBeats = [];
         jumpsSinceReset = 0;
@@ -9729,6 +9781,38 @@ function createJukeboxDriver(player, options) {
         recentRegionWindows = [];
         linearBeatsSinceJump = 0;
         resetPlaybackState();
+    }
+
+    function rememberJumpDirection(direction) {
+        recentJumpDirections.push(direction === "forward" ? "forward" : "backward");
+        if (recentJumpDirections.length > RECENT_JUMP_DIRECTION_LIMIT) {
+            recentJumpDirections.shift();
+        }
+    }
+
+    function recentDirectionBalance() {
+        var forward = 0;
+        var backward = 0;
+        for (var i = 0; i < recentJumpDirections.length; i++) {
+            if (recentJumpDirections[i] === "forward") {
+                forward += 1;
+            } else {
+                backward += 1;
+            }
+        }
+        return {
+            forward: forward,
+            backward: backward,
+            total: recentJumpDirections.length
+        };
+    }
+
+    function edgeCooldownBeats() {
+        return Math.max(3, Math.round(targetJumpBeats * 2.2));
+    }
+
+    function regionCooldownBeats() {
+        return Math.max(2, Math.round(targetJumpBeats * 1.1));
     }
 
     function randomBetween(min, max) {
@@ -10217,6 +10301,10 @@ function createJukeboxDriver(player, options) {
         loopChoices = loops;
         loopHistory = [];
         usedJumpEdges = {};
+        edgeLastUsedAt = {};
+        regionLastTargetAt = {};
+        recentJumpDirections = [];
+        sessionJumpCount = 0;
         clearJumpBubbleHistory();
         recentSections = [];
         scheduleNextJump(true);
@@ -10319,19 +10407,11 @@ function createJukeboxDriver(player, options) {
 
     function scheduleNextJump(force) {
         var phrase = Math.max(3, (meterGrid && meterGrid.length) || 4);
-        var minB = Math.max(minLoopBeats, phrase * 4);
-        var maxB = Math.max(minB + 1, maxSequentialBeats);
-        var span = Math.max(2, maxB - minB);
-        var bias = jumpVariance;
-        var upperFrac = force ? (0.45 + bias * 0.2) : (0.65 + bias * 0.3);
-        var lowerFrac = force ? Math.max(0.15, bias * 0.2) : Math.max(0.35, bias * 0.35);
-        var upper = Math.max(minB + 1, Math.min(maxB, minB + Math.round(span * upperFrac)));
-        var lower = Math.max(minB, Math.min(upper - 1, minB + Math.round(span * lowerFrac)));
+        var target = targetJumpBeats || secondsToBeats(22);
+        var lower = Math.max(minLoopBeats, secondsToBeats(force ? 11 : 14), Math.round(target * (force ? 0.55 : 0.70)));
+        var upper = Math.max(lower + phrase, Math.min(maxSequentialBeats, Math.round(target * (force ? 1.25 : 1.75))));
         if (lower >= upper) {
-            lower = Math.max(minB, upper - 1);
-        }
-        if (lower >= upper) {
-            lower = minB;
+            upper = lower + phrase * 2;
         }
         var raw = randomBetween(lower, upper);
         beatsUntilJump = Math.max(phrase, Math.round(raw / phrase) * phrase);
@@ -10364,6 +10444,66 @@ function createJukeboxDriver(player, options) {
             return orderedSectionAnchors[Math.floor(Math.random() * orderedSectionAnchors.length)];
         }
         return Math.max(0, Math.floor(masterQs.length / 3));
+    }
+
+    function circularSignedSpan(sourceIdx, targetIdx) {
+        var total = masterQs && masterQs.length ? masterQs.length : 0;
+        if (!total) {
+            return targetIdx - sourceIdx;
+        }
+        var forward = (targetIdx - sourceIdx + total) % total;
+        var backward = forward - total;
+        return Math.abs(forward) <= Math.abs(backward) ? forward : backward;
+    }
+
+    function continuityScore(sourceIdx, targetIdx) {
+        if (!masterQs || !masterQs.length) {
+            return 0;
+        }
+        var total = masterQs.length;
+        var score = 0;
+        var weights = [0.44, 0.28, 0.18, 0.10];
+        for (var k = 0; k < weights.length; k++) {
+            var srcBeat = masterQs[(sourceIdx + k) % total];
+            var tgtBeat = masterQs[(targetIdx + k) % total];
+            if (!srcBeat || !tgtBeat) {
+                continue;
+            }
+            var energyDelta = Math.abs(beatEnergy(srcBeat) - beatEnergy(tgtBeat));
+            var phaseMatch = musicalPhaseForIndex((sourceIdx + k) % total) === musicalPhaseForIndex((targetIdx + k) % total);
+            var local = 1 - Math.min(1, energyDelta / 22);
+            if (phaseMatch) {
+                local += 0.12;
+            } else {
+                local -= 0.18;
+            }
+            score += weights[k] * local;
+        }
+        return score;
+    }
+
+    function edgeReusePenalty(edgeKey) {
+        var lastUsed = edgeLastUsedAt[edgeKey];
+        if (typeof lastUsed !== "number") {
+            return 0;
+        }
+        var age = sessionJumpCount - lastUsed;
+        if (age >= edgeCooldownBeats()) {
+            return 0.08;
+        }
+        return 0.60 * (1 - age / Math.max(1, edgeCooldownBeats()));
+    }
+
+    function regionReusePenalty(regionKey) {
+        var lastUsed = regionLastTargetAt[regionKey];
+        if (typeof lastUsed !== "number") {
+            return 0;
+        }
+        var age = sessionJumpCount - lastUsed;
+        if (age >= regionCooldownBeats()) {
+            return 0;
+        }
+        return 0.28 * (1 - age / Math.max(1, regionCooldownBeats()));
     }
 
     function selectJumpCandidate(src, intentOverride) {
@@ -10406,7 +10546,8 @@ function createJukeboxDriver(player, options) {
             return null;
         }
 
-        var radii = [0];
+        var phraseRadius = Math.max(4, meterGrid.length || 4);
+        var radii = [0, phraseRadius, phraseRadius * 2, phraseRadius * 3, phraseRadius * 4, phraseRadius * 6, phraseRadius * 8, phraseRadius * 10, phraseRadius * 12];
         var searchRadius = radii[0];
         var candidates = [];
         for (var radiusIdx = 0; radiusIdx < radii.length; radiusIdx++) {
@@ -10425,7 +10566,7 @@ function createJukeboxDriver(player, options) {
         // Recency filter on recent jumps and over-used edges.
         var filtered = _.filter(candidates, function(item) {
             var edgeKey = src + ":" + item.edge.target;
-            if (usedJumpEdges[edgeKey] || (edgeUsage[edgeKey] || 0) > 0) {
+            if (edgeReusePenalty(edgeKey) > 0.48) {
                 return false;
             }
             for (var i = loopHistory.length - 1; i >= Math.max(0, loopHistory.length - 8); i--) {
@@ -10444,7 +10585,7 @@ function createJukeboxDriver(player, options) {
         if (!filtered.length) {
             filtered = _.filter(candidates, function(item) {
                 var edgeKey = src + ":" + item.edge.target;
-                return !usedJumpEdges[edgeKey];
+                return edgeReusePenalty(edgeKey) <= 0.48;
             });
             if (!filtered.length) {
                 return null;
@@ -10453,7 +10594,7 @@ function createJukeboxDriver(player, options) {
         if (filtered.length < 6) {
             var usedFiltered = _.filter(candidates, function(item) {
                 var edgeKey = src + ":" + item.edge.target;
-                if (usedJumpEdges[edgeKey]) {
+                if (edgeReusePenalty(edgeKey) > 0.48) {
                     return false;
                 }
                 for (var i = loopHistory.length - 1; i >= Math.max(0, loopHistory.length - 4); i--) {
@@ -10526,7 +10667,9 @@ function createJukeboxDriver(player, options) {
 
             var spanVal = (typeof edge.span === "number") ? edge.span : (targetIdx - item.source);
             var absSpan = Math.abs(spanVal);
-            var direction = edge.direction || (spanVal < 0 ? "backward" : "forward");
+            var signedCircleSpan = circularSignedSpan(src, targetIdx);
+            var direction = signedCircleSpan >= 0 ? "forward" : "backward";
+            absSpan = Math.abs(signedCircleSpan);
 
             // Backward safety - relaxed for eternal mode (circular timeline needs backward jumps)
             var backwardPenalty = 0;
@@ -10572,7 +10715,8 @@ function createJukeboxDriver(player, options) {
             var coverageBonus = Math.max(0, 0.18 - Math.min(3, barVisits) * 0.05);
             var targetRegion = regionWindowForBeat(targetIdx);
             var targetSection = typeof targetBeat.section === "number" ? targetBeat.section : null;
-            var regionPenalty = Math.min(0.55, (regionVisits[targetRegion] || 0) * 0.055);
+            var regionPenalty = Math.min(0.36, (regionVisits[targetRegion] || 0) * 0.030);
+            regionPenalty += regionReusePenalty(targetRegion);
             var sectionVisitPenalty = targetSection !== null ? Math.min(0.25, (sectionVisitCounts[targetSection] || 0) * 0.035) : 0;
 
             // Similarity + musical bonuses
@@ -10584,9 +10728,16 @@ function createJukeboxDriver(player, options) {
             }
             var chromaBonus = (typeof edge.chroma_similarity === "number") ? Math.max(0, edge.chroma_similarity) * 0.15 : 0;
             var sectionBonus = edge.sameSection ? sameSectionBonusBase : crossSectionBonusBase * 0.5;
-            var directionBias = direction === "forward" ? 0.05 : -0.05;
-            if (direction === "backward" && modeState === "explore") {
-                directionBias -= 0.06;
+            var directionCounts = recentDirectionBalance();
+            var directionBias = 0;
+            if (directionCounts.total >= 3) {
+                if (directionCounts.forward > directionCounts.backward + 1) {
+                    directionBias += direction === "backward" ? 0.18 : -0.16;
+                } else if (directionCounts.backward > directionCounts.forward + 1) {
+                    directionBias += direction === "forward" ? 0.18 : -0.16;
+                }
+            } else if (direction === "backward") {
+                directionBias += 0.06;
             }
             var energyBonus = 0;
             if (typeof targetEnergy === "number" && typeof sourceEnergy === "number" && sourceEnergy !== 0) {
@@ -10606,6 +10757,12 @@ function createJukeboxDriver(player, options) {
                 ? Math.abs(targetEnergy - sourceEnergy)
                 : 0;
             var maxEnergyDelta = intent === "escape" ? 18 : (intent === "surprise" ? 16 : (intent === "explore" ? 14 : 12));
+            if (edge.similarity >= 0.82) {
+                maxEnergyDelta += 5;
+            }
+            if (item.distance > 0) {
+                maxEnergyDelta += Math.min(4, item.distance * 0.18);
+            }
             if (energyDelta > maxEnergyDelta) {
                 return;
             }
@@ -10620,31 +10777,43 @@ function createJukeboxDriver(player, options) {
             }
 
             var distanceNorm = Math.min(1, circularBeatDistance(src, targetIdx) / Math.max(1, masterQs.length * 0.35));
+            var weakZonePenalty = 0;
+            var weakStart = Math.floor(masterQs.length * 0.04);
+            var weakEnd = Math.floor(masterQs.length * 0.94);
+            if ((targetIdx < weakStart || targetIdx > weakEnd) && masterQs.length > 80) {
+                weakZonePenalty = 0.14;
+            }
+            var continuity = continuityScore(src, targetIdx);
             var novelty = 0;
             if (intent === "escape") {
-                novelty += targetRegion !== srcRegion ? 0.24 : -0.18;
-                novelty += targetSection !== null && srcSection !== null && targetSection !== srcSection ? 0.10 : -0.04;
-                novelty += distanceNorm * 0.18;
+                novelty += targetRegion !== srcRegion ? 0.30 : -0.18;
+                novelty += targetSection !== null && srcSection !== null && targetSection !== srcSection ? 0.12 : -0.04;
+                novelty += distanceNorm * 0.22;
             } else if (intent === "explore") {
-                novelty += targetRegion !== srcRegion ? 0.14 : -0.10;
-                novelty += targetSection !== null && srcSection !== null && targetSection !== srcSection ? 0.06 : 0.02;
-                novelty += distanceNorm * 0.10;
-            } else if (intent === "surprise") {
-                novelty += targetRegion !== srcRegion ? 0.12 : -0.08;
+                novelty += targetRegion !== srcRegion ? 0.24 : -0.10;
+                novelty += targetSection !== null && srcSection !== null && targetSection !== srcSection ? 0.08 : 0.02;
                 novelty += distanceNorm * 0.16;
+            } else if (intent === "surprise") {
+                novelty += targetRegion !== srcRegion ? 0.20 : -0.08;
+                novelty += distanceNorm * 0.20;
             } else {
                 novelty += edge.sameSection ? 0.10 : -0.04;
-                novelty += distanceNorm * 0.03;
+                novelty += targetRegion !== srcRegion ? 0.08 : -0.04;
+                novelty += distanceNorm * 0.05;
             }
             var sourceDriftPenalty = Math.min(0.18, item.distance * 0.012);
-            var jitter = (Math.random() - 0.5) * (intent === "continue" ? 0.04 : 0.10);
+            var highEnergyPenalty = Math.max(0, energyDelta - 12) * 0.010;
+            var jitter = (Math.random() - 0.5) * (intent === "continue" ? 0.08 : 0.16);
+            var edgeKeyForScore = src + ":" + targetIdx;
+            var repeatPenalty = edgeReusePenalty(edgeKeyForScore);
 
             var score = baseScore * 0.22
                 + transitionScore * 1.25
+                + continuity * 0.42
                 + novelty
                 + chromaBonus * 0.35
                 + sectionBonus * 0.35
-                + directionBias * 0.5
+                + directionBias
                 + energyBonus * 1.2
                 + endZoneBonus
                 - visitPenalty
@@ -10654,6 +10823,9 @@ function createJukeboxDriver(player, options) {
                 - phasePenalty * 0.35
                 - backwardPenalty * 0.5
                 - sourceDriftPenalty
+                - highEnergyPenalty
+                - repeatPenalty
+                - weakZonePenalty
                 + jitter;
 
             // Usage penalty: discourage reusing the same edge too often this session
@@ -10681,6 +10853,7 @@ function createJukeboxDriver(player, options) {
                 span: spanVal,
                 score: score,
                 transitionScore: transitionScore,
+                continuityScore: continuity,
                 qualityScore: qualityScore,
                 barVisits: barVisits,
                 direction: direction
@@ -10771,6 +10944,7 @@ function createJukeboxDriver(player, options) {
             sameSection: chosen.edge.sameSection,
             qualityScore: chosen.score,
             transitionScore: chosen.transitionScore,
+            continuityScore: chosen.continuityScore,
             intent: intent,
             direction: chosen.direction,
             sourcePhase: musicalPhaseForIndex(src),
@@ -10946,8 +11120,8 @@ function createJukeboxDriver(player, options) {
         var jumpIntent = chooseJumpIntent();
         var scheduledJumpReady = beatsUntilJump <= 0 || shouldAttemptJukeboxJump(jumpIntent);
         if (beatsSinceJump >= minDwellBeats && scheduledJumpReady && isSafeJumpExit(currentIndex, jumpIntent)) {
-            var jump = takePlannedJumpIfValid();
-            if (!jump && !plannedJumps.length) {
+            var jump = modeName === "eternal" ? null : takePlannedJumpIfValid();
+            if (!jump && modeName !== "eternal" && !plannedJumps.length) {
                 planRouteFrom(currentIndex);
                 jump = takePlannedJumpIfValid();
             }
@@ -10973,8 +11147,12 @@ function createJukeboxDriver(player, options) {
                 // Track edge usage for variety (penalize overused edges)
                 var edgeKey = jumpSourceIndex + ":" + stackedTarget;
                 usedJumpEdges[edgeKey] = true;
+                edgeLastUsedAt[edgeKey] = sessionJumpCount;
                 edgeUsage[edgeKey] = (edgeUsage[edgeKey] || 0) + 1;
                 jumpsSinceReset += 1;
+                sessionJumpCount += 1;
+                rememberJumpDirection(jump.direction);
+                regionLastTargetAt[regionWindowForBeat(stackedTarget)] = sessionJumpCount;
                 if (jumpsSinceReset >= JUMP_RESET_INTERVAL) {
                     edgeUsage = {};
                     loopHistory.length = 0;
@@ -11003,6 +11181,7 @@ function createJukeboxDriver(player, options) {
                     target_time: targetBeat ? targetBeat.start : null,
                     quality_score: jump.qualityScore,
                     transition_score: jump.transitionScore,
+                    continuity_score: jump.continuityScore,
                     intent: jump.intent,
                     source_phase: jump.sourcePhase,
                     target_phase: jump.targetPhase,

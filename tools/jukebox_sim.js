@@ -36,7 +36,27 @@ function loadTrack(profilePath) {
   const track = raw.response && raw.response.track ? raw.response.track : raw;
   const analysis = track.analysis || {};
   const beats = analysis.beats || [];
-  const candidates = analysis.eternal_loop_candidates || {};
+  const candidates = { ...(analysis.eternal_loop_candidates || {}) };
+  const sourceCount = Object.values(candidates).filter((list) => Array.isArray(list) && list.length).length;
+  const edgeCount = Object.values(candidates).reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
+  if (beats.length && (sourceCount < beats.length * 0.18 || edgeCount < beats.length * 2)) {
+    const fallbackEdges = []
+      .concat(Array.isArray(analysis.loop_candidates) ? analysis.loop_candidates : [])
+      .concat(analysis.canon_alignment && Array.isArray(analysis.canon_alignment.loop_candidates) ? analysis.canon_alignment.loop_candidates : [])
+      .concat(analysis.canon_alignment && Array.isArray(analysis.canon_alignment.transitions) ? analysis.canon_alignment.transitions : []);
+    fallbackEdges.forEach((edge) => {
+      if (!edge || typeof edge.source !== "number" || typeof edge.target !== "number") return;
+      const key = String(edge.source);
+      if (!Array.isArray(candidates[key])) candidates[key] = [];
+      candidates[key].push({
+        target: edge.target,
+        similarity: typeof edge.similarity === "number" ? edge.similarity : 0,
+        span: edge.target - edge.source,
+        direction: edge.target >= edge.source ? "forward" : "backward",
+        section_match: !!edge.section_match,
+      });
+    });
+  }
   return {
     title: track.title || path.basename(profilePath),
     beats,
@@ -58,6 +78,18 @@ function beatEnergy(beat) {
   if (typeof beat.volume === "number") return beat.volume;
   if (typeof beat.loudness === "number") return beat.loudness;
   return 0;
+}
+
+function averageBeatDuration(beats) {
+  const durations = beats
+    .map((b) => (b && typeof b.duration === "number" ? b.duration : null))
+    .filter((d) => d !== null && d > 0.12 && d < 2.5)
+    .sort((a, b) => a - b);
+  return durations.length ? durations[Math.floor(durations.length / 2)] : 0.5;
+}
+
+function secondsToBeats(seconds, avgDuration) {
+  return Math.max(1, Math.round(seconds / Math.max(0.18, avgDuration || 0.5)));
 }
 
 function inferMeterGrid(beats) {
@@ -194,6 +226,12 @@ function randomInt(rand, min, max) {
 function circularDistance(a, b, n) {
   const diff = Math.abs(a - b);
   return Math.min(diff, n - diff);
+}
+
+function circularSignedSpan(a, b, n) {
+  const forward = (b - a + n) % n;
+  const backward = forward - n;
+  return Math.abs(forward) <= Math.abs(backward) ? forward : backward;
 }
 
 function sectionOf(beat) {
@@ -346,6 +384,10 @@ function summarize(track, visited, jumps, seed, policy) {
   const primarySource = jumps.filter((j) => isPrimaryPhase(track.beats, grid, j.source)).length;
   const energyDeltas = jumps.map((j) => typeof j.energyDelta === "number" ? j.energyDelta : 0);
   const avgEnergyDelta = energyDeltas.length ? energyDeltas.reduce((s, v) => s + v, 0) / energyDeltas.length : 0;
+  const continuities = jumps.map((j) => typeof j.continuity === "number" ? j.continuity : 0);
+  const avgContinuity = continuities.length ? continuities.reduce((s, v) => s + v, 0) / continuities.length : 0;
+  const forwardJumps = jumps.filter((j) => j.direction === "forward").length;
+  const backwardJumps = jumps.filter((j) => j.direction === "backward").length;
   const totalSeconds = visited.reduce((sum, idx) => {
     const beat = track.beats[idx] || {};
     return sum + (typeof beat.duration === "number" && beat.duration > 0 ? beat.duration : 0.5);
@@ -365,6 +407,9 @@ function summarize(track, visited, jumps, seed, policy) {
     phaseAlignedShare: jumps.length ? phaseAligned / jumps.length : 1,
     primarySourceShare: jumps.length ? primarySource / jumps.length : 1,
     avgEnergyDelta,
+    avgContinuity,
+    forwardShare: jumps.length ? forwardJumps / jumps.length : 0,
+    backwardShare: jumps.length ? backwardJumps / jumps.length : 0,
     meterLength: grid.length,
     meterConfidence: grid.confidence,
     firstJumps: jumps.slice(0, 12),
@@ -407,6 +452,9 @@ function main() {
     avgPhaseAlignedShare: avg("phaseAlignedShare"),
     avgPrimarySourceShare: avg("primarySourceShare"),
     avgEnergyDelta: avg("avgEnergyDelta"),
+    avgContinuity: avg("avgContinuity"),
+    avgForwardShare: avg("forwardShare"),
+    avgBackwardShare: avg("backwardShare"),
     meterLength: runs[0] && runs[0].meterLength,
     meterConfidence: runs[0] && runs[0].meterConfidence,
     worstCoverage: worst("coverage", (a, b) => a - b),
@@ -429,7 +477,10 @@ function runExplore(track, seed, minutes) {
     jumpTemperature: 0.22,
   };
   const meterGrid = inferMeterGrid(track.beats);
-  opts.minDwellBeats = Math.max(opts.minLoopBeats, Math.min(48, Math.max(12, meterGrid.length * 4)));
+  const avgDuration = averageBeatDuration(track.beats);
+  const targetJumpBeats = secondsToBeats(22, avgDuration);
+  opts.minDwellBeats = Math.max(opts.minLoopBeats, secondsToBeats(12, avgDuration), meterGrid.length * 4);
+  opts.maxSequentialBeats = Math.max(opts.maxSequentialBeats, secondsToBeats(38, avgDuration), opts.minDwellBeats + meterGrid.length * 3);
   const graph = normalizeGraph(track, opts);
   const allEdges = [];
   Object.keys(graph).forEach((key) => {
@@ -445,6 +496,10 @@ function runExplore(track, seed, minutes) {
   const loopHistory = [];
   const edgeUsage = {};
   const usedJumpEdges = {};
+  const edgeLastUsed = {};
+  const regionLastTarget = {};
+  const recentDirections = [];
+  let jumpCount = 0;
   const regionVisits = {};
   const sectionVisits = {};
   const visited = [];
@@ -472,29 +527,82 @@ function runExplore(track, seed, minutes) {
     return Math.max(...Object.values(counts)) / recentWindows.length;
   }
 
+  function edgeCooldown() {
+    return Math.max(3, Math.round(targetJumpBeats * 2.2));
+  }
+
+  function regionCooldown() {
+    return Math.max(2, Math.round(targetJumpBeats * 1.1));
+  }
+
+  function edgeReusePenalty(key) {
+    if (typeof edgeLastUsed[key] !== "number") return 0;
+    const age = jumpCount - edgeLastUsed[key];
+    if (age >= edgeCooldown()) return 0.08;
+    return 0.60 * (1 - age / Math.max(1, edgeCooldown()));
+  }
+
+  function regionReusePenalty(region) {
+    if (typeof regionLastTarget[region] !== "number") return 0;
+    const age = jumpCount - regionLastTarget[region];
+    if (age >= regionCooldown()) return 0;
+    return 0.28 * (1 - age / Math.max(1, regionCooldown()));
+  }
+
+  function rememberDirection(direction) {
+    recentDirections.push(direction === "forward" ? "forward" : "backward");
+    if (recentDirections.length > 10) recentDirections.shift();
+  }
+
+  function directionBias(direction) {
+    const forward = recentDirections.filter((d) => d === "forward").length;
+    const backward = recentDirections.length - forward;
+    if (recentDirections.length >= 3) {
+      if (forward > backward + 1) return direction === "backward" ? 0.18 : -0.16;
+      if (backward > forward + 1) return direction === "forward" ? 0.18 : -0.16;
+    }
+    return direction === "backward" ? 0.06 : 0;
+  }
+
+  function continuityScore(source, target) {
+    const weights = [0.44, 0.28, 0.18, 0.10];
+    let score = 0;
+    for (let k = 0; k < weights.length; k++) {
+      const sIdx = (source + k) % n;
+      const tIdx = (target + k) % n;
+      const energyDelta = Math.abs(beatEnergy(track.beats[sIdx]) - beatEnergy(track.beats[tIdx]));
+      let local = 1 - Math.min(1, energyDelta / 22);
+      local += musicalPhase(track.beats, meterGrid, sIdx) === musicalPhase(track.beats, meterGrid, tIdx) ? 0.12 : -0.18;
+      score += weights[k] * local;
+    }
+    return score;
+  }
+
   function jumpChance(intent) {
     if (beatsSinceJump < opts.minDwellBeats) return 0;
     intent = intent || chooseIntent();
     if (!isSafeExit(track.beats, meterGrid, idx, intent)) return 0;
     const age = Math.min(1, (beatsSinceJump - opts.minDwellBeats) / Math.max(1, opts.maxSequentialBeats - opts.minDwellBeats));
     const stuck = localStuckScore();
-    let chance = 0.012 + age * 0.11 + Math.max(0, stuck - 0.44) * 0.46;
-    if (linearRun > opts.maxSequentialBeats) chance = Math.max(chance, 0.34);
+    let chance = 0.090 + age * 0.36 + Math.max(0, stuck - 0.44) * 0.60;
+    if (linearRun > targetJumpBeats * 1.4) chance = Math.max(chance, 0.78);
+    if (linearRun > opts.maxSequentialBeats) chance = Math.max(chance, 0.86);
     if (!isPrimaryPhase(track.beats, meterGrid, idx)) chance *= 0.35;
-    return Math.min(0.38, chance);
+    return Math.min(0.90, chance);
   }
 
   function chooseIntent() {
     const stuck = localStuckScore();
     if (stuck > 0.48 || linearRun > opts.maxSequentialBeats * 1.15) return "escape";
     const r = rand();
-    if (r < 0.04) return "surprise";
-    if (r < 0.34) return "explore";
+    if (r < 0.06) return "surprise";
+    if (r < 0.48) return "explore";
     return "continue";
   }
 
   function collect(src, intent) {
-    const radii = [0];
+    const phrase = Math.max(4, meterGrid.length || 4);
+    const radii = [0, phrase, phrase * 2, phrase * 3, phrase * 4, phrase * 6, phrase * 8, phrase * 10, phrase * 12];
     for (const radius of radii) {
       const out = [];
       for (let offset = 0; offset <= radius; offset++) {
@@ -520,7 +628,9 @@ function runExplore(track, seed, minutes) {
     const phaseMatch = phasesCompatible(track.beats, meterGrid, src, edge.target, item.intent || "continue");
     if (!phaseMatch) return null;
     const energyDelta = Math.abs((targetEnergy || 0) - (srcEnergy || 0));
-    const maxEnergyDelta = item.intent === "escape" ? 18 : item.intent === "surprise" ? 16 : item.intent === "explore" ? 14 : 12;
+    let maxEnergyDelta = item.intent === "escape" ? 18 : item.intent === "surprise" ? 16 : item.intent === "explore" ? 14 : 12;
+    if (edge.similarity >= 0.82) maxEnergyDelta += 5;
+    if (item.distance > 0) maxEnergyDelta += Math.min(4, item.distance * 0.18);
     if (energyDelta > maxEnergyDelta) return null;
     let score = 0;
     score += edge.similarity * 0.42;
@@ -540,7 +650,7 @@ function runExplore(track, seed, minutes) {
     const recentRadius = intent === "escape" ? 48 : intent === "explore" ? 28 : 16;
     let filtered = candidates.filter((item) => {
       const edgeKey = `${src}:${item.edge.target}`;
-      if (usedJumpEdges[edgeKey] || (edgeUsage[edgeKey] || 0) > 0) return false;
+      if (edgeReusePenalty(edgeKey) > 0.48) return false;
       if (loopHistory.slice(-8).some((h) => h.target === item.edge.target || (h.source === item.edge.target && h.target === src))) return false;
       if (recentTargets.some((t) => circularDistance(t, item.edge.target, n) <= recentRadius)) return false;
       return true;
@@ -548,11 +658,11 @@ function runExplore(track, seed, minutes) {
     if (filtered.length < 6) {
       filtered = candidates.filter((item) => {
         const edgeKey = `${src}:${item.edge.target}`;
-        return !usedJumpEdges[edgeKey] && !loopHistory.slice(-4).some((h) => h.target === item.edge.target);
+        return edgeReusePenalty(edgeKey) <= 0.48 && !loopHistory.slice(-4).some((h) => h.target === item.edge.target);
       });
     }
     if (!filtered.length) {
-      filtered = candidates.filter((item) => !usedJumpEdges[`${src}:${item.edge.target}`]);
+      filtered = candidates.filter((item) => edgeReusePenalty(`${src}:${item.edge.target}`) <= 0.48);
     }
     if (!filtered.length) return null;
 
@@ -568,33 +678,39 @@ function runExplore(track, seed, minutes) {
       const energyDelta = Math.abs((targetEnergy || 0) - (sourceEnergy || 0));
       const targetWin = windowKey(edge.target);
       const targetSection = sectionOf(track.beats[edge.target]);
-      const regionPenalty = Math.min(0.55, (regionVisits[targetWin] || 0) * 0.055);
+      const regionPenalty = Math.min(0.36, (regionVisits[targetWin] || 0) * 0.030) + regionReusePenalty(targetWin);
       const sectionPenalty = targetSection >= 0 ? Math.min(0.25, (sectionVisits[targetSection] || 0) * 0.035) : 0;
       const distance = circularDistance(src, edge.target, n);
       const distanceNorm = Math.min(1, distance / Math.max(1, n * 0.35));
       const sourceDriftPenalty = Math.min(0.18, item.distance * 0.012);
+      const highEnergyPenalty = Math.max(0, energyDelta - 12) * 0.010;
       const repeatPenalty = Math.min(0.55, (edgeUsage[`${src}:${edge.target}`] || 0) * 0.24);
+      const signedSpan = circularSignedSpan(src, edge.target, n);
+      const direction = signedSpan >= 0 ? "forward" : "backward";
+      const continuity = continuityScore(src, edge.target);
+      const weakZonePenalty = n > 80 && (edge.target < Math.floor(n * 0.04) || edge.target > Math.floor(n * 0.94)) ? 0.14 : 0;
       let novelty = 0;
       if (intent === "escape") {
-        novelty += targetWin !== currentWin ? 0.24 : -0.18;
-        novelty += targetSection !== currentSection ? 0.10 : -0.04;
-        novelty += distanceNorm * 0.18;
+        novelty += targetWin !== currentWin ? 0.30 : -0.18;
+        novelty += targetSection !== currentSection ? 0.12 : -0.04;
+        novelty += distanceNorm * 0.22;
       } else if (intent === "explore") {
-        novelty += targetWin !== currentWin ? 0.14 : -0.10;
-        novelty += targetSection !== currentSection ? 0.06 : 0.02;
-        novelty += distanceNorm * 0.10;
-      } else if (intent === "surprise") {
-        novelty += targetWin !== currentWin ? 0.12 : -0.08;
+        novelty += targetWin !== currentWin ? 0.24 : -0.10;
+        novelty += targetSection !== currentSection ? 0.08 : 0.02;
         novelty += distanceNorm * 0.16;
+      } else if (intent === "surprise") {
+        novelty += targetWin !== currentWin ? 0.20 : -0.08;
+        novelty += distanceNorm * 0.20;
       } else {
         novelty += edge.sameSection ? 0.10 : -0.04;
-        novelty += distanceNorm * 0.03;
+        novelty += targetWin !== currentWin ? 0.08 : -0.04;
+        novelty += distanceNorm * 0.05;
       }
-      const jitter = (rand() - 0.5) * (intent === "continue" ? 0.04 : 0.10);
+      const jitter = (rand() - 0.5) * (intent === "continue" ? 0.08 : 0.16);
       const minTransition = intent === "surprise" ? 0.44 : intent === "escape" ? 0.40 : 0.46;
       if (tq < minTransition) return;
-      const score = tq * 1.25 + novelty - regionPenalty - sectionPenalty - sourceDriftPenalty - repeatPenalty + jitter;
-      scored.push({ source: item.source, target: edge.target, edge, score, direction: edge.direction, tq, energyDelta });
+      const score = tq * 1.25 + continuity * 0.42 + novelty + directionBias(direction) - regionPenalty - sectionPenalty - sourceDriftPenalty - highEnergyPenalty - repeatPenalty - edgeReusePenalty(`${src}:${edge.target}`) - weakZonePenalty + jitter;
+      scored.push({ source: item.source, target: edge.target, edge, score, direction, tq, energyDelta, continuity });
     });
     if (!scored.length) return null;
     scored.sort((a, b) => b.score - a.score);
@@ -630,11 +746,15 @@ function runExplore(track, seed, minutes) {
     if (rand() < jumpChance(intent)) {
       const jump = select(idx, intent);
       if (jump) {
-        jumps.push({ source: idx, target: jump.target, score: jump.score, transition: jump.tq, direction: jump.direction, intent: jump.intent, energyDelta: jump.energyDelta });
+        jumps.push({ source: idx, target: jump.target, score: jump.score, transition: jump.tq, direction: jump.direction, intent: jump.intent, energyDelta: jump.energyDelta, continuity: jump.continuity });
         loopHistory.push({ source: idx, target: jump.target });
         if (loopHistory.length > 16) loopHistory.shift();
         usedJumpEdges[`${idx}:${jump.target}`] = true;
+        edgeLastUsed[`${idx}:${jump.target}`] = jumpCount;
         edgeUsage[`${idx}:${jump.target}`] = (edgeUsage[`${idx}:${jump.target}`] || 0) + 1;
+        jumpCount++;
+        rememberDirection(jump.direction);
+        regionLastTarget[windowKey(jump.target)] = jumpCount;
         idx = jump.target;
         beatsSinceJump = 0;
         linearRun = 0;
