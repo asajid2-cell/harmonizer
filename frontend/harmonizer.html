@@ -22,7 +22,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./modern.css?v=2025112424">
+    <link rel="stylesheet" href="./modern.css?v=2026051703">
     <link rel="stylesheet" href="./visualizer.css?v=2025112424">
 </head>
 <body class="page state-home advanced-collapsed" data-mode="canon">
@@ -543,6 +543,24 @@ jgs   `-=========-`()
                         </div>
                     </div>
             </header>
+            <section id="background-player-panel" class="background-player-panel" hidden aria-label="Background render player">
+                <div class="background-player-head">
+                    <div>
+                        <h3>Background Player</h3>
+                        <p id="background-render-detail">Render the current mode into native audio for phone background playback.</p>
+                    </div>
+                    <button type="button" id="background-dismiss-btn" class="viz-button ghost">Hide</button>
+                </div>
+                <div class="background-progress" aria-hidden="true">
+                    <div id="background-render-progress-bar"></div>
+                </div>
+                <audio id="background-render-audio" class="background-render-audio" controls preload="auto" playsinline></audio>
+                <div class="background-player-actions">
+                    <button type="button" id="background-play-toggle" class="viz-button ghost">Play/Pause</button>
+                    <button type="button" id="background-stop-btn" class="viz-button ghost">Stop</button>
+                    <span id="background-render-summary" class="background-render-summary"></span>
+                </div>
+            </section>
             <div class="viz-body">
                 <section class="viz-stage">
                     <div class="playback-shell" id="playback-shell">
@@ -4132,11 +4150,19 @@ jgs   `-=========-`()
         const backgroundBtn = document.getElementById('background-render-btn');
         const lengthSelect = document.getElementById('background-render-length');
         const statusEl = document.getElementById('background-render-status');
-        let backgroundAudio = null;
-        let statusTimer = null;
+        const panel = document.getElementById('background-player-panel');
+        const detailEl = document.getElementById('background-render-detail');
+        const summaryEl = document.getElementById('background-render-summary');
+        const progressBar = document.getElementById('background-render-progress-bar');
+        const audio = document.getElementById('background-render-audio');
+        const playToggle = document.getElementById('background-play-toggle');
+        const stopBtn = document.getElementById('background-stop-btn');
+        const dismissBtn = document.getElementById('background-dismiss-btn');
         let lengthTouched = false;
+        let activePollToken = 0;
+        let activeJobId = null;
 
-        if (!backgroundBtn || !lengthSelect) return;
+        if (!backgroundBtn || !lengthSelect || !audio || !panel || !playToggle || !stopBtn || !dismissBtn) return;
 
         function syncDefaultLengthForMode() {
             if (lengthTouched) return;
@@ -4156,9 +4182,33 @@ jgs   `-=========-`()
             });
         }).observe(document.body, { attributes: true });
 
-        function setStatus(message) {
+        function showPanel() {
+            panel.hidden = false;
+        }
+
+        function setProgress(percent) {
+            const value = Math.max(0, Math.min(100, Number(percent) || 0));
+            if (progressBar) {
+                progressBar.style.width = value + '%';
+            }
+        }
+
+        function setStatus(message, detail, percent) {
+            const text = message || '';
             if (statusEl) {
-                statusEl.textContent = message || '';
+                statusEl.textContent = text;
+            }
+            if (detailEl) {
+                detailEl.textContent = detail || text || 'Ready.';
+            }
+            if (typeof percent === 'number') {
+                setProgress(percent);
+            }
+        }
+
+        function setSummary(message) {
+            if (summaryEl) {
+                summaryEl.textContent = message || '';
             }
         }
 
@@ -4169,29 +4219,12 @@ jgs   `-=========-`()
             return path;
         }
 
-        function ensureBackgroundAudio() {
-            if (backgroundAudio) return backgroundAudio;
-            backgroundAudio = document.createElement('audio');
-            backgroundAudio.preload = 'auto';
-            backgroundAudio.playsInline = true;
-            backgroundAudio.crossOrigin = 'anonymous';
-            backgroundAudio.dataset.role = 'harmonizer-background-render-audio';
-            backgroundAudio.style.display = 'none';
-            document.body.appendChild(backgroundAudio);
-            backgroundAudio.addEventListener('ended', function() {
-                setStatus('Background render ended');
-            });
-            backgroundAudio.addEventListener('play', function() {
-                if (navigator.mediaSession) {
-                    navigator.mediaSession.playbackState = 'playing';
-                }
-            });
-            backgroundAudio.addEventListener('pause', function() {
-                if (navigator.mediaSession) {
-                    navigator.mediaSession.playbackState = 'paused';
-                }
-            });
-            return backgroundAudio;
+        function modeLabel(modeName) {
+            const key = (modeName || '').toLowerCase();
+            if (key === 'jukebox') return 'Eternal Jukebox';
+            if (key === 'eternal') return 'Eternal Canonizer';
+            if (key === 'canon') return 'Autocanonizer';
+            return key || 'Harmonizer';
         }
 
         function stopLiveEngine() {
@@ -4208,7 +4241,7 @@ jgs   `-=========-`()
             }
         }
 
-        function primeNativeAudio(audio) {
+        function primeNativeAudio() {
             const track = window.curTrack;
             const rawSource = track && (track.audio_url || (track.info && track.info.url));
             if (!rawSource) {
@@ -4231,13 +4264,15 @@ jgs   `-=========-`()
                     album: 'Harmonizer'
                 });
                 navigator.mediaSession.setActionHandler('play', function() {
-                    ensureBackgroundAudio().play();
+                    audio.play();
                 });
                 navigator.mediaSession.setActionHandler('pause', function() {
-                    ensureBackgroundAudio().pause();
+                    audio.pause();
+                });
+                navigator.mediaSession.setActionHandler('stop', function() {
+                    stopBackgroundPlayback();
                 });
                 navigator.mediaSession.setActionHandler('seekto', function(details) {
-                    const audio = ensureBackgroundAudio();
                     if (details && typeof details.seekTime === 'number') {
                         audio.currentTime = details.seekTime;
                     }
@@ -4247,14 +4282,20 @@ jgs   `-=========-`()
             }
         }
 
-        async function pollRender(jobId) {
-            while (true) {
+        function setBusy(isBusy) {
+            backgroundBtn.disabled = isBusy;
+            lengthSelect.disabled = isBusy;
+        }
+
+        async function pollRender(jobId, pollToken) {
+            while (pollToken === activePollToken) {
                 const response = await fetch(apiUrl('/api/background-render/status/' + encodeURIComponent(jobId)));
                 const data = await response.json();
                 if (!response.ok) {
                     throw new Error(data.error || 'Background render failed.');
                 }
-                setStatus(data.progress || data.status || 'Rendering...');
+                const percent = typeof data.progressPercent === 'number' ? data.progressPercent : undefined;
+                setStatus(data.progress || data.status || 'Rendering...', data.progress || 'Rendering native audio...', percent);
                 if (data.status === 'completed') {
                     return data.result;
                 }
@@ -4263,11 +4304,13 @@ jgs   `-=========-`()
                 }
                 await new Promise((resolve) => setTimeout(resolve, 1200));
             }
+            throw new Error('Background render stopped.');
         }
 
         async function startBackgroundRender() {
+            showPanel();
             if (typeof window.harmonizerGetBackgroundPayload !== 'function') {
-                setStatus('Track is not ready');
+                setStatus('Track is not ready', 'Load a track before rendering.', 0);
                 return;
             }
             const minutes = parseFloat(lengthSelect.value || '10') || 10;
@@ -4275,19 +4318,22 @@ jgs   `-=========-`()
             try {
                 payload = window.harmonizerGetBackgroundPayload({ minutes });
             } catch (err) {
-                setStatus(err.message || 'No track loaded');
+                setStatus(err.message || 'No track loaded', err.message || 'No track loaded', 0);
                 return;
             }
 
-            const audio = ensureBackgroundAudio();
-            backgroundBtn.disabled = true;
-            lengthSelect.disabled = true;
-            setStatus('Preparing native audio...');
+            const pollToken = activePollToken + 1;
+            activePollToken = pollToken;
+            activeJobId = null;
+            setBusy(true);
+            setProgress(0);
+            setSummary(modeLabel(payload.mode) + ' - ' + minutes + ' minute render');
+            setStatus('Preparing native audio...', 'Preparing the phone-safe audio element.', 4);
             stopLiveEngine();
-            await primeNativeAudio(audio);
+            await primeNativeAudio();
 
             try {
-                setStatus('Rendering...');
+                setStatus('Starting render...', 'Sending current mode and advanced settings to the renderer.', 6);
                 const response = await fetch(apiUrl('/api/background-render'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -4297,33 +4343,88 @@ jgs   `-=========-`()
                 if (!response.ok) {
                     throw new Error(startData.error || 'Could not start background render.');
                 }
-                const result = await pollRender(startData.jobId);
+                activeJobId = startData.jobId;
+                const result = await pollRender(startData.jobId, pollToken);
+                if (pollToken !== activePollToken) return;
                 configureMediaSession(result);
                 audio.pause();
                 audio.muted = false;
                 audio.volume = 1;
                 audio.loop = !!window.harmonizerLoopEnabled;
                 audio.src = apiUrl(result.audioUrl);
-                await audio.play();
-                setStatus((result.cached ? 'Playing cached ' : 'Playing ') + Math.round(result.minutes || minutes) + ' min render');
+                audio.load();
+                const summary = result.renderSummary && result.renderSummary.settingsSummary ? result.renderSummary.settingsSummary : '';
+                setSummary(modeLabel(result.mode) + ' - ' + Math.round(result.minutes || minutes) + ' min' + (summary ? ' - ' + summary : ''));
+                try {
+                    await audio.play();
+                    setStatus('Playing background render', (result.cached ? 'Using cached render. ' : 'Render complete. ') + summary, 100);
+                } catch (playErr) {
+                    console.warn('[BackgroundRender] Autoplay after render was blocked', playErr);
+                    setStatus('Ready for background playback', 'Render complete. Press Play in the background player.', 100);
+                }
             } catch (err) {
-                console.error('[BackgroundRender] Failed', err);
-                setStatus(err.message || 'Background render failed');
+                if (pollToken === activePollToken) {
+                    console.error('[BackgroundRender] Failed', err);
+                    setStatus(err.message || 'Background render failed', err.message || 'Background render failed', 0);
+                }
             } finally {
-                backgroundBtn.disabled = false;
-                lengthSelect.disabled = false;
-                if (statusTimer) clearTimeout(statusTimer);
-                statusTimer = setTimeout(function() {
-                    if (statusEl && /^Playing /.test(statusEl.textContent || '')) {
-                        setStatus('');
-                    }
-                }, 5000);
+                if (pollToken === activePollToken) {
+                    setBusy(false);
+                }
+            }
+        }
+
+        function stopBackgroundPlayback() {
+            activePollToken += 1;
+            activeJobId = null;
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.load();
+            setBusy(false);
+            setProgress(0);
+            setStatus('Stopped', 'Background playback stopped.', 0);
+            setSummary('');
+            if (navigator.mediaSession) {
+                navigator.mediaSession.playbackState = 'none';
             }
         }
 
         backgroundBtn.addEventListener('click', function(event) {
             event.preventDefault();
             startBackgroundRender();
+        });
+        playToggle.addEventListener('click', function() {
+            showPanel();
+            if (!audio.src) {
+                startBackgroundRender();
+                return;
+            }
+            if (audio.paused) {
+                audio.play();
+            } else {
+                audio.pause();
+            }
+        });
+        stopBtn.addEventListener('click', stopBackgroundPlayback);
+        dismissBtn.addEventListener('click', function() {
+            panel.hidden = true;
+        });
+        audio.addEventListener('play', function() {
+            setStatus('Playing background render', detailEl ? detailEl.textContent : '', 100);
+            if (navigator.mediaSession) {
+                navigator.mediaSession.playbackState = 'playing';
+            }
+        });
+        audio.addEventListener('pause', function() {
+            if (audio.src && audio.currentTime > 0 && !audio.ended) {
+                setStatus('Paused', detailEl ? detailEl.textContent : '', undefined);
+            }
+            if (navigator.mediaSession) {
+                navigator.mediaSession.playbackState = 'paused';
+            }
+        });
+        audio.addEventListener('ended', function() {
+            setStatus('Background render ended', 'The rendered audio reached the end.', 100);
         });
     })();
 

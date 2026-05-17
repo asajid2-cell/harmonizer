@@ -667,6 +667,70 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     overflow-wrap: anywhere;
 }
 
+.background-player-panel {
+    margin: 0 16px 16px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    background: rgba(18, 24, 28, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.background-player-panel[hidden] {
+    display: none;
+}
+
+.background-player-head,
+.background-player-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.background-player-head h3 {
+    margin: 0;
+    font-size: 0.88rem;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.background-player-head p {
+    margin: 3px 0 0;
+    color: var(--color-muted);
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+.background-progress {
+    height: 6px;
+    margin: 12px 0;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.background-progress > div {
+    width: 0%;
+    height: 100%;
+    background: var(--color-lime);
+    transition: width 160ms ease;
+}
+
+.background-render-audio {
+    display: block;
+    width: 100%;
+    min-height: 38px;
+    margin: 8px 0 10px;
+}
+
+.background-render-summary {
+    min-width: min(320px, 100%);
+    color: var(--color-muted);
+    font-size: 0.78rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
 .drive-helper-hint {
     margin: 10px 0 0;
     font-size: 0.8rem;

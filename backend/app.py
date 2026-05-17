@@ -439,6 +439,15 @@ def _background_render_job_update(job_id: str, **fields) -> None:
             job.update(fields)
 
 
+def _background_render_progress(job_id: Optional[str], progress: str, percent: Optional[float] = None) -> None:
+    if not job_id:
+        return
+    fields = {"progress": progress}
+    if percent is not None:
+        fields["progressPercent"] = max(0, min(100, int(round(percent))))
+    _background_render_job_update(job_id, **fields)
+
+
 def _safe_track_id(raw: str) -> str:
     return re.sub(r"[^A-Za-z0-9+_-]+", "", raw or "")
 
@@ -477,9 +486,56 @@ def _audio_url_to_upload_path(audio_url: str) -> Path:
 
 def _extract_group_settings(settings: dict, group: str) -> dict:
     group_data = (settings or {}).get(group) or {}
-    if isinstance(group_data, dict) and isinstance(group_data.get("settings"), dict):
-        return group_data["settings"]
+    if isinstance(group_data, dict) and (isinstance(group_data.get("settings"), dict) or isinstance(group_data.get("defaults"), dict)):
+        merged = {}
+        if isinstance(group_data.get("defaults"), dict):
+            merged.update(group_data["defaults"])
+        if isinstance(group_data.get("settings"), dict):
+            merged.update(group_data["settings"])
+        return merged
     return group_data if isinstance(group_data, dict) else {}
+
+
+def _extract_group_enabled(settings: dict, group: str) -> bool:
+    group_data = (settings or {}).get(group) or {}
+    if isinstance(group_data, dict) and "enabled" in group_data:
+        return bool(group_data.get("enabled"))
+    return True
+
+
+def _coerce_float(value, default: float, low: float, high: float) -> float:
+    try:
+        parsed = float(value)
+    except Exception:
+        parsed = default
+    return max(low, min(high, parsed))
+
+
+def _coerce_int(value, default: int, low: int, high: int) -> int:
+    try:
+        parsed = int(round(float(value)))
+    except Exception:
+        parsed = default
+    return max(low, min(high, parsed))
+
+
+def _load_render_audio(audio_path: Path, target_sr: int = 44100) -> tuple["np.ndarray", int]:
+    try:
+        data, sr = sf.read(str(audio_path), dtype="float32", always_2d=True)  # type: ignore[union-attr]
+        audio = _normalize_audio_array(data)
+        if int(sr) != target_sr:
+            if librosa is None:
+                raise RuntimeError("Audio resampling dependency is not available.")
+            channels = [
+                librosa.resample(audio[:, idx], orig_sr=int(sr), target_sr=target_sr)  # type: ignore[union-attr]
+                for idx in range(audio.shape[1])
+            ]
+            audio = np.stack(channels, axis=1).astype(np.float32, copy=False)
+            sr = target_sr
+        return audio, int(sr)
+    except Exception:
+        y, sr = librosa.load(str(audio_path), sr=target_sr, mono=False)  # type: ignore[arg-type,union-attr]
+        return _normalize_audio_array(y), int(sr)
 
 
 def _normalize_audio_array(y) -> "np.ndarray":
@@ -524,6 +580,7 @@ def _write_linear_or_canon_render(
     mode: str,
     settings: dict,
     voice_count: int,
+    job_id: Optional[str] = None,
 ) -> None:
     block = sr * 5
     analysis = track.get("analysis") or {}
@@ -532,7 +589,14 @@ def _write_linear_or_canon_render(
     beat_seconds = [float(b.get("start", 0.0)) for b in beats if isinstance(b, dict)]
     beat_offset_seconds = []
     if mode in {"canon", "eternal"} and beat_seconds:
+        overlay_group = "eternalOverlay" if mode == "eternal" else "canonOverlay"
+        overlay_settings = _extract_group_settings(settings, overlay_group)
+        min_offset = _coerce_int(overlay_settings.get("minOffsetBeats"), 8, 1, max(1, len(beat_seconds) - 1))
+        max_offset = _coerce_int(overlay_settings.get("maxOffsetBeats"), 64, min_offset, max(min_offset, len(beat_seconds) - 1))
+        density = _coerce_float(overlay_settings.get("density"), float(max(1, voice_count - 1)), 0.5, 8.0)
+        variation = _coerce_float(overlay_settings.get("variation"), 1.0, 0.0, 8.0)
         global_offsets = analysis.get("global_voice_offsets") or []
+        canon_candidates = analysis.get("canon_candidates") or []
         alignment = analysis.get("canon_alignment") or {}
         fallback = int(alignment.get("offset") or max(4, len(beats) // 4))
         chosen_offsets = []
@@ -541,11 +605,38 @@ def _write_linear_or_canon_render(
                 chosen_offsets.append(int(value))
             except Exception:
                 pass
+        if isinstance(canon_candidates, list):
+            for candidate in canon_candidates:
+                if not isinstance(candidate, dict):
+                    continue
+                for key in ("offset", "offsetBeats", "beatOffset"):
+                    if key in candidate:
+                        try:
+                            chosen_offsets.append(int(candidate[key]))
+                        except Exception:
+                            pass
+                        break
         if not chosen_offsets:
             chosen_offsets = [fallback]
-        overlay_count = max(1, min(7, int(voice_count or 2) - 1))
+        filtered_offsets = []
+        for value in chosen_offsets:
+            distance = abs(int(value))
+            if min_offset <= distance <= max_offset and value not in filtered_offsets:
+                filtered_offsets.append(value)
+        if not filtered_offsets:
+            filtered_offsets = [value for value in chosen_offsets if abs(int(value)) >= min_offset]
+        if not filtered_offsets:
+            filtered_offsets = chosen_offsets
+        filtered_offsets.sort(key=lambda value: (abs(int(value)), int(value) < 0))
+        rng = random.Random(hashlib.sha256(json.dumps(filtered_offsets, default=str).encode("utf-8")).hexdigest())
+        if variation > 0.25 and len(filtered_offsets) > 1:
+            shuffle_count = min(len(filtered_offsets), int(round(variation * 2)))
+            head = filtered_offsets[:shuffle_count]
+            rng.shuffle(head)
+            filtered_offsets = head + filtered_offsets[shuffle_count:]
+        overlay_count = max(1, min(7, int(voice_count or 2) - 1, int(round(density))))
         for idx in range(overlay_count):
-            offset_beats = chosen_offsets[idx % len(chosen_offsets)]
+            offset_beats = filtered_offsets[idx % len(filtered_offsets)]
             beat_index = abs(offset_beats) % len(beat_seconds)
             offset_time = beat_seconds[beat_index]
             if offset_beats < 0:
@@ -566,6 +657,9 @@ def _write_linear_or_canon_render(
             chunk *= 0.98 / peak
         writer.write(chunk)
         written += take
+        if job_id and target_samples > 0:
+            pct = 15 + (written / target_samples) * 70
+            _background_render_progress(job_id, f"Rendering native audio... {int(round(written / sr))}s", pct)
 
 
 def _build_candidate_map(analysis: dict, mode: str) -> dict[int, list[dict]]:
@@ -605,6 +699,8 @@ def _choose_background_jump(
     candidates: list[dict],
     total_beats: int,
     recent_targets: list[int],
+    route_length: int,
+    temperature: float,
 ) -> Optional[int]:
     if not candidates:
         return None
@@ -616,7 +712,7 @@ def _choose_background_jump(
             continue
         if target < 0 or target >= total_beats or target == current:
             continue
-        if target in recent_targets[-10:]:
+        if target in recent_targets[-max(4, route_length):]:
             continue
         span = abs(target - current)
         circular_span = min(span, total_beats - span)
@@ -631,7 +727,15 @@ def _choose_background_jump(
     if not pool:
         return None
     pool.sort(reverse=True)
-    pool = pool[:8]
+    pool = pool[:max(4, min(24, route_length * 2))]
+    strongest = pool[0][0] if pool else 1.0
+    temp = max(0.05, min(0.8, temperature))
+    weighted_pool = []
+    for score, target in pool:
+        normalized = max(0.01, score / max(0.01, strongest))
+        weight = max(0.001, normalized ** (1.0 / temp))
+        weighted_pool.append((weight, target))
+    pool = weighted_pool
     total = sum(item[0] for item in pool)
     pick = rng.random() * total
     acc = 0.0
@@ -651,17 +755,18 @@ def _write_jukebox_render(
     mode: str,
     settings: dict,
     seed: int,
-) -> None:
+    job_id: Optional[str] = None,
+) -> dict:
     analysis = track.get("analysis") or {}
     beats = [b for b in (analysis.get("beats") or []) if isinstance(b, dict)]
     if not beats:
-        _write_linear_or_canon_render(writer, audio, sr, int(target_seconds * sr), track, "linear", settings, 1)
-        return
+        _write_linear_or_canon_render(writer, audio, sr, int(target_seconds * sr), track, "linear", settings, 1, job_id)
+        return {"jumpCount": 0, "settingsSummary": "No beat graph available; rendered linear audio."}
     loop_settings = _extract_group_settings(settings, "eternalLoop" if mode == "eternal" else "jukeboxLoop")
-    min_loop_beats = int(loop_settings.get("minLoopBeats") or 24)
-    max_sequential = int(loop_settings.get("maxSequentialBeats") or 56)
-    min_loop_beats = max(8, min(128, min_loop_beats))
-    max_sequential = max(min_loop_beats + 4, min(192, max_sequential))
+    min_loop_beats = _coerce_int(loop_settings.get("minLoopBeats"), 24, 8, 128)
+    max_sequential = _coerce_int(loop_settings.get("maxSequentialBeats"), 56, min_loop_beats + 4, 192)
+    route_length = _coerce_int(loop_settings.get("routeLength"), 8, 4, 32)
+    jump_temperature = _coerce_float(loop_settings.get("jumpTemperature"), 0.25, 0.05, 0.8)
     candidate_map = _build_candidate_map(analysis, mode)
     rng = random.Random(seed)
     current = 0
@@ -671,6 +776,7 @@ def _write_jukebox_render(
     recent_targets: list[int] = []
     crossfade_samples = max(64, int(sr * 0.045))
     pending_tail = np.zeros((0, audio.shape[1]), dtype=np.float32)
+    jump_count = 0
 
     def append_segment(segment: "np.ndarray", jumped: bool) -> None:
         nonlocal pending_tail
@@ -712,20 +818,39 @@ def _write_jukebox_render(
         next_index = (current + 1) % len(beats)
         jumped = False
         if beats_since_jump >= jump_after:
-            jump_target = _choose_background_jump(rng, current, candidate_map.get(current, []), len(beats), recent_targets)
+            jump_target = _choose_background_jump(
+                rng,
+                current,
+                candidate_map.get(current, []),
+                len(beats),
+                recent_targets,
+                route_length,
+                jump_temperature,
+            )
             if jump_target is not None:
                 next_index = jump_target
                 recent_targets.append(jump_target)
-                recent_targets = recent_targets[-24:]
+                recent_targets = recent_targets[-max(24, route_length * 3):]
                 beats_since_jump = 0
                 jump_after = rng.randint(min_loop_beats, max_sequential)
                 jumped = True
+                jump_count += 1
         append_segment(seg, jumped)
         elapsed += seg_seconds
         beats_since_jump += 1
         current = next_index
+        if job_id and target_seconds > 0 and (jumped or int(elapsed) % 5 == 0):
+            pct = 15 + (elapsed / target_seconds) * 70
+            _background_render_progress(job_id, f"Rendering route... {int(round(elapsed))}s, {jump_count} jumps", pct)
     if pending_tail.size:
         writer.write(pending_tail)
+    return {
+        "jumpCount": jump_count,
+        "settingsSummary": (
+            f"{min_loop_beats}-{max_sequential} beat spacing, route {route_length}, "
+            f"temperature {jump_temperature:.2f}"
+        ),
+    }
 
 
 def _encode_background_render(wav_path: Path, output_base: Path) -> tuple[Path, str]:
@@ -770,7 +895,7 @@ def _encode_background_render(wav_path: Path, output_base: Path) -> tuple[Path, 
 
 def _process_background_render_job(job_id: str, payload: dict) -> None:
     try:
-        _background_render_job_update(job_id, status="processing", progress="Loading track analysis...")
+        _background_render_job_update(job_id, status="processing", progress="Loading track analysis...", progressPercent=2)
         track_id = _safe_track_id(str(payload.get("trackId") or payload.get("track_id") or ""))
         mode = str(payload.get("mode") or "canon").lower()
         if mode not in {"canon", "jukebox", "eternal"}:
@@ -809,6 +934,7 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
                 job_id,
                 status="completed",
                 progress="Ready.",
+                progressPercent=100,
                 result={
                     "trackId": track_id,
                     "mode": mode,
@@ -825,17 +951,18 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
         if np is None or librosa is None or sf is None:
             raise RuntimeError("Audio render dependencies are not available.")
 
-        _background_render_job_update(job_id, progress="Loading source audio...")
-        y, sr = librosa.load(str(audio_path), sr=44100, mono=False)  # type: ignore[arg-type]
-        audio = _normalize_audio_array(y)
+        _background_render_progress(job_id, "Decoding source audio...", 8)
+        audio, sr = _load_render_audio(audio_path, 44100)
+        _background_render_progress(job_id, f"Decoded {int(round(audio.shape[0] / max(1, sr)))}s source audio.", 14)
         target_seconds = minutes * 60.0
         wav_path = output_base.with_suffix(".wav")
         tmp_wav_path = output_base.with_suffix(".tmp.wav")
 
-        _background_render_job_update(job_id, progress="Rendering native background audio...")
+        _background_render_progress(job_id, "Rendering native background audio...", 15)
+        render_summary = {}
         with sf.SoundFile(str(tmp_wav_path), mode="w", samplerate=sr, channels=audio.shape[1], subtype="PCM_16") as writer:  # type: ignore[union-attr]
             if mode in {"jukebox", "eternal"}:
-                _write_jukebox_render(writer, audio, sr, target_seconds, track, mode, settings, seed)
+                render_summary = _write_jukebox_render(writer, audio, sr, target_seconds, track, mode, settings, seed, job_id)
             else:
                 _write_linear_or_canon_render(
                     writer,
@@ -846,16 +973,29 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
                     mode,
                     settings,
                     voice_count,
+                    job_id,
                 )
+                overlay_group = "eternalOverlay" if mode == "eternal" else "canonOverlay"
+                overlay_settings = _extract_group_settings(settings, overlay_group)
+                render_summary = {
+                    "voiceCount": voice_count,
+                    "settingsSummary": (
+                        f"{voice_count} voices, offsets "
+                        f"{overlay_settings.get('minOffsetBeats', 8)}-{overlay_settings.get('maxOffsetBeats', 64)} beats, "
+                        f"density {overlay_settings.get('density', voice_count)}"
+                    ),
+                    "advancedEnabled": _extract_group_enabled(settings, overlay_group),
+                }
         tmp_wav_path.replace(wav_path)
 
-        _background_render_job_update(job_id, progress="Encoding phone-friendly audio...")
+        _background_render_progress(job_id, "Encoding phone-friendly audio...", 88)
         output_path, mime = _encode_background_render(wav_path, output_base)
         rel = output_path.relative_to(UPLOAD_FOLDER).as_posix()
         _background_render_job_update(
             job_id,
             status="completed",
             progress="Ready.",
+            progressPercent=100,
             result={
                 "trackId": track_id,
                 "mode": mode,
@@ -866,6 +1006,7 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
                 "title": f"{track.get('title') or track_id} - Background {mode.title()}",
                 "artist": track.get("artist") or "",
                 "cached": False,
+                "renderSummary": render_summary,
             },
         )
     except Exception as exc:
@@ -4129,6 +4270,7 @@ def api_background_render_status(job_id):
         "jobId": job_id,
         "status": job_copy.get("status"),
         "progress": job_copy.get("progress", ""),
+        "progressPercent": job_copy.get("progressPercent", 0),
     }
     if job_copy.get("status") == "completed":
         response["result"] = job_copy.get("result")
