@@ -22,7 +22,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./modern.css?v=2026051703">
+    <link rel="stylesheet" href="./modern.css?v=2026051901">
     <link rel="stylesheet" href="./visualizer.css?v=2025112424">
 </head>
 <body class="page state-home advanced-collapsed" data-mode="canon">
@@ -554,6 +554,14 @@ jgs   `-=========-`()
                 <div class="background-progress" aria-hidden="true">
                     <div id="background-render-progress-bar"></div>
                 </div>
+                <div class="background-render-options">
+                    <label for="background-render-quality">Quality</label>
+                    <select id="background-render-quality" class="viz-select" aria-label="Background render quality">
+                        <option value="balanced" selected>Balanced - 32 kHz / 128k</option>
+                        <option value="high">High - 44.1 kHz / 160k</option>
+                        <option value="fast">Fast - 22 kHz / 96k</option>
+                    </select>
+                </div>
                 <audio id="background-render-audio" class="background-render-audio" controls preload="auto" playsinline></audio>
                 <div class="background-player-actions">
                     <button type="button" id="background-play-toggle" class="viz-button ghost">Play/Pause</button>
@@ -888,7 +896,7 @@ jgs   `-=========-`()
             }
         })();
     </script>
-    <script src="./js/visualizer.js?v=2026051702"></script>
+    <script src="./js/visualizer.js?v=2026051901"></script>
     <script>
     (function() {
         const body = document.body;
@@ -4154,6 +4162,7 @@ jgs   `-=========-`()
         const detailEl = document.getElementById('background-render-detail');
         const summaryEl = document.getElementById('background-render-summary');
         const progressBar = document.getElementById('background-render-progress-bar');
+        const qualitySelect = document.getElementById('background-render-quality');
         const audio = document.getElementById('background-render-audio');
         const playToggle = document.getElementById('background-play-toggle');
         const stopBtn = document.getElementById('background-stop-btn');
@@ -4162,7 +4171,7 @@ jgs   `-=========-`()
         let activePollToken = 0;
         let activeJobId = null;
 
-        if (!backgroundBtn || !lengthSelect || !audio || !panel || !playToggle || !stopBtn || !dismissBtn) return;
+        if (!backgroundBtn || !lengthSelect || !qualitySelect || !audio || !panel || !playToggle || !stopBtn || !dismissBtn) return;
 
         function syncDefaultLengthForMode() {
             if (lengthTouched) return;
@@ -4292,6 +4301,7 @@ jgs   `-=========-`()
         function setBusy(isBusy) {
             backgroundBtn.disabled = isBusy;
             lengthSelect.disabled = isBusy;
+            qualitySelect.disabled = isBusy;
         }
 
         async function pollRender(jobId, pollToken) {
@@ -4338,7 +4348,10 @@ jgs   `-=========-`()
             const minutes = parseFloat(lengthSelect.value || '10') || 10;
             let payload;
             try {
-                payload = window.harmonizerGetBackgroundPayload({ minutes });
+                payload = window.harmonizerGetBackgroundPayload({
+                    minutes,
+                    quality: qualitySelect.value || 'balanced'
+                });
             } catch (err) {
                 setStatus(err.message || 'No track loaded', err.message || 'No track loaded', 0);
                 return;
@@ -4349,7 +4362,8 @@ jgs   `-=========-`()
             activeJobId = null;
             setBusy(true);
             setProgress(0);
-            setSummary(modeLabel(payload.mode) + ' - ' + minutes + ' minute render');
+            const qualityLabel = qualitySelect.options[qualitySelect.selectedIndex] ? qualitySelect.options[qualitySelect.selectedIndex].textContent : 'Balanced';
+            setSummary(modeLabel(payload.mode) + ' - ' + minutes + ' minute render - ' + qualityLabel);
             setStatus('Preparing native audio...', 'Preparing the phone-safe audio element.', 4);
             stopLiveEngine();
             await primeNativeAudio();

@@ -520,6 +520,20 @@ def _coerce_int(value, default: int, low: int, high: int) -> int:
     return max(low, min(high, parsed))
 
 
+BACKGROUND_RENDER_QUALITY_PROFILES = {
+    "high": {"label": "High", "sampleRate": 44100, "bitrate": "160k"},
+    "balanced": {"label": "Balanced", "sampleRate": 32000, "bitrate": "128k"},
+    "fast": {"label": "Fast", "sampleRate": 22050, "bitrate": "96k"},
+}
+
+
+def _background_quality_profile(raw) -> tuple[str, dict]:
+    key = str(raw or "balanced").strip().lower()
+    if key not in BACKGROUND_RENDER_QUALITY_PROFILES:
+        key = "balanced"
+    return key, BACKGROUND_RENDER_QUALITY_PROFILES[key]
+
+
 def _load_render_audio(audio_path: Path, target_sr: int = 44100) -> tuple["np.ndarray", int]:
     try:
         data, sr = sf.read(str(audio_path), dtype="float32", always_2d=True)  # type: ignore[union-attr]
@@ -896,7 +910,7 @@ def _locate_ffmpeg_path() -> Optional[Path]:
 
 
 class _FfmpegBackgroundWriter:
-    def __init__(self, ffmpeg_path: Path, output_path: Path, sr: int, channels: int):
+    def __init__(self, ffmpeg_path: Path, output_path: Path, sr: int, channels: int, bitrate: str):
         self.output_path = output_path
         self.tmp_path = output_path.with_suffix(".tmp.m4a")
         self.process = subprocess.Popen(
@@ -919,7 +933,7 @@ class _FfmpegBackgroundWriter:
                 "-c:a",
                 "aac",
                 "-b:a",
-                "160k",
+                str(bitrate),
                 "-movflags",
                 "+faststart",
                 str(self.tmp_path),
@@ -1022,6 +1036,9 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
         settings = payload.get("settings") if isinstance(payload.get("settings"), dict) else {}
         voice_count = int(payload.get("voiceCount") or 2)
         voice_count = max(1, min(8, voice_count))
+        quality_key, quality_profile = _background_quality_profile(payload.get("quality"))
+        target_sr = int(quality_profile["sampleRate"])
+        bitrate = str(quality_profile["bitrate"])
 
         track = _load_track_profile(track_id)
         audio_url = track.get("audio_url") or (track.get("info") or {}).get("url") or ""
@@ -1036,6 +1053,9 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
                     "seed": seed,
                     "settings": settings,
                     "voiceCount": voice_count,
+                    "quality": quality_key,
+                    "sampleRate": target_sr,
+                    "bitrate": bitrate,
                 },
                 sort_keys=True,
                 default=str,
@@ -1059,6 +1079,9 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
                     "title": track.get("title") or "Harmonizer background render",
                     "artist": track.get("artist") or "",
                     "cached": True,
+                    "quality": quality_key,
+                    "sampleRate": target_sr,
+                    "bitrate": bitrate,
                 },
             )
             return
@@ -1067,8 +1090,12 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
             raise RuntimeError("Audio render dependencies are not available.")
 
         _background_render_progress(job_id, "Decoding source audio...", 8)
-        audio, sr = _load_render_audio(audio_path, 44100)
-        _background_render_progress(job_id, f"Decoded {int(round(audio.shape[0] / max(1, sr)))}s source audio.", 14)
+        audio, sr = _load_render_audio(audio_path, target_sr)
+        _background_render_progress(
+            job_id,
+            f"Decoded {int(round(audio.shape[0] / max(1, sr)))}s source audio at {sr / 1000:.1f} kHz.",
+            14,
+        )
         target_seconds = minutes * 60.0
         ffmpeg_path = _locate_ffmpeg_path()
         wav_path = output_base.with_suffix(".wav")
@@ -1083,13 +1110,18 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
         )
         render_summary = {}
         writer_context = (
-            _FfmpegBackgroundWriter(ffmpeg_path, output_path, sr, audio.shape[1])
+            _FfmpegBackgroundWriter(ffmpeg_path, output_path, sr, audio.shape[1], bitrate)
             if ffmpeg_path
             else sf.SoundFile(str(tmp_wav_path), mode="w", samplerate=sr, channels=audio.shape[1], subtype="PCM_16")  # type: ignore[union-attr]
         )
         with writer_context as writer:
             if mode in {"jukebox", "eternal"}:
                 render_summary = _write_jukebox_render(writer, audio, sr, target_seconds, track, mode, settings, seed, job_id)
+                if isinstance(render_summary, dict) and render_summary.get("settingsSummary"):
+                    render_summary["settingsSummary"] = (
+                        f"{render_summary['settingsSummary']}, "
+                        f"{quality_profile['label']} {sr / 1000:.1f} kHz {bitrate}"
+                    )
             else:
                 _write_linear_or_canon_render(
                     writer,
@@ -1109,7 +1141,8 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
                     "settingsSummary": (
                         f"{voice_count} voices, offsets "
                         f"{overlay_settings.get('minOffsetBeats', 8)}-{overlay_settings.get('maxOffsetBeats', 64)} beats, "
-                        f"density {overlay_settings.get('density', voice_count)}"
+                        f"density {overlay_settings.get('density', voice_count)}, "
+                        f"{quality_profile['label']} {sr / 1000:.1f} kHz {bitrate}"
                     ),
                     "advancedEnabled": _extract_group_enabled(settings, overlay_group),
                 }
@@ -1135,6 +1168,9 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
                 "title": f"{track.get('title') or track_id} - Background {mode.title()}",
                 "artist": track.get("artist") or "",
                 "cached": False,
+                "quality": quality_key,
+                "sampleRate": sr,
+                "bitrate": bitrate,
                 "renderSummary": render_summary,
             },
         )

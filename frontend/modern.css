@@ -716,6 +716,24 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     transition: width 160ms ease;
 }
 
+.background-render-options {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+
+.background-render-options label {
+    color: var(--color-muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+}
+
+.background-render-options .viz-select {
+    min-width: min(260px, 100%);
+}
+
 .background-render-audio {
     display: block;
     width: 100%;

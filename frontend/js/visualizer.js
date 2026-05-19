@@ -3266,6 +3266,7 @@ if (typeof window !== "undefined") {
             trackId: curTrack.id,
             mode: (mode || "canon").toLowerCase(),
             minutes: minutes,
+            quality: options && options.quality ? String(options.quality) : "balanced",
             seed: Math.floor(Math.random() * 2147483647),
             settings: allSettings,
             voiceCount: window.canonVoiceCount || 2,
