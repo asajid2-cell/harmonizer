@@ -4212,6 +4212,13 @@ jgs   `-=========-`()
             }
         }
 
+        function formatElapsed(ms) {
+            const seconds = Math.max(0, Math.floor(ms / 1000));
+            const minutes = Math.floor(seconds / 60);
+            const remain = seconds % 60;
+            return minutes + ':' + String(remain).padStart(2, '0');
+        }
+
         function apiUrl(path) {
             if (typeof resolveApiUrl === 'function') {
                 return resolveApiUrl(path, false);
@@ -4288,6 +4295,9 @@ jgs   `-=========-`()
         }
 
         async function pollRender(jobId, pollToken) {
+            const startedAt = Date.now();
+            let lastPercent = -1;
+            let samePercentPolls = 0;
             while (pollToken === activePollToken) {
                 const response = await fetch(apiUrl('/api/background-render/status/' + encodeURIComponent(jobId)));
                 const data = await response.json();
@@ -4295,7 +4305,19 @@ jgs   `-=========-`()
                     throw new Error(data.error || 'Background render failed.');
                 }
                 const percent = typeof data.progressPercent === 'number' ? data.progressPercent : undefined;
-                setStatus(data.progress || data.status || 'Rendering...', data.progress || 'Rendering native audio...', percent);
+                if (typeof percent === 'number' && percent === lastPercent) {
+                    samePercentPolls += 1;
+                } else {
+                    samePercentPolls = 0;
+                    lastPercent = typeof percent === 'number' ? percent : lastPercent;
+                }
+                const elapsed = formatElapsed(Date.now() - startedAt);
+                let detail = data.progress || 'Rendering native audio...';
+                detail += ' - elapsed ' + elapsed;
+                if (samePercentPolls >= 3 && data.status !== 'completed') {
+                    detail += ' - still working';
+                }
+                setStatus(data.progress || data.status || 'Rendering...', detail, percent);
                 if (data.status === 'completed') {
                     return data.result;
                 }

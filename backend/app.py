@@ -436,6 +436,7 @@ def _background_render_job_update(job_id: str, **fields) -> None:
     with _background_render_lock:
         job = _background_render_jobs.get(job_id)
         if job:
+            fields["updated"] = datetime.now()
             job.update(fields)
 
 
@@ -658,8 +659,14 @@ def _write_linear_or_canon_render(
         writer.write(chunk)
         written += take
         if job_id and target_samples > 0:
-            pct = 15 + (written / target_samples) * 70
-            _background_render_progress(job_id, f"Rendering native audio... {int(round(written / sr))}s", pct)
+            pct = 15 + (written / target_samples) * 81
+            rendered_seconds = int(round(written / sr))
+            total_seconds = int(round(target_samples / sr))
+            _background_render_progress(
+                job_id,
+                f"Rendering and encoding native audio... {rendered_seconds}s / {total_seconds}s",
+                pct,
+            )
 
 
 def _build_candidate_map(analysis: dict, mode: str) -> dict[int, list[dict]]:
@@ -777,6 +784,19 @@ def _write_jukebox_render(
     crossfade_samples = max(64, int(sr * 0.045))
     pending_tail = np.zeros((0, audio.shape[1]), dtype=np.float32)
     jump_count = 0
+    target_samples = int(round(target_seconds * sr))
+    output_samples = 0
+
+    def write_output(chunk: "np.ndarray") -> None:
+        nonlocal output_samples
+        if chunk.size == 0 or output_samples >= target_samples:
+            return
+        remaining = target_samples - output_samples
+        take = min(remaining, chunk.shape[0])
+        if take <= 0:
+            return
+        writer.write(chunk[:take])
+        output_samples += take
 
     def append_segment(segment: "np.ndarray", jumped: bool) -> None:
         nonlocal pending_tail
@@ -784,7 +804,7 @@ def _write_jukebox_render(
             return
         if pending_tail.size == 0:
             if segment.shape[0] > crossfade_samples:
-                writer.write(segment[:-crossfade_samples])
+                write_output(segment[:-crossfade_samples])
                 pending_tail = segment[-crossfade_samples:].copy()
             else:
                 pending_tail = segment.copy()
@@ -794,23 +814,23 @@ def _write_jukebox_render(
             fade = np.linspace(0.0, 1.0, crossfade_samples, dtype=np.float32)[:, None]
             mixed = pending_tail[-crossfade_samples:] * (1.0 - fade) + head * fade
             if pending_tail.shape[0] > crossfade_samples:
-                writer.write(pending_tail[:-crossfade_samples])
-            writer.write(mixed)
+                write_output(pending_tail[:-crossfade_samples])
+            write_output(mixed)
             body = segment[crossfade_samples:]
         else:
-            writer.write(pending_tail)
+            write_output(pending_tail)
             body = segment
         if body.shape[0] > crossfade_samples:
-            writer.write(body[:-crossfade_samples])
+            write_output(body[:-crossfade_samples])
             pending_tail = body[-crossfade_samples:].copy()
         else:
             pending_tail = body.copy()
 
-    while elapsed < target_seconds:
+    while output_samples < target_samples and elapsed < target_seconds + 120:
         beat = beats[current]
         beat_start = float(beat.get("start", 0.0) or 0.0)
         beat_duration = float(beat.get("duration", 0.25) or 0.25)
-        remaining = max(0.0, target_seconds - elapsed)
+        remaining = max(0.0, (target_samples - output_samples) / sr)
         seg_seconds = min(beat_duration, remaining)
         if seg_seconds <= 0:
             break
@@ -840,10 +860,22 @@ def _write_jukebox_render(
         beats_since_jump += 1
         current = next_index
         if job_id and target_seconds > 0 and (jumped or int(elapsed) % 5 == 0):
-            pct = 15 + (elapsed / target_seconds) * 70
-            _background_render_progress(job_id, f"Rendering route... {int(round(elapsed))}s, {jump_count} jumps", pct)
-    if pending_tail.size:
-        writer.write(pending_tail)
+            rendered_seconds = output_samples / sr
+            pct = 15 + (rendered_seconds / target_seconds) * 81
+            _background_render_progress(
+                job_id,
+                f"Rendering and encoding route... {int(round(rendered_seconds))}s / {int(round(target_seconds))}s, {jump_count} jumps",
+                pct,
+            )
+    while output_samples < target_samples:
+        if pending_tail.size:
+            tail = pending_tail
+            pending_tail = np.zeros((0, audio.shape[1]), dtype=np.float32)
+            write_output(tail)
+        else:
+            fill = _source_slice(audio, int(round((elapsed % max(0.001, audio.shape[0] / sr)) * sr)), min(sr, target_samples - output_samples))
+            write_output(fill)
+            elapsed += fill.shape[0] / sr
     return {
         "jumpCount": jump_count,
         "settingsSummary": (
@@ -853,17 +885,100 @@ def _write_jukebox_render(
     }
 
 
-def _encode_background_render(wav_path: Path, output_base: Path) -> tuple[Path, str]:
+def _locate_ffmpeg_path() -> Optional[Path]:
     ffmpeg_dir = locate_ffmpeg_bin()
-    ffmpeg_path = None
     if ffmpeg_dir:
         candidate = ffmpeg_dir / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
         if candidate.is_file():
-            ffmpeg_path = candidate
-    if ffmpeg_path is None:
-        found = shutil.which("ffmpeg")
-        if found:
-            ffmpeg_path = Path(found)
+            return candidate
+    found = shutil.which("ffmpeg")
+    return Path(found) if found else None
+
+
+class _FfmpegBackgroundWriter:
+    def __init__(self, ffmpeg_path: Path, output_path: Path, sr: int, channels: int):
+        self.output_path = output_path
+        self.tmp_path = output_path.with_suffix(".tmp.m4a")
+        self.process = subprocess.Popen(
+            [
+                str(ffmpeg_path),
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "f32le",
+                "-acodec",
+                "pcm_f32le",
+                "-ar",
+                str(sr),
+                "-ac",
+                str(channels),
+                "-i",
+                "pipe:0",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "160k",
+                "-movflags",
+                "+faststart",
+                str(self.tmp_path),
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+
+    def write(self, chunk: "np.ndarray") -> None:
+        if self.process.stdin is None:
+            raise RuntimeError("Background encoder pipe is closed.")
+        arr = np.asarray(chunk, dtype=np.float32)
+        if arr.ndim == 1:
+            arr = arr[:, None]
+        arr = np.clip(arr, -1.0, 1.0)
+        self.process.stdin.write(np.ascontiguousarray(arr).tobytes())
+
+    def close(self) -> None:
+        stderr = b""
+        if self.process.stdin is not None:
+            self.process.stdin.close()
+        if self.process.stderr is not None:
+            stderr = self.process.stderr.read()
+        code = self.process.wait()
+        if code != 0:
+            try:
+                self.tmp_path.unlink()
+            except OSError:
+                pass
+            detail = stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(f"Background audio encoder failed: {detail or code}")
+        self.tmp_path.replace(self.output_path)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is not None:
+            if self.process.stdin is not None:
+                try:
+                    self.process.stdin.close()
+                except OSError:
+                    pass
+            try:
+                self.process.kill()
+            except OSError:
+                pass
+            try:
+                self.tmp_path.unlink()
+            except OSError:
+                pass
+            return False
+        self.close()
+        return False
+
+
+def _encode_background_render(wav_path: Path, output_base: Path) -> tuple[Path, str]:
+    ffmpeg_path = _locate_ffmpeg_path()
     if ffmpeg_path:
         m4a_path = output_base.with_suffix(".m4a")
         subprocess.run(
@@ -955,12 +1070,24 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
         audio, sr = _load_render_audio(audio_path, 44100)
         _background_render_progress(job_id, f"Decoded {int(round(audio.shape[0] / max(1, sr)))}s source audio.", 14)
         target_seconds = minutes * 60.0
+        ffmpeg_path = _locate_ffmpeg_path()
         wav_path = output_base.with_suffix(".wav")
         tmp_wav_path = output_base.with_suffix(".tmp.wav")
+        output_path = output_base.with_suffix(".m4a") if ffmpeg_path else wav_path
+        mime = "audio/mp4" if ffmpeg_path else "audio/wav"
 
-        _background_render_progress(job_id, "Rendering native background audio...", 15)
+        _background_render_progress(
+            job_id,
+            "Rendering and encoding native background audio..." if ffmpeg_path else "Rendering native background audio...",
+            15,
+        )
         render_summary = {}
-        with sf.SoundFile(str(tmp_wav_path), mode="w", samplerate=sr, channels=audio.shape[1], subtype="PCM_16") as writer:  # type: ignore[union-attr]
+        writer_context = (
+            _FfmpegBackgroundWriter(ffmpeg_path, output_path, sr, audio.shape[1])
+            if ffmpeg_path
+            else sf.SoundFile(str(tmp_wav_path), mode="w", samplerate=sr, channels=audio.shape[1], subtype="PCM_16")  # type: ignore[union-attr]
+        )
+        with writer_context as writer:
             if mode in {"jukebox", "eternal"}:
                 render_summary = _write_jukebox_render(writer, audio, sr, target_seconds, track, mode, settings, seed, job_id)
             else:
@@ -986,10 +1113,12 @@ def _process_background_render_job(job_id: str, payload: dict) -> None:
                     ),
                     "advancedEnabled": _extract_group_enabled(settings, overlay_group),
                 }
-        tmp_wav_path.replace(wav_path)
-
-        _background_render_progress(job_id, "Encoding phone-friendly audio...", 88)
-        output_path, mime = _encode_background_render(wav_path, output_base)
+        if not ffmpeg_path:
+            tmp_wav_path.replace(wav_path)
+            _background_render_progress(job_id, "Encoding phone-friendly audio...", 96)
+            output_path, mime = _encode_background_render(wav_path, output_base)
+        else:
+            _background_render_progress(job_id, "Finalizing phone-friendly audio...", 98)
         rel = output_path.relative_to(UPLOAD_FOLDER).as_posix()
         _background_render_job_update(
             job_id,
