@@ -63,6 +63,7 @@ myspace_data/
 # Generated audio/media
 backend/uploads/
 uploads/
+audiobooks/
 *.mp3
 *.wav
 *.flac

@@ -12,6 +12,8 @@ This page lists public configuration knobs and runtime paths. Values belong in a
 | `SPOTIFY_CLIENT_ID` | blank | audio workflows | Spotify metadata and download helpers. |
 | `SPOTIFY_CLIENT_SECRET` | blank | audio workflows | Spotify metadata and download helpers. |
 | `YOUTUBE_API_KEY` | blank | audio workflows | Optional YouTube metadata lookup. |
+| `NIGHT_LIBRARY_DIR` | `./audiobooks` | Night Library | Local directory scanned for audiobook files. |
+| `NIGHT_LIBRARY_FILE` | blank | Night Library | Optional single audiobook file to pin first in the library. |
 | `GOOGLE_CLIENT_ID` | blank | Google OAuth flow | Optional authenticated download flow. |
 | `GOOGLE_CLIENT_SECRET` | blank | Google OAuth flow | Optional authenticated download flow. |
 | `GEMINI_API_KEY` | blank | Talk to Disco-teque | Gemini-backed chat. |
@@ -30,6 +32,7 @@ This page lists public configuration knobs and runtime paths. Values belong in a
 | `backend/uploads/` | no | Uploaded, downloaded, or generated media. |
 | `backend/data/` | no | Analysis caches, RL data, and local app state. |
 | `backend/ourspace_data/` | no | OurSpace SQLite database and uploaded profile media. |
+| `audiobooks/` | no | Local Night Library audiobook files mounted into Docker. |
 | `codesniff/backend/storage/` | no | CodeSniff indexes and metadata. |
 | `playwright-code/artifacts/` | no | Screenshots and local test output. |
 | `frontend/assets/audio/` | yes | Curated demo audio assets. |

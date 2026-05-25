@@ -13,6 +13,7 @@ import uuid
 import math
 from pathlib import Path
 from typing import Optional, List, Dict
+from urllib.parse import quote
 
 # Ensure PyTorch doesn't attempt to initialize NNPACK on hardware that doesn't support it.
 os.environ.setdefault("PYTORCH_JIT_USE_NNPACK", "0")
@@ -255,11 +256,19 @@ STUDY_DIR = BASE_DIR.parent / "Study"
 UPLOAD_FOLDER = BASE_DIR / "uploads"
 DATA_FOLDER = BASE_DIR / "data"
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
+_DEFAULT_NIGHT_LIBRARY_DIR = BASE_DIR.parent / "audiobooks"
+NIGHT_LIBRARY_DIR = Path(os.environ.get("NIGHT_LIBRARY_DIR") or _DEFAULT_NIGHT_LIBRARY_DIR).expanduser()
+_NIGHT_LIBRARY_FILE_VALUE = os.environ.get("NIGHT_LIBRARY_FILE", "").strip()
+NIGHT_LIBRARY_FILE = Path(_NIGHT_LIBRARY_FILE_VALUE).expanduser() if _NIGHT_LIBRARY_FILE_VALUE else None
+NIGHT_LIBRARY_AUDIO_EXTENSIONS = {".mp3", ".m4a", ".m4b", ".aac", ".flac", ".ogg", ".opus", ".wav"}
+NIGHT_LIBRARY_COVER_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 DATA_FOLDER.mkdir(parents=True, exist_ok=True)
 FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
 STUDY_DIR.mkdir(parents=True, exist_ok=True)
+if not NIGHT_LIBRARY_DIR.exists():
+    NIGHT_LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
 DISCO_MEMORY_PATH = DATA_FOLDER / "discoteque_memory.jsonl"
 AUDIO_CACHE_PATH = DATA_FOLDER / "audio_cache.json"
 ANALYSIS_CACHE_PATH = DATA_FOLDER / "analysis_cache.json"
@@ -2747,6 +2756,201 @@ def ourspace_entry():
 @app.route("/ourspace")
 def ourspace_redirect():
     return redirect("/ourspace.html")
+
+
+@app.route("/night-library.html")
+def night_library_entry():
+    return send_from_directory(FRONTEND_DIR, "night-library.html")
+
+
+@app.route("/night-library")
+def night_library_redirect():
+    return redirect("/night-library.html")
+
+
+def _night_library_root() -> Path:
+    return NIGHT_LIBRARY_DIR.resolve()
+
+
+def _night_library_primary_file() -> Optional[Path]:
+    if NIGHT_LIBRARY_FILE is None:
+        return None
+    path = NIGHT_LIBRARY_FILE.expanduser().resolve()
+    if path.is_file() and path.suffix.lower() in NIGHT_LIBRARY_AUDIO_EXTENSIONS:
+        return path
+    return None
+
+
+def _night_library_safe_path(relative_path: str) -> Path:
+    root = _night_library_root()
+    target = (root / relative_path).resolve()
+    try:
+        target.relative_to(root)
+    except ValueError:
+        abort(403)
+    return target
+
+
+def _night_library_track_title(path: Path) -> str:
+    name = path.stem.replace("_", " ").replace("-", " ")
+    name = re.sub(r"\s*\[[^\]]+\]\s*", " ", name)
+    name = re.sub(r"\s+\d+\s+", " ", name)
+    return re.sub(r"\s+", " ", name).strip() or path.stem
+
+
+def _night_library_book_title(path: Path) -> str:
+    primary = _night_library_primary_file()
+    if primary and path.resolve() == primary:
+        return re.sub(r"\s*\[[^\]]+\]\s*", "", path.stem).strip() or path.stem
+    try:
+        rel = path.relative_to(_night_library_root())
+    except ValueError:
+        return path.parent.name or path.stem
+    parts = rel.parts
+    if len(parts) > 1:
+        return re.sub(r"\s*\[[^\]]+\]\s*", "", parts[0].replace("_", " ").replace("-", " ")).strip()
+    if path.parent == _night_library_root():
+        return _night_library_track_title(path)
+    return re.sub(r"\s*\[[^\]]+\]\s*", "", path.parent.name.replace("_", " ").replace("-", " ")).strip()
+
+
+def _night_library_author(path: Path) -> str:
+    return ""
+
+
+def _night_library_track_payload(path: Path) -> dict:
+    root = _night_library_root()
+    rel = path.resolve().relative_to(root).as_posix()
+    stat = path.stat()
+    return {
+        "id": hashlib.sha1(rel.encode("utf-8")).hexdigest()[:16],
+        "title": _night_library_track_title(path),
+        "book": _night_library_book_title(path),
+        "author": _night_library_author(path),
+        "relativePath": rel,
+        "audioUrl": f"/api/night-library/audio/{quote(rel, safe='/')}",
+        "coverUrl": _night_library_cover_for(path),
+        "size": stat.st_size,
+        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+    }
+
+
+def _night_library_cover_for(path: Path) -> Optional[str]:
+    root = _night_library_root()
+    folders = [path.parent]
+    parent = path.parent.parent
+    try:
+        parent.relative_to(root)
+    except ValueError:
+        parent = None
+    if parent and parent != path.parent:
+        folders.append(parent)
+    for folder in folders:
+        for stem in ("cover", "folder", "poster", "art"):
+            for ext in NIGHT_LIBRARY_COVER_EXTENSIONS:
+                candidate = folder / f"{stem}{ext}"
+                if candidate.is_file():
+                    rel = candidate.resolve().relative_to(root).as_posix()
+                    return f"/api/night-library/cover/{quote(rel, safe='/')}"
+    return None
+
+
+def _night_library_audio_mimetype(path: Path) -> str:
+    if path.suffix.lower() in {".m4a", ".m4b", ".aac"}:
+        return "audio/mp4"
+    return mimetypes.guess_type(path.name)[0] or "audio/mpeg"
+
+
+@app.route("/api/night-library/status", methods=["GET"])
+def api_night_library_status():
+    root = _night_library_root()
+    return jsonify({
+        "exists": root.exists(),
+        "primaryFile": str(_night_library_primary_file() or ""),
+        "audioExtensions": sorted(NIGHT_LIBRARY_AUDIO_EXTENSIONS),
+    })
+
+
+@app.route("/api/night-library/library", methods=["GET"])
+def api_night_library_library():
+    root = _night_library_root()
+    tracks = []
+    primary = _night_library_primary_file()
+    if primary:
+        try:
+            primary.resolve().relative_to(root)
+            tracks.append(_night_library_track_payload(primary))
+        except ValueError:
+            pass
+    if root.exists():
+        for path in sorted(root.rglob("*")):
+            if not path.is_file() or path.suffix.lower() not in NIGHT_LIBRARY_AUDIO_EXTENSIONS:
+                continue
+            if primary and path.resolve() == primary.resolve():
+                continue
+            if primary and path.parent == primary.parent:
+                if path.stem == primary.stem or path.name.startswith(f"{primary.stem} - "):
+                    continue
+            tracks.append(_night_library_track_payload(path))
+    books: dict[str, dict] = {}
+    for track in tracks:
+        book = books.setdefault(track["book"], {
+            "title": track["book"],
+            "tracks": [],
+            "coverUrl": track.get("coverUrl"),
+        })
+        book["tracks"].append(track)
+        if not book.get("coverUrl") and track.get("coverUrl"):
+            book["coverUrl"] = track["coverUrl"]
+    return jsonify({
+        "root": str(root),
+        "tracks": tracks,
+        "books": list(books.values()),
+    })
+
+
+@app.route("/api/night-library/audio/<path:relative_path>")
+def api_night_library_audio(relative_path: str):
+    from flask import make_response
+
+    path = _night_library_safe_path(relative_path)
+    if not path.is_file() or path.suffix.lower() not in NIGHT_LIBRARY_AUDIO_EXTENSIONS:
+        abort(404)
+
+    mimetype = _night_library_audio_mimetype(path)
+    file_size = path.stat().st_size
+    range_header = request.headers.get("Range")
+    if range_header:
+        byte_range = range_header.replace("bytes=", "").split("-")
+        start = int(byte_range[0]) if byte_range[0] else 0
+        end = int(byte_range[1]) if len(byte_range) > 1 and byte_range[1] else file_size - 1
+        if start >= file_size or end >= file_size or start > end:
+            abort(416)
+        length = end - start + 1
+        with path.open("rb") as handle:
+            handle.seek(start)
+            data = handle.read(length)
+        response = make_response(data)
+        response.status_code = 206
+        response.headers["Content-Type"] = mimetype
+        response.headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+        response.headers["Content-Length"] = str(length)
+        response.headers["Accept-Ranges"] = "bytes"
+        response.headers["Cache-Control"] = "private, max-age=3600"
+        return response
+
+    response = send_file(path, mimetype=mimetype, conditional=True)
+    response.headers["Accept-Ranges"] = "bytes"
+    response.headers["Cache-Control"] = "private, max-age=3600"
+    return response
+
+
+@app.route("/api/night-library/cover/<path:relative_path>")
+def api_night_library_cover(relative_path: str):
+    path = _night_library_safe_path(relative_path)
+    if not path.is_file() or path.suffix.lower() not in NIGHT_LIBRARY_COVER_EXTENSIONS:
+        abort(404)
+    return send_file(path, mimetype=mimetypes.guess_type(path.name)[0], conditional=True)
 
 
 @app.route("/autocrooner/trainer")

@@ -44,7 +44,7 @@ Run:
 
 ```bash
 git status --short
-git ls-files | rg "uploads/|ourspace_data/|backend/data/|node_modules/|dist/|\\.pth$|\\.zip$"
+git ls-files | rg "uploads/|audiobooks/|ourspace_data/|backend/data/|node_modules/|dist/|\\.pth$|\\.zip$"
 ```
 
 The second command should produce no output for generated data, dependency folders, or model artifacts.

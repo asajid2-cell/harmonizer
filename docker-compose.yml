@@ -12,6 +12,7 @@ services:
     volumes:
       - ./uploads:/app/backend/uploads
       - ./data:/app/backend/data
+      - ./audiobooks:/app/audiobooks
       - ./backend/ourspace_data:/app/backend/ourspace_data
     restart: unless-stopped
     depends_on:

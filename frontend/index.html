@@ -230,6 +230,15 @@
     .icon-frame--notebook{--icon-primary:#a5ffa5;--icon-secondary:#7ac7ff}
     .icon-frame--quickref{--icon-primary:#ffc3ff;--icon-secondary:#7affff}
     .icon-frame--venpod{--icon-primary:#ff6b6b;--icon-secondary:#4ecdc4}
+    .icon-frame--nightlibrary{--icon-primary:#ff9fd2;--icon-secondary:#7affff}
+    .icon-frame--nightlibrary img{
+      width:52px;
+      height:52px;
+      object-fit:contain;
+      image-rendering:auto;
+      filter:drop-shadow(0 0 6px rgba(255,159,210,.36));
+      pointer-events:none;
+    }
 
 
     .retro-credits{
@@ -499,6 +508,7 @@
             <a href="/" aria-current="page"> Home </a>
             <a href="/projects"> Showcase </a>
             <a href="/harmonizer.html"> Harmonizer </a>
+            <a href="/night-library.html"> Night Library </a>
             <a href="/eldrichify.html"> Image Playground </a>
             <a href="/talk-to-disco-teque.html"> Talk to Disco-teque </a>
             <a href="/codesniff.html"> CodeSniff </a>
@@ -795,6 +805,12 @@
               </span>
               <span class="icon-label">Harmonizer</span>
             </a>
+            <a class="desktop-icon" href="/night-library.html" data-id="nightlibrary" style="--icon-delay:200ms" draggable="false">
+              <span class="icon-frame icon-frame--nightlibrary">
+                <img src="./assets/night-library/moon.png" alt="" aria-hidden="true">
+              </span>
+              <span class="icon-label">Night Library</span>
+            </a>
             <a class="desktop-icon" href="/eldrichify.html" data-id="image" style="--icon-delay:240ms" draggable="false">
               <span class="icon-frame icon-frame--image">
                 <i class="pixelart-icons-font-camera-alt" aria-hidden="true"></i>
@@ -871,6 +887,7 @@
               <a href="/">Home</a>
               <a href="/projects">Showcase</a>
               <a href="/harmonizer.html">Harmonizer</a>
+              <a href="/night-library.html">Night Library</a>
               <a href="/eldrichify.html">Image Playground</a>
               <a href="/talk-to-disco-teque.html">Talk to Disco-teque</a>
               <a href="/codesniff.html">CodeSniff</a>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Night Library</title>
+  <meta name="description" content="A personal local audiobook listener.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/night-library.css">
+</head>
+<body>
+  <div class="nl-stars" aria-hidden="true"></div>
+  <a class="nl-skip" href="#player">Skip to player</a>
+
+  <main class="nl-page">
+    <header class="nl-header">
+      <a class="nl-home-link" href="/">&lt;- Return to Internet Discotheque</a>
+      <img class="nl-sticker nl-sticker--moon" src="./assets/night-library/moon.png" alt="" draggable="false">
+      <img class="nl-sticker nl-sticker--cassette" src="./assets/night-library/cassette.png" alt="" draggable="false">
+      <img class="nl-sticker nl-sticker--headphones" src="./assets/night-library/headphones.png" alt="" draggable="false">
+      <img class="nl-logo" src="./assets/night-library/night-library-badge.png" alt="Night Library" draggable="false">
+      <p class="nl-subtitle">local audiobooks + late night chapters</p>
+      <div class="nl-twinkle" aria-hidden="true">* . * . * . *</div>
+    </header>
+
+    <section class="nl-shell" aria-label="Night Library audiobook reader">
+      <aside class="nl-panel nl-library" aria-label="Library">
+        <div class="nl-panel-title">
+          <span>*</span>
+          <h2>Library</h2>
+          <span>*</span>
+        </div>
+
+        <div class="nl-section">
+          <h3>Current Series</h3>
+          <button class="nl-current-book" type="button" data-sample-track>
+            <span class="nl-folder-icon" aria-hidden="true"></span>
+            <span>
+              <strong id="library-current-title">Night Library</strong>
+              <small id="library-current-author">Audiobook</small>
+            </span>
+            <span class="nl-heart" aria-hidden="true">*</span>
+          </button>
+        </div>
+
+        <div class="nl-section">
+          <h3>All Folders</h3>
+          <div class="nl-folder-list" id="folder-list">
+            <button type="button" class="is-active" data-filter="all">
+              <span class="nl-folder-icon" aria-hidden="true"></span>
+              All Audiobooks <small id="folder-count-all">0</small>
+            </button>
+          </div>
+        </div>
+
+        <div class="nl-section">
+          <h3>Audiobooks</h3>
+          <div class="nl-track-list" id="track-list"></div>
+        </div>
+      </aside>
+
+      <section class="nl-panel nl-player" id="player" aria-label="Now listening">
+        <div class="nl-panel-title">
+          <span>*</span>
+          <h1>Now Listening</h1>
+          <span>*</span>
+        </div>
+
+        <div class="nl-player-grid">
+          <div class="nl-cover-wrap">
+            <img class="nl-cover" id="book-cover" src="./assets/night-library/open-book.png" alt="" draggable="false">
+          </div>
+
+          <div class="nl-track-meta">
+            <p class="nl-kicker">local audiobook deck</p>
+            <h2 id="book-title">Night Library</h2>
+            <p class="nl-author" id="book-author">Audiobook</p>
+            <div class="nl-divider"></div>
+            <h3 id="chapter-title">Select an audiobook</h3>
+
+            <div class="nl-progress-art" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+
+            <div class="nl-timeline">
+              <input id="seek" type="range" min="0" max="1000" value="205" aria-label="Seek audiobook">
+              <div class="nl-time-row">
+                <span id="current-time">00:00:00</span>
+                <span id="duration">00:00:00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="nl-controls" aria-label="Playback controls">
+          <button class="nl-round-control" type="button" id="rewind" aria-label="Rewind 30 seconds">
+            <span>&lt;</span>
+            <strong>30</strong>
+          </button>
+          <button class="nl-play" type="button" id="play-toggle" aria-label="Play">
+            <span id="play-glyph">Play</span>
+          </button>
+          <button class="nl-round-control" type="button" id="forward" aria-label="Forward 30 seconds">
+            <span>&gt;</span>
+            <strong>30</strong>
+          </button>
+        </div>
+
+        <div class="nl-tool-row">
+          <label class="nl-speed">
+            <span>Speed</span>
+            <select id="speed-select" aria-label="Playback speed">
+              <option value="0.75">0.75x</option>
+              <option value="0.9">0.90x</option>
+              <option value="1">1x</option>
+              <option value="1.1">1.10x</option>
+              <option value="1.25" selected>1.25x</option>
+              <option value="1.5">1.50x</option>
+              <option value="1.75">1.75x</option>
+              <option value="2">2x</option>
+              <option value="3">3x</option>
+              <option value="4">4x</option>
+              <option value="6">6x</option>
+              <option value="8">8x</option>
+            </select>
+          </label>
+          <button type="button" id="sleep-toggle">Sleep 45m</button>
+          <label class="nl-volume">
+            <span>Vol</span>
+            <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume">
+          </label>
+        </div>
+
+        <audio id="audio" preload="metadata" playsinline></audio>
+      </section>
+
+      <aside class="nl-panel nl-notes" aria-label="Bookmarks and Notes">
+        <div class="nl-panel-title">
+          <span>*</span>
+          <h2>Bookmarks + Notes</h2>
+          <span>*</span>
+        </div>
+
+        <div class="nl-section">
+          <h3>Bookmarks</h3>
+          <div class="nl-bookmark-list" id="bookmark-list"></div>
+          <button class="nl-mini-action" id="add-bookmark" type="button">Bookmark current spot</button>
+        </div>
+
+        <div class="nl-section">
+          <h3>Notes</h3>
+          <textarea id="note-input" placeholder="Add note" aria-label="Add note"></textarea>
+          <button class="nl-add-note" id="add-note" type="button">Add note *</button>
+          <div class="nl-note-list" id="note-list"></div>
+        </div>
+
+        <div class="nl-section">
+          <h3>Manage Blurbs</h3>
+          <div class="nl-blurb-tools">
+            <button type="button" id="clear-bookmarks">Delete bookmarks</button>
+            <button type="button" id="clear-notes">Delete notes</button>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <footer class="nl-queue" aria-label="Queue">
+      <img src="./assets/night-library/book-stack.png" alt="" draggable="false">
+      <div class="nl-queue-dots" aria-hidden="true"></div>
+      <strong id="queue-next">Next: Chapter 13</strong>
+      <div class="nl-queue-dots" aria-hidden="true"></div>
+      <img src="./assets/night-library/sparkles.png" alt="" draggable="false">
+    </footer>
+  </main>
+
+  <script src="./js/night-library.js" defer></script>
+</body>
+</html>

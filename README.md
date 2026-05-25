@@ -10,6 +10,7 @@ The project is best read as a public research and demo workspace. Some features 
 | --- | --- | --- | --- |
 | Internet Discotheque | active shell | `frontend/index.html` | Retro desktop launcher for the public pages. |
 | Harmonizer | active prototype | `frontend/harmonizer.html` | Upload audio, inspect analysis data, and explore beat jumps, loops, queues, and visual modes. |
+| Night Library | active prototype | `frontend/night-library.html` | Local audiobook browser and player backed by ignored local library files. |
 | Eldrichify | experimental | `frontend/eldrichify.html`, `backend/eldrichify.py` | Upload-based image transformation. Large local model checkpoints are not committed. |
 | OurSpace | experimental | `frontend/ourspace.html` | Local profile builder with account, media, and customization flows. Runtime data stays outside Git. |
 | CodeSniff | active prototype | `codesniff/` | Semantic code search with a FastAPI backend and React front end. |
@@ -80,6 +81,7 @@ Generated files and local data are ignored by default:
 - `backend/uploads/`
 - `backend/data/`
 - `backend/ourspace_data/`
+- `audiobooks/`
 - `codesniff/backend/storage/`
 - `playwright-code/artifacts/`
 - local model checkpoints
