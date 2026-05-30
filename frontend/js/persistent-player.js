@@ -1,20 +1,21 @@
 (() => {
     'use strict';
 
-    const STORAGE_KEY = 'idcPersistentPlayerState';
+    const STORAGE_KEY = 'idcPersistentPlayerState:session';
+    const LEGACY_STORAGE_KEY = 'idcPersistentPlayerState';
     const PLAYER_STYLE_ID = 'idc-persistent-player-styles';
 
     const FALLBACK_TRACKS = [
-        { number: '01', title: 'Moves So Sweet', artist: 'ID Chief', durationLabel: '3:14', file: 'assets/audio/moves-so-sweet.mp3' },
-        { number: '02', title: 'Tigerstyle', artist: 'Aloe Island Posse', durationLabel: '2:58', file: 'assets/audio/tigerstyle.mp3' },
-        { number: '03', title: 'Kotori', artist: 'コンシャスTHOUGHTS', durationLabel: '3:28', file: 'assets/audio/kotori.mp3' },
-        { number: '04', title: 'Smile', artist: 'ID Chief x Aloe Island Posse', durationLabel: '3:21', file: 'assets/audio/smile.mp3' },
-        { number: '05', title: "Maybe I'm Dreaming", artist: 'コンシャスTHOUGHTS x ID Chief', durationLabel: '4:04', file: 'assets/audio/maybe-im-dreaming.mp3' },
-        { number: '06', title: 'Refreshing', artist: 'コンシャスTHOUGHTS x Aloe Island Posse', durationLabel: '2:40', file: 'assets/audio/refreshing.mp3' },
-        { number: '07', title: 'Our Love', artist: 'Aloe Island Posse', durationLabel: '2:30', file: 'assets/audio/our-love.mp3' },
-        { number: '08', title: 'Visions of You', artist: 'コンシャスTHOUGHTS', durationLabel: '3:14', file: 'assets/audio/visions-of-you.mp3' },
-        { number: '09', title: 'Me & You', artist: 'ID Chief', durationLabel: '3:21', file: 'assets/audio/me-and-you.mp3' },
-        { number: '10', title: 'Space Cowboys', artist: 'コンシャスTHOUGHTS x ID Chief x Aloe Island Posse', durationLabel: '4:20', file: 'assets/audio/space-cowboys.mp3' },
+        { number: '01', title: 'Moves So Sweet', artist: 'ID Chief', durationLabel: '3:14', file: 'assets/audio/moves-so-sweet.wav' },
+        { number: '02', title: 'Tigerstyle', artist: 'Aloe Island Posse', durationLabel: '2:58', file: 'assets/audio/tigerstyle.wav' },
+        { number: '03', title: 'Kotori', artist: 'コンシャスTHOUGHTS', durationLabel: '3:28', file: 'assets/audio/kotori.wav' },
+        { number: '04', title: 'Smile', artist: 'ID Chief x Aloe Island Posse', durationLabel: '3:21', file: 'assets/audio/smile.wav' },
+        { number: '05', title: "Maybe I'm Dreaming", artist: 'コンシャスTHOUGHTS x ID Chief', durationLabel: '4:04', file: 'assets/audio/maybe-im-dreaming.wav' },
+        { number: '06', title: 'Refreshing', artist: 'コンシャスTHOUGHTS x Aloe Island Posse', durationLabel: '2:40', file: 'assets/audio/refreshing.wav' },
+        { number: '07', title: 'Our Love', artist: 'Aloe Island Posse', durationLabel: '2:30', file: 'assets/audio/our-love.wav' },
+        { number: '08', title: 'Visions of You', artist: 'コンシャスTHOUGHTS', durationLabel: '3:14', file: 'assets/audio/visions-of-you.wav' },
+        { number: '09', title: 'Me & You', artist: 'ID Chief', durationLabel: '3:21', file: 'assets/audio/me-and-you.wav' },
+        { number: '10', title: 'Space Cowboys', artist: 'コンシャスTHOUGHTS x ID Chief x Aloe Island Posse', durationLabel: '4:20', file: 'assets/audio/space-cowboys.wav' },
     ];
 
     const scriptEl = document.currentScript || document.querySelector('script[src*="persistent-player.js"]');
@@ -67,6 +68,22 @@
         return parts[0];
     };
 
+    const sourceKey = (src, { stem = false } = {}) => {
+        if (!src || typeof src !== 'string') return '';
+        const clean = src.split('#', 1)[0].split('?', 1)[0];
+        let pathname = clean;
+        try {
+            pathname = new URL(clean, document.baseURI).pathname;
+        } catch (err) {}
+        const last = pathname.split('/').filter(Boolean).pop() || clean;
+        let decoded = last;
+        try {
+            decoded = decodeURIComponent(last);
+        } catch (err) {}
+        const lower = decoded.toLowerCase();
+        return stem ? lower.replace(/\.[a-z0-9]+$/i, '') : lower;
+    };
+
     FALLBACK_TRACKS.forEach((track) => {
         track.durationSeconds = parseDurationLabel(track.durationLabel);
     });
@@ -74,26 +91,46 @@
     const safeStorage = {
         get(key) {
             try {
-                return window.localStorage.getItem(key);
+                return window.sessionStorage.getItem(key);
             } catch (err) {
-                console.warn('[PersistentPlayer] Unable to read storage', err);
+                console.warn('[PersistentPlayer] Unable to read session storage', err);
                 return null;
             }
         },
         set(key, value) {
             try {
-                window.localStorage.setItem(key, value);
+                window.sessionStorage.setItem(key, value);
             } catch (err) {
-                console.warn('[PersistentPlayer] Unable to persist state', err);
+                console.warn('[PersistentPlayer] Unable to persist session state', err);
             }
         },
         remove(key) {
             try {
-                window.localStorage.removeItem(key);
+                window.sessionStorage.removeItem(key);
             } catch (err) {
-                console.warn('[PersistentPlayer] Unable to remove state', err);
+                console.warn('[PersistentPlayer] Unable to remove session state', err);
             }
         },
+    };
+
+    const clearLegacyGlobalState = () => {
+        try {
+            window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+        } catch (err) {}
+    };
+
+    const isBlockedGlobalPlayerRoute = () => {
+        const pathname = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+        return pathname === '/harmonizer' || pathname === '/harmonizer.html';
+    };
+
+    const makeInstanceId = () => {
+        try {
+            if (window.crypto?.randomUUID) {
+                return window.crypto.randomUUID();
+            }
+        } catch (err) {}
+        return `player-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     };
 
     if (window.__idcPersistentPlayerInitialized) {
@@ -103,7 +140,9 @@
 
     class PersistentPlayer {
         constructor() {
-            this.blocked = document.body?.dataset?.disablePersistentPlayer === 'true';
+            this.instanceId = makeInstanceId();
+            clearLegacyGlobalState();
+            this.blocked = document.body?.dataset?.disablePersistentPlayer === 'true' || isBlockedGlobalPlayerRoute();
             this.trackRegistry = new Map();
             this.catalogOrder = [];
             this.inlineObserver = null;
@@ -112,23 +151,30 @@
             this.lastInlinePersist = 0;
             this.handoffInProgress = false;
             this.pendingSet = null;
+            this.isPageLeaving = false;
+            this.suppressPausePersist = false;
 
             this.state = this.readState();
+            this.desiredPlaying = this.state?.isPlaying === true;
             const storedSettings = this.state?.playbackSettings || {};
             this.playbackSettings = {
+                autoplayNext: storedSettings.autoplayNext ?? true,
                 shuffle: storedSettings.shuffle !== undefined ? storedSettings.shuffle : true,
-                repeatAll: storedSettings.repeatAll ?? false,
+                repeatAll: storedSettings.repeatAll ?? true,
                 loopOne: storedSettings.loopOne ?? false,
+                seekStep: storedSettings.seekStep ?? 10,
             };
             this.volume = typeof this.state?.volume === 'number' ? clamp(this.state.volume, 0, 1) : 0.9;
             this.uiState = this.state?.uiState || {};
             this.minimized = !!this.uiState.minimized;
-            this.dragPosition = this.uiState?.position || null;
+            this.positionMode = this.uiState?.positionMode === 'manual' ? 'manual' : 'anchored';
+            this.dragPosition = this.positionMode === 'manual' ? this.uiState?.position || null : null;
             this.dockButton = null;
             this.autoStartAttempted = false;
 
             if (this.blocked) {
                 safeStorage.remove(STORAGE_KEY);
+                clearLegacyGlobalState();
                 return;
             }
 
@@ -140,6 +186,7 @@
             this.bindUIEvents();
             this.bindStorageEvents();
             this.bindDesktopEvents();
+            this.bindPageLifecycle();
             this.buildCatalog();
             this.setupInlineIntegration();
             this.restoreFromState();
@@ -157,16 +204,15 @@
 #persistent-audio-deck {
     position: fixed;
     right: 24px;
-    bottom: 24px;
-    width: min(380px, calc(100vw - 32px));
-    padding: 18px 20px 20px;
-    background: rgba(6, 8, 15, 0.96);
-    border: 1px solid rgba(0, 255, 170, 0.4);
-    border-radius: 20px;
-    box-shadow: 0 20px 42px rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(18px);
-    color: #f2fff7;
-    font-family: "JetBrains Mono", "IBM Plex Mono", system-ui, sans-serif;
+    bottom: 58px;
+    width: min(410px, calc(100vw - 32px));
+    padding: 7px;
+    background: #0d0d0d;
+    border: 1px solid #3a3a3a;
+    border-radius: 0;
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.12), inset -1px -1px 0 rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(138, 180, 255, 0.24), 0 18px 42px rgba(0, 0, 0, 0.65);
+    color: #cfe4ff;
+    font-family: "MS Sans Serif", Tahoma, "JetBrains Mono", monospace;
     z-index: 9999;
     transition: opacity 180ms ease, transform 180ms ease;
 }
@@ -203,6 +249,9 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 8px;
+    padding: 6px 7px;
+    background: linear-gradient(90deg, #17233c, #0d0d0d);
+    border: 1px solid rgba(138, 180, 255, 0.35);
     cursor: grab;
     user-select: none;
     touch-action: none;
@@ -218,7 +267,7 @@
     text-transform: uppercase;
     letter-spacing: 0.22em;
     font-size: 0.58rem;
-    color: rgba(0, 255, 213, 0.65);
+    color: #8ab4ff;
 }
 #persistent-audio-deck .player-meta__title {
     font-size: 1rem;
@@ -234,10 +283,26 @@
     align-items: center;
     gap: 6px;
 }
+#persistent-audio-deck .player-menu-toggle {
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid rgba(138, 180, 255, 0.48);
+    background: rgba(14, 24, 42, 0.92);
+    color: #cfe4ff;
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+#persistent-audio-deck[data-options-open="true"] .player-menu-toggle {
+    border-color: #8ab4ff;
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(138, 180, 255, 0.28);
+}
 #persistent-player-dock {
-    border: 1px solid #3a3a3a;
+    height: 26px;
+    border: 1px solid rgba(138, 180, 255, 0.45);
     background: #151515;
-    color: #66d9ff;
+    color: #8ab4ff;
     padding: 4px 10px;
     font-family: "MS Sans Serif", Tahoma, sans-serif;
     font-size: 10px;
@@ -245,16 +310,18 @@
     text-transform: uppercase;
     cursor: pointer;
     box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.08), inset -1px -1px 0 rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
 }
 #persistent-player-dock.is-active {
-    color: #3f9;
-    border-color: #3f9;
+    color: #8ab4ff;
+    border-color: #8ab4ff;
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.1), inset -1px -1px 0 rgba(0, 0, 0, 0.7), 0 0 10px rgba(138, 180, 255, 0.22);
 }
 #persistent-player-dock[data-floating="true"] {
     position: fixed;
-    left: 16px;
-    bottom: 16px;
-    z-index: 9998;
+    right: 16px;
+    bottom: 10px;
+    z-index: 10000;
 }
 #persistent-audio-deck button {
     font-family: inherit;
@@ -266,18 +333,18 @@
 #persistent-audio-deck .player-minimize {
     width: 28px;
     height: 28px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+    border: 1px solid rgba(138, 180, 255, 0.32);
+    background: rgba(14, 24, 42, 0.86);
     color: rgba(255, 255, 255, 0.85);
     font-size: 0.85rem;
 }
 #persistent-audio-deck .player-close {
     width: 30px;
     height: 30px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    border: 1px solid rgba(138, 180, 255, 0.32);
+    background: rgba(14, 24, 42, 0.86);
     color: rgba(255, 255, 255, 0.85);
 }
 #persistent-audio-deck .player-controls {
@@ -290,19 +357,19 @@
 #persistent-audio-deck .player-controls button {
     flex: 1;
     padding: 10px;
-    border-radius: 10px;
-    border: 1px solid rgba(0, 255, 170, 0.35);
-    background: rgba(4, 20, 28, 0.6);
+    border-radius: 4px;
+    border: 1px solid rgba(138, 180, 255, 0.42);
+    background: rgba(14, 24, 42, 0.92);
     text-transform: uppercase;
     font-size: 0.68rem;
     letter-spacing: 0.12em;
 }
 #persistent-audio-deck .player-controls button[data-action="toggle"] {
     flex: 2;
-    background: linear-gradient(120deg, rgba(0, 255, 170, 0.9), rgba(0, 169, 255, 0.9));
-    color: #041410;
+    background: linear-gradient(180deg, #cfe4ff, #8ab4ff);
+    color: #07101f;
     font-weight: 600;
-    box-shadow: 0 8px 18px rgba(0, 169, 255, 0.25);
+    box-shadow: 0 0 14px rgba(138, 180, 255, 0.25);
 }
 #persistent-audio-deck[data-playing="true"] .player-controls button[data-action="toggle"]::after {
     content: 'Pause';
@@ -317,7 +384,7 @@
 }
 #persistent-audio-deck .player-progress input[type="range"] {
     width: 100%;
-    accent-color: #00ffd5;
+    accent-color: #8ab4ff;
 }
 #persistent-audio-deck .player-times {
     display: flex;
@@ -326,7 +393,7 @@
     color: rgba(255, 255, 255, 0.75);
 }
 #persistent-audio-deck .player-modes {
-    display: grid;
+    display: none;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     margin-bottom: 10px;
@@ -341,10 +408,92 @@
     letter-spacing: 0.14em;
 }
 #persistent-audio-deck .player-modes button[aria-pressed="true"] {
-    background: linear-gradient(120deg, rgba(0, 255, 213, 0.24), rgba(0, 123, 255, 0.24));
-    border-color: rgba(0, 255, 213, 0.5);
-    color: #e9fff8;
-    box-shadow: 0 6px 14px rgba(0, 140, 255, 0.25);
+    background: rgba(138, 180, 255, 0.2);
+    border-color: rgba(138, 180, 255, 0.7);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(138, 180, 255, 0.2);
+}
+#persistent-audio-deck .player-options {
+    display: none;
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid rgba(138, 180, 255, 0.38);
+    background: rgba(8, 14, 24, 0.96);
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.08), inset -1px -1px 0 rgba(0, 0, 0, 0.7);
+}
+#persistent-audio-deck[data-options-open="true"] .player-options {
+    display: grid;
+    gap: 10px;
+}
+#persistent-audio-deck .player-options__title {
+    display: flex;
+    justify-content: space-between;
+    color: #8ab4ff;
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+#persistent-audio-deck .player-options__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+#persistent-audio-deck .player-option {
+    min-height: 34px;
+    padding: 7px 8px;
+    border: 1px solid rgba(138, 180, 255, 0.3);
+    background: rgba(14, 24, 42, 0.9);
+    color: #cfe4ff;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: left;
+}
+#persistent-audio-deck .player-option[aria-pressed="true"] {
+    border-color: #8ab4ff;
+    background: rgba(138, 180, 255, 0.22);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(138, 180, 255, 0.18);
+}
+#persistent-audio-deck .player-option[aria-pressed="true"]::before {
+    content: 'ON ';
+    color: #8ab4ff;
+}
+#persistent-audio-deck .player-option[aria-pressed="false"]::before {
+    content: 'OFF ';
+    color: rgba(255, 255, 255, 0.45);
+}
+#persistent-audio-deck .player-seek-tools {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+}
+#persistent-audio-deck .player-seek-tools__label {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+#persistent-audio-deck .player-seek-steps,
+#persistent-audio-deck .player-seek-jump {
+    display: flex;
+    gap: 6px;
+}
+#persistent-audio-deck .player-seek-steps button,
+#persistent-audio-deck .player-seek-jump button {
+    min-width: 34px;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+}
+#persistent-audio-deck .player-seek-steps button[aria-pressed="true"] {
+    border-color: #8ab4ff;
+    color: #ffffff;
+    background: rgba(138, 180, 255, 0.18);
 }
 #persistent-audio-deck .player-volume {
     display: flex;
@@ -357,7 +506,239 @@
 }
 #persistent-audio-deck .player-volume input[type="range"] {
     flex: 1;
-    accent-color: #00ffd5;
+    accent-color: #8ab4ff;
+}
+#persistent-audio-deck {
+    width: min(280px, calc(100vw - 24px));
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+#persistent-audio-deck .player-now-window,
+#persistent-audio-deck .player-options {
+    border: 2px solid #7f7f7f;
+    border-top-color: #d7d7d7;
+    border-left-color: #d7d7d7;
+    border-right-color: #272727;
+    border-bottom-color: #272727;
+    background: #050505;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.58);
+}
+#persistent-audio-deck header.player-now-window {
+    display: block;
+    width: 220px;
+    min-height: 74px;
+    margin: 0 auto 8px;
+    padding: 0;
+    background: #050505;
+    cursor: grab;
+}
+#persistent-audio-deck .player-window-titlebar {
+    min-height: 17px;
+    padding: 2px 3px 2px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: linear-gradient(90deg, #102d78, #07101f);
+    border-bottom: 1px solid #0b0b0b;
+    color: #8ab4ff;
+    font-size: 0.58rem;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+#persistent-audio-deck .player-window-titlebar--options {
+    background: linear-gradient(90deg, #102d78, #17233c);
+    color: #cfe4ff;
+}
+#persistent-audio-deck .player-now-body {
+    display: grid;
+    grid-template-columns: 35px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    padding: 8px 8px 9px;
+}
+#persistent-audio-deck .player-now-icon {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(138, 180, 255, 0.38);
+    background: rgba(8, 14, 24, 0.92);
+    color: #8ab4ff;
+    font-size: 1.2rem;
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.08);
+}
+#persistent-audio-deck .player-meta {
+    min-width: 0;
+}
+#persistent-audio-deck .player-meta__label {
+    color: #8ab4ff;
+    font-size: 0.52rem;
+    letter-spacing: 0.16em;
+}
+#persistent-audio-deck .player-meta__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #cfe4ff;
+    font-size: 0.78rem;
+    line-height: 1.25;
+    letter-spacing: 0.02em;
+}
+#persistent-audio-deck .player-meta__artist {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.58rem;
+    color: rgba(207, 228, 255, 0.82);
+}
+#persistent-audio-deck .player-actions {
+    gap: 2px;
+}
+#persistent-audio-deck .player-menu-toggle {
+    height: 15px;
+    padding: 0 6px;
+    border: 1px solid #9fb8f5;
+    background: #0b1730;
+    color: #cfe4ff;
+    font-size: 0.5rem;
+    letter-spacing: 0.08em;
+}
+#persistent-audio-deck .player-minimize,
+#persistent-audio-deck .player-close {
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    border-radius: 0;
+    border: 1px solid #b8b8b8;
+    background: #c0c0c0;
+    color: #050505;
+    font-size: 0.62rem;
+    line-height: 1;
+}
+#persistent-audio-deck[data-options-open="true"] .player-menu-toggle {
+    border-color: #8ab4ff;
+    color: #ffffff;
+    box-shadow: none;
+}
+#persistent-audio-deck .player-options {
+    width: 270px;
+    margin: 0 auto;
+    padding: 0;
+}
+#persistent-audio-deck[data-options-open="true"] .player-options {
+    display: grid;
+    gap: 9px;
+    padding-bottom: 10px;
+}
+#persistent-audio-deck .player-options__grid {
+    padding: 7px 10px 0;
+    grid-template-columns: 1fr;
+    gap: 4px;
+}
+#persistent-audio-deck .player-option {
+    min-height: 18px;
+    padding: 2px 4px 2px 22px;
+    position: relative;
+    border: 0;
+    background: transparent;
+    color: #cfe4ff;
+    font-size: 0.56rem;
+    letter-spacing: 0.1em;
+}
+#persistent-audio-deck .player-option::before {
+    position: absolute;
+    left: 3px;
+    top: 2px;
+    width: 10px;
+    height: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #a6a6a6;
+    background: #111;
+    color: #8ab4ff;
+    font-size: 0.55rem;
+    line-height: 1;
+}
+#persistent-audio-deck .player-option[aria-pressed="true"] {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+#persistent-audio-deck .player-option[aria-pressed="true"]::before {
+    content: '\\2713';
+    color: #8ab4ff;
+}
+#persistent-audio-deck .player-option[aria-pressed="false"]::before {
+    content: '';
+}
+#persistent-audio-deck .player-seek-tools {
+    margin: 2px 10px 0;
+    padding-top: 8px;
+    border-top: 1px solid rgba(138, 180, 255, 0.18);
+    grid-template-columns: 1fr;
+    gap: 6px;
+}
+#persistent-audio-deck .player-seek-tools__label {
+    color: #8ab4ff;
+    text-align: center;
+    font-size: 0.5rem;
+}
+#persistent-audio-deck .player-seek-steps,
+#persistent-audio-deck .player-seek-jump {
+    justify-content: center;
+}
+#persistent-audio-deck .player-seek-steps button,
+#persistent-audio-deck .player-seek-jump button,
+#persistent-audio-deck .player-controls button {
+    min-width: 44px;
+    padding: 5px 8px;
+    border: 2px solid #7f7f7f;
+    border-top-color: #d7d7d7;
+    border-left-color: #d7d7d7;
+    border-right-color: #272727;
+    border-bottom-color: #272727;
+    border-radius: 0;
+    background: #111827;
+    color: #cfe4ff;
+    font-size: 0.55rem;
+}
+#persistent-audio-deck .player-seek-steps button[aria-pressed="true"] {
+    background: #17233c;
+    color: #ffffff;
+}
+#persistent-audio-deck .player-controls {
+    margin: 0 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(138, 180, 255, 0.18);
+    gap: 6px;
+}
+#persistent-audio-deck .player-controls button[data-action="toggle"] {
+    background: #17233c;
+    color: #ffffff;
+    box-shadow: none;
+}
+#persistent-audio-deck .player-progress {
+    margin: 0 10px;
+}
+#persistent-audio-deck .player-progress input[type="range"],
+#persistent-audio-deck .player-volume input[type="range"] {
+    accent-color: #8ab4ff;
+}
+#persistent-audio-deck .player-times {
+    font-size: 0.58rem;
+    color: #cfe4ff;
+}
+#persistent-audio-deck .player-volume {
+    margin: 0 10px;
+    padding-top: 7px;
+    border-top: 1px solid rgba(138, 180, 255, 0.18);
+    font-size: 0.55rem;
 }
 #persistent-audio-deck[data-minimized="true"] {
     padding: 10px 14px;
@@ -370,6 +751,7 @@
 #persistent-audio-deck[data-minimized="true"] .player-controls,
 #persistent-audio-deck[data-minimized="true"] .player-progress,
 #persistent-audio-deck[data-minimized="true"] .player-modes,
+#persistent-audio-deck[data-minimized="true"] .player-options,
 #persistent-audio-deck[data-minimized="true"] .player-volume {
     display: none;
 }
@@ -422,37 +804,63 @@
             this.root.dataset.playing = 'false';
             this.root.dataset.inlineVisible = 'false';
             this.root.innerHTML = `
-                <header>
-                    <div class="player-meta">
-                        <span class="player-meta__label">Now Playing</span>
-                        <span class="player-meta__title" data-player-title>&mdash;</span>
-                        <span class="player-meta__artist" data-player-artist></span>
+                <header class="player-now-window">
+                    <div class="player-window-titlebar">
+                        <span>Now Playing</span>
+                        <div class="player-actions">
+                            <button type="button" class="player-menu-toggle" aria-label="Open player options" aria-expanded="false" data-player-options-toggle>Options</button>
+                            <button type="button" class="player-minimize" aria-label="Minimize player" data-player-minimize>&#8211;</button>
+                            <button type="button" class="player-close" aria-label="Close player" data-player-close>&times;</button>
+                        </div>
                     </div>
-                    <div class="player-actions">
-                        <button type="button" class="player-minimize" aria-label="Minimize player" data-player-minimize>&#8211;</button>
-                        <button type="button" class="player-close" aria-label="Close player" data-player-close>&times;</button>
+                    <div class="player-now-body">
+                        <span class="player-now-icon" aria-hidden="true">&#9835;</span>
+                        <div class="player-meta">
+                            <span class="player-meta__label">Track</span>
+                            <span class="player-meta__title" data-player-title>&mdash;</span>
+                            <span class="player-meta__artist" data-player-artist></span>
+                        </div>
                     </div>
                 </header>
-                <div class="player-controls">
-                    <button type="button" data-action="rewind" aria-label="Rewind 10 seconds">&minus;10s</button>
-                    <button type="button" data-action="toggle" aria-label="Play or pause"></button>
-                    <button type="button" data-action="forward" aria-label="Skip ahead 10 seconds">+10s</button>
-                </div>
-                <div class="player-progress">
-                    <input type="range" min="0" max="1000" value="0" step="1" aria-label="Seek within track" data-player-seek>
-                    <div class="player-times">
-                        <span data-player-current>0:00</span>
-                        <span data-player-duration>0:00</span>
+                <div class="player-options" data-player-options-panel>
+                    <div class="player-window-titlebar player-window-titlebar--options">
+                        <span>Player Options</span>
+                        <span data-player-seek-label>Seek 10s</span>
                     </div>
-                </div>
-                <div class="player-modes">
-                    <button type="button" data-action="shuffle" aria-pressed="false">Shuffle</button>
-                    <button type="button" data-action="repeat" aria-pressed="false">Repeat</button>
-                    <button type="button" data-action="loop" aria-pressed="false">Loop</button>
-                </div>
-                <div class="player-volume">
-                    <span>Volume</span>
-                    <input type="range" min="0" max="1" step="0.01" value="${this.volume.toFixed(2)}" data-player-volume>
+                    <div class="player-options__grid">
+                        <button type="button" class="player-option" data-action="autoplay" aria-pressed="false">Autoplay Next</button>
+                        <button type="button" class="player-option" data-action="shuffle" aria-pressed="false">Shuffle</button>
+                        <button type="button" class="player-option" data-action="repeat" aria-pressed="false">Repeat All</button>
+                        <button type="button" class="player-option" data-action="loop" aria-pressed="false">Repeat One</button>
+                    </div>
+                    <div class="player-seek-tools">
+                        <span class="player-seek-tools__label">Seek Step</span>
+                        <div class="player-seek-steps" aria-label="Seek step">
+                            <button type="button" data-seek-step="5" aria-pressed="false">5s</button>
+                            <button type="button" data-seek-step="10" aria-pressed="false">10s</button>
+                            <button type="button" data-seek-step="30" aria-pressed="false">30s</button>
+                        </div>
+                        <div class="player-seek-jump">
+                            <button type="button" data-action="seek-back" aria-label="Seek backward">&minus;</button>
+                            <button type="button" data-action="seek-forward" aria-label="Seek forward">+</button>
+                        </div>
+                    </div>
+                    <div class="player-controls">
+                        <button type="button" data-action="rewind" aria-label="Previous track">Prev</button>
+                        <button type="button" data-action="toggle" aria-label="Play or pause"></button>
+                        <button type="button" data-action="forward" aria-label="Next track">Next</button>
+                    </div>
+                    <div class="player-progress">
+                        <input type="range" min="0" max="1000" value="0" step="1" aria-label="Seek within track" data-player-seek>
+                        <div class="player-times">
+                            <span data-player-current>0:00</span>
+                            <span data-player-duration>0:00</span>
+                        </div>
+                    </div>
+                    <div class="player-volume">
+                        <span>Volume</span>
+                        <input type="range" min="0" max="1" step="0.01" value="${this.volume.toFixed(2)}" data-player-volume>
+                    </div>
                 </div>
             `;
             document.body.appendChild(this.root);
@@ -464,11 +872,15 @@
             this.durationEl = this.root.querySelector('[data-player-duration]');
             this.closeButton = this.root.querySelector('[data-player-close]');
             this.minimizeButton = this.root.querySelector('[data-player-minimize]');
+            this.optionsToggle = this.root.querySelector('[data-player-options-toggle]');
+            this.seekLabel = this.root.querySelector('[data-player-seek-label]');
             this.modeButtons = {
-                shuffle: this.root.querySelector('[data-action="shuffle"]'),
-                repeat: this.root.querySelector('[data-action="repeat"]'),
-                loop: this.root.querySelector('[data-action="loop"]'),
+                autoplay: Array.from(this.root.querySelectorAll('[data-action="autoplay"]')),
+                shuffle: Array.from(this.root.querySelectorAll('[data-action="shuffle"]')),
+                repeat: Array.from(this.root.querySelectorAll('[data-action="repeat"]')),
+                loop: Array.from(this.root.querySelectorAll('[data-action="loop"]')),
             };
+            this.seekStepButtons = Array.from(this.root.querySelectorAll('[data-seek-step]'));
             this.volumeSlider = this.root.querySelector('[data-player-volume]');
             this.updateModeButtons();
             this.updateMinimizeUI();
@@ -480,7 +892,7 @@
             this.audio.autoplay = false;
             this.audio.playsInline = true;
             this.audio.crossOrigin = 'anonymous';
-            this.audio.loop = !!(window.harmonizerLoopEnabled);
+            this.audio.loop = false;
             this.audio.volume = this.volume;
             this.audio.dataset.role = 'persistent-player-audio';
             this.audio.style.display = 'none';
@@ -490,47 +902,99 @@
             this.audio.addEventListener('ended', () => this.handleEnded());
             this.audio.addEventListener('play', () => this.updatePlaybackState());
             this.audio.addEventListener('pause', () => this.updatePlaybackState());
+            this.setupMediaSession();
+        }
+
+        setupMediaSession() {
+            if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) {
+                return;
+            }
+            const bind = (action, handler) => {
+                try {
+                    navigator.mediaSession.setActionHandler(action, handler);
+                } catch (err) {}
+            };
+            bind('play', () => this.togglePlayback());
+            bind('pause', () => {
+                if (this.audio) {
+                    this.audio.pause();
+                }
+            });
+            bind('previoustrack', () => this.skipTrack(-1));
+            bind('nexttrack', () => this.skipTrack(1));
+            bind('seekbackward', (details) => this.nudgePlayback(-(details?.seekOffset || this.playbackSettings.seekStep || 10)));
+            bind('seekforward', (details) => this.nudgePlayback(details?.seekOffset || this.playbackSettings.seekStep || 10));
+            bind('seekto', (details) => {
+                if (details && typeof details.seekTime === 'number') {
+                    this.audio.currentTime = Math.max(0, details.seekTime);
+                    this.persistState({ currentTime: this.audio.currentTime });
+                }
+            });
+        }
+
+        updateMediaSession() {
+            if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !this.state) {
+                return;
+            }
+            if (typeof window.MediaMetadata === 'function') {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: this.state.title || 'Internet Discotheque',
+                    artist: this.state.artist || 'ID Chief',
+                    album: 'Internet Discotheque',
+                });
+            }
+            if (typeof navigator.mediaSession.setPositionState === 'function') {
+                const duration = this.audio.duration && Number.isFinite(this.audio.duration)
+                    ? this.audio.duration
+                    : this.state.durationSeconds || 0;
+                try {
+                    navigator.mediaSession.setPositionState({
+                        duration,
+                        playbackRate: this.audio.playbackRate || 1,
+                        position: Math.min(duration || 0, this.audio.currentTime || 0),
+                    });
+                } catch (err) {}
+            }
         }
 
         bindUIEvents() {
             this.root.querySelector('[data-action="toggle"]').addEventListener('click', () => this.togglePlayback());
-            this.root.querySelector('[data-action="rewind"]').addEventListener('click', () => this.nudgePlayback(-10));
-            this.root.querySelector('[data-action="forward"]').addEventListener('click', () => this.nudgePlayback(10));
+            this.root.querySelector('[data-action="rewind"]').addEventListener('click', () => this.skipTrack(-1));
+            this.root.querySelector('[data-action="forward"]').addEventListener('click', () => this.skipTrack(1));
             this.seekInput.addEventListener('input', (event) => this.previewSeek(event.target.value));
             this.seekInput.addEventListener('change', (event) => this.commitSeek(event.target.value));
             this.closeButton.addEventListener('click', () => this.stopAndHide());
             if (this.minimizeButton) {
                 this.minimizeButton.addEventListener('click', () => this.toggleMinimize());
             }
-            this.modeButtons.shuffle.addEventListener('click', () => this.toggleMode('shuffle'));
-            this.modeButtons.repeat.addEventListener('click', () => this.toggleMode('repeat'));
-            this.modeButtons.loop.addEventListener('click', () => this.toggleMode('loop'));
+            if (this.optionsToggle) {
+                this.optionsToggle.addEventListener('click', () => this.toggleOptions());
+            }
+            this.root.querySelectorAll('[data-action="autoplay"]').forEach((button) => {
+                button.addEventListener('click', () => this.toggleMode('autoplay'));
+            });
+            this.root.querySelectorAll('[data-action="shuffle"]').forEach((button) => {
+                button.addEventListener('click', () => this.toggleMode('shuffle'));
+            });
+            this.root.querySelectorAll('[data-action="repeat"]').forEach((button) => {
+                button.addEventListener('click', () => this.toggleMode('repeat'));
+            });
+            this.root.querySelectorAll('[data-action="loop"]').forEach((button) => {
+                button.addEventListener('click', () => this.toggleMode('loop'));
+            });
+            this.root.querySelector('[data-action="seek-back"]').addEventListener('click', () => this.seekByStep(-1));
+            this.root.querySelector('[data-action="seek-forward"]').addEventListener('click', () => this.seekByStep(1));
+            this.seekStepButtons.forEach((button) => {
+                button.addEventListener('click', () => this.setSeekStep(parseInt(button.dataset.seekStep, 10)));
+            });
             this.volumeSlider.addEventListener('input', (event) => this.setVolume(parseFloat(event.target.value)));
+            document.addEventListener('pointerdown', () => this.resumePendingPlayback(), { capture: true });
+            document.addEventListener('keydown', () => this.resumePendingPlayback(), { capture: true });
         }
 
         bindStorageEvents() {
-            window.addEventListener('storage', (event) => {
-                if (event.key !== STORAGE_KEY) return;
-                this.state = this.readState();
-                if (!this.state?.src) {
-                    this.stopAndHide();
-                    return;
-                }
-                this.uiState = this.state?.uiState || {};
-                this.dragPosition = this.uiState?.position || this.dragPosition;
-                const incomingSettings = this.state?.playbackSettings || {};
-                this.playbackSettings = {
-                    shuffle: incomingSettings.shuffle !== undefined ? incomingSettings.shuffle : true,
-                    repeatAll: incomingSettings.repeatAll ?? false,
-                    loopOne: incomingSettings.loopOne ?? false,
-                };
-                this.updateModeButtons();
-                this.volume = typeof this.state.volume === 'number' ? clamp(this.state.volume, 0, 1) : this.volume;
-                this.applyVolume();
-                this.applyMinimizeState(!!(this.state?.uiState?.minimized));
-                this.applySavedPosition();
-                this.restoreFromState();
-            });
+            // State is intentionally session-scoped. Do not listen to localStorage
+            // events, or one tab can wake and play every other open tab.
         }
 
         bindDesktopEvents() {
@@ -539,8 +1003,47 @@
             });
         }
 
+        bindPageLifecycle() {
+            document.addEventListener('click', (event) => {
+                const anchor = event.target?.closest?.('a[href]');
+                if (!anchor || anchor.target || anchor.hasAttribute('download')) return;
+                let url;
+                try {
+                    url = new URL(anchor.getAttribute('href'), window.location.href);
+                } catch (err) {
+                    return;
+                }
+                if (url.origin === window.location.origin) {
+                    this.prepareSessionHandoff();
+                }
+            }, { capture: true });
+            window.addEventListener('pagehide', () => this.prepareSessionHandoff());
+            window.addEventListener('beforeunload', () => this.prepareSessionHandoff());
+            window.addEventListener('resize', () => this.schedulePositionClamp());
+        }
+
+        prepareSessionHandoff() {
+            if (this.isPageLeaving) return;
+            this.isPageLeaving = true;
+            const activeAudio = this.playbackOwner === 'inline'
+                ? this.inlineActive?.inlineAudio
+                : this.audio;
+            if (this.playbackOwner === 'inline' && this.inlineActive) {
+                this.ensureState(this.inlineActive);
+            }
+            if (!this.state?.src) return;
+            const wasPlaying = !!activeAudio && !activeAudio.paused && !activeAudio.ended;
+            const currentTime = activeAudio?.currentTime || this.state.currentTime || 0;
+            this.persistState({
+                isPlaying: wasPlaying || this.desiredPlaying || this.state.isPlaying === true,
+                currentTime,
+            });
+        }
+
         resetDockAndPosition() {
+            this.positionMode = 'anchored';
             this.uiState.position = null;
+            this.uiState.positionMode = 'anchored';
             this.dragPosition = null;
             if (this.root) {
                 this.root.style.left = '';
@@ -574,17 +1077,59 @@
 
         applySavedPosition() {
             if (!this.root) return;
+            if (this.positionMode !== 'manual') {
+                this.applyAnchoredPosition();
+                return;
+            }
             const saved = this.dragPosition;
-            if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) return;
-            const rect = this.root.getBoundingClientRect();
-            const maxX = Math.max(0, window.innerWidth - rect.width);
-            const maxY = Math.max(0, window.innerHeight - rect.height);
-            const nextX = clamp(saved.x, 0, maxX);
-            const nextY = clamp(saved.y, 0, maxY);
-            this.root.style.left = `${nextX}px`;
-            this.root.style.top = `${nextY}px`;
+            if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) {
+                this.applyAnchoredPosition();
+                return;
+            }
+            const next = this.clampPlayerPosition(saved);
+            if (!next) return;
+            this.root.style.left = `${next.x}px`;
+            this.root.style.top = `${next.y}px`;
             this.root.style.right = 'auto';
             this.root.style.bottom = 'auto';
+            this.dragPosition = next;
+        }
+
+        applyAnchoredPosition() {
+            if (!this.root) return;
+            this.positionMode = 'anchored';
+            this.dragPosition = null;
+            this.uiState.position = null;
+            this.uiState.positionMode = 'anchored';
+            this.root.style.left = '';
+            this.root.style.top = '';
+            this.root.style.right = '';
+            this.root.style.bottom = '';
+        }
+
+        clampPlayerPosition(position) {
+            if (!this.root || !position) return null;
+            const rect = this.root.getBoundingClientRect();
+            const width = rect.width || this.root.offsetWidth || 280;
+            const height = rect.height || this.root.offsetHeight || 120;
+            const margin = 12;
+            const maxX = Math.max(margin, window.innerWidth - width - margin);
+            const maxY = Math.max(margin, window.innerHeight - height - margin);
+            return {
+                x: clamp(position.x, margin, maxX),
+                y: clamp(position.y, margin, maxY),
+            };
+        }
+
+        schedulePositionClamp() {
+            if (!this.root || this.root.dataset.docked === 'true') return;
+            window.requestAnimationFrame(() => {
+                if (this.root?.dataset?.docked !== 'true' && this.positionMode === 'manual') {
+                    this.applySavedPosition();
+                } else if (this.root?.dataset?.docked !== 'true') {
+                    this.applyAnchoredPosition();
+                }
+            });
         }
 
         setupDrag() {
@@ -629,10 +1174,12 @@
                     handle.removeEventListener('pointerup', end);
                     handle.removeEventListener('pointercancel', end);
                     if (moved) {
+                        this.positionMode = 'manual';
                         this.uiState.position = {
                             x: parseFloat(this.root.style.left) || 0,
                             y: parseFloat(this.root.style.top) || 0,
                         };
+                        this.uiState.positionMode = 'manual';
                         this.dragPosition = this.uiState.position;
                         this.persistState();
                     }
@@ -660,25 +1207,39 @@
 
         applyMinimizeState(isMinimized) {
             if (!this.root) return;
+            if (isMinimized) {
+                this.toggleOptions(false);
+            }
             this.root.dataset.minimized = isMinimized ? 'true' : 'false';
             this.root.dataset.docked = isMinimized ? 'true' : 'false';
             this.updateMinimizeUI();
             this.updateDockButton(isMinimized);
+            if (!isMinimized) {
+                this.schedulePositionClamp();
+            }
         }
 
         ensureDockButton() {
-            if (this.dockButton) return this.dockButton;
+            if (this.dockButton?.isConnected) return this.dockButton;
+            if (this.dockButton && !this.dockButton.isConnected) {
+                this.dockButton = null;
+            }
+            const staleDock = document.getElementById('persistent-player-dock');
+            if (staleDock) {
+                staleDock.remove();
+            }
             const prefersDesktop = window.matchMedia('(min-width: 521px)').matches;
             const dockHost =
-                (prefersDesktop && document.querySelector('.taskbar-tray')) ||
+                (prefersDesktop && document.querySelector('.desktop-taskbar .taskbar-tray')) ||
                 (prefersDesktop && document.querySelector('.desktop-taskbar')) ||
                 document.body;
             const button = document.createElement('button');
             button.type = 'button';
             button.id = 'persistent-player-dock';
             button.className = 'player-dock-button';
-            button.textContent = 'Player';
+            button.textContent = 'PLAYER';
             button.setAttribute('aria-label', 'Open music player');
+            button.setAttribute('title', 'Open music player');
             if (dockHost === document.body) {
                 button.dataset.floating = 'true';
             }
@@ -702,6 +1263,11 @@
             }
             const button = this.ensureDockButton();
             button.classList.add('is-active');
+            button.hidden = false;
+            button.style.display = '';
+            const title = this.state?.title ? `PLAYER - ${this.state.title}` : 'PLAYER';
+            button.textContent = title.length > 28 ? `${title.slice(0, 25)}...` : title;
+            button.title = title;
         }
 
         buildCatalog() {
@@ -762,6 +1328,28 @@
             this.trackRegistry.set(meta.src, meta);
         }
 
+        findMetaForSrc(src) {
+            if (!src) return null;
+            const exact = this.trackRegistry.get(src);
+            if (exact) return exact;
+
+            let resolved = '';
+            try {
+                resolved = new URL(src, document.baseURI).href;
+            } catch (err) {}
+            if (resolved && this.trackRegistry.has(resolved)) {
+                return this.trackRegistry.get(resolved);
+            }
+
+            const name = sourceKey(src);
+            const stem = sourceKey(src, { stem: true });
+            if (!name && !stem) return null;
+            return this.catalogOrder.find((entry) => {
+                const entryName = sourceKey(entry.src);
+                return entryName === name || sourceKey(entry.src, { stem: true }) === stem;
+            }) || null;
+        }
+
         setupInlineIntegration() {
             const inlineMetas = this.catalogOrder.filter((meta) => meta.inlineAudio);
             if (!inlineMetas.length) {
@@ -808,6 +1396,7 @@
             if (!meta?.inlineAudio) return;
             this.inlineActive = meta;
             this.playbackOwner = 'inline';
+            this.desiredPlaying = true;
             this.ensureState(meta);
             this.state.source = 'inline';
             this.state.currentTime = meta.inlineAudio.currentTime || 0;
@@ -822,6 +1411,9 @@
             if (!meta?.inlineAudio) return;
             if (this.playbackOwner !== 'inline' || this.inlineActive !== meta) {
                 return;
+            }
+            if (!this.isPageLeaving && document.visibilityState !== 'hidden') {
+                this.desiredPlaying = !meta.inlineAudio.paused;
             }
             this.ensureState(meta);
             this.state.isPlaying = !meta.inlineAudio.paused;
@@ -930,12 +1522,19 @@
 
         resolveTrackIndex(src) {
             if (!src) return -1;
-            return this.catalogOrder.findIndex((entry) => entry.src === src);
+            const meta = this.findMetaForSrc(src);
+            if (meta) {
+                return this.catalogOrder.indexOf(meta);
+            }
+            return -1;
         }
 
         restoreFromState() {
             if (!this.state?.src) return;
-            const meta = this.trackRegistry.get(this.state.src) || this.state;
+            const meta =
+                this.findMetaForSrc(this.state.src) ||
+                (Number.isInteger(this.state.trackIndex) ? this.catalogOrder[this.state.trackIndex] : null) ||
+                this.state;
             this.ensureState(meta);
             this.volume = typeof this.state.volume === 'number' ? clamp(this.state.volume, 0, 1) : this.volume;
             this.applyVolume();
@@ -969,6 +1568,7 @@
             this.state.currentTime = normalizedStart;
             this.state.isPlaying = autoPlay;
             this.state.trackIndex = this.resolveTrackIndex(meta.src);
+            this.desiredPlaying = autoPlay;
             this.persistState();
             this.showUI();
             this.renderMetadata();
@@ -977,16 +1577,23 @@
             const attemptPlay = () => {
                 if (!autoPlay) {
                     this.audio.pause();
+                    this.desiredPlaying = false;
                     this.persistState({ isPlaying: false, currentTime: this.audio.currentTime });
                     return Promise.resolve();
                 }
                 return this.audio.play()
                     .then(() => {
+                        this.desiredPlaying = true;
                         this.persistState({ isPlaying: true, currentTime: this.audio.currentTime });
                     })
                     .catch((err) => {
                         console.warn('[PersistentPlayer] Play failed', err);
-                        this.persistState({ isPlaying: false });
+                        if (err?.name === 'NotAllowedError') {
+                            this.persistState({ isPlaying: true, resumePending: true });
+                        } else {
+                            this.desiredPlaying = false;
+                            this.persistState({ isPlaying: false, resumePending: false });
+                        }
                     });
             };
 
@@ -1007,10 +1614,15 @@
                 return attemptPlay();
             }
 
+            this.suppressPausePersist = true;
             this.audio.pause();
             this.audio.removeAttribute('src');
             this.audio.load();
             this.audio.src = meta.src;
+            this.audio.load();
+            const playPromise = attemptPlay().finally(() => {
+                this.suppressPausePersist = false;
+            });
 
             const pending = new Promise((resolve) => {
                 const cleanup = () => {
@@ -1020,11 +1632,11 @@
                 };
                 const handleMeta = () => {
                     cleanup();
-                    attemptPlay().finally(resolve);
+                    playPromise.finally(resolve);
                 };
                 const handleError = () => {
                     cleanup();
-                    resolve();
+                    playPromise.finally(resolve);
                 };
                 this.audio.addEventListener('loadedmetadata', handleMeta, { once: true });
                 this.audio.addEventListener('error', handleError, { once: true });
@@ -1047,6 +1659,7 @@
             } else {
                 this.root.dataset.inlineVisible = 'false';
             }
+            this.schedulePositionClamp();
         }
 
         renderMetadata() {
@@ -1060,10 +1673,15 @@
                 artistParts.push(this.state.artist);
             }
             this.artistEl.textContent = artistParts.join(' × ');
+            this.updateMediaSession();
+            if (this.root?.dataset?.docked === 'true') {
+                this.updateDockButton(true);
+            }
         }
 
         handleTimeUpdate() {
             this.updateProgressUI();
+            this.updateMediaSession();
             if (this.state) {
                 this.persistState({ currentTime: this.audio.currentTime });
             }
@@ -1079,39 +1697,31 @@
                 this.pendingSeek = null;
             }
             this.updateProgressUI();
+            this.updateMediaSession();
         }
 
         handleEnded() {
-            console.log('[PersistentPlayer] handleEnded called, audio.loop =', this.audio.loop);
-
-            // If native HTML5 loop is enabled, let it handle the looping
-            if (this.audio.loop) {
-                console.log('[PersistentPlayer] Loop enabled, letting native loop handle it');
+            if (this.playbackSettings.loopOne) {
+                this.setTrack(this.trackRegistry.get(this.state?.src) || this.state, { startTime: 0, autoPlay: true });
                 return;
             }
-
-            if (this.playbackSettings.loopOne) {
-                console.log('[PersistentPlayer] loopOne mode, restarting track');
-                this.setTrack(this.trackRegistry.get(this.state?.src) || this.state, { startTime: 0, autoPlay: true });
+            if (!this.playbackSettings.autoplayNext) {
+                this.persistState({ isPlaying: false, currentTime: this.audio.duration || 0 });
+                this.desiredPlaying = false;
+                this.root.dataset.playing = 'false';
                 return;
             }
             const nextMeta = this.getNextTrack(1);
             if (nextMeta) {
-                console.log('[PersistentPlayer] Advancing to next track');
                 this.setTrack(nextMeta, { startTime: 0, autoPlay: true });
                 return;
             }
-            if (this.catalogOrder.length > 1) {
-                console.log('[PersistentPlayer] Wrapping to first track');
-                this.setTrack(this.catalogOrder[0], { startTime: 0, autoPlay: true });
-                return;
-            }
-            console.log('[PersistentPlayer] No next track, stopping playback');
             this.persistState({ isPlaying: false, currentTime: this.audio.duration || 0 });
+            this.desiredPlaying = false;
             this.root.dataset.playing = 'false';
         }
 
-        getNextTrack(step = 1) {
+        getNextTrack(step = 1, options = {}) {
             if (!this.catalogOrder.length) return null;
             const currentIndex = this.resolveTrackIndex(this.state?.src);
             if (this.playbackSettings.shuffle) {
@@ -1124,16 +1734,16 @@
                 }
                 return this.catalogOrder[nextIndex];
             }
-            let nextIndex = currentIndex + step;
+            let nextIndex = (currentIndex >= 0 ? currentIndex : 0) + step;
             if (nextIndex >= this.catalogOrder.length) {
-                if (this.playbackSettings.repeatAll) {
+                if (this.playbackSettings.repeatAll || options.allowWrap) {
                     nextIndex = 0;
                 } else {
                     return null;
                 }
             }
             if (nextIndex < 0) {
-                if (this.playbackSettings.repeatAll) {
+                if (this.playbackSettings.repeatAll || options.allowWrap) {
                     nextIndex = this.catalogOrder.length - 1;
                 } else {
                     return null;
@@ -1186,22 +1796,81 @@
             this.persistState({ currentTime: next });
         }
 
+        seekByStep(direction) {
+            const step = this.playbackSettings.seekStep || 10;
+            this.nudgePlayback(step * direction);
+        }
+
+        skipTrack(step) {
+            if (!this.state?.src) {
+                const first = this.getNextTrack(step, { allowWrap: true }) || this.catalogOrder[0];
+                if (first) {
+                    this.setTrack(first, { startTime: 0, autoPlay: true });
+                }
+                return;
+            }
+            if (step < 0 && this.audio.currentTime > 3) {
+                this.audio.currentTime = 0;
+                this.persistState({ currentTime: 0 });
+                return;
+            }
+            const nextMeta = this.getNextTrack(step, { allowWrap: true });
+            if (!nextMeta) return;
+            const shouldPlay = !this.audio.paused || this.state?.isPlaying !== false;
+            this.setTrack(nextMeta, { startTime: 0, autoPlay: shouldPlay });
+        }
+
         togglePlayback() {
-            if (!this.state?.src) return;
+            if (!this.state?.src) {
+                const first = this.playbackSettings.shuffle && this.catalogOrder.length
+                    ? this.catalogOrder[Math.floor(Math.random() * this.catalogOrder.length)]
+                    : this.catalogOrder[0];
+                if (first) {
+                    this.setTrack(first, { startTime: 0, autoPlay: true });
+                }
+                return;
+            }
             if (this.audio.paused) {
+                this.desiredPlaying = true;
                 this.audio.play().catch((err) => console.warn('[PersistentPlayer] Play failed', err));
             } else {
+                this.desiredPlaying = false;
                 this.audio.pause();
             }
         }
 
+        resumePendingPlayback() {
+            if (!this.state?.resumePending || !this.state?.src || !this.audio?.paused) return;
+            this.desiredPlaying = true;
+            this.audio.play()
+                .then(() => this.persistState({ isPlaying: true, resumePending: false, currentTime: this.audio.currentTime }))
+                .catch(() => {});
+        }
+
+        toggleOptions(force) {
+            const next = typeof force === 'boolean' ? force : this.root.dataset.optionsOpen !== 'true';
+            this.root.dataset.optionsOpen = next ? 'true' : 'false';
+            if (this.optionsToggle) {
+                this.optionsToggle.setAttribute('aria-expanded', next ? 'true' : 'false');
+            }
+            this.schedulePositionClamp();
+        }
+
         toggleMode(mode) {
-            if (mode === 'shuffle') {
+            if (mode === 'autoplay') {
+                this.playbackSettings.autoplayNext = !this.playbackSettings.autoplayNext;
+            } else if (mode === 'shuffle') {
                 this.playbackSettings.shuffle = !this.playbackSettings.shuffle;
             } else if (mode === 'repeat') {
                 this.playbackSettings.repeatAll = !this.playbackSettings.repeatAll;
             } else if (mode === 'loop') {
                 this.playbackSettings.loopOne = !this.playbackSettings.loopOne;
+                if (this.playbackSettings.loopOne) {
+                    this.playbackSettings.autoplayNext = true;
+                }
+            }
+            if (this.audio) {
+                this.audio.loop = false;
             }
             this.updateModeButtons();
             this.persistState();
@@ -1209,9 +1878,28 @@
 
         updateModeButtons() {
             if (!this.modeButtons) return;
-            this.modeButtons.shuffle.setAttribute('aria-pressed', this.playbackSettings.shuffle ? 'true' : 'false');
-            this.modeButtons.repeat.setAttribute('aria-pressed', this.playbackSettings.repeatAll ? 'true' : 'false');
-            this.modeButtons.loop.setAttribute('aria-pressed', this.playbackSettings.loopOne ? 'true' : 'false');
+            const setPressed = (buttons, pressed) => {
+                (Array.isArray(buttons) ? buttons : [buttons]).filter(Boolean).forEach((button) => {
+                    button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+                });
+            };
+            setPressed(this.modeButtons.autoplay, this.playbackSettings.autoplayNext);
+            setPressed(this.modeButtons.shuffle, this.playbackSettings.shuffle);
+            setPressed(this.modeButtons.repeat, this.playbackSettings.repeatAll);
+            setPressed(this.modeButtons.loop, this.playbackSettings.loopOne);
+            if (this.seekLabel) {
+                this.seekLabel.textContent = `Seek ${this.playbackSettings.seekStep || 10}s`;
+            }
+            this.seekStepButtons?.forEach((button) => {
+                button.setAttribute('aria-pressed', Number(button.dataset.seekStep) === Number(this.playbackSettings.seekStep || 10) ? 'true' : 'false');
+            });
+        }
+
+        setSeekStep(step) {
+            const allowed = [5, 10, 30];
+            this.playbackSettings.seekStep = allowed.includes(step) ? step : 10;
+            this.updateModeButtons();
+            this.persistState();
         }
 
         setVolume(value, options = {}) {
@@ -1234,8 +1922,23 @@
         }
 
         updatePlaybackState() {
+            if (this.isPageLeaving) {
+                return;
+            }
             const isPlaying = !this.audio.paused && !this.audio.ended;
+            if (!isPlaying && this.desiredPlaying && document.visibilityState === 'hidden') {
+                return;
+            }
+            if (!isPlaying && this.suppressPausePersist) {
+                return;
+            }
+            if (!isPlaying && this.desiredPlaying && this.state?.resumePending) {
+                return;
+            }
             this.root.dataset.playing = isPlaying ? 'true' : 'false';
+            if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+            }
             if (this.state) {
                 this.persistState({ isPlaying, currentTime: this.audio.currentTime });
             }
@@ -1247,16 +1950,21 @@
                 ...this.state,
                 ...partial,
                 updatedAt: Date.now(),
+                writerId: this.instanceId,
                 playbackSettings: this.playbackSettings,
                 volume: this.volume,
                 uiState: {
                     minimized: this.root?.dataset?.minimized === 'true',
-                    position: this.uiState?.position || null,
+                    position: this.positionMode === 'manual' ? this.uiState?.position || null : null,
+                    positionMode: this.positionMode === 'manual' ? 'manual' : 'anchored',
                 },
             };
             this.state = next;
             safeStorage.set(STORAGE_KEY, JSON.stringify(next));
             this.highlightActiveTrack();
+            if (this.root?.dataset?.docked === 'true') {
+                this.updateDockButton(true);
+            }
         }
 
         readState() {
@@ -1275,7 +1983,7 @@
                 el.removeAttribute('data-persistent-active');
             });
             if (!this.state?.src) return;
-            const meta = this.trackRegistry.get(this.state.src);
+            const meta = this.findMetaForSrc(this.state.src);
             if (meta?.trackElement) {
                 meta.trackElement.setAttribute('data-persistent-active', 'true');
             }
@@ -1283,6 +1991,7 @@
 
         stopAndHide() {
             this.audio.pause();
+            this.desiredPlaying = false;
             this.audio.removeAttribute('src');
             this.audio.load();
             this.root.dataset.visible = 'false';
@@ -1385,10 +2094,10 @@
                         }
                     }
                     #autoplay-trigger:hover {
-                        color: #3f9;
-                        border-color: #3f9;
-                        box-shadow: 0 0 20px rgba(51, 255, 153, 0.5);
-                        text-shadow: 0 0 12px rgba(51, 255, 153, 0.8);
+                        color: #8ab4ff;
+                        border-color: #8ab4ff;
+                        box-shadow: 0 0 20px rgba(138, 180, 255, 0.5);
+                        text-shadow: 0 0 12px rgba(138, 180, 255, 0.8);
                     }
                     #autoplay-trigger:active {
                         transform: scale(0.98);
@@ -1498,9 +2207,11 @@
                     return;
                 }
                 this.autoStartAttempted = true;
+                this.playbackSettings.autoplayNext = true;
                 this.playbackSettings.shuffle = true;
-                this.playbackSettings.repeatAll = false;
+                this.playbackSettings.repeatAll = true;
                 this.playbackSettings.loopOne = false;
+                this.playbackSettings.seekStep = this.playbackSettings.seekStep || 10;
                 if (this.audio) {
                     this.audio.loop = false;
                 }

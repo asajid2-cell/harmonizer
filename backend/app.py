@@ -1384,6 +1384,14 @@ _load_audio_cache()
 @app.after_request
 def add_performance_headers(response):
     """Add caching headers for better mobile performance"""
+    if response.status_code >= 400:
+        response.cache_control.max_age = 0
+        response.cache_control.no_cache = True
+        response.cache_control.no_store = True
+        response.cache_control.must_revalidate = True
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
     # NO CACHE for HTML/JS/CSS to ensure users get updates
     if request.path.endswith(('.html', '.htm', '.js', '.css')):
         response.cache_control.max_age = 0

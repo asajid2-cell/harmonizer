@@ -198,6 +198,12 @@
       line-height:1;
       color:currentColor;
     }
+    .icon-frame svg{
+      width:46px;
+      height:46px;
+      color:var(--icon-primary,#9fd3ff);
+      filter:drop-shadow(0 0 7px color-mix(in srgb,var(--icon-secondary,#fff) 45%,transparent));
+    }
     .desktop-icon .icon-label{
       display:inline-block;
       padding:0 2px;
@@ -230,6 +236,8 @@
     .icon-frame--notebook{--icon-primary:#a5ffa5;--icon-secondary:#7ac7ff}
     .icon-frame--quickref{--icon-primary:#ffc3ff;--icon-secondary:#7affff}
     .icon-frame--venpod{--icon-primary:#ff6b6b;--icon-secondary:#4ecdc4}
+    .icon-frame--cloudsqueeze{--icon-primary:#ff5f83;--icon-secondary:#fff}
+    .icon-frame--cameraroom{--icon-primary:#ffd0e0;--icon-secondary:#ff5c8a}
     .icon-frame--nightlibrary{--icon-primary:#ff9fd2;--icon-secondary:#7affff}
     .icon-frame--nightlibrary img{
       width:52px;
@@ -413,6 +421,7 @@
       .desktop-icon{width:84px;font-size:10px}
       .icon-frame{width:56px;height:56px}
       .icon-frame i{font-size:30px}
+      .icon-frame svg{width:40px;height:40px}
       .taskbar-center{display:none}
     }
 
@@ -508,6 +517,8 @@
             <a href="/" aria-current="page"> Home </a>
             <a href="/projects"> Showcase </a>
             <a href="/harmonizer.html"> Harmonizer </a>
+            <a href="/cloud-squeeze/"> Squeezebox Cloud </a>
+            <a href="/CameraRoom/"> CameraRoom </a>
             <a href="/night-library.html"> Night Library </a>
             <a href="/eldrichify.html"> Image Playground </a>
             <a href="/talk-to-disco-teque.html"> Talk to Disco-teque </a>
@@ -805,6 +816,30 @@
               </span>
               <span class="icon-label">Harmonizer</span>
             </a>
+            <a class="desktop-icon" href="/cloud-squeeze/" data-id="cloudsqueeze" style="--icon-delay:200ms" draggable="false">
+              <span class="icon-frame icon-frame--cloudsqueeze">
+                <svg viewBox="0 0 64 64" shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+                  <rect x="20" y="14" width="24" height="4" fill="var(--icon-secondary)"/>
+                  <rect x="12" y="22" width="40" height="30" fill="none" stroke="currentColor" stroke-width="4"/>
+                  <rect x="18" y="28" width="28" height="6" fill="var(--icon-secondary)"/>
+                  <rect x="18" y="40" width="10" height="8" fill="none" stroke="var(--icon-secondary)" stroke-width="4"/>
+                  <rect x="36" y="40" width="10" height="8" fill="none" stroke="var(--icon-secondary)" stroke-width="4"/>
+                  <rect x="30" y="40" width="4" height="4" fill="currentColor"/>
+                  <rect x="30" y="46" width="4" height="4" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="icon-label">Squeezebox Cloud</span>
+            </a>
+            <a class="desktop-icon" href="/CameraRoom/" data-id="cameraroom" style="--icon-delay:240ms" draggable="false">
+              <span class="icon-frame icon-frame--cameraroom">
+                <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+                  <path d="M12 20h8l4-6h16l4 6h8a6 6 0 0 1 6 6v20a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6V26a6 6 0 0 1 6-6Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
+                  <circle cx="32" cy="36" r="10" fill="none" stroke="var(--icon-secondary)" stroke-width="5"/>
+                  <path d="M45 19l6-6v12l-6-6Z" fill="var(--icon-secondary)"/>
+                </svg>
+              </span>
+              <span class="icon-label">CameraRoom</span>
+            </a>
             <a class="desktop-icon" href="/night-library.html" data-id="nightlibrary" style="--icon-delay:200ms" draggable="false">
               <span class="icon-frame icon-frame--nightlibrary">
                 <img src="./assets/night-library/moon.png" alt="" aria-hidden="true">
@@ -887,6 +922,8 @@
               <a href="/">Home</a>
               <a href="/projects">Showcase</a>
               <a href="/harmonizer.html">Harmonizer</a>
+              <a href="/cloud-squeeze/">Squeezebox Cloud</a>
+              <a href="/CameraRoom/">CameraRoom</a>
               <a href="/night-library.html">Night Library</a>
               <a href="/eldrichify.html">Image Playground</a>
               <a href="/talk-to-disco-teque.html">Talk to Disco-teque</a>
@@ -1035,7 +1072,8 @@
           window.localStorage.removeItem('idcDesktopPlayButton');
           window.localStorage.removeItem('idcDesktopPlayButton:desktop');
           window.localStorage.removeItem('idcDesktopPlayButton:tablet');
-          const rawPlayer = window.localStorage.getItem('idcPersistentPlayerState');
+          window.localStorage.removeItem('idcPersistentPlayerState');
+          const rawPlayer = window.sessionStorage.getItem('idcPersistentPlayerState:session');
           if (rawPlayer) {
             const parsed = JSON.parse(rawPlayer);
             if (parsed && typeof parsed === 'object') {
@@ -1043,7 +1081,7 @@
                 delete parsed.uiState.position;
                 parsed.uiState.minimized = false;
               }
-              window.localStorage.setItem('idcPersistentPlayerState', JSON.stringify(parsed));
+              window.sessionStorage.setItem('idcPersistentPlayerState:session', JSON.stringify(parsed));
             }
           }
         } catch (err) {
