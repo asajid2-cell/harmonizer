@@ -28,6 +28,7 @@ frontend/master-outputs
 frontend/dggr-demo
 *.tar.gz
 *.tgz
+*.map
 *.pt
 *.npy
 *.npz

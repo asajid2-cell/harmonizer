@@ -272,6 +272,7 @@ if not NIGHT_LIBRARY_DIR.exists():
 DISCO_MEMORY_PATH = DATA_FOLDER / "discoteque_memory.jsonl"
 AUDIO_CACHE_PATH = DATA_FOLDER / "audio_cache.json"
 ANALYSIS_CACHE_PATH = DATA_FOLDER / "analysis_cache.json"
+DESKTOP_LAYOUT_PATH = DATA_FOLDER / "desktop_layout.json"
 AUTOCROONER_STYLE_DIR = DATA_FOLDER / "autocrooner_styles"
 AUTOCROONER_TRAIN_UPLOAD_DIR = UPLOAD_FOLDER / "autocrooner_trainer"
 AUTOCROONER_TRANSFER_UPLOAD_DIR = UPLOAD_FOLDER / "autocrooner_style_transfer"
@@ -1376,6 +1377,194 @@ app.config["RL_POLICY_MODE"] = rl_policy_override
 # Performance optimizations for 2GB RAM VPS
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000  # 1 year cache for static files
 app.config["JSON_SORT_KEYS"] = False  # Faster JSON responses
+app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("HARMONIZER_MAX_CONTENT_LENGTH", str(80 * 1024 * 1024)))
+
+HARMONIZER_ADMIN_TOKEN = os.environ.get("HARMONIZER_ADMIN_TOKEN", "")
+HARMONIZER_FORCE_HTTPS = os.environ.get("HARMONIZER_FORCE_HTTPS", "0") == "1"
+HARMONIZER_ALLOWED_ORIGINS = {
+    origin.strip()
+    for origin in os.environ.get("HARMONIZER_ALLOWED_ORIGINS", "https://harmonizerlabs.cc").split(",")
+    if origin.strip()
+}
+if os.environ.get("FLASK_ENV") != "production":
+    HARMONIZER_ALLOWED_ORIGINS.update({
+        "http://127.0.0.1:4000",
+        "http://localhost:4000",
+        "http://127.0.0.1:5000",
+        "http://localhost:5000",
+    })
+
+_rate_limit_lock = threading.Lock()
+_rate_limit_hits: Dict[str, List[float]] = {}
+_EXPENSIVE_POST_LIMITS = {
+    "/api/process": (int(os.environ.get("HARMONIZER_PROCESS_RATE_LIMIT", "6")), 3600),
+    "/api/eldrichify": (int(os.environ.get("HARMONIZER_IMAGE_RATE_LIMIT", "12")), 3600),
+    "/api/ourspace/upload": (int(os.environ.get("HARMONIZER_UPLOAD_RATE_LIMIT", "20")), 3600),
+    "/api/autocrooner/train": (int(os.environ.get("HARMONIZER_AUTOCROONER_RATE_LIMIT", "4")), 3600),
+    "/api/autocrooner/style-transfer/train": (int(os.environ.get("HARMONIZER_AUTOCROONER_RATE_LIMIT", "4")), 3600),
+}
+_EXPENSIVE_POST_PREFIX_LIMITS = {
+    "/api/codesniff/": (int(os.environ.get("HARMONIZER_CODESNIFF_RATE_LIMIT", "20")), 3600),
+}
+
+
+def _client_ip() -> str:
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",", 1)[0].strip()
+    return request.remote_addr or "unknown"
+
+
+def _audit_security_event(event: str):
+    print(f"[Security] {datetime.utcnow().isoformat()}Z {event} path={request.path} ip={_client_ip()}", flush=True)
+
+
+def _rate_limit_error(limit_key: str):
+    max_hits, window_seconds = _EXPENSIVE_POST_LIMITS.get(limit_key) or _EXPENSIVE_POST_PREFIX_LIMITS[limit_key]
+    now = time.time()
+    bucket_key = f"{limit_key}:{_client_ip()}"
+    with _rate_limit_lock:
+        hits = [
+            hit
+            for hit in _rate_limit_hits.get(bucket_key, [])
+            if now - hit < window_seconds
+        ]
+        if len(hits) >= max_hits:
+            _rate_limit_hits[bucket_key] = hits
+            return jsonify({"error": "Rate limit exceeded"}), 429
+        hits.append(now)
+        _rate_limit_hits[bucket_key] = hits
+    return None
+
+
+def _rate_limit_key_for_request() -> Optional[str]:
+    if request.method != "POST":
+        return None
+    if request.path in _EXPENSIVE_POST_LIMITS:
+        return request.path
+    for prefix in _EXPENSIVE_POST_PREFIX_LIMITS:
+        if request.path.startswith(prefix):
+            return prefix
+    return None
+
+
+def _require_admin_token():
+    if (
+        not HARMONIZER_ADMIN_TOKEN
+        or HARMONIZER_ADMIN_TOKEN == "change-me"
+        or HARMONIZER_ADMIN_TOKEN.startswith("replace-with-")
+    ):
+        _audit_security_event("admin_token_disabled")
+        return jsonify({"error": "Admin maintenance API is disabled"}), 503
+    header = request.headers.get("Authorization", "")
+    token = header.removeprefix("Bearer ").strip()
+    if not hmac.compare_digest(token, HARMONIZER_ADMIN_TOKEN):
+        _audit_security_event("admin_token_denied")
+        return jsonify({"error": "Admin authorization required"}), 401
+    return None
+
+
+def _safe_child_path(root: Path, *parts: str) -> Optional[Path]:
+    root_path = root.resolve()
+    try:
+        target = root_path.joinpath(*(str(part) for part in parts)).resolve()
+        target.relative_to(root_path)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return target
+
+
+def _load_desktop_layout() -> dict:
+    if not DESKTOP_LAYOUT_PATH.is_file():
+        return {"desktop": {}, "tablet": {}, "updatedAt": None}
+    try:
+        with DESKTOP_LAYOUT_PATH.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return {"desktop": {}, "tablet": {}, "updatedAt": None}
+    if not isinstance(data, dict):
+        return {"desktop": {}, "tablet": {}, "updatedAt": None}
+    return {
+        "desktop": data.get("desktop") if isinstance(data.get("desktop"), dict) else {},
+        "tablet": data.get("tablet") if isinstance(data.get("tablet"), dict) else {},
+        "updatedAt": data.get("updatedAt"),
+    }
+
+
+def _coerce_desktop_positions(raw_positions) -> dict:
+    if not isinstance(raw_positions, dict):
+        return {}
+    positions = {}
+    for raw_id, raw_value in raw_positions.items():
+        icon_id = str(raw_id)
+        if not re.fullmatch(r"[a-z0-9-]{1,64}", icon_id):
+            continue
+        if not isinstance(raw_value, dict):
+            continue
+        try:
+            x = float(raw_value.get("x", 0))
+            y = float(raw_value.get("y", 0))
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(x) or not math.isfinite(y):
+            continue
+        positions[icon_id] = {
+            "x": max(0, min(5000, round(x, 2))),
+            "y": max(0, min(5000, round(y, 2))),
+        }
+    return positions
+
+
+@app.route("/api/desktop-layout", methods=["GET", "POST"])
+def desktop_layout():
+    bucket = request.args.get("bucket", "desktop")
+    if request.method == "POST":
+        payload = request.get_json(silent=True) or {}
+        bucket = payload.get("bucket", bucket)
+    if bucket not in {"desktop", "tablet"}:
+        return jsonify({"error": "Invalid layout bucket."}), 400
+
+    data = _load_desktop_layout()
+    if request.method == "GET":
+        return jsonify({
+            "ok": True,
+            "bucket": bucket,
+            "positions": data.get(bucket, {}),
+            "updatedAt": data.get("updatedAt"),
+        })
+
+    payload = request.get_json(silent=True) or {}
+    data[bucket] = _coerce_desktop_positions(payload.get("positions", {}))
+    data["updatedAt"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    DESKTOP_LAYOUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with DESKTOP_LAYOUT_PATH.open("w", encoding="utf-8") as handle:
+        json.dump(data, handle, indent=2, sort_keys=True)
+    return jsonify({
+        "ok": True,
+        "bucket": bucket,
+        "positions": data[bucket],
+        "updatedAt": data["updatedAt"],
+    })
+
+
+@app.before_request
+def _apply_request_guards():
+    if (
+        HARMONIZER_FORCE_HTTPS
+        and request.method in {"GET", "HEAD"}
+        and not request.is_secure
+        and request.headers.get("X-Forwarded-Proto", "").lower() != "https"
+    ):
+        return redirect(request.url.replace("http://", "https://", 1), code=308)
+    if request.path.lower().endswith(".map"):
+        abort(404)
+    rate_limit_key = _rate_limit_key_for_request()
+    if rate_limit_key:
+        rate_error = _rate_limit_error(rate_limit_key)
+        if rate_error:
+            return rate_error
+    return None
+
 
 # Load audio cache on startup
 _load_audio_cache()
@@ -1384,6 +1573,25 @@ _load_audio_cache()
 @app.after_request
 def add_performance_headers(response):
     """Add caching headers for better mobile performance"""
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://ajax.googleapis.com https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; "
+        "font-src 'self' https://fonts.gstatic.com https://unpkg.com data:; "
+        "img-src 'self' data: blob: https:; "
+        "media-src 'self' blob: https:; "
+        "connect-src 'self' https:; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    if request.is_secure or request.headers.get("X-Forwarded-Proto", "").lower() == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     if response.status_code >= 400:
         response.cache_control.max_age = 0
         response.cache_control.no_cache = True
@@ -1449,6 +1657,11 @@ def _send_cached_file(path: Path, *, treat_as_html: bool = False):
 @app.route("/api/cache/clear", methods=["POST"])
 def clear_track_cache():
     """Clear cached track profiles, analysis JSONs, and audio cache entries."""
+    admin_error = _require_admin_token()
+    if admin_error:
+        return admin_error
+    _audit_security_event("admin_cache_clear")
+
     removed_files = 0
     removed_entries = 0
 
@@ -2223,10 +2436,10 @@ def api_autocrooner_train():
     for f in files:
         if not f or not f.filename:
             continue
-        if not allowed_file(f.filename):
-            return jsonify({"error": f"Unsupported file type: {f.filename}"}), 400
+        ext, upload_error = _validate_upload_content(f, ALLOWED_EXTENSIONS, "audio")
+        if upload_error:
+            return jsonify({"error": f"{upload_error}: {f.filename}"}), 400
         track_id = generate_track_id()
-        ext = Path(f.filename).suffix.lower()
         filename = secure_filename(f"{track_id}{ext}")
         audio_path = AUTOCROONER_TRAIN_UPLOAD_DIR / filename
         f.save(audio_path)
@@ -2524,12 +2737,16 @@ def api_autocrooner_style_transfer_train():
     tgt_path = None
 
     if ref and ref.filename and tgt and tgt.filename:
-        if not allowed_file(ref.filename) or not allowed_file(tgt.filename):
-            return jsonify({"error": "Unsupported file type."}), 400
+        ref_ext, upload_error = _validate_upload_content(ref, ALLOWED_EXTENSIONS, "audio")
+        if upload_error:
+            return jsonify({"error": f"Reference audio: {upload_error}"}), 400
+        tgt_ext, upload_error = _validate_upload_content(tgt, ALLOWED_EXTENSIONS, "audio")
+        if upload_error:
+            return jsonify({"error": f"Target audio: {upload_error}"}), 400
         ref_id = generate_track_id()
         tgt_id = generate_track_id()
-        ref_path = AUTOCROONER_TRANSFER_UPLOAD_DIR / secure_filename(f"{ref_id}{Path(ref.filename).suffix.lower()}")
-        tgt_path = AUTOCROONER_TRANSFER_UPLOAD_DIR / secure_filename(f"{tgt_id}{Path(tgt.filename).suffix.lower()}")
+        ref_path = AUTOCROONER_TRANSFER_UPLOAD_DIR / secure_filename(f"{ref_id}{ref_ext}")
+        tgt_path = AUTOCROONER_TRANSFER_UPLOAD_DIR / secure_filename(f"{tgt_id}{tgt_ext}")
         ref.save(ref_path)
         tgt.save(tgt_path)
     else:
@@ -2645,16 +2862,106 @@ SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 user_credentials = {}
 
 
+def _apply_allowed_cors_headers(response, *, methods: str = "GET,POST,OPTIONS"):
+    origin = request.headers.get("Origin")
+    if origin in HARMONIZER_ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        _add_vary_header(response, "Origin")
+    response.headers.setdefault("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    response.headers.setdefault("Access-Control-Allow-Methods", methods)
+    return response
+
+
+def _add_vary_header(response, value: str):
+    existing = response.headers.get("Vary", "")
+    values = [item.strip() for item in existing.split(",") if item.strip()]
+    if value not in values:
+        values.append(value)
+    response.headers["Vary"] = ", ".join(values)
+    return response
+
+
 @app.after_request
 def _apply_cors(response):
-    response.headers.setdefault("Access-Control-Allow-Origin", "*")
-    response.headers.setdefault("Access-Control-Allow-Headers", "Content-Type")
-    response.headers.setdefault("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-    return response
+    return _apply_allowed_cors_headers(response)
 
 
 def allowed_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
+
+
+def _upload_prefix(upload, size: int = 64) -> bytes:
+    try:
+        upload.stream.seek(0)
+        prefix = upload.stream.read(size)
+        upload.stream.seek(0)
+        return prefix or b""
+    except Exception:
+        return b""
+
+
+def _matches_audio_magic(ext: str, prefix: bytes) -> bool:
+    if not prefix:
+        return False
+    if ext == ".mp3":
+        return prefix.startswith(b"ID3") or (len(prefix) >= 2 and prefix[0] == 0xFF and (prefix[1] & 0xE0) == 0xE0)
+    if ext == ".wav":
+        return len(prefix) >= 12 and prefix.startswith(b"RIFF") and prefix[8:12] == b"WAVE"
+    if ext == ".flac":
+        return prefix.startswith(b"fLaC")
+    if ext == ".ogg":
+        return prefix.startswith(b"OggS")
+    if ext in {".m4a", ".aac"}:
+        return (
+            (len(prefix) >= 12 and prefix[4:8] == b"ftyp")
+            or (len(prefix) >= 2 and prefix[0] == 0xFF and (prefix[1] & 0xF6) in {0xF0, 0xF2})
+        )
+    return False
+
+
+def _matches_image_magic(ext: str, prefix: bytes) -> bool:
+    if not prefix:
+        return False
+    if ext == ".png":
+        return prefix.startswith(b"\x89PNG\r\n\x1a\n")
+    if ext in {".jpg", ".jpeg"}:
+        return prefix.startswith(b"\xff\xd8\xff")
+    if ext == ".gif":
+        return prefix.startswith((b"GIF87a", b"GIF89a"))
+    if ext == ".bmp":
+        return prefix.startswith(b"BM")
+    if ext == ".webp":
+        return len(prefix) >= 12 and prefix.startswith(b"RIFF") and prefix[8:12] == b"WEBP"
+    return False
+
+
+def _validate_upload_content(upload, allowed_exts: set[str], kind: str):
+    filename = getattr(upload, "filename", "") or ""
+    ext = Path(filename).suffix.lower()
+    if ext not in allowed_exts:
+        return ext, f"Unsupported {kind} file type."
+    prefix = _upload_prefix(upload)
+    if kind == "audio":
+        ok = _matches_audio_magic(ext, prefix)
+    elif kind == "image":
+        ok = _matches_image_magic(ext, prefix)
+    else:
+        ok = False
+    if not ok:
+        return ext, f"{kind.title()} file content does not match its extension."
+    return ext, None
+
+
+def _ourspace_upload_kind(file_type: str, filename: str) -> str:
+    normalized = (file_type or "").strip().lower()
+    if normalized in {"audio", "music", "song", "track"}:
+        return "audio"
+    if normalized in {"image", "avatar", "banner", "background", "photo", "picture"}:
+        return "image"
+    ext = Path(filename or "").suffix.lower()
+    if ext in ALLOWED_EXTENSIONS:
+        return "audio"
+    return "image"
 
 
 _eldrichify_pipeline: Optional[EldrichifyPipeline] = None
@@ -3191,10 +3498,7 @@ def codesniff_api_proxy(endpoint: str):
     # Handle CORS preflight
     if request.method == "OPTIONS":
         response = jsonify({})
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        return response
+        return _apply_allowed_cors_headers(response, methods="GET,POST,PUT,DELETE,OPTIONS")
 
     # Build the target URL
     target_url = f"{CODESNIFF_BACKEND_URL}/api/{endpoint}"
@@ -3302,9 +3606,9 @@ def media(filename: str):
 
             # Create response
             response = Response(image_data, mimetype=mimetype)
-            response.headers['Access-Control-Allow-Origin'] = '*'
+            _apply_allowed_cors_headers(response)
             response.headers['Cache-Control'] = 'public, max-age=31536000'  # 1 year cache
-            response.headers['Vary'] = 'Accept'  # Vary based on Accept header
+            _add_vary_header(response, "Accept")  # Vary based on Accept header
 
             return response
 
@@ -3362,7 +3666,7 @@ def media(filename: str):
         response.headers['Content-Range'] = f'bytes {start}-{end}/{file_size}'
         response.headers['Content-Length'] = str(length)
         response.headers['Accept-Ranges'] = 'bytes'
-        response.headers['Access-Control-Allow-Origin'] = '*'
+        _apply_allowed_cors_headers(response)
         response.headers['Cache-Control'] = 'public, max-age=31536000'
 
         return response
@@ -3375,7 +3679,7 @@ def media(filename: str):
         conditional=True,
     )
     response.headers['Accept-Ranges'] = 'bytes'
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    _apply_allowed_cors_headers(response)
     response.headers['Cache-Control'] = 'public, max-age=31536000'
     return response
 
@@ -3388,7 +3692,7 @@ def analysis_file(filename: str):
         mimetype="application/json",
         conditional=True,
     )
-    response.headers.setdefault("Access-Control-Allow-Origin", "*")
+    _apply_allowed_cors_headers(response)
     # Ensure analysis files are never cached - always fetch fresh
     response.cache_control.max_age = 0
     response.cache_control.no_cache = True
@@ -3407,9 +3711,9 @@ def api_eldrichify():
     upload = request.files.get("image")
     if not upload or not upload.filename:
         return jsonify({"error": "Please upload an image file using the 'image' field."}), 400
-    ext = Path(upload.filename).suffix.lower()
-    if ext not in IMAGE_EXTENSIONS:
-        return jsonify({"error": f"Unsupported image format '{ext}'. Use PNG, JPG, JPEG, BMP, or WEBP."}), 400
+    _ext, upload_error = _validate_upload_content(upload, IMAGE_EXTENSIONS, "image")
+    if upload_error:
+        return jsonify({"error": upload_error}), 400
 
     # Get target size from form data (default 768)
     target_size = int(request.form.get("target_size", 768))
@@ -4398,9 +4702,9 @@ def api_process():
             uploaded = request.files.get("audio")
             if not uploaded or uploaded.filename == "":
                 return jsonify({"error": "Please provide an audio file."}), 400
-            if not allowed_file(uploaded.filename):
-                return jsonify({"error": "Unsupported file type."}), 400
-            ext = Path(uploaded.filename).suffix.lower()
+            ext, upload_error = _validate_upload_content(uploaded, ALLOWED_EXTENSIONS, "audio")
+            if upload_error:
+                return jsonify({"error": upload_error}), 400
             filename = secure_filename(f"{track_id}{ext}")
             audio_path = UPLOAD_FOLDER / filename
             uploaded.save(audio_path)
@@ -4412,10 +4716,10 @@ def api_process():
                 uploaded2 = request.files.get("audio2")
                 if not uploaded2 or uploaded2.filename == "":
                     return jsonify({"error": "Autoharmonizer requires two audio files."}), 400
-                if not allowed_file(uploaded2.filename):
-                    return jsonify({"error": "Second file has unsupported type."}), 400
+                ext2, upload_error = _validate_upload_content(uploaded2, ALLOWED_EXTENSIONS, "audio")
+                if upload_error:
+                    return jsonify({"error": f"Second file: {upload_error}"}), 400
                 track_id2 = generate_track_id()
-                ext2 = Path(uploaded2.filename).suffix.lower()
                 filename2 = secure_filename(f"{track_id2}{ext2}")
                 audio_path2 = UPLOAD_FOLDER / filename2
                 uploaded2.save(audio_path2)
@@ -4956,10 +5260,18 @@ def ourspace_upload():
         if file.filename == "":
             return jsonify({"error": "Empty filename"}), 400
 
-        # Generate unique filename
-        ext = Path(file.filename).suffix
-        filename = f"{file_type}_{uuid.uuid4()}{ext}"
-        filepath = user_media_dir / filename
+        upload_kind = _ourspace_upload_kind(file_type, file.filename)
+        allowed_exts = ALLOWED_EXTENSIONS if upload_kind == "audio" else IMAGE_EXTENSIONS
+        ext, upload_error = _validate_upload_content(file, allowed_exts, upload_kind)
+        if upload_error:
+            return jsonify({"error": upload_error}), 400
+
+        # Generate a unique filename without trusting the caller-supplied type as a path segment.
+        file_type_label = secure_filename(file_type) or upload_kind
+        filename = f"{file_type_label}_{uuid.uuid4()}{ext}"
+        filepath = _safe_child_path(user_media_dir, filename)
+        if filepath is None:
+            return jsonify({"error": "Invalid upload path"}), 400
 
         file.save(filepath)
 
@@ -4974,18 +5286,22 @@ def ourspace_upload():
 @app.route("/api/ourspace/media/<user_id>/<filename>")
 def ourspace_media(user_id: str, filename: str):
     """Serve OurSpace media files with fallback logic."""
-    filepath = ourspace_DATA_DIR / user_id / filename
+    user_dir = _safe_child_path(ourspace_DATA_DIR, user_id)
+    if user_dir is None:
+        abort(404)
+    filepath = _safe_child_path(user_dir, filename)
 
     # If file exists at requested path, serve it
-    if filepath.exists():
+    if filepath and filepath.exists():
         return send_file(filepath)
 
     # If user is authenticated and requesting temp file, try authenticated directory
     if user_id.startswith("temp_"):
         ourspace_user_id = session.get("ourspace_user_id")
         if ourspace_user_id:
-            auth_filepath = ourspace_DATA_DIR / str(ourspace_user_id) / filename
-            if auth_filepath.exists():
+            auth_dir = _safe_child_path(ourspace_DATA_DIR, str(ourspace_user_id))
+            auth_filepath = _safe_child_path(auth_dir, filename) if auth_dir else None
+            if auth_filepath and auth_filepath.exists():
                 return send_file(auth_filepath)
 
     # If authenticated user requesting file, also check all temp directories as fallback
@@ -4993,8 +5309,8 @@ def ourspace_media(user_id: str, filename: str):
     if not user_id.startswith("temp_"):
         for temp_dir in ourspace_DATA_DIR.glob("temp_*"):
             if temp_dir.is_dir():
-                fallback_path = temp_dir / filename
-                if fallback_path.exists():
+                fallback_path = _safe_child_path(temp_dir, filename)
+                if fallback_path and fallback_path.exists():
                     return send_file(fallback_path)
 
     abort(404)
@@ -6255,12 +6571,18 @@ def image_cache_stats():
         return jsonify({"error": "Image optimizer not available"}), 503
     optimizer = ImageOptimizer(UPLOAD_FOLDER)
     stats = optimizer.get_cache_stats()
+    stats.pop("cache_folder", None)
     return jsonify(stats)
 
 
 @app.route("/api/image-cache/clear", methods=["POST"])
 def image_cache_clear():
     """Clear image optimization cache."""
+    admin_error = _require_admin_token()
+    if admin_error:
+        return admin_error
+    _audit_security_event("admin_image_cache_clear")
+
     if ImageOptimizer is None:
         return jsonify({"error": "Image optimizer not available"}), 503
     optimizer = ImageOptimizer(UPLOAD_FOLDER)
@@ -6277,6 +6599,11 @@ def image_cache_batch_optimize():
     Batch optimize all images in uploads folder.
     Pre-generates WebP and AVIF variants for faster first access.
     """
+    admin_error = _require_admin_token()
+    if admin_error:
+        return admin_error
+    _audit_security_event("admin_image_cache_batch_optimize")
+
     import time
 
     if ImageOptimizer is None:

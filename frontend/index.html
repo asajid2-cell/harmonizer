@@ -223,21 +223,93 @@
       color:#fff;
       text-shadow:0 0 8px rgba(0,0,0,.9),0 0 10px rgba(255,255,255,.2);
     }
-
     .icon-frame--home{--icon-primary:#6dffd2;--icon-secondary:#4f7bff}
     .icon-frame--showcase{--icon-primary:#8ab4ff;--icon-secondary:#ffb347}
     .icon-frame--harmonizer{--icon-primary:#5cff8a;--icon-secondary:#ff7ac8}
+    .icon-frame--harmonizer img{
+      width:58px;
+      height:58px;
+      object-fit:contain;
+      image-rendering:auto;
+      pointer-events:none;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
     .icon-frame--image{--icon-primary:#ffd86b;--icon-secondary:#7bd7ff}
+    .icon-frame--image img{
+      width:58px;
+      height:58px;
+      object-fit:contain;
+      pointer-events:none;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
     .icon-frame--talk{--icon-primary:#8fe7ff;--icon-secondary:#ff7ab8}
+    .icon-frame--talk img{
+      width:58px;
+      height:58px;
+      object-fit:contain;
+      pointer-events:none;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
     .icon-frame--codesniff{--icon-primary:#8fff5a;--icon-secondary:#5af0ff}
+    .icon-frame--codesniff img{
+      width:58px;
+      height:58px;
+      object-fit:contain;
+      pointer-events:none;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
     .icon-frame--radio{--icon-primary:#ff9f5a;--icon-secondary:#ffd65a}
     .icon-frame--ourspace{--icon-primary:#9a7bff;--icon-secondary:#53ffd6}
+    .icon-frame--ourspace img{
+      width:58px;
+      height:58px;
+      object-fit:contain;
+      pointer-events:none;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
     .icon-frame--sand{--icon-primary:#f8d27a;--icon-secondary:#ff7a7a}
+    .icon-frame--sand img{
+      width:58px;
+      height:58px;
+      object-fit:contain;
+      pointer-events:none;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
     .icon-frame--notebook{--icon-primary:#a5ffa5;--icon-secondary:#7ac7ff}
     .icon-frame--quickref{--icon-primary:#ffc3ff;--icon-secondary:#7affff}
     .icon-frame--venpod{--icon-primary:#ff6b6b;--icon-secondary:#4ecdc4}
+    .icon-frame--venpod img{
+      width:58px;
+      height:58px;
+      object-fit:contain;
+      pointer-events:none;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
     .icon-frame--cloudsqueeze{--icon-primary:#ff5f83;--icon-secondary:#fff}
+    .icon-frame--cloudsqueeze img{
+      width:58px;
+      height:58px;
+      object-fit:contain;
+      pointer-events:none;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
     .icon-frame--cameraroom{--icon-primary:#ffd0e0;--icon-secondary:#ff5c8a}
+    .icon-frame--cameraroom img{
+      width:58px;
+      height:58px;
+      object-fit:contain;
+      pointer-events:none;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
     .icon-frame--nightlibrary{--icon-primary:#ff9fd2;--icon-secondary:#7affff}
     .icon-frame--nightlibrary img{
       width:52px;
@@ -520,7 +592,7 @@
             <a href="/cloud-squeeze/"> Squeezebox Cloud </a>
             <a href="/CameraRoom/"> CameraRoom </a>
             <a href="/night-library.html"> Night Library </a>
-            <a href="/eldrichify.html"> Image Playground </a>
+            <a href="/eldrichify.html"> Eldrichify </a>
             <a href="/talk-to-disco-teque.html"> Talk to Disco-teque </a>
             <a href="/codesniff.html"> CodeSniff </a>
             <a href="https://plaza.one/" target="_blank" rel="noopener"> Radio </a>
@@ -812,31 +884,19 @@
             </a>
             <a class="desktop-icon" href="/harmonizer.html" data-id="harmonizer" style="--icon-delay:160ms" draggable="false">
               <span class="icon-frame icon-frame--harmonizer">
-                <i class="pixelart-icons-font-music" aria-hidden="true"></i>
+                <img src="./assets/harmonizer/harmonizer-mascot-icon.png?v=frameless-20260530" alt="" aria-hidden="true" draggable="false">
               </span>
               <span class="icon-label">Harmonizer</span>
             </a>
             <a class="desktop-icon" href="/cloud-squeeze/" data-id="cloudsqueeze" style="--icon-delay:200ms" draggable="false">
               <span class="icon-frame icon-frame--cloudsqueeze">
-                <svg viewBox="0 0 64 64" shape-rendering="crispEdges" aria-hidden="true" focusable="false">
-                  <rect x="20" y="14" width="24" height="4" fill="var(--icon-secondary)"/>
-                  <rect x="12" y="22" width="40" height="30" fill="none" stroke="currentColor" stroke-width="4"/>
-                  <rect x="18" y="28" width="28" height="6" fill="var(--icon-secondary)"/>
-                  <rect x="18" y="40" width="10" height="8" fill="none" stroke="var(--icon-secondary)" stroke-width="4"/>
-                  <rect x="36" y="40" width="10" height="8" fill="none" stroke="var(--icon-secondary)" stroke-width="4"/>
-                  <rect x="30" y="40" width="4" height="4" fill="currentColor"/>
-                  <rect x="30" y="46" width="4" height="4" fill="currentColor"/>
-                </svg>
+                <img src="./assets/squeezebox/squeezebox-discotheque-orbit-icon-v3.png?v=final-discotheque-orbit-20260530" alt="" aria-hidden="true" draggable="false">
               </span>
               <span class="icon-label">Squeezebox Cloud</span>
             </a>
             <a class="desktop-icon" href="/CameraRoom/" data-id="cameraroom" style="--icon-delay:240ms" draggable="false">
               <span class="icon-frame icon-frame--cameraroom">
-                <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-                  <path d="M12 20h8l4-6h16l4 6h8a6 6 0 0 1 6 6v20a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6V26a6 6 0 0 1 6-6Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
-                  <circle cx="32" cy="36" r="10" fill="none" stroke="var(--icon-secondary)" stroke-width="5"/>
-                  <path d="M45 19l6-6v12l-6-6Z" fill="var(--icon-secondary)"/>
-                </svg>
+                <img src="/assets/cameraroom/cameraroom-discotheque-camera-icon.png?v=discotheque-camera-20260603" alt="" draggable="false">
               </span>
               <span class="icon-label">CameraRoom</span>
             </a>
@@ -848,19 +908,19 @@
             </a>
             <a class="desktop-icon" href="/eldrichify.html" data-id="image" style="--icon-delay:240ms" draggable="false">
               <span class="icon-frame icon-frame--image">
-                <i class="pixelart-icons-font-camera-alt" aria-hidden="true"></i>
+                <img src="/assets/eldrichify/eldrichify-latent-aperture-icon.png?v=latent-aperture-20260604" alt="" draggable="false">
               </span>
-              <span class="icon-label">Image Playground</span>
+              <span class="icon-label">Eldrichify</span>
             </a>
             <a class="desktop-icon" href="/talk-to-disco-teque.html" data-id="talk" style="--icon-delay:320ms" draggable="false">
               <span class="icon-frame icon-frame--talk">
-                <i class="pixelart-icons-font-chat" aria-hidden="true"></i>
+                <img src="/assets/talk/talk-discoteque-terminal-icon.png?v=discoteque-terminal-20260603" alt="" draggable="false">
               </span>
               <span class="icon-label">Talk to Disco-teque</span>
             </a>
             <a class="desktop-icon" href="/codesniff.html" data-id="codesniff" style="--icon-delay:400ms" draggable="false">
               <span class="icon-frame icon-frame--codesniff">
-                <i class="pixelart-icons-font-code" aria-hidden="true"></i>
+                <img src="/assets/codesniff/codesniff-card-catalog-unbordered-icon.png?v=unbordered-20260603" alt="" draggable="false">
               </span>
               <span class="icon-label">CodeSniff</span>
             </a>
@@ -872,19 +932,19 @@
             </a>
             <a class="desktop-icon" href="/ourspace.html" data-id="ourspace" style="--icon-delay:560ms" draggable="false">
               <span class="icon-frame icon-frame--ourspace">
-                <i class="pixelart-icons-font-moon-stars" aria-hidden="true"></i>
+                <img src="./assets/ourspace/ourspace-constellation-friends-icon.png?v=constellation-friends-20260602" alt="" aria-hidden="true" draggable="false">
               </span>
               <span class="icon-label">OurSpace</span>
             </a>
             <a class="desktop-icon" href="/sand.html" data-id="sand" style="--icon-delay:640ms" draggable="false">
               <span class="icon-frame icon-frame--sand">
-                <i class="pixelart-icons-font-drop" aria-hidden="true"></i>
+                <img src="/assets/sand/sand-discotheque-vortex-icon.png?v=discotheque-vortex-20260603" alt="" draggable="false">
               </span>
               <span class="icon-label">Sand Sim</span>
             </a>
             <a class="desktop-icon" href="/venpod.html" data-id="venpod" style="--icon-delay:680ms" draggable="false">
               <span class="icon-frame icon-frame--venpod">
-                <i class="pixelart-icons-font-dice" aria-hidden="true"></i>
+                <img src="/assets/venpod/venpod-myspace-glitter-sim-icon.png?v=myspace-glitter-sim-20260603" alt="" draggable="false">
               </span>
               <span class="icon-label">VENPOD</span>
             </a>
@@ -925,7 +985,7 @@
               <a href="/cloud-squeeze/">Squeezebox Cloud</a>
               <a href="/CameraRoom/">CameraRoom</a>
               <a href="/night-library.html">Night Library</a>
-              <a href="/eldrichify.html">Image Playground</a>
+              <a href="/eldrichify.html">Eldrichify</a>
               <a href="/talk-to-disco-teque.html">Talk to Disco-teque</a>
               <a href="/codesniff.html">CodeSniff</a>
               <a href="https://plaza.one/" target="_blank" rel="noopener">Radio</a>
@@ -953,27 +1013,76 @@
       const bucket = window.matchMedia('(max-width: 1024px)').matches ? 'tablet' : 'desktop';
       const storageKey = `idcDesktopLayout:${bucket}`;
       const legacyStorageKey = 'idcDesktopLayout';
+      const layoutEndpoint = `/api/desktop-layout?bucket=${encodeURIComponent(bucket)}`;
+      let positions = {};
 
-      const loadLayout = () => {
+      const readLocalLayoutCandidate = () => {
         try {
-          const raw = window.localStorage.getItem(storageKey);
-          if (raw) return JSON.parse(raw);
-          const legacyRaw = window.localStorage.getItem(legacyStorageKey);
-          if (!legacyRaw) return {};
-          const parsed = JSON.parse(legacyRaw);
-          window.localStorage.setItem(storageKey, JSON.stringify(parsed));
-          return parsed || {};
+          const raw = window.localStorage.getItem(storageKey) || window.localStorage.getItem(legacyStorageKey);
+          if (!raw) return {};
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === 'object' ? parsed : {};
         } catch (err) {
           return {};
         }
       };
 
-      const saveLayout = (positions) => {
+      const clearLocalLayoutCache = () => {
         try {
-          window.localStorage.setItem(storageKey, JSON.stringify(positions));
+          window.localStorage.removeItem(storageKey);
+          window.localStorage.removeItem(legacyStorageKey);
+          window.localStorage.removeItem('idcDesktopLayout:desktop');
+          window.localStorage.removeItem('idcDesktopLayout:tablet');
         } catch (err) {
-          console.warn('Layout save failed', err);
+          console.warn('Local layout cache clear failed', err);
         }
+      };
+
+      const loadLayout = async () => {
+        const localCandidate = readLocalLayoutCandidate();
+        try {
+          const response = await fetch(`${layoutEndpoint}&_=${Date.now()}`, {
+            cache: 'no-store',
+            credentials: 'same-origin',
+          });
+          if (!response.ok) {
+            clearLocalLayoutCache();
+            return {};
+          }
+          const payload = await response.json();
+          const serverPositions = payload && payload.positions && typeof payload.positions === 'object' ? payload.positions : {};
+          if (Object.keys(serverPositions).length > 0) {
+            clearLocalLayoutCache();
+            return serverPositions;
+          }
+          if (Object.keys(localCandidate).length > 0) {
+            clearLocalLayoutCache();
+            saveLayout(localCandidate);
+            return localCandidate;
+          }
+          clearLocalLayoutCache();
+          return {};
+        } catch (err) {
+          console.warn('Server layout load failed', err);
+          clearLocalLayoutCache();
+          return {};
+        }
+      };
+
+      let saveTimer = 0;
+      const saveLayout = (positions) => {
+        clearTimeout(saveTimer);
+        saveTimer = window.setTimeout(() => {
+          fetch('/api/desktop-layout', {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bucket, positions }),
+          }).catch((err) => {
+            console.warn('Server layout save failed', err);
+          });
+        }, 180);
       };
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -995,12 +1104,12 @@
         });
       };
 
-      const enableFreeform = () => {
-        const saved = loadLayout();
+      const enableFreeform = async () => {
+        const saved = await loadLayout();
         applyGridPositions(saved);
         iconLayer.classList.add('is-freeform');
 
-        const positions = { ...saved };
+        positions = { ...saved };
 
         const handlePointerDown = (event) => {
           if (event.button !== 0) return;
@@ -1065,10 +1174,7 @@
       const resetLayoutButton = document.getElementById('reset-layout');
       const resetLayout = () => {
         try {
-          window.localStorage.removeItem(storageKey);
-          window.localStorage.removeItem(legacyStorageKey);
-          window.localStorage.removeItem('idcDesktopLayout:desktop');
-          window.localStorage.removeItem('idcDesktopLayout:tablet');
+          clearLocalLayoutCache();
           window.localStorage.removeItem('idcDesktopPlayButton');
           window.localStorage.removeItem('idcDesktopPlayButton:desktop');
           window.localStorage.removeItem('idcDesktopPlayButton:tablet');
@@ -1088,6 +1194,7 @@
           console.warn('Layout reset failed', err);
         }
         iconLayer.classList.remove('is-freeform');
+        positions = {};
         icons.forEach((icon) => {
           icon.style.left = '';
           icon.style.top = '';
@@ -1095,6 +1202,7 @@
         requestAnimationFrame(() => {
           applyGridPositions({});
           iconLayer.classList.add('is-freeform');
+          saveLayout({});
         });
         window.dispatchEvent(new Event('idc-reset-layout'));
       };
@@ -1103,7 +1211,9 @@
         resetLayoutButton.addEventListener('click', resetLayout);
       }
 
-      requestAnimationFrame(enableFreeform);
+      requestAnimationFrame(() => {
+        enableFreeform();
+      });
 
       const startButton = document.querySelector('[data-start-toggle]');
       const startMenu = document.getElementById('start-menu');

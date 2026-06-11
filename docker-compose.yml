@@ -1,6 +1,8 @@
 services:
   harmonizer:
     container_name: harmonizer
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build: .
     image: harmonizer:prod
     env_file:
@@ -8,7 +10,7 @@ services:
     environment:
       - CODESNIFF_BACKEND_URL=http://codesniff:8000
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     volumes:
       - ./uploads:/app/backend/uploads
       - ./data:/app/backend/data
@@ -34,7 +36,7 @@ services:
     env_file:
       - .env
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - codesniff_storage:/app/storage
     environment:

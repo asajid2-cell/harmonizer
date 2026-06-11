@@ -136,3 +136,15 @@ venpod/tools/
 IMGEN/finetunemodel.*
 VAE/**/*.pth
 VAE/*.pth
+
+# --- runtime data, caches, local models, backups (not source) ---
+data/
+audiobooks/
+VAE/
+414-pl1/
+*.bak
+*.bak_*
+*.pre_*
+.env.bak*
+.dockerignore.bak*
+PUBLIC_REPO_AUDIT.md
