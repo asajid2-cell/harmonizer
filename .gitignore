@@ -148,3 +148,12 @@ VAE/
 .env.bak*
 .dockerignore.bak*
 PUBLIC_REPO_AUDIT.md
+
+# VPS-side generated/runtime dirs + extra backups (anchored where needed)
+uploads/
+/data/
+/harmonizer/
+frontend/dggr-demo/
+frontend/master-outputs/
+tmp_genlab_sync/
+*.bak-*
