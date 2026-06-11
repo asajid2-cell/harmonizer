@@ -157,3 +157,8 @@ frontend/dggr-demo/
 frontend/master-outputs/
 tmp_genlab_sync/
 *.bak-*
+
+/data
+/uploads
+frontend/codesniff-app/assets/index-*.js
+frontend/codesniff-app/assets/*.map
