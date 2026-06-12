@@ -667,6 +667,43 @@ body.playing-jukebox .music-field .music span:nth-child(5) {
     overflow-wrap: anywhere;
 }
 
+/* Play-on-Squeezebox control: grouped like the background-render control. */
+.squeezebox-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 34px;
+}
+
+.squeezebox-control[hidden] {
+    display: none;
+}
+
+.squeezebox-control[data-state="unavailable"] #squeezebox-play-btn,
+.squeezebox-control[data-state="sending"] #squeezebox-play-btn {
+    opacity: 0.6;
+}
+
+.squeezebox-control[data-state="playing"] .squeezebox-status {
+    color: #FF00FF;
+    font-weight: 700;
+}
+
+.squeezebox-control[data-state="error"] .squeezebox-status {
+    color: #ff5470;
+}
+
+.viz-button.ghost.squeezebox-stop {
+    border-color: #ff5470;
+    color: #ff5470;
+}
+
+.viz-button.ghost.squeezebox-stop:hover {
+    background: #ff5470;
+    color: #000000;
+}
+
 .background-player-panel {
     margin: 0 16px 16px;
     padding: 12px;

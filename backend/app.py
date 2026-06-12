@@ -5209,6 +5209,50 @@ def api_squeezebox_play():
     return jsonify({"ok": True, "mode": mode, "voiceCount": voice_count, "nowPlaying": extra.get("nowPlaying")})
 
 
+@app.route("/api/squeezebox/status", methods=["GET"])
+def api_squeezebox_status():
+    """Whether a Squeezebox player is connected (drives the Play-on-Squeezebox UI)."""
+    base = (os.environ.get("CLOUD_SQUEEZE_URL") or "").rstrip("/")
+    key = os.environ.get("CLOUD_SQUEEZE_SERVICE_KEY") or ""
+    if not base:
+        return jsonify({"configured": False, "connected": False})
+    try:
+        resp = requests.get(
+            f"{base}/api/speaker/status",
+            headers={"X-HL-Service-Key": key, "X-Forwarded-Proto": "https"},
+            timeout=8,
+        )
+        data = resp.json() if resp.status_code == 200 else {}
+    except requests.RequestException:
+        return jsonify({"configured": True, "connected": False, "error": "unreachable"})
+    return jsonify({
+        "configured": True,
+        "connected": bool(data.get("connected")),
+        "name": data.get("name") or "Squeezebox",
+        "mode": data.get("mode"),
+    })
+
+
+@app.route("/api/squeezebox/stop", methods=["POST", "OPTIONS"])
+def api_squeezebox_stop():
+    """Stop Squeezebox playback (ends the live-drive stream)."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    base = (os.environ.get("CLOUD_SQUEEZE_URL") or "").rstrip("/")
+    key = os.environ.get("CLOUD_SQUEEZE_SERVICE_KEY") or ""
+    if not base:
+        return jsonify({"error": "Cloud Squeeze is not configured."}), 503
+    try:
+        resp = requests.post(
+            f"{base}/api/player/stop",
+            headers={"X-HL-Service-Key": key, "X-Forwarded-Proto": "https"},
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        return jsonify({"error": f"Could not reach the squeezebox: {exc}"}), 502
+    return jsonify({"ok": resp.status_code == 200})
+
+
 @app.route("/api/playlist-info", methods=["POST", "OPTIONS"])
 def api_playlist_info():
     """Check if URL is a playlist and return track list."""

@@ -433,8 +433,11 @@ jgs   `-=========-`()
                             </select>
                             <span id="background-render-status" class="background-render-status" role="status" aria-live="polite"></span>
                         </div>
-                        <button type="button" id="squeezebox-play-btn" class="viz-button ghost" title="Play this canon/jukebox live on the Squeezebox speaker">Play on Squeezebox</button>
-                        <span id="squeezebox-play-status" class="background-render-status" role="status" aria-live="polite"></span>
+                        <div class="squeezebox-control" id="squeezebox-control" data-state="idle" hidden title="Play the current canon/jukebox live on your Squeezebox speaker">
+                            <button type="button" id="squeezebox-play-btn" class="viz-button ghost">&#9654; Squeezebox</button>
+                            <button type="button" id="squeezebox-stop-btn" class="viz-button ghost squeezebox-stop" hidden>&#9632; Stop</button>
+                            <span id="squeezebox-play-status" class="background-render-status squeezebox-status" role="status" aria-live="polite"></span>
+                        </div>
                         <span class="viz-timer" id="mtime">00:00:00</span>
                         <div class="viz-mode-switch" id="viz-mode-switch">
 	                            <select id="viz-mode-select" aria-label="Switch playback mode">
@@ -4563,52 +4566,110 @@ jgs   `-=========-`()
     // voiceCount), but instead of rendering a file it asks Cloud Squeeze/LMS to pull
     // Harmonizer's endless live-drive stream. Faithful to whatever mode is loaded.
     (function() {
+        const control = document.getElementById('squeezebox-control');
         const btn = document.getElementById('squeezebox-play-btn');
+        const stopBtn = document.getElementById('squeezebox-stop-btn');
         const statusEl = document.getElementById('squeezebox-play-status');
-        if (!btn) return;
+        if (!control || !btn) return;
+
         function apiUrl(path) {
             return (typeof resolveApiUrl === 'function') ? resolveApiUrl(path, false) : path;
         }
         function setStatus(msg) { if (statusEl) statusEl.textContent = msg || ''; }
-        btn.addEventListener('click', async function() {
-            if (typeof window.harmonizerGetBackgroundPayload !== 'function') {
-                setStatus('Load a track first');
-                return;
-            }
-            let payload;
+        function setState(s) { control.setAttribute('data-state', s); }
+
+        // The stream synth only supports canon/jukebox/eternal; other modes fall back
+        // to canon server-side, so reflect the effective mode in the UI.
+        function effectiveMode() {
+            const m = (document.body.getAttribute('data-mode') || 'canon').toLowerCase();
+            return (m === 'jukebox' || m === 'eternal') ? m : 'canon';
+        }
+        function modeLabelFor(mode) {
+            if (mode === 'jukebox') return 'Eternal Jukebox';
+            if (mode === 'eternal') return 'Eternal Canonizer';
+            return 'Autocanonizer';
+        }
+
+        let playerName = 'Squeezebox';
+
+        async function refreshStatus() {
+            if (document.hidden) return;
             try {
-                payload = window.harmonizerGetBackgroundPayload({ minutes: 10, quality: 'high' });
-            } catch (err) {
-                setStatus(err.message || 'No track loaded');
-                return;
-            }
-            if (!payload || !payload.trackId) {
-                setStatus('Track not analyzed yet');
-                return;
-            }
+                const r = await fetch(apiUrl('/api/squeezebox/status'));
+                const d = await r.json().catch(function() { return {}; });
+                if (d.configured === false) { control.hidden = true; return; }
+                control.hidden = false;
+                playerName = d.name || 'Squeezebox';
+                if (control.getAttribute('data-state') === 'playing') return; // don't clobber
+                if (d.connected) {
+                    setState('ready');
+                    setStatus(playerName + ' ready');
+                } else {
+                    setState('unavailable');
+                    setStatus('No Squeezebox connected');
+                }
+            } catch (err) { /* leave current state */ }
+        }
+
+        function syncTooltip() {
+            btn.title = 'Play ' + modeLabelFor(effectiveMode()) + ' live on your Squeezebox';
+        }
+
+        btn.addEventListener('click', async function() {
+            if (typeof window.harmonizerGetBackgroundPayload !== 'function') { setStatus('Load a track first'); return; }
+            let payload;
+            try { payload = window.harmonizerGetBackgroundPayload({ minutes: 10, quality: 'high' }); }
+            catch (err) { setStatus(err.message || 'No track loaded'); return; }
+            if (!payload || !payload.trackId) { setStatus('Track not analyzed yet'); return; }
+            const mode = effectiveMode();
             btn.disabled = true;
-            setStatus('Sending to Squeezebox...');
+            setState('sending');
+            setStatus('Sending to ' + playerName + '…');
             try {
                 const resp = await fetch(apiUrl('/api/squeezebox/play'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        trackId: payload.trackId,
-                        mode: payload.mode,
-                        voiceCount: payload.voiceCount
-                    })
+                    body: JSON.stringify({ trackId: payload.trackId, mode: mode, voiceCount: payload.voiceCount })
                 });
                 const data = await resp.json().catch(function() { return {}; });
                 if (!resp.ok) throw new Error(data.error || ('Failed (' + resp.status + ')'));
-                const label = (payload.mode === 'jukebox') ? 'Eternal Jukebox'
-                    : (payload.mode === 'eternal') ? 'Eternal Canonizer' : 'Autocanonizer';
-                setStatus('Playing ' + label + ' on the Squeezebox');
+                setState('playing');
+                setStatus('▶ ' + modeLabelFor(mode) + ' on ' + playerName);
+                if (stopBtn) stopBtn.hidden = false;
             } catch (err) {
+                setState('error');
                 setStatus(err.message || 'Could not reach the Squeezebox');
             } finally {
                 btn.disabled = false;
             }
         });
+
+        if (stopBtn) {
+            stopBtn.addEventListener('click', async function() {
+                stopBtn.disabled = true;
+                setStatus('Stopping…');
+                try {
+                    const resp = await fetch(apiUrl('/api/squeezebox/stop'), { method: 'POST' });
+                    await resp.json().catch(function() { return {}; });
+                    setState('ready');
+                    setStatus(playerName + ' stopped');
+                    stopBtn.hidden = true;
+                } catch (err) {
+                    setStatus('Stop failed');
+                } finally {
+                    stopBtn.disabled = false;
+                }
+            });
+        }
+
+        new MutationObserver(function(muts) {
+            muts.forEach(function(m) { if (m.attributeName === 'data-mode') syncTooltip(); });
+        }).observe(document.body, { attributes: true });
+        syncTooltip();
+
+        refreshStatus();
+        setInterval(refreshStatus, 25000);
+        document.addEventListener('visibilitychange', function() { if (!document.hidden) refreshStatus(); });
     })();
 
     // Base audio only toggle (mute overlays / extra tracks)
