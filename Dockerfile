@@ -27,4 +27,7 @@ RUN mkdir -p backend/uploads backend/data
 
 EXPOSE 5000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "600", "--workers", "1", "--access-logfile", "-", "--error-logfile", "-", "--log-level", "info", "backend.app:app"]
+# gthread (not the default sync worker) so endless squeezebox streams run as I/O-bound
+# threads without monopolizing the worker or tripping --timeout. 1 stream holds 1 thread;
+# the rest stay free for normal site traffic.
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "600", "--workers", "1", "--worker-class", "gthread", "--threads", "8", "--access-logfile", "-", "--error-logfile", "-", "--log-level", "info", "backend.app:app"]
