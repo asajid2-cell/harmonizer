@@ -162,3 +162,4 @@ tmp_genlab_sync/
 /uploads
 frontend/codesniff-app/assets/index-*.js
 frontend/codesniff-app/assets/*.map
+docker-compose.override.yml

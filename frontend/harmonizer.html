@@ -327,6 +327,7 @@ jgs   `-=========-`()
                     <div class="section-title">Source</div>
                     <div class="toggle-group" id="source-toggle">
                         <button type="button" data-source="upload" class="toggle active">Upload Audio</button>
+                        <button type="button" data-source="cloudsqueeze" class="toggle">Search</button>
                         <button type="button" data-source="drive" class="toggle">Google Drive</button>
                     </div>
                     <input type="hidden" name="source" value="upload" id="source-input">
@@ -361,6 +362,23 @@ jgs   `-=========-`()
                         <label class="field">
                             <input type="url" name="drive_url" placeholder="https://drive.google.com/file/d/...">
                         </label>
+                    </div>
+
+                    <div class="source-pane hidden" id="cloudsqueeze-pane">
+                        <label class="field">
+                            <input type="text" id="cloud-search-input" placeholder="Search a song to import…" autocomplete="off">
+                        </label>
+                        <div id="cloud-search-status" class="drive-helper-hint" style="margin:6px 0;min-height:1em"></div>
+                        <div id="cloud-search-results"></div>
+                        <input type="hidden" name="cloud_id" id="cloud-id-input">
+                        <input type="hidden" name="cloud_uri" id="cloud-uri-input">
+                        <style>
+                          #cloud-search-results{display:flex;flex-direction:column;gap:4px;max-height:260px;overflow:auto;margin-top:4px}
+                          .cloud-result{text-align:left;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 10px;color:inherit;cursor:pointer;font:inherit;line-height:1.3}
+                          .cloud-result:hover{background:rgba(255,255,255,.10)}
+                          .cloud-result.selected{border-color:#f4708a;background:rgba(244,112,138,.15)}
+                          .cloud-result span{opacity:.7}
+                        </style>
                     </div>
 
                     <div class="metadata-grid">
@@ -1524,15 +1542,11 @@ jgs   `-=========-`()
         }
 
         function syncSourcePanels(source) {
-            if (source === 'upload') {
-                uploadPane && uploadPane.classList.remove('hidden');
-                drivePane && drivePane.classList.add('hidden');
-                driveHelperHint && driveHelperHint.classList.add('hidden');
-            } else {
-                drivePane && drivePane.classList.remove('hidden');
-                uploadPane && uploadPane.classList.add('hidden');
-                driveHelperHint && driveHelperHint.classList.remove('hidden');
-            }
+            const cloudPane = document.getElementById('cloudsqueeze-pane');
+            uploadPane && uploadPane.classList.toggle('hidden', source !== 'upload');
+            drivePane && drivePane.classList.toggle('hidden', source !== 'drive');
+            cloudPane && cloudPane.classList.toggle('hidden', source !== 'cloudsqueeze');
+            driveHelperHint && driveHelperHint.classList.toggle('hidden', source !== 'drive');
         }
 
         syncSourcePanels(sourceInput.value || 'upload');
@@ -1549,6 +1563,68 @@ jgs   `-=========-`()
             syncSourcePanels(source);
         });
 
+        // --- Cloud Squeeze "Search" source: search -> pick -> import via /api/process ---
+        (function setupCloudSearch() {
+            const input = document.getElementById('cloud-search-input');
+            const results = document.getElementById('cloud-search-results');
+            const status = document.getElementById('cloud-search-status');
+            const idInput = document.getElementById('cloud-id-input');
+            const uriInput = document.getElementById('cloud-uri-input');
+            if (!input || !results) return;
+            const titleInput = form.querySelector('input[name="title"]');
+            const artistInput = form.querySelector('input[name="artist"]');
+            let timer = null;
+
+            function pick(item, el) {
+                idInput.value = item.id || item.uri || '';
+                uriInput.value = item.uri || item.id || '';
+                if (titleInput) titleInput.value = item.title || '';
+                if (artistInput && item.artist) artistInput.value = item.artist;
+                results.querySelectorAll('.cloud-result').forEach(n => n.classList.remove('selected'));
+                if (el) el.classList.add('selected');
+                status.textContent = 'Selected: ' + (item.title || '') + (item.artist ? ' — ' + item.artist : '') + '. Hit Transform Track to import.';
+            }
+
+            async function search(q) {
+                if (!q.trim()) { results.innerHTML = ''; status.textContent = ''; return; }
+                status.textContent = 'Searching…';
+                try {
+                    const res = await fetch(buildApiUrl('api/harmonizer/cloud/search') + '?q=' + encodeURIComponent(q));
+                    const data = await res.json();
+                    const list = data.results || [];
+                    results.innerHTML = '';
+                    if (!list.length) { status.textContent = data.error || 'No matches.'; return; }
+                    status.textContent = 'First import downloads + analyzes (a few seconds); after that it’s instant.';
+                    list.forEach(item => {
+                        const el = document.createElement('button');
+                        el.type = 'button';
+                        el.className = 'cloud-result';
+                        const t = document.createElement('strong');
+                        t.textContent = item.title || '(untitled)';
+                        el.appendChild(t);
+                        if (item.artist) {
+                            const a = document.createElement('span');
+                            a.textContent = ' · ' + item.artist;
+                            el.appendChild(a);
+                        }
+                        el.addEventListener('click', () => pick(item, el));
+                        results.appendChild(el);
+                    });
+                } catch (e) {
+                    status.textContent = 'Search failed: ' + (e && e.message ? e.message : e);
+                }
+            }
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                idInput.value = ''; uriInput.value = '';
+                timer = setTimeout(() => search(input.value), 350);
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); clearTimeout(timer); search(input.value); }
+            });
+        })();
+
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             statusPanel.textContent = '';
@@ -1557,6 +1633,12 @@ jgs   `-=========-`()
                 const fileInput = form.querySelector('input[name="audio"]');
                 if (!fileInput.files || fileInput.files.length === 0) {
                     statusPanel.textContent = 'Please choose an audio file to upload.';
+                    return;
+                }
+            } else if (source === 'cloudsqueeze') {
+                const cid = form.querySelector('input[name="cloud_id"]');
+                if (!cid || !cid.value.trim()) {
+                    statusPanel.textContent = 'Search and pick a song to import first.';
                     return;
                 }
             } else {

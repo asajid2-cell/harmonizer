@@ -4672,6 +4672,77 @@ def _download_youtube(url: str, track_id: str, user_id: Optional[str] = None) ->
     raise RuntimeError(error_msg)
 
 
+def _algorithm_mode(algorithm: str) -> str:
+    """Map an algorithm to its playback mode (most are identity; unknown -> eternal)."""
+    known = {"canon", "jukebox", "phaseshifter", "granularfreeze", "dopamine", "harmonictrap",
+             "elasticvelo", "mathrocker", "stalker", "timbresurf", "chromastack", "beatsort",
+             "reversebloom", "autocrooner", "barberpole", "palindrome", "spectralgravity",
+             "callresponse", "orbitweaver", "sculptor"}
+    return algorithm if algorithm in known else "eternal"
+
+
+def _download_from_cloudsqueeze(cloud_id: str, cloud_uri: str, track_id: str) -> tuple[Path, Optional[dict]]:
+    """Fetch a track via the Cloud Squeeze backend (search -> download -> cache).
+    The first fetch downloads + transcodes (slower); Cloud Squeeze caches it, so repeats are instant."""
+    import requests
+    base = (os.environ.get("CLOUD_SQUEEZE_URL") or "").rstrip("/")
+    key = os.environ.get("CLOUD_SQUEEZE_SERVICE_KEY") or ""
+    if not base:
+        raise RuntimeError("Cloud Squeeze is not configured (set CLOUD_SQUEEZE_URL).")
+    spotify_id = cloud_id.split(":")[-1]
+    url = f"{base}/api/local-stream/{quote(spotify_id)}"
+    headers = {"X-HL-Service-Key": key, "X-Forwarded-Proto": "https"}
+    dest = UPLOAD_FOLDER / f"{track_id}.mp3"
+    print(f"[CloudSqueeze] Fetching {spotify_id} ...", flush=True)
+    with requests.get(url, params={"uri": cloud_uri}, headers=headers, stream=True, timeout=120) as resp:
+        if resp.status_code != 200:
+            raise RuntimeError(f"Cloud Squeeze fetch failed ({resp.status_code}).")
+        with open(dest, "wb") as fh:
+            for chunk in resp.iter_content(chunk_size=65536):
+                if chunk:
+                    fh.write(chunk)
+    if not dest.exists() or dest.stat().st_size < 2048:
+        raise RuntimeError("Cloud Squeeze returned an empty track.")
+    print(f"[CloudSqueeze] Saved {dest.name} ({dest.stat().st_size} bytes)", flush=True)
+    return dest, {"title": None, "uploader": None}
+
+
+@app.route("/api/harmonizer/cloud/search", methods=["GET"])
+def api_cloud_search():
+    """Search the Cloud Squeeze catalogue (proxied, service-key authed) for the import UI."""
+    q = (request.args.get("q") or "").strip()
+    if not q:
+        return jsonify({"results": []})
+    import requests
+    base = (os.environ.get("CLOUD_SQUEEZE_URL") or "").rstrip("/")
+    key = os.environ.get("CLOUD_SQUEEZE_SERVICE_KEY") or ""
+    if not base:
+        return jsonify({"error": "Cloud Squeeze search is not configured.", "results": []}), 503
+    try:
+        resp = requests.get(
+            f"{base}/api/spotify/search",
+            params={"q": q, "limit": 24},
+            headers={"X-HL-Service-Key": key, "X-Forwarded-Proto": "https"},
+            timeout=15,
+        )
+        data = resp.json() if resp.status_code == 200 else {}
+        out = []
+        for t in (data.get("results") or []):
+            tid = t.get("id") or t.get("uri")
+            if not tid:
+                continue
+            out.append({
+                "id": tid,
+                "uri": t.get("uri") or tid,
+                "title": t.get("title") or "(untitled)",
+                "artist": t.get("artist") or "",
+                "art": t.get("art") or t.get("image") or t.get("cover") or t.get("artwork"),
+            })
+        return jsonify({"results": out})
+    except Exception as exc:
+        return jsonify({"error": str(exc), "results": []}), 502
+
+
 @app.route("/api/process", methods=["POST", "OPTIONS"])
 def api_process():
     if request.method == "OPTIONS":
@@ -4753,6 +4824,30 @@ def api_process():
             if not title:
                 title = info.get("title") if info else None
             if (not request.form.get("artist")) and info:
+                artist = info.get("uploader", artist)
+        elif source == "cloudsqueeze":
+            cloud_id = request.form.get("cloud_id", "").strip()
+            cloud_uri = request.form.get("cloud_uri", "").strip() or cloud_id
+            if not cloud_id:
+                return jsonify({"error": "Please choose a track to import."}), 400
+            # Deterministic id so re-importing the same song skips the download + analysis (instant).
+            safe_id = re.sub(r"[^A-Za-z0-9]", "", cloud_id.split(":")[-1])[:40]
+            track_id = f"cloud{safe_id}"
+            if (DATA_FOLDER / f"{track_id}.json").exists():
+                mode = _algorithm_mode(algorithm)
+                job_id = str(uuid.uuid4())
+                with _audio_lock:
+                    _audio_jobs[job_id] = {
+                        "status": "completed",
+                        "progress": "Already imported!",
+                        "result": {"trackId": track_id, "mode": mode, "title": title or track_id, "artist": artist},
+                        "error": None, "created": datetime.now(), "track_id": track_id, "algorithm": algorithm,
+                    }
+                return jsonify({"jobId": job_id, "trackId": track_id, "status": "cached"})
+            audio_path, info = _download_from_cloudsqueeze(cloud_id, cloud_uri, track_id)
+            if not title:
+                title = info.get("title") if info else None
+            if (not request.form.get("artist")) and info and info.get("uploader"):
                 artist = info.get("uploader", artist)
         else:
             return jsonify({"error": "Unsupported source option."}), 400
