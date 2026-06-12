@@ -5035,6 +5035,176 @@ def api_background_render_status(job_id):
     return jsonify(response)
 
 
+@app.route("/api/squeezebox-stream/<track_id>", methods=["GET"])
+def api_squeezebox_stream(track_id):
+    """Endless live-drive stream of the canon/jukebox for the squeezebox reverse bridge.
+
+    Faithful to the live browser engine (analysis/stream_synth.py): jukebox/eternal
+    do the same probabilistic beat-walk, canon does the same multi-voice bar-offset
+    overlay. Nothing is rendered up front -- PCM is synthesised on demand, encoded to
+    mp3 by ffmpeg, and streamed forever (the squeezebox treats it as a radio stream).
+
+    Pulled by LMS via the Cloud Squeeze LAN proxy, which adds the shared service key.
+    """
+    from flask import Response, stream_with_context
+
+    expected = os.environ.get("CLOUD_SQUEEZE_SERVICE_KEY") or os.environ.get("AUTH_SERVICE_KEY") or ""
+    if expected and request.headers.get("X-HL-Service-Key", "") != expected:
+        return jsonify({"error": "unauthorized"}), 401
+
+    track_id = _safe_track_id(track_id)
+    if not track_id:
+        return jsonify({"error": "Missing trackId."}), 400
+    try:
+        track = _load_track_profile(track_id)
+    except FileNotFoundError:
+        return jsonify({"error": "Track not found."}), 404
+
+    if np is None or librosa is None:
+        return jsonify({"error": "Audio dependencies are not available."}), 503
+
+    mode = (request.args.get("mode") or "canon").lower()
+    if mode not in {"canon", "eternal", "jukebox"}:
+        mode = "canon"
+    try:
+        voice_count = max(1, min(8, int(request.args.get("voiceCount") or 2)))
+    except (TypeError, ValueError):
+        voice_count = 2
+    seed_raw = request.args.get("seed")
+    seed = (int(seed_raw) if seed_raw and seed_raw.lstrip("-").isdigit()
+            else random.randint(1, 2 ** 31 - 1))
+
+    audio_url = track.get("audio_url") or (track.get("info") or {}).get("url") or ""
+    try:
+        audio_path = _audio_url_to_upload_path(audio_url)
+        audio, sr = _load_render_audio(audio_path, 44100)
+    except Exception as exc:  # noqa: BLE001 - report any decode failure to the caller
+        return jsonify({"error": f"Could not load source audio: {exc}"}), 502
+
+    ffmpeg_path = _locate_ffmpeg_path()
+    if not ffmpeg_path:
+        return jsonify({"error": "ffmpeg is not available."}), 503
+
+    channels = 2
+    proc = subprocess.Popen(
+        [
+            str(ffmpeg_path), "-hide_banner", "-loglevel", "error",
+            "-f", "f32le", "-ar", str(sr), "-ac", str(channels), "-i", "pipe:0",
+            "-c:a", "libmp3lame", "-b:a", "192k", "-f", "mp3",
+            "-flush_packets", "1", "pipe:1",
+        ],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+    )
+
+    stop = threading.Event()
+
+    def feeder():
+        try:
+            from analysis.stream_synth import synthesize
+            for block in synthesize(track, audio, sr, mode, settings={}, seed=seed, voice_count=voice_count):
+                if stop.is_set():
+                    break
+                arr = np.ascontiguousarray(np.clip(block, -1.0, 1.0).astype("<f4"))
+                try:
+                    proc.stdin.write(arr.tobytes())
+                except (BrokenPipeError, OSError):
+                    break
+        except Exception as exc:  # noqa: BLE001
+            print(f"[SqueezeboxStream] feeder stopped: {exc}", flush=True)
+        finally:
+            try:
+                if proc.stdin:
+                    proc.stdin.close()
+            except OSError:
+                pass
+
+    feeder_thread = threading.Thread(target=feeder, daemon=True)
+    feeder_thread.start()
+
+    def generate():
+        try:
+            while True:
+                data = proc.stdout.read(8192)
+                if not data:
+                    break
+                yield data
+        finally:
+            stop.set()
+            try:
+                proc.kill()
+            except OSError:
+                pass
+
+    headers = {
+        "Content-Type": "audio/mpeg",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "icy-name": f"Harmonizer {mode}",
+    }
+    return Response(stream_with_context(generate()), headers=headers, direct_passthrough=True)
+
+
+@app.route("/api/squeezebox/play", methods=["POST", "OPTIONS"])
+def api_squeezebox_play():
+    """Send the currently-loaded canon/jukebox to the squeezebox (the reverse bridge).
+
+    Proxies to Cloud Squeeze's /api/player/canon with the shared service key; LMS then
+    pulls the endless live-drive stream back from /api/squeezebox-stream. The Harmonizer
+    page calls this so the browser never has to cross origins or hold the service key.
+    """
+    if request.method == "OPTIONS":
+        return ("", 204)
+    payload = request.get_json(silent=True) or {}
+    track_id = _safe_track_id(str(payload.get("trackId") or payload.get("track_id") or ""))
+    if not track_id:
+        return jsonify({"error": "Missing trackId."}), 400
+    mode = str(payload.get("mode") or "canon").lower()
+    if mode not in {"canon", "eternal", "jukebox"}:
+        mode = "canon"
+    try:
+        voice_count = max(1, min(8, int(payload.get("voiceCount") or 2)))
+    except (TypeError, ValueError):
+        voice_count = 2
+    try:
+        track = _load_track_profile(track_id)
+    except FileNotFoundError:
+        return jsonify({"error": "Track not found. Analyze it first."}), 404
+
+    base = (os.environ.get("CLOUD_SQUEEZE_URL") or "").rstrip("/")
+    key = os.environ.get("CLOUD_SQUEEZE_SERVICE_KEY") or ""
+    if not base:
+        return jsonify({"error": "Cloud Squeeze is not configured."}), 503
+    body = {
+        "trackId": track_id,
+        "mode": mode,
+        "voiceCount": voice_count,
+        "title": payload.get("title") or track.get("title") or "Harmonizer canon",
+        "artist": payload.get("artist") or track.get("artist") or "Harmonizer",
+    }
+    try:
+        resp = requests.post(
+            f"{base}/api/player/canon",
+            json=body,
+            headers={"X-HL-Service-Key": key, "X-Forwarded-Proto": "https"},
+            timeout=20,
+        )
+    except requests.RequestException as exc:
+        return jsonify({"error": f"Could not reach the squeezebox: {exc}"}), 502
+    if resp.status_code != 200:
+        detail = ""
+        try:
+            detail = (resp.json() or {}).get("error") or ""
+        except Exception:
+            detail = (resp.text or "")[:200]
+        return jsonify({"error": detail or f"Squeezebox rejected playback ({resp.status_code})."}), resp.status_code
+    extra = {}
+    try:
+        if (resp.headers.get("content-type") or "").startswith("application/json"):
+            extra = resp.json() or {}
+    except Exception:
+        extra = {}
+    return jsonify({"ok": True, "mode": mode, "voiceCount": voice_count, "nowPlaying": extra.get("nowPlaying")})
+
+
 @app.route("/api/playlist-info", methods=["POST", "OPTIONS"])
 def api_playlist_info():
     """Check if URL is a playlist and return track list."""

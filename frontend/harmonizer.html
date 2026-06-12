@@ -433,6 +433,8 @@ jgs   `-=========-`()
                             </select>
                             <span id="background-render-status" class="background-render-status" role="status" aria-live="polite"></span>
                         </div>
+                        <button type="button" id="squeezebox-play-btn" class="viz-button ghost" title="Play this canon/jukebox live on the Squeezebox speaker">Play on Squeezebox</button>
+                        <span id="squeezebox-play-status" class="background-render-status" role="status" aria-live="polite"></span>
                         <span class="viz-timer" id="mtime">00:00:00</span>
                         <div class="viz-mode-switch" id="viz-mode-switch">
 	                            <select id="viz-mode-select" aria-label="Switch playback mode">
@@ -4553,6 +4555,59 @@ jgs   `-=========-`()
         });
         audio.addEventListener('ended', function() {
             setStatus('Background render ended', 'The rendered audio reached the end.', 100);
+        });
+    })();
+
+    // Play the current canon/jukebox live on the Squeezebox (the reverse bridge).
+    // Reuses the same payload the background renderer builds (trackId + mode +
+    // voiceCount), but instead of rendering a file it asks Cloud Squeeze/LMS to pull
+    // Harmonizer's endless live-drive stream. Faithful to whatever mode is loaded.
+    (function() {
+        const btn = document.getElementById('squeezebox-play-btn');
+        const statusEl = document.getElementById('squeezebox-play-status');
+        if (!btn) return;
+        function apiUrl(path) {
+            return (typeof resolveApiUrl === 'function') ? resolveApiUrl(path, false) : path;
+        }
+        function setStatus(msg) { if (statusEl) statusEl.textContent = msg || ''; }
+        btn.addEventListener('click', async function() {
+            if (typeof window.harmonizerGetBackgroundPayload !== 'function') {
+                setStatus('Load a track first');
+                return;
+            }
+            let payload;
+            try {
+                payload = window.harmonizerGetBackgroundPayload({ minutes: 10, quality: 'high' });
+            } catch (err) {
+                setStatus(err.message || 'No track loaded');
+                return;
+            }
+            if (!payload || !payload.trackId) {
+                setStatus('Track not analyzed yet');
+                return;
+            }
+            btn.disabled = true;
+            setStatus('Sending to Squeezebox...');
+            try {
+                const resp = await fetch(apiUrl('/api/squeezebox/play'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        trackId: payload.trackId,
+                        mode: payload.mode,
+                        voiceCount: payload.voiceCount
+                    })
+                });
+                const data = await resp.json().catch(function() { return {}; });
+                if (!resp.ok) throw new Error(data.error || ('Failed (' + resp.status + ')'));
+                const label = (payload.mode === 'jukebox') ? 'Eternal Jukebox'
+                    : (payload.mode === 'eternal') ? 'Eternal Canonizer' : 'Autocanonizer';
+                setStatus('Playing ' + label + ' on the Squeezebox');
+            } catch (err) {
+                setStatus(err.message || 'Could not reach the Squeezebox');
+            } finally {
+                btn.disabled = false;
+            }
         });
     })();
 
