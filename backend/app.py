@@ -4672,15 +4672,6 @@ def _download_youtube(url: str, track_id: str, user_id: Optional[str] = None) ->
     raise RuntimeError(error_msg)
 
 
-def _algorithm_mode(algorithm: str) -> str:
-    """Map an algorithm to its playback mode (most are identity; unknown -> eternal)."""
-    known = {"canon", "jukebox", "phaseshifter", "granularfreeze", "dopamine", "harmonictrap",
-             "elasticvelo", "mathrocker", "stalker", "timbresurf", "chromastack", "beatsort",
-             "reversebloom", "autocrooner", "barberpole", "palindrome", "spectralgravity",
-             "callresponse", "orbitweaver", "sculptor"}
-    return algorithm if algorithm in known else "eternal"
-
-
 def _download_from_cloudsqueeze(cloud_id: str, cloud_uri: str, track_id: str) -> tuple[Path, Optional[dict]]:
     """Fetch a track via the Cloud Squeeze backend (search -> download -> cache).
     The first fetch downloads + transcodes (slower); Cloud Squeeze caches it, so repeats are instant."""
@@ -4830,20 +4821,8 @@ def api_process():
             cloud_uri = request.form.get("cloud_uri", "").strip() or cloud_id
             if not cloud_id:
                 return jsonify({"error": "Please choose a track to import."}), 400
-            # Deterministic id so re-importing the same song skips the download + analysis (instant).
             safe_id = re.sub(r"[^A-Za-z0-9]", "", cloud_id.split(":")[-1])[:40]
             track_id = f"cloud{safe_id}"
-            if (DATA_FOLDER / f"{track_id}.json").exists():
-                mode = _algorithm_mode(algorithm)
-                job_id = str(uuid.uuid4())
-                with _audio_lock:
-                    _audio_jobs[job_id] = {
-                        "status": "completed",
-                        "progress": "Already imported!",
-                        "result": {"trackId": track_id, "mode": mode, "title": title or track_id, "artist": artist},
-                        "error": None, "created": datetime.now(), "track_id": track_id, "algorithm": algorithm,
-                    }
-                return jsonify({"jobId": job_id, "trackId": track_id, "status": "cached"})
             audio_path, info = _download_from_cloudsqueeze(cloud_id, cloud_uri, track_id)
             if not title:
                 title = info.get("title") if info else None
@@ -4856,8 +4835,9 @@ def api_process():
         if title is None:
             title = audio_path.stem if audio_path else "Untitled"
 
-        # Check cache for single audio uploads (not autoharmonizer)
-        if source == "upload" and algorithm != "autoharmonizer":
+        # Check Harmonizer's own audio cache (file-hash) for uploads AND cloud imports,
+        # so an imported song dedupes with uploads and an already-analyzed song is instant.
+        if source in ("upload", "cloudsqueeze") and algorithm != "autoharmonizer":
             file_hash = _compute_file_hash(audio_path)
             cached = _get_cached_track(file_hash)
             if cached:
