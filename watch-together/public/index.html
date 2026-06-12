@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Watch Together -- harmonizerlabs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/hls.js@1.5.7/dist/hls.min.js"></script>
+  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://unpkg.com/epubjs@0.3.93/dist/epub.min.js"></script>
+  <style>
+    :root { --bg:#000000;--panel:#090a0f;--panel-soft:#0c0d13;--panel-warm-2:#2a0d16;--line:#20212a;--line-soft:#171821;--text:#f8f8fb;--muted:#a7a8b2;--faint:#747682;--rose:#ff5f83;--rose-strong:#ff4772;--rose-soft:rgba(255,95,131,0.16);--green:#42d884;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:var(--text);background:var(--bg);color-scheme:dark; }
+    *,*::before,*::after{box-sizing:border-box}html,body{height:100%;margin:0}body{background:var(--bg);overflow:hidden}
+    button,input,select{font:inherit}
+    button{border:1px solid var(--line);border-radius:10px;min-height:42px;padding:0 16px;color:var(--text);background:#07080d;cursor:pointer;transition:border-color 0.15s}
+    button:hover{border-color:rgba(255,95,131,0.45)}button:disabled{cursor:not-allowed;opacity:0.46}
+    input,select{color:var(--text);background:#07080d;border:1px solid var(--line);border-radius:10px;min-height:42px;padding:0 14px;outline:0;transition:border-color 0.15s}
+    input{width:100%}input:focus,select:focus{border-color:var(--rose)}input::placeholder{color:var(--faint)}
+    select{padding:0 10px;cursor:pointer}
+    #setup{height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 60% 30%,rgba(255,95,131,0.07),transparent 50%),var(--bg)}
+    .setup-card{width:100%;max-width:460px;padding:40px 36px;background:var(--panel);border:1px solid var(--line);border-radius:18px;display:flex;flex-direction:column;gap:20px}
+    .setup-brand{display:flex;align-items:center;gap:10px;margin-bottom:4px}.setup-brand svg{color:var(--rose);flex-shrink:0}
+    .setup-brand-text{display:flex;flex-direction:column}.setup-brand-title{font-size:20px;font-weight:800;color:var(--text);line-height:1.1}
+    .setup-brand-sub{font-size:13px;color:var(--faint)}.field{display:flex;flex-direction:column;gap:8px}
+    .field label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+    .field small{font-size:12px;color:var(--faint);display:block}
+    .btn-connect{background:linear-gradient(135deg,var(--rose-strong),var(--rose));border:none;border-radius:10px;min-height:46px;color:#fff;font-weight:700;font-size:15px;cursor:pointer;transition:opacity 0.15s}
+    .btn-connect:hover{opacity:0.88}.setup-err{font-size:13px;color:var(--rose);min-height:18px}
+    /* stream input row */
+    .stream-row{display:flex;gap:8px;align-items:center}
+    .stream-row input{flex:1}
+    .btn-search-open{min-height:42px;padding:0 12px;font-size:13px;white-space:nowrap;flex-shrink:0;border-color:rgba(255,95,131,0.3);color:var(--rose)}
+    .btn-search-open:hover{border-color:var(--rose);background:var(--rose-soft)}
+    /* search panel */
+    #search-panel{display:none;flex-direction:column;gap:10px}
+    #search-panel.open{display:flex}
+    .search-top-row{display:flex;gap:8px}
+    .search-top-row select{min-height:38px;border-radius:8px}
+    .search-top-row input{flex:1;min-height:38px;border-radius:8px}
+    .search-top-row button{min-height:38px;padding:0 14px;font-size:13px;border-radius:8px}
+    .search-results{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto}
+    .search-result{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#07080d;border:1px solid var(--line);border-radius:10px;cursor:pointer;transition:border-color 0.15s}
+    .search-result:hover{border-color:var(--rose)}
+    .search-poster{width:36px;height:54px;object-fit:cover;border-radius:4px;flex-shrink:0;background:var(--line)}
+    .search-poster-placeholder{width:36px;height:54px;border-radius:4px;flex-shrink:0;background:var(--line);display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:18px}
+    .search-info{flex:1;min-width:0}
+    .search-title{font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .search-meta{font-size:11px;color:var(--faint)}
+    .search-badge{flex-shrink:0;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px;background:var(--rose-soft);color:var(--rose);border:1px solid rgba(255,95,131,0.3)}
+    .search-badge.tv{background:rgba(66,216,132,0.1);color:var(--green);border-color:rgba(66,216,132,0.3)}
+    .search-msg{font-size:12px;color:var(--faint);text-align:center;padding:10px 0}
+    .search-close-row{display:flex;justify-content:flex-end}
+    .btn-search-close{min-height:30px;padding:0 10px;font-size:12px;color:var(--faint);background:transparent;border-color:transparent}
+    /* player */
+    #player{display:none;height:100vh;flex-direction:column;background:var(--bg)}#player.visible{display:flex}
+    .player-header{flex-shrink:0;height:54px;padding:0 20px;display:flex;align-items:center;gap:14px;background:var(--panel);border-bottom:1px solid var(--line-soft)}
+    .player-header svg{color:var(--rose)}.player-header-title{font-weight:800;font-size:15px}.header-spacer{flex:1}
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--panel-soft);border:1px solid var(--line);border-radius:20px;font-size:13px;color:var(--muted);font-weight:600}
+    .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}.chip .dot.online{background:var(--green);box-shadow:0 0 0 3px rgba(66,216,132,.12)}
+    .chip .dot.rose{background:var(--rose);box-shadow:0 0 0 3px var(--rose-soft)}
+    .btn-leave{min-height:34px;padding:0 14px;font-size:13px;color:var(--muted);background:transparent;border-color:transparent}
+    .btn-leave:hover{color:var(--text);border-color:var(--line)}
+    .video-wrap{flex:1;min-height:0;background:#000;position:relative;display:flex;align-items:center;justify-content:center}
+    #vid{width:100%;height:100%;object-fit:contain;display:block}
+    .vid-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+    .vid-spinner{width:42px;height:42px;border:3px solid var(--rose-soft);border-top-color:var(--rose);border-radius:50%;animation:spin 0.8s linear infinite;display:none}
+    .vid-spinner.visible{display:block}@keyframes spin{to{transform:rotate(360deg)}}
+    .controls-bar{flex-shrink:0;padding:10px 20px 14px;background:var(--panel);border-top:1px solid var(--line-soft);display:flex;flex-direction:column;gap:8px}
+    .progress-row{display:flex;align-items:center;gap:10px}
+    .time-label{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+    .progress-track{flex:1;height:4px;background:var(--line);border-radius:4px;cursor:pointer;position:relative}
+    .progress-fill{height:100%;background:var(--rose);border-radius:4px;pointer-events:none;max-width:100%}
+    .progress-thumb{position:absolute;top:50%;width:14px;height:14px;background:var(--rose);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;transition:transform 0.1s;box-shadow:0 0 0 3px var(--rose-soft)}
+    .progress-track:hover .progress-thumb{transform:translate(-50%,-50%) scale(1.25)}
+    .ctrl-row{display:flex;align-items:center;gap:10px}
+    .btn-icon{width:40px;height:40px;padding:0;min-height:0;display:flex;align-items:center;justify-content:center;border-radius:10px;flex-shrink:0}
+    .btn-icon.rose{background:linear-gradient(135deg,var(--rose-strong),var(--rose));border:none;color:#fff}
+    .btn-icon.rose:hover{opacity:0.88;border:none}
+    .vol-wrap{display:flex;align-items:center;gap:8px;color:var(--faint)}
+    input[type=range]{-webkit-appearance:none;appearance:none;width:80px;height:4px;border-radius:4px;background:var(--line);border:none;min-height:0;padding:0;cursor:pointer}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--rose);border-radius:50%;cursor:pointer}
+    .ctrl-spacer{flex:1}.status-row{display:flex;align-items:center;gap:10px;padding-top:2px}
+    .status-badge{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--panel-soft);border:1px solid var(--line);color:var(--muted)}
+    .status-badge.playing{color:var(--green);border-color:rgba(66,216,132,.3);background:rgba(66,216,132,.06)}
+    .status-badge.paused{color:var(--rose);border-color:rgba(255,95,131,.3);background:var(--rose-soft)}
+    .status-event{font-size:13px;color:var(--faint)}
+    .btn-sync{margin-left:auto;min-height:32px;padding:0 14px;font-size:12px;font-weight:700;color:var(--rose);background:var(--rose-soft);border-color:rgba(255,95,131,.3);border-radius:8px}
+    .btn-sync:hover{border-color:var(--rose);background:rgba(255,95,131,.22)}
+    .reconnect-bar{display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 20px;background:var(--panel-warm-2);border:1px solid rgba(255,95,131,.4);border-radius:10px;font-size:13px;color:var(--rose);font-weight:600;z-index:10}
+    .reconnect-bar.visible{display:block}
+    /* source picker */
+    #source-picker{display:none;height:100vh;place-items:center;background:radial-gradient(circle at 60% 30%,rgba(255,95,131,0.07),transparent 50%),var(--bg)}
+    #source-picker.visible{display:grid}
+    .source-card{width:100%;max-width:520px;padding:36px;background:var(--panel);border:1px solid var(--line);border-radius:18px;display:flex;flex-direction:column;gap:18px;max-height:80vh;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.6)}
+    .source-card-title{font-size:17px;font-weight:800;color:var(--text)}
+    .source-card-sub{font-size:13px;color:var(--muted);margin-top:-10px}
+    .source-list-scroll{overflow-y:auto;display:flex;flex-direction:column;gap:10px;flex:1}
+    .source-item{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#07080d;border:1px solid var(--line);border-radius:10px;cursor:pointer;transition:border-color 0.15s}
+    .source-item:hover{border-color:var(--rose)}
+    .source-badge{flex-shrink:0;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;border-radius:5px;background:rgba(255,95,131,0.12);color:var(--rose);border:1px solid rgba(255,95,131,0.3)}
+    .source-badge.seg{background:rgba(66,216,132,0.1);color:var(--green);border-color:rgba(66,216,132,0.3)}
+    .source-info{flex:1;min-width:0}
+    .source-host{font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .source-path{font-size:11px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .source-back{align-self:flex-start;min-height:34px;padding:0 14px;font-size:13px;color:var(--muted);background:transparent;border-color:transparent}
+    .source-back:hover{color:var(--text);border-color:var(--line)}
+    /* manga reader */
+    #reader{display:none;height:100vh;flex-direction:column;background:#000}
+    #reader.visible{display:flex}
+    .reader-header{flex-shrink:0;height:54px;padding:0 14px;display:flex;align-items:center;gap:10px;background:var(--panel);border-bottom:1px solid var(--line-soft)}
+    .reader-header svg{color:var(--rose);flex-shrink:0}
+    .reader-title{font-weight:800;font-size:15px;max-width:26vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .reader-chap{font-size:13px;color:var(--muted);white-space:nowrap}
+    .reader-pages{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;background:#000}
+    .reader-pages img{width:100%;max-width:900px;display:block}
+    .reader-msg{color:var(--muted);padding:40px 20px;font-size:14px;text-align:center}
+    .reader-end{color:var(--faint);padding:26px;font-size:13px;text-align:center}
+    .reader-ctrl{min-height:34px;padding:0 12px;font-size:13px;color:var(--muted);background:transparent;border-color:transparent}
+    .reader-ctrl:hover{color:var(--text);border-color:var(--line)}
+    .chapter-row{padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:#07080d;cursor:pointer;font-size:13px;transition:border-color .15s}
+    .chapter-row:hover{border-color:var(--rose)}
+    /* book reader (epub.js) */
+    #book-reader{display:none;height:100vh;flex-direction:column;background:#16161a}
+    #book-reader.visible{display:flex}
+    #book-area{flex:1;min-height:0;background:#fbf7ef}
+    #book-area iframe{background:#fbf7ef}
+    .book-dl{min-height:34px;padding:0 12px;font-size:13px;color:#fff;background:linear-gradient(135deg,var(--rose-strong),var(--rose));border:none;border-radius:8px;cursor:pointer}
+    /* audiobook player */
+    #audio-player{display:none;height:100vh;flex-direction:column;background:var(--bg)}
+    #audio-player.visible{display:flex}
+    .abk-body{flex:1;min-height:0;display:flex;flex-direction:column;padding:18px 20px;gap:14px;max-width:760px;margin:0 auto;width:100%}
+    .abk-now{display:flex;gap:16px;align-items:center}
+    .abk-now img{width:96px;height:96px;border-radius:10px;object-fit:cover;background:var(--line);flex-shrink:0}
+    .abk-bktitle{font-weight:800;font-size:18px}.abk-author{font-size:13px;color:var(--muted);margin-top:2px}
+    .abk-chaptitle{font-size:13px;color:var(--rose);margin-top:6px}
+    .abk-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .abk-controls input[type=range]{flex:1;min-width:140px}
+    .abk-btn{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#07080d;border:1px solid var(--line);cursor:pointer;color:var(--text)}
+    .abk-btn.main{background:linear-gradient(135deg,var(--rose-strong),var(--rose));border:none;color:#fff}
+    .abk-chapters{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:5px}
+    .abk-chap{padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:#07080d;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;gap:10px}
+    .abk-chap:hover{border-color:var(--rose)}.abk-chap.active{border-color:var(--rose);color:var(--rose);background:var(--rose-soft)}
+  </style>
+</head>
+<body>
+<div id="setup">
+  <div class="setup-card">
+    <div class="setup-brand">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      <div class="setup-brand-text"><span class="setup-brand-title">Watch Together</span><span class="setup-brand-sub">harmonizerlabs.cc</span></div>
+    </div>
+    <div class="field"><label for="inp-room">Room code</label><input id="inp-room" type="text" placeholder="e.g. movie-night" maxlength="32" autocomplete="off" spellcheck="false"/><small>Share the same code with your partner to sync playback.</small></div>
+    <div class="field">
+      <label>Stream</label>
+      <div class="stream-row">
+        <input id="inp-stream" type="text" placeholder="Search a title or paste a URL..." autocomplete="off" spellcheck="false"/>
+        <button class="btn-search-open" id="btn-search-open" title="Search by movie title">Search</button>
+      </div>
+      <small>Type a movie title to search, or paste a direct .m3u8 / cineby.at / TMDb URL.</small>
+    </div>
+    <!-- movie search panel -->
+    <div id="search-panel">
+      <div class="search-top-row">
+        <select id="search-type"><option value="movie">Movie</option><option value="tv">TV Show</option><option value="kdrama">K-Drama</option><option value="jdrama">J-Drama</option><option value="cdrama">C-Drama</option><option value="anime">Anime</option><option value="manga">Manga</option><option value="manhwa">Manhwa</option><option value="book">Book</option><option value="audiobook">Audiobook</option><option value="podcast">Podcast</option><option value="music">Music</option></select>
+        <select id="manga-source" style="display:none"><option value="comick">ComicK</option><option value="weebcentral">WeebCentral</option><option value="mangapill">Mangapill</option><option value="mangadex">MangaDex</option><option value="mangakatana">MangaKatana</option></select>
+        <button id="btn-do-search">Search</button>
+      </div>
+      <div class="search-msg" style="text-align:left;padding:0 2px 2px">Filters for the title typed above. Switch type/source, then Search.</div>
+      <div class="search-results" id="search-results"><div class="search-msg" id="search-msg">Type a title and press Go.</div></div>
+      <!-- anime episode + sub/dub picker (shown after selecting an anime) -->
+      <div id="anime-ep-picker" style="display:none;flex-direction:column;gap:10px;padding:12px;background:#07080d;border:1px solid var(--line);border-radius:10px">
+        <div id="anime-ep-title" class="search-title"></div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <label style="font-size:12px;font-weight:700;color:var(--muted)">EPISODE</label>
+          <input id="anime-ep-num" type="number" min="1" value="1" style="width:90px;min-height:38px"/>
+          <span id="anime-ep-max" style="font-size:12px;color:var(--faint)"></span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="anime-sub" class="search-badge" style="cursor:pointer;min-height:30px;padding:0 14px">SUB</button>
+          <button id="anime-dub" class="search-badge" style="cursor:pointer;min-height:30px;padding:0 14px;background:transparent;color:var(--faint)">DUB</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="anime-watch" class="btn-connect" style="min-height:40px;flex:1">Watch</button>
+          <button id="anime-back" class="btn-search-close">&larr; Back</button>
+        </div>
+      </div>
+      <!-- TV / drama season+episode picker -->
+      <div id="tv-ep-picker" style="display:none;flex-direction:column;gap:10px;padding:12px;background:#07080d;border:1px solid var(--line);border-radius:10px">
+        <div id="tv-ep-title" class="search-title"></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:12px;font-weight:700;color:var(--muted)">SEASON</label>
+          <input id="tv-season" type="number" min="1" value="1" style="width:72px;min-height:38px"/>
+          <label style="font-size:12px;font-weight:700;color:var(--muted)">EPISODE</label>
+          <input id="tv-episode" type="number" min="1" value="1" style="width:72px;min-height:38px"/>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="tv-watch" class="btn-connect" style="min-height:40px;flex:1">Watch</button>
+          <button id="tv-back" class="btn-search-close">&larr; Back</button>
+        </div>
+      </div>
+      <!-- manga chapter picker (shown after selecting a manga) -->
+      <div id="manga-ch-picker" style="display:none;flex-direction:column;gap:8px">
+        <div id="manga-ch-title" class="search-title"></div>
+        <div id="manga-ch-list" class="search-results" style="max-height:300px"></div>
+        <button id="manga-ch-back" class="btn-search-close">&larr; Back</button>
+      </div>
+      <div class="search-close-row"><button class="btn-search-close" id="btn-search-close">Close search</button></div>
+    </div>
+    <div class="setup-err" id="setup-err"></div>
+    <button class="btn-connect" id="btn-connect">Connect</button>
+  </div>
+</div>
+<div id="player">
+  <div class="player-header">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    <span class="player-header-title">Watch Together</span>
+    <div class="header-spacer"></div>
+    <div class="chip"><span class="dot" id="ws-dot"></span><span id="peers-label">1 watching</span></div>
+    <div class="chip"><span id="room-label">--</span></div>
+    <button class="btn-leave" id="btn-sources" style="display:none;color:var(--rose);border-color:rgba(255,95,131,0.3)" title="Switch stream source">Sources</button>
+    <button class="btn-leave" id="btn-leave">Leave</button>
+  </div>
+  <div class="video-wrap">
+    <video id="vid" preload="auto" playsinline webkit-playsinline x-webkit-airplay="allow"></video>
+    <div class="vid-overlay"><div class="vid-spinner" id="spinner"></div></div>
+  </div>
+  <div class="controls-bar">
+    <div class="progress-row">
+      <span class="time-label" id="time-cur">0:00</span>
+      <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div><div class="progress-thumb" id="progress-thumb" style="left:0%"></div></div>
+      <span class="time-label" id="time-dur">--</span>
+    </div>
+    <div class="ctrl-row">
+      <button class="btn-icon rose" id="btn-playpause" title="Play / Pause">
+        <svg id="icon-play" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="icon-pause" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+      <div class="vol-wrap">
+        <svg id="vol-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="cursor:pointer"><path id="vol-path" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        <input type="range" id="vol-slider" min="0" max="1" step="0.02" value="1"/>
+      </div>
+      <div class="ctrl-spacer"></div>
+      <button class="btn-icon" id="btn-pip" title="Picture in picture">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"/></svg>
+      </button>
+      <button class="btn-icon" id="btn-fs" title="Fullscreen">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </button>
+      <button class="btn-sync" id="btn-sync">Sync now</button>
+    </div>
+    <div class="status-row"><span class="status-badge paused" id="status-badge">PAUSED</span><span class="status-event" id="status-event">Waiting for stream...</span></div>
+  </div>
+</div>
+<div id="reader">
+  <div class="reader-header">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    <span class="reader-title" id="reader-title">Reader</span>
+    <span class="reader-chap" id="reader-chap"></span>
+    <div class="header-spacer"></div>
+    <div class="chip"><span class="dot" id="reader-dot"></span><span id="reader-peers">1 reading</span></div>
+    <button class="reader-ctrl" id="reader-prev" title="Previous chapter">&larr; Prev</button>
+    <button class="reader-ctrl" id="reader-next" title="Next chapter">Next &rarr;</button>
+    <button class="reader-ctrl" id="reader-chapters">Chapters</button>
+    <button class="btn-leave" id="reader-leave">Leave</button>
+  </div>
+  <div class="reader-pages" id="reader-pages"></div>
+</div>
+<div id="book-reader">
+  <div class="reader-header">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+    <span class="reader-title" id="book-title">Book</span>
+    <div class="header-spacer"></div>
+    <button class="reader-ctrl" id="book-prev" title="Previous">&larr; Prev</button>
+    <button class="reader-ctrl" id="book-next" title="Next">Next &rarr;</button>
+    <button class="reader-ctrl" id="book-font" title="Font size">A+</button>
+    <button class="book-dl" id="book-save" title="Download for offline">&#8595; Save</button>
+    <button class="btn-leave" id="book-leave">Leave</button>
+  </div>
+  <div id="book-area"></div>
+</div>
+<div id="audio-player">
+  <div class="reader-header">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 0 0-9 9v7a2 2 0 0 0 2 2h2v-8H5v-1a7 7 0 0 1 14 0v1h-2v8h2a2 2 0 0 0 2-2v-7a9 9 0 0 0-9-9z"/></svg>
+    <span class="reader-title" id="abk-title">Audiobook</span>
+    <div class="header-spacer"></div>
+    <button class="btn-leave" id="abk-leave">Leave</button>
+  </div>
+  <div class="abk-body">
+    <div class="abk-now">
+      <img id="abk-cover" alt=""/>
+      <div>
+        <div class="abk-bktitle" id="abk-bktitle"></div>
+        <div class="abk-author" id="abk-author"></div>
+        <div class="abk-chaptitle" id="abk-chaptitle"></div>
+      </div>
+    </div>
+    <audio id="abk-audio" preload="auto"></audio>
+    <div class="abk-controls">
+      <button class="abk-btn" id="abk-prev" title="Previous">&#9198;</button>
+      <button class="abk-btn main" id="abk-pp" title="Play / Pause"><svg id="abk-icon-play" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><svg id="abk-icon-pause" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg></button>
+      <button class="abk-btn" id="abk-nextc" title="Next">&#9197;</button>
+      <span class="time-label" id="abk-cur">0:00</span>
+      <input type="range" id="abk-seek" min="0" max="1000" value="0"/>
+      <span class="time-label" id="abk-dur">--</span>
+      <button class="reader-ctrl" id="abk-speed" title="Speed">1x</button>
+    </div>
+    <div class="abk-chapters" id="abk-chapters"></div>
+  </div>
+</div>
+<div class="reconnect-bar" id="reconnect-bar">Connection lost -- reconnecting...</div>
+<div id="source-picker">
+  <div class="source-card">
+    <div class="source-card-title">Choose a stream source</div>
+    <div class="source-card-sub">Multiple streams were found. Select the one that looks like the actual video.</div>
+    <div class="source-list-scroll" id="source-list"></div>
+    <div style="display:flex;gap:10px"><button class="source-back" id="btn-source-back">&larr; Back</button><button class="source-back" id="btn-source-rescan" style="color:var(--rose)">&#8635; Rescan</button></div>
+  </div>
+</div>
+<script>
+(function () {
+  "use strict";
+  function qs(id) { return document.getElementById(id); }
+  function fmtTime(s) {
+    if (!isFinite(s) || s < 0) return "--";
+    s = Math.floor(s);
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    if (h > 0) return h + ":" + String(m).padStart(2,"0") + ":" + String(sec).padStart(2,"0");
+    return m + ":" + String(sec).padStart(2,"0");
+  }
+  var ws = null, roomCode = "", streamUrl = "", hls = null;
+  var isSyncing = false, lastSyncTs = 0, wsReady = false, currentStreamType = "manifest";
+  var initialSynced = false, pendingState = null;
+  // Playback-resilience state: wantPlaying = we (or the room) intend playback to be running.
+  // The watchdog uses it to auto-recover from buffer stalls / network blips / PiP-background
+  // drains without ever giving up the stream.
+  var wantPlaying = false, stallTimer = null, currentStreamUrl = "";
+  var mode = "video";          // "video" (player) or "reader" (manga)
+  var mangaState = null;       // { source, item, chapters:[], idx }
+  var setupEl = qs("setup"), playerEl = qs("player"), vid = qs("vid"), spinner = qs("spinner");
+  var btnConnect = qs("btn-connect"), btnLeave = qs("btn-leave"), btnPlayPause = qs("btn-playpause");
+  var iconPlay = qs("icon-play"), iconPause = qs("icon-pause"), btnSync = qs("btn-sync");
+  var progressTrack = qs("progress-track"), progressFill = qs("progress-fill"), progressThumb = qs("progress-thumb");
+  var timeCur = qs("time-cur"), timeDur = qs("time-dur");
+  var volSlider = qs("vol-slider"), volIcon = qs("vol-icon"), volPath = qs("vol-path");
+  var statusBadge = qs("status-badge"), statusEvent = qs("status-event");
+  var peersLabel = qs("peers-label"), wsDot = qs("ws-dot"), roomLabel = qs("room-label");
+  var setupErr = qs("setup-err"), reconnectBar = qs("reconnect-bar");
+  // the main stream box IS the query box now — no redundant second input
+  var searchPanel = qs("search-panel"), searchInp = qs("inp-stream"), searchResults = qs("search-results"), searchMsg = qs("search-msg");
+
+  // --- search panel ---
+  qs("btn-search-open").addEventListener("click", function() {
+    searchPanel.classList.add("open");
+    if (searchInp.value.trim()) doSearch(); else searchInp.focus();
+  });
+  qs("btn-search-close").addEventListener("click", function() {
+    searchPanel.classList.remove("open");
+  });
+  qs("btn-do-search").addEventListener("click", doSearch);
+  // reading source lists per type (manga vs manhwa) — both use the same reader pipeline
+  var MANGA_SOURCES = [["comick","ComicK"],["weebcentral","WeebCentral"],["mangapill","Mangapill"],["mangadex","MangaDex"],["mangakatana","MangaKatana"],["rawkuma","Rawkuma — JP raw"]];
+  var MANHWA_SOURCES = [["asura","AsuraScans"],["webtoons","Webtoons"],["comick","ComicK"],["weebcentral","WeebCentral"],["flame","Flame Comics"],["blacktoon","BlackToon — KO raw"]];
+  var BOOK_SOURCES_LIST = [["libgen","LibGen"],["annas","Anna's Archive"],["standardebooks","Standard Ebooks"],["openlibrary","Open Library"]];
+  var AUDIOBOOK_SOURCES = [["librivox","LibriVox"],["archive","Internet Archive"],["golden","Golden Audiobooks"],["big","Big Audiobooks"],["fulllength","Full-Length Audiobooks"]];
+  var MUSIC_SOURCES_LIST = [["gdstudio","HiFi (lossless)"],["youtube","YouTube"],["soundcloud","SoundCloud"],["audius","Audius"],["jamendo","Jamendo (CC)"],["radio","Radio (live)"]];
+  function isReadingType(t) { return t === "manga" || t === "manhwa"; }
+  function hasSourcePicker(t) { return isReadingType(t) || t === "book" || t === "audiobook" || t === "music"; }
+  function populateSources(type) {
+    var list = type === "music" ? MUSIC_SOURCES_LIST : type === "audiobook" ? AUDIOBOOK_SOURCES : type === "book" ? BOOK_SOURCES_LIST : type === "manhwa" ? MANHWA_SOURCES : MANGA_SOURCES;
+    qs("manga-source").innerHTML = list.map(function(s){ return '<option value="' + s[0] + '">' + s[1] + '</option>'; }).join("");
+  }
+  // filters: switching type shows/hides the source picker (manga/manhwa/book) and re-runs the search
+  qs("search-type").addEventListener("change", function() {
+    var hasSrc = hasSourcePicker(this.value);
+    qs("manga-source").style.display = hasSrc ? "" : "none";
+    if (hasSrc) populateSources(this.value);
+    if (searchInp.value.trim()) doSearch();
+  });
+  qs("manga-source").addEventListener("change", function() { if (searchInp.value.trim()) doSearch(); });
+
+  // Resilient JSON fetch: an intermittent Cloudflare/nginx error or timeout returns an HTML page
+  // (starts with '<'), which r.json() chokes on ("Unexpected token '<'"). Read as text, try to
+  // parse, time out cleanly, and retry once on a non-JSON/network blip before surfacing an error.
+  function fetchJson(url, tries) {
+    tries = tries == null ? 2 : tries;
+    var ac = new AbortController();
+    var to = setTimeout(function(){ ac.abort(); }, 18000);
+    return fetch(url, { signal: ac.signal }).then(function(r) {
+      clearTimeout(to);
+      return r.text().then(function(t) {
+        var d = null; try { d = JSON.parse(t); } catch (e) {}
+        if (d && typeof d === "object") return d;
+        if (tries > 1) return fetchJson(url, tries - 1);   // HTML/garbage -> retry once
+        throw new Error("busy");
+      });
+    }, function(err) {
+      clearTimeout(to);
+      if (tries > 1 && err && err.name !== "AbortError") return fetchJson(url, tries - 1);
+      throw err;
+    });
+  }
+
+  function doSearch() {
+    var q = searchInp.value.trim();
+    if (!q) return;
+    var type = qs("search-type").value;
+    qs("anime-ep-picker").style.display = "none";   // reset pickers on a fresh search
+    qs("tv-ep-picker").style.display = "none";
+    qs("manga-ch-picker").style.display = "none";
+    searchResults.style.display = "flex";
+    searchResults.innerHTML = "";
+    searchMsg = qs("search-msg");  // refresh reference after innerHTML
+    searchResults.innerHTML = '<div class="search-msg">Searching...</div>';
+
+    var url = type === "music"
+      ? "/mediamtx/api/music/search?source=" + qs("manga-source").value + "&q=" + encodeURIComponent(q)
+      : type === "podcast"
+      ? "/mediamtx/api/podcast/search?q=" + encodeURIComponent(q)
+      : type === "audiobook"
+      ? "/mediamtx/api/audiobook/search?source=" + qs("manga-source").value + "&q=" + encodeURIComponent(q)
+      : type === "book"
+      ? "/mediamtx/api/book/search?source=" + qs("manga-source").value + "&q=" + encodeURIComponent(q)
+      : isReadingType(type)
+      ? "/mediamtx/api/manga/search?source=" + qs("manga-source").value + "&q=" + encodeURIComponent(q)
+      : "/mediamtx/api/search?q=" + encodeURIComponent(q) + "&type=" + type;
+
+    fetchJson(url)
+      .then(function(data) {
+        searchResults.innerHTML = "";
+        if (!data.results || !data.results.length) {
+          searchResults.innerHTML = '<div class="search-msg">No results found.</div>';
+          return;
+        }
+        if (type === "music") { musicQueue = data.results; data.results.forEach(renderMusicResult); return; }
+        if (type === "podcast") { data.results.forEach(renderPodcastResult); return; }
+        if (type === "audiobook") { data.results.forEach(renderAudiobookResult); return; }
+        if (type === "book") { data.results.forEach(renderBookResult); return; }
+        if (isReadingType(type)) { data.results.forEach(renderMangaResult); return; }
+        data.results.forEach(function(item) {
+          var div = document.createElement("div");
+          div.className = "search-result";
+          var posterHtml = item.poster
+            ? '<img class="search-poster" src="' + item.poster + '" alt="" loading="lazy"/>'
+            : '<div class="search-poster-placeholder">?</div>';
+          var badge = item.type === "anime"
+            ? '<span class="search-badge tv">ANIME</span>'
+            : item.type === "tv"
+            ? '<span class="search-badge tv">TV</span>'
+            : '<span class="search-badge">FILM</span>';
+          var metaId = item.idType === 'anilist' ? ((item.episodes ? item.episodes + ' eps' : 'Anime'))
+            : (item.idType === 'imdb' ? 'IMDb ' : 'TMDb #') + item.id;
+          div.innerHTML = posterHtml +
+            '<div class="search-info">' +
+              '<div class="search-title">' + escHtml(item.title) + '</div>' +
+              '<div class="search-meta">' + (item.year || 'Unknown year') + ' &mdash; ' + metaId + '</div>' +
+            '</div>' + badge;
+          div.addEventListener("click", function() {
+            if (item.idType === "anilist") { openAnimePicker(item); return; }
+            if (item.type === "tv") { openTvPicker(item); return; }   // TV/drama -> season+episode picker
+            var shorthand = item.idType === "imdb" ? "imdb:" + item.id : "tmdb:" + item.id;
+            qs("inp-stream").value = shorthand;
+            searchPanel.classList.remove("open");
+            setupErr.textContent = "";
+            btnConnect.click();
+          });
+          searchResults.appendChild(div);
+        });
+      })
+      .catch(function(err) {
+        searchResults.innerHTML = '<div class="search-msg">' + (err && err.name === "AbortError" ? "Search timed out — try again." : "Search failed — try again.") + '</div>';
+      });
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function isPlainQuery(raw) {
+    raw = raw.trim();
+    if (!raw) return false;
+    if (/^tmdb:/i.test(raw) || /^imdb:/i.test(raw) || /^anime:/i.test(raw) || /^tv:/i.test(raw)) return false;
+    if (/^https?:\/\//i.test(raw)) return false;
+    return true;
+  }
+
+  // --- anime episode + sub/dub picker ---
+  var animeSel = null, animeLang = "sub";
+  function openAnimePicker(item) {
+    animeSel = item; animeLang = "sub";
+    qs("anime-ep-title").textContent = item.title;
+    var epNum = qs("anime-ep-num");
+    epNum.value = "1";
+    if (item.episodes) { epNum.max = item.episodes; qs("anime-ep-max").textContent = "of " + item.episodes; }
+    else { epNum.removeAttribute("max"); qs("anime-ep-max").textContent = ""; }
+    setAnimeLang("sub");
+    searchResults.style.display = "none";
+    qs("anime-ep-picker").style.display = "flex";
+  }
+  function setAnimeLang(lang) {
+    animeLang = lang;
+    var sub = qs("anime-sub"), dub = qs("anime-dub");
+    sub.style.background = lang === "sub" ? "" : "transparent";
+    sub.style.color = lang === "sub" ? "" : "var(--faint)";
+    dub.style.background = lang === "dub" ? "" : "transparent";
+    dub.style.color = lang === "dub" ? "" : "var(--faint)";
+  }
+  function closeAnimePicker() {
+    qs("anime-ep-picker").style.display = "none";
+    searchResults.style.display = "flex";
+  }
+  qs("anime-sub").addEventListener("click", function(){ setAnimeLang("sub"); });
+  qs("anime-dub").addEventListener("click", function(){ setAnimeLang("dub"); });
+  qs("anime-back").addEventListener("click", closeAnimePicker);
+  qs("anime-watch").addEventListener("click", function() {
+    if (!animeSel) return;
+    var ep = parseInt(qs("anime-ep-num").value, 10); if (!ep || ep < 1) ep = 1;
+    qs("inp-stream").value = "anime:" + animeSel.id + ":" + ep + ":" + animeLang;
+    closeAnimePicker();
+    searchPanel.classList.remove("open");
+    setupErr.textContent = "";
+    btnConnect.click();
+  });
+
+  // --- TV / drama season+episode picker ---
+  var tvSel = null;
+  function openTvPicker(item) {
+    tvSel = item;
+    qs("tv-ep-title").textContent = item.title;
+    qs("tv-season").value = "1"; qs("tv-episode").value = "1";
+    searchResults.style.display = "none";
+    qs("tv-ep-picker").style.display = "flex";
+  }
+  function closeTvPicker() { qs("tv-ep-picker").style.display = "none"; searchResults.style.display = "flex"; }
+  qs("tv-back").addEventListener("click", closeTvPicker);
+  qs("tv-watch").addEventListener("click", function() {
+    if (!tvSel) return;
+    var s = parseInt(qs("tv-season").value, 10) || 1, e = parseInt(qs("tv-episode").value, 10) || 1;
+    qs("inp-stream").value = "tv:" + tvSel.id + ":" + s + ":" + e;
+    closeTvPicker();
+    searchPanel.classList.remove("open");
+    setupErr.textContent = "";
+    btnConnect.click();
+  });
+
+  // --- manga reader ---
+  var readerEl = qs("reader"), readerPages = qs("reader-pages");
+  // image hosts for these sources reject hotlinking without a Referer (covers + pages)
+  var MANGA_REF = { comick: "https://comick.art/", mangapill: "https://mangapill.com/", mangakatana: "https://mangakatana.com/", webtoons: "https://www.webtoons.com/" };
+  function mangaImgUrl(u, source) {
+    var ref = MANGA_REF[source] || "";
+    return "/mediamtx/api/proxy?" + (ref ? "referer=" + encodeURIComponent(ref) + "&" : "") + "url=" + encodeURIComponent(u);
+  }
+  function renderMangaResult(item) {
+    var div = document.createElement("div");
+    div.className = "search-result";
+    var posterHtml = item.poster
+      ? '<img class="search-poster" src="' + mangaImgUrl(item.poster, item.source) + '" alt="" loading="lazy"/>'
+      : '<div class="search-poster-placeholder">?</div>';
+    div.innerHTML = posterHtml +
+      '<div class="search-info"><div class="search-title">' + escHtml(item.title) + '</div>' +
+        '<div class="search-meta">' + escHtml(item.source) + '</div></div>' +
+      '<span class="search-badge tv">MANGA</span>';
+    div.addEventListener("click", function() { openMangaChapters(item); });
+    searchResults.appendChild(div);
+  }
+  function openMangaChapters(item) {
+    qs("manga-ch-title").textContent = item.title;
+    var list = qs("manga-ch-list");
+    list.innerHTML = '<div class="search-msg">Loading chapters...</div>';
+    searchResults.style.display = "none";
+    qs("manga-ch-picker").style.display = "flex";
+    fetchJson("/mediamtx/api/manga/chapters?source=" + item.source + "&id=" + encodeURIComponent(item.id))
+      .then(function(data){
+        var chs = data.chapters || [];
+        if (!chs.length) { list.innerHTML = '<div class="search-msg">No English chapters on <b>' + escHtml(item.source) + '</b>.<br/>Try another source from the dropdown, then search again.</div>'; return; }
+        list.innerHTML = "";
+        chs.forEach(function(ch, i){
+          var row = document.createElement("div");
+          row.className = "chapter-row";
+          row.textContent = "Chapter " + ch.chap + (ch.title ? " — " + ch.title : "");
+          row.addEventListener("click", function(){ startReading(item, chs, i); });
+          list.appendChild(row);
+        });
+      })
+      .catch(function(e){ list.innerHTML = '<div class="search-msg">Couldn\'t load chapters — try again or another source.</div>'; });
+  }
+  qs("manga-ch-back").addEventListener("click", function() {
+    qs("manga-ch-picker").style.display = "none";
+    searchResults.style.display = "flex";
+  });
+
+  // begin reading: join the room (for "read together" sync) and open the reader
+  function startReading(item, chapters, idx) {
+    var room = qs("inp-room").value.trim();
+    if (!room) { qs("manga-ch-picker").style.display = "none"; searchPanel.classList.remove("open"); setupErr.textContent = "Enter a room code first."; qs("inp-room").focus(); return; }
+    roomCode = room; roomLabel.textContent = roomCode;
+    mangaState = { source: item.source, item: item, chapters: chapters, idx: idx };
+    searchPanel.classList.remove("open");
+    if (!ws || ws.readyState > 1) connectWs();
+    openReader();
+    broadcastReader();
+  }
+  function broadcastReader() {
+    if (!mangaState) return;
+    var c = mangaState.chapters[mangaState.idx];
+    sendWs({ type: "reader", room: roomCode, state: {
+      source: mangaState.source, item: mangaState.item, chapters: mangaState.chapters, idx: mangaState.idx, chapId: c && c.id
+    }});
+  }
+  // partner opened/changed a chapter -> follow them
+  function openReaderRemote(st) {
+    if (!st || !st.chapters) return;
+    var same = mangaState && mangaState.source === st.source && mangaState.item && st.item && mangaState.item.id === st.item.id && mangaState.idx === st.idx;
+    mangaState = { source: st.source, item: st.item, chapters: st.chapters, idx: st.idx };
+    mode = "reader";
+    setupEl.style.display = "none"; playerEl.classList.remove("visible"); readerEl.classList.add("visible");
+    if (!same) openReader(true);
+  }
+  function openReader(skipBroadcastFollow) {
+    mode = "reader";
+    setupEl.style.display = "none"; playerEl.classList.remove("visible"); readerEl.classList.add("visible");
+    var c = mangaState.chapters[mangaState.idx];
+    qs("reader-title").textContent = mangaState.item.title;
+    qs("reader-chap").textContent = "Ch. " + (c ? c.chap : "?");
+    readerPages.innerHTML = '<div class="reader-msg">Loading pages...</div>';
+    readerPages.scrollTop = 0;
+    var pid = mangaState.source === "comick" ? (mangaState.item.id + "|" + c.id + "|" + c.chap) : c.id;
+    fetchJson("/mediamtx/api/manga/pages?source=" + mangaState.source + "&id=" + encodeURIComponent(pid))
+      .then(function(data){
+        var pages = data.pages || [], ref = data.referer || "";
+        if (!pages.length) { readerPages.innerHTML = '<div class="reader-msg">No pages found for this chapter. Try another source.</div>'; return; }
+        readerPages.innerHTML = "";
+        pages.forEach(function(u){
+          var img = document.createElement("img");
+          img.loading = "lazy";
+          img.src = "/mediamtx/api/proxy?" + (ref ? "referer=" + encodeURIComponent(ref) + "&" : "") + "url=" + encodeURIComponent(u);
+          readerPages.appendChild(img);
+        });
+        var end = document.createElement("div");
+        end.className = "reader-end";
+        end.textContent = "— End of chapter " + (c ? c.chap : "") + " —";
+        readerPages.appendChild(end);
+      })
+      .catch(function(e){ readerPages.innerHTML = '<div class="reader-msg">Couldn\'t load pages — try again, or use the Sources/Chapters button.</div>'; });
+  }
+  function readerGoto(idx) {
+    if (!mangaState || idx < 0 || idx >= mangaState.chapters.length) return;
+    mangaState.idx = idx;
+    openReader();
+    broadcastReader();
+  }
+  qs("reader-prev").addEventListener("click", function(){ if (mangaState) readerGoto(mangaState.idx - 1); });
+  qs("reader-next").addEventListener("click", function(){ if (mangaState) readerGoto(mangaState.idx + 1); });
+  qs("reader-chapters").addEventListener("click", function() {
+    if (!mangaState) return;
+    readerEl.classList.remove("visible"); mode = "video";
+    setupEl.style.display = ""; searchPanel.classList.add("open");
+    openMangaChapters(mangaState.item);
+  });
+  qs("reader-leave").addEventListener("click", function() {
+    if (ws) { ws.close(); ws = null; }
+    clearTimeout(reconnectTimer);
+    readerEl.classList.remove("visible"); mode = "video"; mangaState = null;
+    setupEl.style.display = ""; reconnectBar.classList.remove("visible"); wsReady = false;
+  });
+
+  // --- book reader (epub.js) + offline save ---
+  var bookReaderEl = qs("book-reader"), bookBuffer = null, bookObj = null, bookRendition = null, bookFontPct = 110, bookTitle = "book";
+  function renderBookResult(item) {
+    var div = document.createElement("div");
+    div.className = "search-result";
+    var posterHtml = item.cover
+      ? '<img class="search-poster" src="/mediamtx/api/proxy?url=' + encodeURIComponent(item.cover) + '" alt="" loading="lazy"/>'
+      : '<div class="search-poster-placeholder">&#128214;</div>';
+    div.innerHTML = posterHtml +
+      '<div class="search-info"><div class="search-title">' + escHtml(item.title) + '</div>' +
+        '<div class="search-meta">' + escHtml(item.author || item.source) + '</div></div>' +
+      '<span class="search-badge">' + (item.ext || 'EPUB').toUpperCase() + '</span>';
+    div.addEventListener("click", function() { openBook(item); });
+    searchResults.appendChild(div);
+  }
+  function openBook(item) {
+    mode = "book"; bookTitle = item.title || "book";
+    setupEl.style.display = "none"; playerEl.classList.remove("visible"); readerEl.classList.remove("visible");
+    searchPanel.classList.remove("open");
+    bookReaderEl.classList.add("visible");
+    qs("book-title").textContent = item.title;
+    var area = qs("book-area");
+    area.innerHTML = '<div class="reader-msg" style="color:#555;padding:40px;text-align:center">Fetching book…</div>';
+    if (bookRendition) { try { bookRendition.destroy(); } catch (e) {} bookRendition = null; }
+    bookBuffer = null;
+    fetchJson("/mediamtx/api/book/file?source=" + item.source + "&id=" + encodeURIComponent(item.id))
+      .then(function(f) {
+        if (!f || !f.url) throw new Error("no file");
+        var purl = "/mediamtx/api/proxy?" + (f.referer ? "referer=" + encodeURIComponent(f.referer) + "&" : "") + "url=" + encodeURIComponent(f.url);
+        area.innerHTML = '<div class="reader-msg" style="color:#555;padding:40px;text-align:center">Downloading & opening…</div>';
+        return fetch(purl).then(function(r) { return r.arrayBuffer(); });
+      })
+      .then(function(buf) {
+        bookBuffer = buf;
+        area.innerHTML = "";
+        if (!window.ePub) { area.innerHTML = '<div class="reader-msg" style="color:#555;padding:40px">Reader library failed to load.</div>'; return; }
+        bookObj = ePub(buf);
+        // method:"srcdoc" renders into a same-origin iframe (allowed by frame-src 'self'),
+        // avoiding blob: iframes that the site CSP would block.
+        bookRendition = bookObj.renderTo("book-area", { width: "100%", height: "100%", flow: "scrolled-doc", spread: "none", method: "srcdoc", allowScriptedContent: false });
+        bookRendition.themes.fontSize(bookFontPct + "%");
+        bookRendition.display();
+      })
+      .catch(function(e) {
+        area.innerHTML = '<div class="reader-msg" style="color:#555;padding:40px;text-align:center">Couldn\'t open this book — it may not be on a downloadable mirror. Try another source.</div>';
+      });
+  }
+  qs("book-prev").addEventListener("click", function() { if (bookRendition) bookRendition.prev(); });
+  qs("book-next").addEventListener("click", function() { if (bookRendition) bookRendition.next(); });
+  qs("book-font").addEventListener("click", function() { bookFontPct = bookFontPct >= 160 ? 90 : bookFontPct + 15; if (bookRendition) bookRendition.themes.fontSize(bookFontPct + "%"); });
+  qs("book-save").addEventListener("click", function() {
+    if (!bookBuffer) return;
+    var blob = new Blob([bookBuffer], { type: "application/epub+zip" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = bookTitle.replace(/[^\w .\-]+/g, "_").slice(0, 80) + ".epub";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(a.href); }, 8000);
+  });
+  qs("book-leave").addEventListener("click", function() {
+    if (bookRendition) { try { bookRendition.destroy(); } catch (e) {} bookRendition = null; }
+    bookBuffer = null; mode = "video";
+    bookReaderEl.classList.remove("visible"); setupEl.style.display = "";
+  });
+
+  // --- audiobook player ---
+  var abkEl = qs("audio-player"), abkAudio = qs("abk-audio"), abkChaps = [], abkIdx = 0, abkSpeed = 1, abkSpeeds = [1, 1.25, 1.5, 1.75, 2, 0.75];
+  function renderAudiobookResult(item) {
+    var div = document.createElement("div");
+    div.className = "search-result";
+    var posterHtml = item.cover
+      ? '<img class="search-poster" src="/mediamtx/api/proxy?url=' + encodeURIComponent(item.cover) + '" alt="" loading="lazy"/>'
+      : '<div class="search-poster-placeholder">&#127911;</div>';
+    div.innerHTML = posterHtml +
+      '<div class="search-info"><div class="search-title">' + escHtml(item.title) + '</div>' +
+        '<div class="search-meta">' + escHtml(item.author || item.source) + '</div></div>' +
+      '<span class="search-badge">AUDIO</span>';
+    div.addEventListener("click", function() { openAudiobook(item); });
+    searchResults.appendChild(div);
+  }
+  // shared audio player for audiobooks + podcasts (any {chapters:[{title,url}]} source)
+  function openAudioContent(item, chaptersUrl) {
+    mode = "audio"; searchPanel.classList.remove("open");
+    setupEl.style.display = "none"; playerEl.classList.remove("visible"); abkEl.classList.add("visible");
+    qs("abk-title").textContent = item.title;
+    qs("abk-bktitle").textContent = item.title;
+    qs("abk-author").textContent = item.author || "";
+    qs("abk-cover").src = item.cover ? ("/mediamtx/api/proxy?url=" + encodeURIComponent(item.cover)) : "";
+    qs("abk-chaptitle").textContent = "Loading…";
+    qs("abk-chapters").innerHTML = '<div class="search-msg">Loading…</div>';
+    abkChaps = []; abkIdx = 0;
+    fetchJson(chaptersUrl)
+      .then(function(data) {
+        abkChaps = data.chapters || [];
+        if (data.cover && !item.cover) qs("abk-cover").src = "/mediamtx/api/proxy?url=" + encodeURIComponent(data.cover);
+        if (!abkChaps.length) { qs("abk-chapters").innerHTML = '<div class="search-msg">No audio found — try another source.</div>'; qs("abk-chaptitle").textContent = ""; return; }
+        renderAbkChapters();
+        loadAbkChapter(0, false);
+      })
+      .catch(function(e) { qs("abk-chapters").innerHTML = '<div class="search-msg">Couldn\'t load — try again or another source.</div>'; });
+  }
+  function openAudiobook(item) { openAudioContent(item, "/mediamtx/api/audiobook/chapters?source=" + item.source + "&id=" + encodeURIComponent(item.id)); }
+  function openPodcast(item) { openAudioContent(item, "/mediamtx/api/podcast/episodes?id=" + encodeURIComponent(item.id)); }
+  function renderPodcastResult(item) {
+    var div = document.createElement("div");
+    div.className = "search-result";
+    var posterHtml = item.cover
+      ? '<img class="search-poster" src="/mediamtx/api/proxy?url=' + encodeURIComponent(item.cover) + '" alt="" loading="lazy"/>'
+      : '<div class="search-poster-placeholder">&#127908;</div>';
+    div.innerHTML = posterHtml +
+      '<div class="search-info"><div class="search-title">' + escHtml(item.title) + '</div>' +
+        '<div class="search-meta">' + escHtml(item.author || "Podcast") + '</div></div>' +
+      '<span class="search-badge tv">PODCAST</span>';
+    div.addEventListener("click", function() { openPodcast(item); });
+    searchResults.appendChild(div);
+  }
+  // --- music: search results become a playable queue; each track's stream is resolved on play ---
+  var musicQueue = [];
+  function musicCoverSrc(cover) {
+    // local API paths (gdstudio cover resolver) load directly; external URLs go through the image proxy
+    if (!cover) return null;
+    return cover.charAt(0) === "/" ? cover : ("/mediamtx/api/proxy?url=" + encodeURIComponent(cover));
+  }
+  function renderMusicResult(item, idx) {
+    var div = document.createElement("div");
+    div.className = "search-result";
+    var src = musicCoverSrc(item.cover);
+    div.innerHTML =
+      (src ? '<img class="search-poster" alt="" loading="lazy"/>' : '<div class="search-poster-placeholder">&#9836;</div>') +
+      '<div class="search-info"><div class="search-title">' + escHtml(item.title) + '</div>' +
+        '<div class="search-meta">' + escHtml(item.artist || "") + '</div></div>' +
+      '<span class="search-badge">' + (item.source === "youtube" ? "YT" : item.source === "gdstudio" ? "HiFi" : item.source === "radio" ? "LIVE" : "MUSIC") + '</span>';
+    if (src) {
+      var img = div.querySelector("img"); img.src = src;
+      img.onerror = function() { var ph = document.createElement("div"); ph.className = "search-poster-placeholder"; ph.innerHTML = "&#9836;"; img.replaceWith(ph); };
+    }
+    div.addEventListener("click", function() { openMusic(idx); });
+    searchResults.appendChild(div);
+  }
+  function openMusic(idx) {
+    mode = "audio"; searchPanel.classList.remove("open");
+    setupEl.style.display = "none"; playerEl.classList.remove("visible"); abkEl.classList.add("visible");
+    qs("abk-title").textContent = "Music";
+    abkChaps = musicQueue.map(function(t) {
+      return { title: (t.artist ? (t.artist + " — ") : "") + t.title, musicSource: t.source, musicId: t.id, cover: t.cover, artist: t.artist, songtitle: t.title };
+    });
+    abkIdx = idx;
+    if (!abkChaps.length) return;
+    renderAbkChapters();
+    loadAbkChapter(idx, true);
+  }
+  function renderAbkChapters() {
+    var box = qs("abk-chapters"); box.innerHTML = "";
+    abkChaps.forEach(function(c, i) {
+      var row = document.createElement("div");
+      row.className = "abk-chap" + (i === abkIdx ? " active" : "");
+      row.innerHTML = '<span>' + escHtml(c.title) + '</span>';
+      row.addEventListener("click", function() { loadAbkChapter(i, true); });
+      box.appendChild(row);
+    });
+  }
+  function loadAbkChapter(i, play) {
+    if (i < 0 || i >= abkChaps.length) return;
+    abkIdx = i;
+    var c = abkChaps[i];
+    var rows = qs("abk-chapters").children;
+    for (var k = 0; k < rows.length; k++) rows[k].className = "abk-chap" + (k === i ? " active" : "");
+    if (c.musicSource) {
+      // music: the now-playing track changes; resolve its stream URL (Audius direct / YouTube yt-dlp)
+      qs("abk-bktitle").textContent = c.songtitle || c.title;
+      qs("abk-author").textContent = c.artist || "";
+      if (c.cover) qs("abk-cover").src = musicCoverSrc(c.cover);
+      qs("abk-chaptitle").textContent = "Loading track…";
+      abkAudio.removeAttribute("src");
+      fetchJson("/mediamtx/api/music/stream?source=" + c.musicSource + "&id=" + encodeURIComponent(c.musicId))
+        .then(function(s) {
+          if (!s.url) throw new Error("no stream");
+          if (abkIdx !== i) return;  // user moved on while resolving
+          qs("abk-chaptitle").textContent = c.songtitle || c.title;
+          abkAudio.src = "/mediamtx/api/proxy?" + (s.referer ? "referer=" + encodeURIComponent(s.referer) + "&" : "") + "url=" + encodeURIComponent(s.url);
+          abkAudio.playbackRate = abkSpeed;
+          if (play !== false) abkAudio.play().catch(function(){});
+        })
+        .catch(function() { if (abkIdx === i) qs("abk-chaptitle").textContent = "Couldn't load this track — skipping…"; });
+      return;
+    }
+    qs("abk-chaptitle").textContent = c.title;
+    abkAudio.src = "/mediamtx/api/proxy?url=" + encodeURIComponent(c.url);
+    abkAudio.playbackRate = abkSpeed;
+    if (play !== false) abkAudio.play().catch(function(){});
+  }
+  function setAbkPlayIcon(p) { qs("abk-icon-play").style.display = p ? "none" : "block"; qs("abk-icon-pause").style.display = p ? "block" : "none"; }
+  qs("abk-pp").addEventListener("click", function() { if (abkAudio.paused) abkAudio.play().catch(function(){}); else abkAudio.pause(); });
+  qs("abk-prev").addEventListener("click", function() { loadAbkChapter(abkIdx - 1, true); });
+  qs("abk-nextc").addEventListener("click", function() { loadAbkChapter(abkIdx + 1, true); });
+  qs("abk-speed").addEventListener("click", function() {
+    var n = abkSpeeds[(abkSpeeds.indexOf(abkSpeed) + 1) % abkSpeeds.length]; abkSpeed = n;
+    abkAudio.playbackRate = n; qs("abk-speed").textContent = n + "x";
+  });
+  abkAudio.addEventListener("play", function() { setAbkPlayIcon(true); });
+  abkAudio.addEventListener("pause", function() { setAbkPlayIcon(false); });
+  abkAudio.addEventListener("ended", function() { if (abkIdx < abkChaps.length - 1) loadAbkChapter(abkIdx + 1, true); });
+  abkAudio.addEventListener("timeupdate", function() {
+    qs("abk-cur").textContent = fmtTime(abkAudio.currentTime);
+    qs("abk-dur").textContent = isFinite(abkAudio.duration) ? fmtTime(abkAudio.duration) : "--";
+    if (isFinite(abkAudio.duration) && abkAudio.duration > 0) qs("abk-seek").value = Math.round(abkAudio.currentTime / abkAudio.duration * 1000);
+  });
+  qs("abk-seek").addEventListener("input", function() { if (isFinite(abkAudio.duration)) abkAudio.currentTime = this.value / 1000 * abkAudio.duration; });
+  qs("abk-leave").addEventListener("click", function() {
+    abkAudio.pause(); abkAudio.removeAttribute("src"); abkAudio.load();
+    abkChaps = []; mode = "video"; abkEl.classList.remove("visible"); setupEl.style.display = "";
+  });
+
+  // --- stream helpers ---
+  function buildStreamUrl(raw) {
+    raw = raw.trim();
+    if (raw.indexOf("http://") === 0 || raw.indexOf("https://") === 0) {
+      return "/mediamtx/api/proxy?url=" + encodeURIComponent(raw);
+    }
+    return location.protocol + "//" + location.host + "/mediamtx-hls/" + raw + "/index.m3u8";
+  }
+  function needsResolve(raw) {
+    raw = raw.trim();
+    if (/^tmdb:/i.test(raw)) return true;
+    if (/^imdb:/i.test(raw)) return true;
+    if (/^anime:/i.test(raw)) return true;
+    if (/^tv:/i.test(raw)) return true;
+    if (!/^https?:\/\//i.test(raw)) return false;
+    if (/\.(m3u8|mpd|mp4|webm|ts|m4s)(\?|$)/i.test(raw)) return false;
+    return true;
+  }
+  function getWsUrl() {
+    var proto = location.protocol === "https:" ? "wss:" : "ws:";
+    var p = location.pathname.endsWith("/") ? location.pathname : location.pathname + "/";
+    return proto + "//" + location.host + p + "ws";
+  }
+
+  // --- WebSocket ---
+  var reconnectTimer = null, reconnectDelay = 1000;
+  function connectWs() {
+    wsReady = false; wsDot.className = "dot"; qs("reader-dot").className = "dot";
+    ws = new WebSocket(getWsUrl());
+    ws.addEventListener("open", function() {
+      wsReady = true; reconnectDelay = 1000;
+      reconnectBar.classList.remove("visible"); wsDot.className = "dot online"; qs("reader-dot").className = "dot online";
+      initialSynced = false;  // re-adopt room state before we're allowed to broadcast
+      ws.send(JSON.stringify({ type: "join", room: roomCode }));
+      if (mode === "reader") broadcastReader();  // re-announce our chapter on (re)connect
+    });
+    ws.addEventListener("message", function(ev) {
+      var m; try { m = JSON.parse(ev.data); } catch(e) { return; }
+      if (m.type === "reader") { updatePeers(m.peers); openReaderRemote(m.state); return; }
+      if (mode === "reader") { if (m.type === "peers" || m.type === "welcome" || m.type === "sync") updatePeers(m.peers != null ? m.peers : m.count); return; }
+      if (m.type === "welcome") { updatePeers(m.peers); applyState(m.state, "Ready"); }
+      else if (m.type === "sync") {
+        updatePeers(m.peers);
+        applyState(m.state, m.state.status === "PLAYING" ? "Partner played" : m.state.status === "PAUSED" ? "Partner paused" : "Partner seeked");
+      } else if (m.type === "peers") { updatePeers(m.count); }
+    });
+    ws.addEventListener("close", function() {
+      wsReady = false; wsDot.className = "dot rose";
+      if (playerEl.classList.contains("visible")) {
+        reconnectBar.classList.add("visible");
+        reconnectTimer = setTimeout(function() { reconnectDelay = Math.min(reconnectDelay * 1.5, 15000); connectWs(); }, reconnectDelay);
+      }
+    });
+    ws.addEventListener("error", function() { ws.close(); });
+  }
+  function sendWs(msg) { if (ws && wsReady) ws.send(JSON.stringify(msg)); }
+  function applyState(state, eventText) {
+    isSyncing = true;  // suppress outgoing events while we adopt the room's state
+    if (eventText) statusEvent.textContent = eventText;
+    // If the video hasn't loaded metadata yet (fresh joiner), defer the seek+play
+    // until it can actually seek. Keep isSyncing true the whole time so the joiner's
+    // own autoplay/play-at-0 never broadcasts back and drags everyone to the start.
+    if (!isFinite(vid.duration) || vid.readyState < 1) {
+      pendingState = state;
+      vid.addEventListener("loadedmetadata", applyPendingState, { once: true });
+      return;
+    }
+    doApplyState(state);
+  }
+  function applyPendingState() {
+    if (!pendingState) return;
+    var s = pendingState; pendingState = null;
+    doApplyState(s);
+    statusEvent.textContent = "Joined in sync";
+  }
+  function doApplyState(state) {
+    isSyncing = true;
+    var lag = Math.max(0, (Date.now() - state.serverTs) / 1000);
+    var target = state.status === "PLAYING" ? state.position + lag : state.position;
+    if (isFinite(vid.duration) && Math.abs(vid.currentTime - target) > 0.5) vid.currentTime = target;
+    if (state.status === "PLAYING") { wantPlaying = true; vid.play().catch(function(){}); setPlayingUI(true); }
+    else { wantPlaying = false; vid.pause(); setPlayingUI(false); }
+    // Release the guard only after the seek/play events have settled, then mark synced
+    setTimeout(function() { isSyncing = false; initialSynced = true; }, 600);
+  }
+
+  // --- stream loading ---
+  var lastMediaErr = 0, hlsRebuilds = 0, nativeRetries = 0;
+  function loadStream(url, streamType) {
+    spinner.classList.add("visible"); statusEvent.textContent = "Loading stream...";
+    currentStreamUrl = url; currentStreamType = streamType || "manifest";
+    clearTimeout(stallTimer);
+    if (hls) { try { hls.destroy(); } catch(e){} hls = null; }
+
+    if (streamType === "segment") {
+      vid.src = url; vid.load();
+      vid.addEventListener("loadedmetadata", function() { spinner.classList.remove("visible"); statusEvent.textContent = "Stream ready"; }, { once: true });
+      // Native progressive: on error, retry the same URL a couple times before giving up.
+      vid.addEventListener("error", function() {
+        if (wantPlaying && nativeRetries++ < 3) { statusEvent.textContent = "Reconnecting stream..."; setTimeout(function(){ loadStream(url, streamType); }, 1500); }
+        else { spinner.classList.remove("visible"); statusEvent.textContent = "Stream error -- check path"; }
+      }, { once: true });
+      return;
+    }
+
+    if (Hls.isSupported()) {
+      // VOD-tuned config (lowLatencyMode is for live and makes movies fall off and stall).
+      // Generous retries so a transient segment 403/timeout never kills the stream.
+      hls = new Hls({
+        backBufferLength: 90,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 600,
+        maxBufferSize: 60 * 1000 * 1000,
+        fragLoadingMaxRetry: 10,
+        fragLoadingMaxRetryTimeout: 64000,
+        fragLoadingRetryDelay: 1000,
+        manifestLoadingMaxRetry: 8,
+        levelLoadingMaxRetry: 8,
+        appendErrorMaxRetry: 6
+      });
+      hls.loadSource(url); hls.attachMedia(vid);
+      hls.on(Hls.Events.MANIFEST_PARSED, function() {
+        spinner.classList.remove("visible"); statusEvent.textContent = "Stream ready";
+        hlsRebuilds = 0; nativeRetries = 0;
+      });
+      hls.on(Hls.Events.ERROR, function(e, data) {
+        if (!data.fatal) return;  // non-fatal: hls.js self-heals
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          // segment/manifest fetch failed (token blip, CDN hiccup) -> resume loading, don't die
+          statusEvent.textContent = "Reconnecting stream...";
+          try { hls.startLoad(); } catch(e2){}
+          if (wantPlaying) scheduleNudge(1500);
+        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          // buffer/decode error -> flush + recover; if it recurs fast, swap audio codec first
+          statusEvent.textContent = "Recovering stream...";
+          var now = Date.now();
+          if (now - lastMediaErr < 3000) { try { hls.swapAudioCodec(); } catch(e2){} }
+          lastMediaErr = now;
+          try { hls.recoverMediaError(); } catch(e2){}
+        } else {
+          // truly unrecoverable -> rebuild from the same URL a few times before surrendering
+          if (hlsRebuilds++ < 3) { statusEvent.textContent = "Reloading stream..."; setTimeout(function(){ loadStream(url, streamType); }, 1500); }
+          else { spinner.classList.remove("visible"); statusEvent.textContent = "Stream error -- try another source (Sources)"; }
+        }
+      });
+    } else if (vid.canPlayType("application/vnd.apple.mpegurl")) {
+      // Safari / iOS native HLS
+      vid.src = url; vid.load();
+      vid.addEventListener("loadedmetadata", function() { spinner.classList.remove("visible"); statusEvent.textContent = "Stream ready"; nativeRetries = 0; }, { once: true });
+      vid.addEventListener("error", function() {
+        if (wantPlaying && nativeRetries++ < 3) { statusEvent.textContent = "Reconnecting stream..."; setTimeout(function(){ loadStream(url, streamType); }, 1500); }
+        else { spinner.classList.remove("visible"); statusEvent.textContent = "Stream error -- check path"; }
+      }, { once: true });
+    } else { statusEvent.textContent = "HLS not supported"; spinner.classList.remove("visible"); }
+  }
+
+  // Playback watchdog: when the engine stalls (buffer underrun, network blip, returning
+  // from a backgrounded PiP), keep nudging it back to life instead of letting it die.
+  function scheduleNudge(delay) { clearTimeout(stallTimer); stallTimer = setTimeout(nudgeTick, delay || 2000); }
+  function nudgeTick() {
+    if (!wantPlaying) return;
+    if (hls) { try { hls.startLoad(); } catch(e){} }   // resume fetching segments
+    if (vid.paused) vid.play().catch(function(){});
+    if (vid.paused || vid.readyState < 3) scheduleNudge(4000);  // keep trying until it actually plays
+  }
+  function setPlayingUI(playing) {
+    iconPlay.style.display = playing ? "none" : "block"; iconPause.style.display = playing ? "block" : "none";
+    statusBadge.textContent = playing ? "PLAYING" : "PAUSED"; statusBadge.className = "status-badge " + (playing ? "playing" : "paused");
+  }
+  function updatePeers(n) {
+    if (n == null) return;
+    peersLabel.textContent = n === 1 ? "1 watching" : n + " watching";
+    qs("reader-peers").textContent = n === 1 ? "1 reading" : n + " reading";
+  }
+  function updateProgress() {
+    var dur = vid.duration, cur = vid.currentTime;
+    timeCur.textContent = fmtTime(cur); timeDur.textContent = isFinite(dur) ? fmtTime(dur) : "--";
+    var pct = (isFinite(dur) && dur > 0) ? (cur / dur) * 100 : 0;
+    progressFill.style.width = pct + "%"; progressThumb.style.left = pct + "%";
+  }
+
+  // --- connect ---
+  btnConnect.addEventListener("click", function() {
+    var room = qs("inp-room").value.trim(), stream = qs("inp-stream").value.trim();
+    setupErr.textContent = "";
+    if (!room) { setupErr.textContent = "Enter a room code."; return; }
+    if (!stream) { setupErr.textContent = "Enter a movie title or stream URL."; return; }
+
+    // Plain text (not a URL, not tmdb:/imdb:) → treat as search query
+    if (isPlainQuery(stream)) {
+      searchInp.value = stream;
+      searchPanel.classList.add("open");
+      doSearch();
+      return;
+    }
+
+    roomCode = room; roomLabel.textContent = roomCode;
+
+    function proceed(finalUrl, streamType) {
+      streamUrl = finalUrl; currentStreamType = streamType || "manifest";
+      setupEl.style.display = "none"; playerEl.classList.add("visible");
+      loadStream(streamUrl, currentStreamType); connectWs();
+    }
+
+    if (needsResolve(stream)) {
+      btnConnect.disabled = true;
+      setupErr.textContent = "Finding stream sources, please wait...";
+      var abortCtrl = new AbortController();
+      var resolveTimer = setTimeout(function() {
+        abortCtrl.abort();
+        btnConnect.disabled = false;
+        setupErr.textContent = "No stream found — this title may not be available. Try another.";
+      }, 50000);
+      fetch("/mediamtx/api/resolve?url=" + encodeURIComponent(stream), { signal: abortCtrl.signal })
+        .then(function(r) { return r.text(); })
+        .then(function(t) {
+          clearTimeout(resolveTimer);
+          btnConnect.disabled = false; setupErr.textContent = "";
+          var data = null; try { data = JSON.parse(t); } catch (e) {}
+          if (!data || !data.found || !data.streams || !data.streams.length) {
+            setupErr.textContent = "No stream found — this title may not be available. Try another."; return;
+          }
+          qs("btn-sources").style.display = "";
+          if (data.source === "ytdlp" && data.streams.length === 1) {
+            lastStreams = data.streams;
+            var s = data.streams[0];
+            proceed("/mediamtx/api/proxy?url=" + encodeURIComponent(s.streamUrl), s.type);
+          } else {
+            showSourcePicker(data.streams);
+          }
+        })
+        .catch(function(err) {
+          clearTimeout(resolveTimer);
+          btnConnect.disabled = false;
+          setupErr.textContent = (err && err.name === "AbortError") ? "" : "Resolve failed — try again.";
+        });
+    } else {
+      proceed(buildStreamUrl(stream));
+    }
+  });
+
+  btnLeave.addEventListener("click", function() {
+    if (ws) { ws.close(); ws = null; }
+    if (hls) { hls.destroy(); hls = null; }
+    clearTimeout(reconnectTimer); clearTimeout(stallTimer); wantPlaying = false;
+    vid.pause(); vid.removeAttribute("src"); vid.load();
+    playerEl.classList.remove("visible"); setupEl.style.display = ""; reconnectBar.classList.remove("visible");
+    wsReady = false; setPlayingUI(false); initialSynced = false; pendingState = null;
+  });
+
+  // --- source picker ---
+  var sourcePicker = qs("source-picker"), sourceList = qs("source-list"), btnSourceBack = qs("btn-source-back");
+  var lastStreams = null, pickerFromPlayer = false;
+
+  function showSourcePicker(streams, fromPlayer) {
+    lastStreams = streams;
+    pickerFromPlayer = !!fromPlayer;
+    sourceList.innerHTML = "";
+    streams.forEach(function(s) {
+      var item = document.createElement("div");
+      item.className = "source-item";
+      var isManifest = s.type === "manifest";
+      var parsedUrl = null;
+      try { parsedUrl = new URL(s.streamUrl); } catch(e) {}
+      var host = parsedUrl ? parsedUrl.hostname : s.streamUrl.slice(0, 40);
+      var path = parsedUrl ? (parsedUrl.pathname + parsedUrl.search).slice(0, 80) : "";
+      var typeLabel = (s.contentType || "").indexOf("dash") >= 0 ? "DASH" : isManifest ? "HLS" : "MP4";
+      item.innerHTML = '<span class="source-badge ' + (isManifest ? "" : "seg") + '">' + typeLabel + '</span>' +
+        '<div class="source-info"><div class="source-host">' + escHtml(host) + '</div>' +
+        '<div class="source-path">' + escHtml(path || s.streamUrl.slice(-60)) + '</div></div>';
+      item.addEventListener("click", function() {
+        sourcePicker.classList.remove("visible");
+        var proxyUrl = "/mediamtx/api/proxy?url=" + encodeURIComponent(s.streamUrl);
+        if (s.requestHeaders && s.requestHeaders.referer) {
+          proxyUrl += "&referer=" + encodeURIComponent(s.requestHeaders.referer);
+        }
+        proceed(proxyUrl, s.type);
+      });
+      sourceList.appendChild(item);
+    });
+    if (!fromPlayer) setupEl.style.display = "none";
+    playerEl.classList.remove("visible");
+    sourcePicker.classList.add("visible");
+  }
+
+  function proceed(finalUrl, streamType) {
+    streamUrl = finalUrl; currentStreamType = streamType || "manifest";
+    setupEl.style.display = "none"; playerEl.classList.add("visible");
+    sourcePicker.classList.remove("visible");
+    loadStream(streamUrl, currentStreamType);
+    if (!ws || ws.readyState > 1) connectWs();
+  }
+
+  btnSourceBack.addEventListener("click", function() {
+    sourcePicker.classList.remove("visible");
+    if (pickerFromPlayer && streamUrl) {
+      playerEl.classList.add("visible");
+    } else {
+      setupEl.style.display = "";
+    }
+  });
+
+  qs("btn-sources").addEventListener("click", function() {
+    if (!lastStreams || !lastStreams.length) return;
+    vid.pause();
+    showSourcePicker(lastStreams, true);
+  });
+  qs("btn-source-rescan").addEventListener("click", function() {
+    var stream = qs("inp-stream").value.trim();
+    if (!stream) return;
+    sourcePicker.classList.remove("visible");
+    setupEl.style.display = "";
+    btnConnect.click();
+  });
+
+  // --- video events ---
+  // initialSynced gate: a fresh joiner must not broadcast its own load/autoplay events
+  // (which would be at position 0) until it has adopted the room's current position.
+  vid.addEventListener("play", function() {
+    setPlayingUI(true); wantPlaying = true; clearTimeout(stallTimer);
+    if (isSyncing || !initialSynced) return;
+    sendWs({ type: "play", room: roomCode, position: vid.currentTime }); statusEvent.textContent = "You played";
+  });
+  vid.addEventListener("pause", function() {
+    // Distinguish a REAL (user/room) pause from an engine-initiated pause (buffer underrun,
+    // PiP/background transition, Safari occlusion). If we still intend to play, treat it as a
+    // stall: keep the UI playing, don't tell the partner, and nudge it back. This is the heart
+    // of the "stops after a few minutes" fix.
+    if (wantPlaying && !vid.ended) {
+      scheduleNudge(800);
+      return;
+    }
+    setPlayingUI(false);
+    if (isSyncing || !initialSynced) return;
+    sendWs({ type: "pause", room: roomCode, position: vid.currentTime }); statusEvent.textContent = "You paused";
+  });
+  vid.addEventListener("seeked", function() {
+    if (isSyncing || !initialSynced) return; var now = Date.now(); if (now - lastSyncTs < 300) return;
+    lastSyncTs = now; sendWs({ type: "seek", room: roomCode, position: vid.currentTime }); statusEvent.textContent = "You seeked";
+  });
+  vid.addEventListener("ended", function() { wantPlaying = false; clearTimeout(stallTimer); setPlayingUI(false); });
+  vid.addEventListener("timeupdate", updateProgress);
+  // Stall handling: spinner + arm the watchdog so a buffer underrun self-recovers.
+  vid.addEventListener("waiting", function() { spinner.classList.add("visible"); if (wantPlaying) scheduleNudge(2000); });
+  vid.addEventListener("stalled", function() { if (wantPlaying) scheduleNudge(2000); });
+  vid.addEventListener("playing", function() { spinner.classList.remove("visible"); clearTimeout(stallTimer); });
+  vid.addEventListener("canplay",  function() { spinner.classList.remove("visible"); if (wantPlaying && vid.paused) vid.play().catch(function(){}); });
+  btnPlayPause.addEventListener("click", function() {
+    if (vid.paused) { wantPlaying = true; vid.play().catch(function(){}); }
+    else { wantPlaying = false; clearTimeout(stallTimer); vid.pause(); }
+  });
+  btnSync.addEventListener("click", function() { sendWs({ type: vid.paused ? "pause" : "play", room: roomCode, position: vid.currentTime }); statusEvent.textContent = "Sync sent"; });
+
+  // Keep the stream alive across PiP / tab-background: browsers throttle hidden timers and
+  // hls.js can stop fetching, draining the buffer until playback dies after a few minutes.
+  // On return to foreground (and on PiP transitions) resume loading + resume playback.
+  document.addEventListener("visibilitychange", function() {
+    if (!document.hidden && wantPlaying) { if (hls) { try { hls.startLoad(); } catch(e){} } if (vid.paused) vid.play().catch(function(){}); }
+  });
+  vid.addEventListener("enterpictureinpicture", function() { if (hls) { try { hls.startLoad(); } catch(e){} } });
+  vid.addEventListener("leavepictureinpicture", function() { if (wantPlaying && vid.paused) vid.play().catch(function(){}); });
+
+  // --- Picture-in-Picture ---
+  qs("btn-pip").addEventListener("click", function() {
+    try {
+      if (vid.webkitSetPresentationMode) {  // Safari (incl. iOS) path
+        vid.webkitSetPresentationMode(vid.webkitPresentationMode === "picture-in-picture" ? "inline" : "picture-in-picture");
+      } else if (document.pictureInPictureElement) {
+        document.exitPictureInPicture();
+      } else if (vid.requestPictureInPicture) {
+        vid.requestPictureInPicture().catch(function(){});
+      }
+    } catch (e) {}
+  });
+
+  // --- Fullscreen ---
+  qs("btn-fs").addEventListener("click", function() {
+    var wrap = vid.parentElement;  // .video-wrap so our overlay rides along on desktop
+    try {
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        (document.exitFullscreen || document.webkitExitFullscreen || function(){}).call(document);
+      } else if (wrap.requestFullscreen) {
+        wrap.requestFullscreen().catch(function(){});
+      } else if (wrap.webkitRequestFullscreen) {
+        wrap.webkitRequestFullscreen();
+      } else if (vid.webkitEnterFullscreen) {
+        vid.webkitEnterFullscreen();  // iOS: only the <video> can go fullscreen, native controls
+      }
+    } catch (e) {}
+  });
+
+  // --- scrubbing ---
+  var scrubbing = false;
+  function scrubTo(cx) { var r = progressTrack.getBoundingClientRect(), p = Math.max(0,Math.min(1,(cx-r.left)/r.width)); if (isFinite(vid.duration)) vid.currentTime = p * vid.duration; }
+  progressTrack.addEventListener("mousedown", function(e) { scrubbing=true; scrubTo(e.clientX); });
+  document.addEventListener("mousemove", function(e) { if (scrubbing) scrubTo(e.clientX); });
+  document.addEventListener("mouseup", function() { scrubbing=false; });
+  progressTrack.addEventListener("touchstart", function(e) { scrubbing=true; scrubTo(e.touches[0].clientX); }, {passive:true});
+  document.addEventListener("touchmove", function(e) { if (scrubbing) scrubTo(e.touches[0].clientX); }, {passive:true});
+  document.addEventListener("touchend", function() { scrubbing=false; });
+
+  // --- volume ---
+  volSlider.addEventListener("input", function() { vid.volume=parseFloat(volSlider.value); vid.muted=(vid.volume===0); updateVolIcon(); });
+  volIcon.addEventListener("click", function() { vid.muted=!vid.muted; volSlider.value=vid.muted?0:(vid.volume||0.8); updateVolIcon(); });
+  function updateVolIcon() {
+    var muted = vid.muted || vid.volume === 0;
+    volPath.setAttribute("d", muted
+      ? "M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"
+      : "M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z");
+  }
+
+  // --- keyboard ---
+  document.addEventListener("keydown", function(e) {
+    if (!playerEl.classList.contains("visible") || e.target.tagName === "INPUT") return;
+    if (e.code === "Space") { e.preventDefault(); btnPlayPause.click(); }
+    if (e.code === "ArrowLeft")  vid.currentTime = Math.max(0, vid.currentTime - 5);
+    if (e.code === "ArrowRight") vid.currentTime = Math.min(vid.duration || Infinity, vid.currentTime + 5);
+    if (e.code === "KeyM") volIcon.click();
+  });
+  [qs("inp-room"), qs("inp-stream")].forEach(function(el) {
+    el.addEventListener("keydown", function(e) { if (e.key === "Enter") btnConnect.click(); });
+  });
+}());
+</script>
+</body>
+</html>
