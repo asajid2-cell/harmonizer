@@ -4561,10 +4561,11 @@ jgs   `-=========-`()
         });
     })();
 
-    // Play the current canon/jukebox live on the Squeezebox (the reverse bridge).
-    // Reuses the same payload the background renderer builds (trackId + mode +
-    // voiceCount), but instead of rendering a file it asks Cloud Squeeze/LMS to pull
-    // Harmonizer's endless live-drive stream. Faithful to whatever mode is loaded.
+    // LIVE CAST to the Squeezebox (the reverse bridge). Taps THIS player's actual
+    // Web Audio master, streams that exact PCM over a WebSocket to the cast relay,
+    // and points LMS at it. The box plays precisely what the browser plays -- same
+    // jumps, same voices -- and setting changes (add a voice, switch mode) flow
+    // through live. No re-derivation, so it is identical to native by construction.
     (function() {
         const control = document.getElementById('squeezebox-control');
         const btn = document.getElementById('squeezebox-play-btn');
@@ -4612,33 +4613,96 @@ jgs   `-=========-`()
         }
 
         function syncTooltip() {
-            btn.title = 'Play ' + modeLabelFor(effectiveMode()) + ' live on your Squeezebox';
+            btn.title = 'Cast ' + modeLabelFor(effectiveMode()) + ' live to your Squeezebox (mirrors this player exactly)';
+        }
+
+        // --- Live cast plumbing: tap the player's master mix -> WS -> relay -> LMS ---
+        let ws = null, tapNode = null, zeroGain = null, tappedAnalyser = null, tappedPlayer = null, repoll = null;
+
+        function connectTap(player, ctx) {
+            if (!tapNode || !player || typeof player.getVizAnalyser !== 'function') return;
+            const analyser = player.getVizAnalyser();
+            if (!analyser || analyser === tappedAnalyser) { tappedPlayer = player; return; }
+            try { if (tappedAnalyser) tappedAnalyser.disconnect(tapNode); } catch (e) {}
+            try { analyser.connect(tapNode); tappedAnalyser = analyser; tappedPlayer = player; } catch (e) {}
+        }
+
+        function teardownCast() {
+            if (repoll) { clearInterval(repoll); repoll = null; }
+            try { if (tappedAnalyser && tapNode) tappedAnalyser.disconnect(tapNode); } catch (e) {}
+            try { if (tapNode) tapNode.disconnect(); } catch (e) {}
+            try { if (zeroGain) zeroGain.disconnect(); } catch (e) {}
+            try { if (ws) ws.close(); } catch (e) {}
+            ws = null; tapNode = null; zeroGain = null; tappedAnalyser = null; tappedPlayer = null;
+        }
+
+        async function startCast(mode) {
+            const player = window.harmonizerActivePlayer;
+            if (!player || typeof player.getContext !== 'function') throw new Error('Press Play first, then cast');
+            const ctx = player.getContext();
+            if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (e) {} }
+            // Make sure audio is actually flowing so the box isn't silent.
+            try {
+                if (window.driver && typeof window.driver.isRunning === 'function' && !window.driver.isRunning()) {
+                    const pb = document.getElementById('play'); if (pb) pb.click();
+                }
+            } catch (e) {}
+            if (!ctx.__pcmTapLoaded) {
+                await ctx.audioWorklet.addModule('./js/pcm-tap-worklet.js');
+                ctx.__pcmTapLoaded = true;
+            }
+            const session = 'live' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+            const sr = Math.round(ctx.sampleRate) || 48000;
+            const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host +
+                '/cloud-squeeze/api/cast-ingest/' + session + '?sr=' + sr + '&ch=2';
+            ws = new WebSocket(wsUrl);
+            ws.binaryType = 'arraybuffer';
+            await new Promise(function(resolve, reject) {
+                ws.onopen = resolve;
+                ws.onerror = function() { reject(new Error('Cast connection failed')); };
+                setTimeout(function() { reject(new Error('Cast connect timed out')); }, 8000);
+            });
+            tapNode = new AudioWorkletNode(ctx, 'pcm-tap', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
+            tapNode.port.onmessage = function(e) { if (ws && ws.readyState === 1) ws.send(e.data); };
+            zeroGain = ctx.createGain(); zeroGain.gain.value = 0;
+            tapNode.connect(zeroGain); zeroGain.connect(ctx.destination);
+            connectTap(player, ctx);
+            // Follow the player if it rebuilds (mode/voice change) so the cast stays live.
+            repoll = setInterval(function() {
+                const p = window.harmonizerActivePlayer;
+                if (p && p !== tappedPlayer) connectTap(p, ctx);
+            }, 600);
+
+            const info = document.getElementById('info');
+            const resp = await fetch(apiUrl('/api/squeezebox/play'), {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    live: true, trackId: session, mode: mode,
+                    voiceCount: window.canonVoiceCount || 2,
+                    title: (window.curTrack && window.curTrack.title) || (info && info.textContent) || 'Harmonizer',
+                    artist: (window.curTrack && window.curTrack.artist) || 'Harmonizer'
+                })
+            });
+            const data = await resp.json().catch(function() { return {}; });
+            if (!resp.ok) throw new Error(data.error || ('Failed (' + resp.status + ')'));
+            return data;
         }
 
         btn.addEventListener('click', async function() {
-            if (typeof window.harmonizerGetBackgroundPayload !== 'function') { setStatus('Load a track first'); return; }
-            let payload;
-            try { payload = window.harmonizerGetBackgroundPayload({ minutes: 10, quality: 'high' }); }
-            catch (err) { setStatus(err.message || 'No track loaded'); return; }
-            if (!payload || !payload.trackId) { setStatus('Track not analyzed yet'); return; }
+            if (control.getAttribute('data-state') === 'playing') return;
             const mode = effectiveMode();
             btn.disabled = true;
             setState('sending');
-            setStatus('Sending to ' + playerName + '…');
+            setStatus('Casting to ' + playerName + '…');
             try {
-                const resp = await fetch(apiUrl('/api/squeezebox/play'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ trackId: payload.trackId, mode: mode, voiceCount: payload.voiceCount })
-                });
-                const data = await resp.json().catch(function() { return {}; });
-                if (!resp.ok) throw new Error(data.error || ('Failed (' + resp.status + ')'));
+                await startCast(mode);
                 setState('playing');
-                setStatus('▶ ' + modeLabelFor(mode) + ' on ' + playerName);
+                setStatus('▶ Casting ' + modeLabelFor(mode) + ' to ' + playerName);
                 if (stopBtn) stopBtn.hidden = false;
             } catch (err) {
+                teardownCast();
                 setState('error');
-                setStatus(err.message || 'Could not reach the Squeezebox');
+                setStatus(err.message || 'Could not cast to the Squeezebox');
             } finally {
                 btn.disabled = false;
             }
@@ -4648,19 +4712,17 @@ jgs   `-=========-`()
             stopBtn.addEventListener('click', async function() {
                 stopBtn.disabled = true;
                 setStatus('Stopping…');
-                try {
-                    const resp = await fetch(apiUrl('/api/squeezebox/stop'), { method: 'POST' });
-                    await resp.json().catch(function() { return {}; });
-                    setState('ready');
-                    setStatus(playerName + ' stopped');
-                    stopBtn.hidden = true;
-                } catch (err) {
-                    setStatus('Stop failed');
-                } finally {
-                    stopBtn.disabled = false;
-                }
+                teardownCast();
+                try { await fetch(apiUrl('/api/squeezebox/stop'), { method: 'POST' }); } catch (err) {}
+                setState('ready');
+                setStatus(playerName + ' stopped');
+                stopBtn.hidden = true;
+                stopBtn.disabled = false;
             });
         }
+
+        // If the page is closed/hidden for real, drop the cast so the box isn't fed a dead tap.
+        window.addEventListener('pagehide', teardownCast);
 
         new MutationObserver(function(muts) {
             muts.forEach(function(m) { if (m.attributeName === 'data-mode') syncTooltip(); });

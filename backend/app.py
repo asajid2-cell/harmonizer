@@ -5168,10 +5168,19 @@ def api_squeezebox_play():
         voice_count = max(1, min(8, int(payload.get("voiceCount") or 2)))
     except (TypeError, ValueError):
         voice_count = 2
-    try:
-        track = _load_track_profile(track_id)
-    except FileNotFoundError:
-        return jsonify({"error": "Track not found. Analyze it first."}), 404
+    # Live cast: track_id is a browser cast-session token, not an analyzed track,
+    # so skip the profile lookup and trust the title/artist the page sends.
+    live = bool(payload.get("live"))
+    if live:
+        track_title = payload.get("title") or "Harmonizer (live)"
+        track_artist = payload.get("artist") or "Harmonizer"
+    else:
+        try:
+            track = _load_track_profile(track_id)
+        except FileNotFoundError:
+            return jsonify({"error": "Track not found. Analyze it first."}), 404
+        track_title = payload.get("title") or track.get("title") or "Harmonizer canon"
+        track_artist = payload.get("artist") or track.get("artist") or "Harmonizer"
 
     base = (os.environ.get("CLOUD_SQUEEZE_URL") or "").rstrip("/")
     key = os.environ.get("CLOUD_SQUEEZE_SERVICE_KEY") or ""
@@ -5181,8 +5190,8 @@ def api_squeezebox_play():
         "trackId": track_id,
         "mode": mode,
         "voiceCount": voice_count,
-        "title": payload.get("title") or track.get("title") or "Harmonizer canon",
-        "artist": payload.get("artist") or track.get("artist") or "Harmonizer",
+        "title": track_title,
+        "artist": track_artist,
     }
     try:
         resp = requests.post(
