@@ -246,6 +246,11 @@ except ImportError:  # pragma: no cover - support running as script
     from analysis.analyze_track import build_profile  # type: ignore
 
 try:
+    from .analysis.stream_synth import synthesize as _synthesize_stream
+except ImportError:  # pragma: no cover - support running as script
+    from analysis.stream_synth import synthesize as _synthesize_stream  # type: ignore
+
+try:
     from .eldrichify import EldrichifyPipeline
 except ImportError:  # pragma: no cover
     from eldrichify import EldrichifyPipeline  # type: ignore
@@ -5100,8 +5105,7 @@ def api_squeezebox_stream(track_id):
 
     def feeder():
         try:
-            from analysis.stream_synth import synthesize
-            for block in synthesize(track, audio, sr, mode, settings={}, seed=seed, voice_count=voice_count):
+            for block in _synthesize_stream(track, audio, sr, mode, settings={}, seed=seed, voice_count=voice_count):
                 if stop.is_set():
                     break
                 arr = np.ascontiguousarray(np.clip(block, -1.0, 1.0).astype("<f4"))
