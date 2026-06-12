@@ -58,8 +58,9 @@ def normalize(values: np.ndarray) -> np.ndarray:
     return (values - vmin) / (vmax - vmin)
 
 
-def compute_beats(y: np.ndarray, sr: int) -> Tuple[List[Quantum], np.ndarray, float]:
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
+def compute_beats(y: np.ndarray, sr: int, onset_env: np.ndarray = None) -> Tuple[List[Quantum], np.ndarray, float]:
+    if onset_env is None:
+        onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
     tempo, beat_frames = librosa.beat.beat_track(
         onset_envelope=onset_env, sr=sr, hop_length=HOP_LENGTH
     )
@@ -166,9 +167,13 @@ def estimate_sections(
     duration: float,
     desired_sections: int,
     bars: List[Quantum],
+    chroma: np.ndarray = None,
+    mfcc: np.ndarray = None,
 ) -> List[Quantum]:
-    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=HOP_LENGTH)
+    if chroma is None:
+        chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
+    if mfcc is None:
+        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=HOP_LENGTH)
     frame_count = min(chroma.shape[1], mfcc.shape[1])
     chroma = chroma[:, :frame_count]
     mfcc = mfcc[:, :frame_count]
@@ -253,8 +258,13 @@ def compute_segments(
     y: np.ndarray,
     sr: int,
     duration: float,
+    onset_env: np.ndarray = None,
+    mfcc: np.ndarray = None,
+    chroma: np.ndarray = None,
+    rms: np.ndarray = None,
 ) -> List[Dict[str, object]]:
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
+    if onset_env is None:
+        onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
     onset_frames = librosa.onset.onset_detect(
         onset_envelope=onset_env,
         sr=sr,
@@ -262,9 +272,12 @@ def compute_segments(
         backtrack=True,
     )
 
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=HOP_LENGTH)
-    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
-    rms = librosa.feature.rms(y=y, hop_length=HOP_LENGTH)[0]
+    if mfcc is None:
+        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=HOP_LENGTH)
+    if chroma is None:
+        chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
+    if rms is None:
+        rms = librosa.feature.rms(y=y, hop_length=HOP_LENGTH)[0]
 
     boundaries: List[int] = [0]
     boundaries.extend(sorted(set(int(b) for b in onset_frames)))
@@ -389,12 +402,18 @@ def _stack_beat_features(
     beats_per_bar: int,
     hop_length: int,
     context_window: int,
+    chroma: np.ndarray = None,
+    onset_env: np.ndarray = None,
+    rms: np.ndarray = None,
 ) -> Tuple[np.ndarray, List[BeatContext]]:
-    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop_length)
+    if chroma is None:
+        chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop_length)
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20, hop_length=hop_length)
     mfcc_delta = librosa.feature.delta(mfcc)
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
-    rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
+    if onset_env is None:
+        onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
+    if rms is None:
+        rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
 
     beat_boundaries = np.append(np.asarray(beat_times), float(duration))
     beat_frames = librosa.time_to_frames(beat_boundaries, sr=sr, hop_length=hop_length)
@@ -923,6 +942,9 @@ def compute_canon_alignment(
     min_phase_alignment: float = CANON_MIN_PHASE_ALIGNMENT,
     min_pairs: int = CANON_MIN_PAIRS,
     top_candidates: int = CANON_TOP_CANDIDATES,
+    chroma: np.ndarray = None,
+    onset_env: np.ndarray = None,
+    rms: np.ndarray = None,
 ) -> Optional[Dict[str, object]]:
     if len(beats) <= 1:
         return None
@@ -936,6 +958,9 @@ def compute_canon_alignment(
         beats_per_bar=beats_per_bar,
         hop_length=HOP_LENGTH,
         context_window=context_window,
+        chroma=chroma,
+        onset_env=onset_env,
+        rms=rms,
     )
     ssm = _cosine_ssm(stacked)
     offsets = _evaluate_offsets(
@@ -1537,7 +1562,14 @@ def build_profile(
     y, sr = librosa.load(audio_path, sr=None, mono=True)
     duration = librosa.get_duration(y=y, sr=sr)
 
-    beats, beat_times, tempo = compute_beats(y, sr)
+    # Compute the expensive shared spectral features ONCE (chroma_cqt is ~3s and was being
+    # recomputed 3-4x across the stages); pass them in instead of recomputing per stage.
+    shared_chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
+    shared_mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=HOP_LENGTH)
+    shared_onset = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
+    shared_rms = librosa.feature.rms(y=y, hop_length=HOP_LENGTH)[0]
+
+    beats, beat_times, tempo = compute_beats(y, sr, onset_env=shared_onset)
     if not beats:
         # fallback: create a simple evenly spaced grid
         grid = np.linspace(0, duration, num=max(int(duration * 2), 2), endpoint=False)
@@ -1556,11 +1588,11 @@ def build_profile(
     tatums = derive_tatums(beats, duration)
 
     desired_sections = max(2, min(12, len(beats) // 8 or 2))
-    sections = estimate_sections(y, sr, duration, desired_sections, bars)
-    segments = compute_segments(y, sr, duration)
+    sections = estimate_sections(y, sr, duration, desired_sections, bars, chroma=shared_chroma, mfcc=shared_mfcc)
+    segments = compute_segments(y, sr, duration, onset_env=shared_onset, mfcc=shared_mfcc, chroma=shared_chroma, rms=shared_rms)
     beats_meta, beat_energies, beat_chroma, beat_tempos = _build_beat_metadata(beats, [b.as_dict() for b in bars], segments, tempo)
 
-    chroma_full = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP_LENGTH)
+    chroma_full = shared_chroma
     key_index, mode = estimate_key(chroma_full)
     loudness_global = float(np.mean(librosa.amplitude_to_db(np.abs(y), ref=1.0)))
 
@@ -1575,6 +1607,9 @@ def build_profile(
         min_phase_alignment=CANON_MIN_PHASE_ALIGNMENT,
         min_pairs=CANON_MIN_PAIRS,
         top_candidates=CANON_TOP_CANDIDATES,
+        chroma=shared_chroma,
+        onset_env=shared_onset,
+        rms=shared_rms,
     )
     loop_candidates = (
         canon_alignment.get("loop_candidates", []) if canon_alignment else []
