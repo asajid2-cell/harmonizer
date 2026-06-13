@@ -4654,6 +4654,14 @@ function isSegment(q) {
 
 
 async function keydown(evt) {
+    // Don't hijack the spacebar (play/pause) while the user is typing in a field —
+    // otherwise you can't type a space, which breaks multi-word searches (artists,
+    // albums, songs with spaces).
+    const t = evt.target;
+    const tag = t && t.tagName ? t.tagName.toUpperCase() : '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) {
+        return;
+    }
     if (evt.which === 32) {
         evt.preventDefault();
         await togglePlayback();
