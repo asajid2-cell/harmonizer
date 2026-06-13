@@ -1255,5 +1255,35 @@
     })();
   </script>
   <script src="./js/persistent-player.js" defer></script>
+  <script id="hl-access-gate">
+  /* hl-auth per-icon gate: hide landing icons a signed-in account can't open.
+     Fully dynamic — driven by EVERY registered hl-auth page (admin sets each page's
+     access mode + per-user grant/deny). Register a page whose path_prefix matches an
+     icon's href and it auto-gates. Fails OPEN: signed-out or on error, all icons show
+     (each real app still enforces its own gate on click). */
+  (function(){
+    function norm(p){ try{ p = new URL(p, location.href).pathname; }catch(e){} return p.replace(/\/+$/,"").toLowerCase() || "/"; }
+    fetch("/auth/api/access", { credentials:"same-origin" })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if (!d || !d.authenticated) return;
+        var gate = (d.pages || [])
+          .map(function(p){ return { prefix: norm(p.path_prefix), open: !!p.canOpen }; })
+          .filter(function(g){ return g.prefix && g.prefix !== "/"; })   /* "/" matches everything */
+          .sort(function(a,b){ return b.prefix.length - a.prefix.length; });  /* most-specific first */
+        document.querySelectorAll('a[href]').forEach(function(a){
+          var p = norm(a.getAttribute("href"));
+          for (var i=0;i<gate.length;i++){
+            var g = gate[i];
+            if (p === g.prefix || p.indexOf(g.prefix + "/") === 0){
+              if (!g.open){ a.style.display="none"; a.setAttribute("aria-hidden","true"); a.tabIndex = -1; }
+              break;
+            }
+          }
+        });
+      })
+      .catch(function(){});
+  })();
+  </script>
 </body>
 </html>

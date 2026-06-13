@@ -1,0 +1,21 @@
+{
+  "name": "hl-auth",
+  "version": "0.1.0",
+  "description": "Central SSO account + access-control service for the Harmonizer Labs properties",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/auth.test.js test/integration.test.js",
+    "seed:print": "node scripts/print-bootstrap.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2"
+  }
+}

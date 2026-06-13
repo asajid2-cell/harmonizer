@@ -1,0 +1,13 @@
+node_modules/
+.env
+*.bak
+# planning / ledgers / AI notes — kept locally, never published
+AUTH.md
+PLAN.md
+INTEGRATION.md
+LOOPS.md
+authhandoff.md
+codex-ui-prompt.md
+whatidid.md
+*.READY.md
+data/
