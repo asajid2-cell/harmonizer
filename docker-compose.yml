@@ -24,7 +24,7 @@ services:
       resources:
         limits:
           memory: 999M
-          cpus: '0.7' 
+          cpus: '0.7'
         reservations:
           memory: 128M
           cpus: '0.15'
@@ -41,6 +41,7 @@ services:
       - codesniff_storage:/app/storage
     environment:
       - CODESCOPE_STORAGE_DIR=/app/storage
+      - CODESNIFF_WEB_RUNNER_ENABLED=${CODESNIFF_WEB_RUNNER_ENABLED:-1}
     restart: unless-stopped
     deploy:
       resources:
@@ -50,6 +51,30 @@ services:
         reservations:
           memory: 768M
           cpus: '0.25'
+
+  codesniff-worker:
+    container_name: codesniff-worker
+    profiles:
+      - codesniff-worker
+    build: ./codesniff/backend
+    image: codesniff:prod
+    env_file:
+      - .env
+    volumes:
+      - codesniff_storage:/app/storage
+    environment:
+      - CODESCOPE_STORAGE_DIR=/app/storage
+      - CODESNIFF_MAX_ACTIVE_REPOS=${CODESNIFF_MAX_ACTIVE_REPOS:-1}
+    command: python scripts/run_worker.py
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1200M
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.2'
 
   watchtower:
     image: containrrr/watchtower:latest

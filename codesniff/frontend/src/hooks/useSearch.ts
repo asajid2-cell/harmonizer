@@ -10,7 +10,7 @@ interface UseSearchReturn {
   isLoading: boolean;
   error: string | null;
   searchTime: number;
-  search: (query: string, options?: Partial<SearchRequest>) => Promise<void>;
+  search: (query: string, options?: Partial<SearchRequest> & { repoId?: number }) => Promise<void>;
   clear: () => void;
 }
 
@@ -20,7 +20,7 @@ export const useSearch = (): UseSearchReturn => {
   const [error, setError] = useState<string | null>(null);
   const [searchTime, setSearchTime] = useState(0);
 
-  const search = useCallback(async (query: string, options?: Partial<SearchRequest>) => {
+  const search = useCallback(async (query: string, options?: Partial<SearchRequest> & { repoId?: number }) => {
     if (!query.trim()) {
       setResults([]);
       return;
@@ -30,13 +30,16 @@ export const useSearch = (): UseSearchReturn => {
     setError(null);
 
     try {
-      const response: SearchResponse = await apiClient.search({
+      const request = {
         query,
         limit: options?.limit || 20,
         min_similarity: options?.min_similarity || 0.0,
         symbol_type: options?.symbol_type,
         language_filter: options?.language_filter,
-      });
+      };
+      const response: SearchResponse = options?.repoId
+        ? await apiClient.searchRepo(options.repoId, request)
+        : await apiClient.search(request);
 
       setResults(response.results);
       setSearchTime(response.search_time_ms);

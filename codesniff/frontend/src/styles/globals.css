@@ -76,6 +76,7 @@ body {
   }
 
   .chip-suggestion {
+    max-width: 100%;
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 12px;
@@ -86,6 +87,7 @@ body {
     font-size: 0.82rem;
     font-weight: 500;
     letter-spacing: 0.01em;
+    overflow-wrap: anywhere;
     transition: transform 0.25s ease, border 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
   }
 
@@ -107,7 +109,8 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 0.65rem;
-    max-width: 38rem;
+    max-width: min(38rem, 100%);
+    min-width: 0;
   }
 
   .hero-tooltip {
@@ -129,6 +132,7 @@ body {
 .search-shell {
   position: relative;
   width: 100%;
+  max-width: 100%;
   border-radius: 16px;
   padding: 2px;
   background: linear-gradient(155deg, rgba(18, 23, 35, 0.95), rgba(65, 95, 205, 0.45));
@@ -176,6 +180,7 @@ body {
   display: flex;
   align-items: center;
   width: 100%;
+  min-width: 0;
   border-radius: 12px;
   padding: 0 1.5rem;
   background: rgba(3, 5, 11, 0.85);
@@ -218,6 +223,7 @@ body {
   color: rgba(220, 230, 255, 0.65);
   pointer-events: none;
   white-space: nowrap;
+  overflow: hidden;
 }
 
 .typing-caret {
@@ -266,13 +272,16 @@ body {
   position: relative;
   display: flex;
   justify-content: flex-start;
+  min-width: 0;
   min-height: inherit;
 }
 
 .hero-stage__copy {
   position: relative;
   z-index: 2;
-  max-width: 640px;
+  width: min(100%, 640px);
+  max-width: 100%;
+  min-width: 0;
   background: transparent;
 }
 
@@ -796,6 +805,22 @@ body {
   }
 
   .semantic-hero {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .search-field-inner {
+    padding: 0 0.85rem;
+  }
+
+  .typing-placeholder {
+    left: 3.1rem;
+    right: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .shortcut-hint {
     display: none;
   }
 }

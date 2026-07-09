@@ -144,13 +144,42 @@ class VectorStore:
         save_path = Path(save_dir)
         save_path.mkdir(parents=True, exist_ok=True)
 
-        # Save FAISS index
         index_path = save_path / "vectors.index"
-        faiss.write_index(self.index, str(index_path))
-
-        # Save metadata
         metadata_path = save_path / "metadata.npy"
-        np.save(str(metadata_path), self.metadata, allow_pickle=True)
+        tmp_index_path = save_path / "vectors.index.tmp"
+        tmp_metadata_path = save_path / "metadata.npy.tmp"
+
+        try:
+            faiss.write_index(self.index, str(tmp_index_path))
+            with open(tmp_metadata_path, 'wb') as f:
+                np.save(f, self.metadata, allow_pickle=True)
+                f.flush()
+                os.fsync(f.fileno())
+
+            # Verify the temp files before making them visible to startup load.
+            verified_index = faiss.read_index(str(tmp_index_path))
+            with open(tmp_metadata_path, 'rb') as f:
+                verified_metadata = np.load(f, allow_pickle=True).tolist()
+
+            if verified_index.ntotal != self.vector_count:
+                raise RuntimeError(
+                    f"Saved index vector count mismatch: expected {self.vector_count}, got {verified_index.ntotal}"
+                )
+
+            if len(verified_metadata) < self.vector_count:
+                raise RuntimeError(
+                    f"Saved metadata shorter than vector index: {len(verified_metadata)} < {self.vector_count}"
+                )
+
+            os.replace(tmp_index_path, index_path)
+            os.replace(tmp_metadata_path, metadata_path)
+        finally:
+            for path in (tmp_index_path, tmp_metadata_path):
+                try:
+                    if path.exists():
+                        path.unlink()
+                except Exception as e:
+                    logger.warning(f"Failed to clean temp vector artifact {path}: {e}")
 
         logger.info(f"Saved vector store to {save_dir}")
 
@@ -167,15 +196,29 @@ class VectorStore:
         index_path = load_path / "vectors.index"
         if not index_path.exists():
             raise FileNotFoundError(f"Index file not found: {index_path}")
+        if index_path.stat().st_size == 0:
+            self.clear()
+            raise RuntimeError(f"Index file is empty or corrupt: {index_path}")
 
-        self.index = faiss.read_index(str(index_path))
+        try:
+            loaded_index = faiss.read_index(str(index_path))
 
-        # Load metadata
-        metadata_path = load_path / "metadata.npy"
-        if metadata_path.exists():
-            self.metadata = np.load(str(metadata_path), allow_pickle=True).tolist()
+            metadata_path = load_path / "metadata.npy"
+            loaded_metadata = []
+            if metadata_path.exists():
+                loaded_metadata = np.load(str(metadata_path), allow_pickle=True).tolist()
 
-        self.vector_count = self.index.ntotal
-        self.dimension = self.index.d
+            if loaded_index.ntotal > len(loaded_metadata):
+                raise RuntimeError(
+                    f"Vector metadata shorter than FAISS index: {len(loaded_metadata)} < {loaded_index.ntotal}"
+                )
+
+            self.index = loaded_index
+            self.metadata = loaded_metadata
+            self.vector_count = self.index.ntotal
+            self.dimension = self.index.d
+        except Exception:
+            self.clear()
+            raise
 
         logger.info(f"Loaded vector store from {load_dir}: {self.vector_count} vectors")

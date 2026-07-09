@@ -1,14 +1,18 @@
 """Hybrid search engine combining text search (BM25) and semantic search"""
 
+from __future__ import annotations
+
 import time
-from typing import List, Optional, Dict, Any
+from typing import TYPE_CHECKING, List, Optional, Dict, Any
 from dataclasses import dataclass, asdict
 from loguru import logger
 
-from .embedder import CodeEmbedder
-from .text_search import TextSearchEngine
+from .text_search import TextSearchEngine, TextSearchResult
 from ..storage.vector_store import VectorStore
 from ..storage.metadata_store import MetadataStore, SymbolRecord
+
+if TYPE_CHECKING:
+    from .embedder import CodeEmbedder
 
 
 @dataclass
@@ -37,9 +41,11 @@ class SearchEngine:
     def __init__(
         self,
         embedder: Optional[CodeEmbedder] = None,
+        embedder_cache_dir: Optional[str] = None,
         vector_store: Optional[VectorStore] = None,
         metadata_store: Optional[MetadataStore] = None,
-        text_search: Optional[TextSearchEngine] = None
+        text_search: Optional[TextSearchEngine] = None,
+        build_text_index: bool = True
     ):
         """
         Initialize search engine
@@ -50,21 +56,40 @@ class SearchEngine:
             metadata_store: MetadataStore instance
             text_search: TextSearchEngine instance
         """
-        self.embedder = embedder or CodeEmbedder()
+        self.embedder = embedder
+        self.embedder_cache_dir = embedder_cache_dir
         self.vector_store = vector_store or VectorStore()
         self.metadata_store = metadata_store or MetadataStore()
 
-        # Use provided text_search or create new one and build index
+        # Use provided text_search or create new one and build index when requested.
+        # Cold repo search can stay disk-backed through SQLite FTS by passing
+        # build_text_index=False.
         if text_search:
             self.text_search = text_search
             # If text search is empty but we have data, build the index
-            if self.text_search.doc_count == 0:
+            if build_text_index and self.text_search.doc_count == 0:
                 self._build_text_index()
         else:
             self.text_search = TextSearchEngine()
-            self._build_text_index()
+            if build_text_index:
+                self._build_text_index()
 
         logger.info("SearchEngine initialized with hybrid search")
+
+    def _ensure_embedder(self) -> CodeEmbedder:
+        """Load CodeBERT only when a semantic operation needs it."""
+        if self.embedder is None:
+            from .embedder import CodeEmbedder
+
+            self.embedder = CodeEmbedder(cache_dir=self.embedder_cache_dir)
+        return self.embedder
+
+    def _semantic_available(self) -> bool:
+        return bool(
+            self.vector_store
+            and getattr(self.vector_store, "vector_count", 0) > 0
+            and getattr(self.vector_store, "index", None) is not None
+        )
 
     def _highlight_terms(self, text: str, terms: List[str], marker: str = "**") -> str:
         """
@@ -132,6 +157,43 @@ class SearchEngine:
         self.text_search.clear()
         self._build_text_index()
 
+    def _search_lexical(self, query: str, limit: int = 100) -> List[TextSearchResult]:
+        """Search lexical index, preferring disk-backed SQLite FTS for cold repos."""
+        if self.text_search.doc_count > 0:
+            return self.text_search.search(query, limit=limit)
+
+        if hasattr(self.metadata_store, "search_fts"):
+            query_terms = self.text_search.tokenize(query)
+            expanded_terms = self.text_search.expand_query(query_terms) if query_terms else []
+            ordered_terms = []
+            seen_terms = set()
+            for term in query_terms + expanded_terms:
+                if term not in seen_terms:
+                    ordered_terms.append(term)
+                    seen_terms.add(term)
+            fts_results = self.metadata_store.search_fts(
+                query,
+                limit=limit,
+                terms=ordered_terms
+            )
+            if fts_results:
+                return [
+                    TextSearchResult(
+                        symbol_id=int(result["embedding_id"]),
+                        score=float(result["score"]),
+                        matched_terms=list(result["matched_terms"])
+                    )
+                    for result in fts_results
+                ]
+
+        # If SQLite was built without FTS5, retain correctness by falling back to
+        # the existing in-memory index on first search.
+        if not getattr(self.metadata_store, "fts_available", False):
+            self._build_text_index()
+            return self.text_search.search(query, limit=limit)
+
+        return []
+
     def search(
         self,
         query: str,
@@ -160,13 +222,15 @@ class SearchEngine:
 
         # Build language to extensions mapping
         language_extensions = {
-            'python': ['.py'],
-            'javascript': ['.js', '.jsx'],
+            'python': ['.py', '.pyi'],
+            'javascript': ['.js', '.jsx', '.mjs', '.cjs'],
             'typescript': ['.ts', '.tsx'],
             'java': ['.java'],
-            'kotlin': ['.kt'],
+            'kotlin': ['.kt', '.kts'],
             'html': ['.html', '.htm'],
-            'css': ['.css'],
+            'css': ['.css', '.scss', '.sass'],
+            'vue': ['.vue'],
+            'svelte': ['.svelte'],
             'c': ['.c', '.h'],
             'cpp': ['.cpp', '.cc', '.cxx', '.hpp', '.hh', '.hxx', '.h'],
             'c++': ['.cpp', '.cc', '.cxx', '.hpp', '.hh', '.hxx', '.h'],
@@ -176,9 +240,45 @@ class SearchEngine:
             'rust': ['.rs'],
             'ruby': ['.rb', '.rake'],
             'php': ['.php', '.phtml'],
-            'bash': ['.sh', '.bash', '.zsh'],
-            'shell': ['.sh', '.bash', '.zsh'],
+            'swift': ['.swift'],
+            'dart': ['.dart'],
+            'scala': ['.scala', '.sc'],
+            'r': ['.r'],
+            'lua': ['.lua'],
+            'perl': ['.pl', '.pm'],
+            'elixir': ['.ex', '.exs'],
+            'erlang': ['.erl', '.hrl'],
+            'objective-c': ['.m'],
+            'objectivec': ['.m'],
+            'matlab': ['.m'],
+            'objective-c++': ['.mm'],
+            'objectivecpp': ['.mm'],
+            'groovy': ['.groovy', '.gradle'],
+            'gradle': ['.gradle'],
+            'julia': ['.jl'],
+            'fsharp': ['.fs', '.fsx', '.fsi'],
+            'f#': ['.fs', '.fsx', '.fsi'],
+            'clojure': ['.clj', '.cljs', '.cljc', '.edn'],
+            'clojurescript': ['.cljs'],
+            'zig': ['.zig'],
+            'bash': ['.sh', '.bash', '.zsh', '.fish'],
+            'shell': ['.sh', '.bash', '.zsh', '.fish'],
+            'powershell': ['.ps1', '.psm1'],
             'sql': ['.sql'],
+            'markdown': ['.md', '.mdx'],
+            'json': ['.json'],
+            'yaml': ['.yaml', '.yml'],
+            'toml': ['.toml'],
+            'xml': ['.xml'],
+            'ini': ['.ini'],
+            'terraform': ['.tf', '.tfvars'],
+            'hcl': ['.hcl'],
+            'graphql': ['.graphql', '.gql'],
+            'protobuf': ['.proto'],
+            'protocol buffers': ['.proto'],
+            'proto': ['.proto'],
+            'prisma': ['.prisma'],
+            'config': ['.json', '.yaml', '.yml', '.toml', '.xml', '.ini', '.tf', '.tfvars', '.hcl'],
             'glsl': ['.glsl', '.vert', '.frag', '.geom', '.tesc', '.tese', '.comp'],
             'hlsl': ['.hlsl', '.fx', '.fxh', '.hlsli'],
             'wgsl': ['.wgsl'],
@@ -190,25 +290,44 @@ class SearchEngine:
                 '.wgsl', '.metal', '.shader', '.cginc'
             ]
         }
+        language_filenames = {
+            'dockerfile': ['dockerfile'],
+            'makefile': ['makefile'],
+            'just': ['justfile'],
+            'justfile': ['justfile'],
+            'ruby': ['rakefile'],
+            'config': ['dockerfile', 'makefile', 'justfile', '.env.example', '.env.sample'],
+        }
 
         # If language filter is specified, collect allowed extensions
         allowed_extensions = None
+        allowed_filenames = None
         if language_filter:
             allowed_extensions = set()
+            allowed_filenames = set()
             for lang in language_filter:
                 lang_lower = lang.lower()
                 if lang_lower in language_extensions:
                     allowed_extensions.update(language_extensions[lang_lower])
+                if lang_lower in language_filenames:
+                    allowed_filenames.update(language_filenames[lang_lower])
 
-        # Get text search results (BM25)
-        text_results = self.text_search.search(query, limit=100)
+        # Get lexical search results. Warm/global search uses BM25 in memory;
+        # cold repo search uses SQLite FTS and avoids rebuilding a Python index.
+        text_results = self._search_lexical(query, limit=100)
 
-        # Get semantic search results
-        query_embedding = self.embedder.embed_query(query)
-        vector_results = self.vector_store.search(
-            query_embedding,
-            k=min(100, self.vector_store.vector_count)
-        )
+        vector_results = []
+        semantic_enabled = self._semantic_available()
+        if semantic_enabled:
+            try:
+                query_embedding = self._ensure_embedder().embed_query(query)
+                vector_results = self.vector_store.search(
+                    query_embedding,
+                    k=min(100, self.vector_store.vector_count)
+                )
+            except Exception as e:
+                semantic_enabled = False
+                logger.warning(f"Semantic search unavailable, using text results only: {e}")
 
         # Build result maps
         text_scores: Dict[int, float] = {}
@@ -228,7 +347,8 @@ class SearchEngine:
 
         semantic_scores: Dict[int, float] = {}
         for result in vector_results:
-            semantic_scores[result.vector_id] = result.similarity_score
+            embedding_id = result.metadata.get("embedding_id", result.vector_id)
+            semantic_scores[int(embedding_id)] = result.similarity_score
 
         # Combine candidates from both searches
         all_candidates = set(text_scores.keys()) | set(semantic_scores.keys())
@@ -261,6 +381,8 @@ class SearchEngine:
                 # Text match found - text is primary, semantic is bonus
                 final_score = (text_score * 0.8) + (semantic_score * 0.2)
                 match_info = f"Keywords: {', '.join(text_matches.get(embedding_id, []))}"
+                if not semantic_enabled:
+                    match_info += " (lexical)"
             else:
                 # No text match - semantic only, but penalized
                 final_score = semantic_score * 0.4
@@ -282,7 +404,8 @@ class SearchEngine:
             if allowed_extensions is not None:
                 import os
                 file_ext = os.path.splitext(file_path)[1].lower()
-                if file_ext not in allowed_extensions:
+                file_name = os.path.basename(file_path).lower()
+                if file_ext not in allowed_extensions and file_name not in allowed_filenames:
                     continue
 
             # Get matched terms for highlighting
@@ -368,8 +491,11 @@ class SearchEngine:
         Returns:
             List of CodeSearchResult objects
         """
-        # Generate embedding for the code snippet
-        code_embedding = self.embedder.generate_embedding(code_snippet)
+        if not self._semantic_available():
+            logger.info("Similar-code search skipped because semantic vectors are not ready")
+            return []
+
+        code_embedding = self._ensure_embedder().generate_embedding(code_snippet)
 
         # Search
         vector_results = self.vector_store.search(code_embedding, k=limit)
@@ -463,7 +589,9 @@ class SearchEngine:
             'methods': by_type.get('method', 0),
             'vector_count': vector_stats.get('total_vectors', 0),
             'text_index_size': text_stats.get('total_documents', 0),
-            'ready': vector_stats.get('total_vectors', 0) > 0
+            'lexical_ready': db_stats.get('total_symbols', 0) > 0,
+            'semantic_ready': vector_stats.get('total_vectors', 0) > 0,
+            'ready': db_stats.get('total_symbols', 0) > 0
         }
 
 

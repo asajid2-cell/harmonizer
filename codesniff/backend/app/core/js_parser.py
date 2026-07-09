@@ -1,9 +1,16 @@
-"""Simple JavaScript/TypeScript parser using regex patterns"""
+"""JavaScript/TypeScript parser with Tree-sitter backed symbol extraction."""
 
 import re
 from typing import List, Optional
 from dataclasses import dataclass
+import tree_sitter_javascript as tsjavascript
+from tree_sitter import Language, Node, Parser
 from loguru import logger
+
+try:
+    import tree_sitter_typescript as tstypescript
+except ImportError:  # pragma: no cover - dependency is declared, fallback is defensive.
+    tstypescript = None
 
 
 @dataclass
@@ -48,18 +55,25 @@ class ParsedJSFile:
 
 
 class JSParser:
-    """Simple parser for JavaScript/TypeScript using regex"""
+    """Parser for JavaScript/TypeScript source with regex fallback."""
 
     def __init__(self):
         """Initialize JS parser"""
+        self.parser = self._build_parser(tsjavascript.language, "javascript")
+        self.typescript_parser: Optional[Parser] = None
+        self.tsx_parser: Optional[Parser] = None
+        if tstypescript is not None:
+            self.typescript_parser = self._build_parser(tstypescript.language_typescript, "typescript")
+            self.tsx_parser = self._build_parser(tstypescript.language_tsx, "tsx")
+
         # Pattern for functions: function name(...) { or const name = (...) => { or name(...) {
         self.function_patterns = [
             # function declarations
-            r'(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\([^)]*\)\s*(?::\s*\w+(?:<[^>]+>)?)?\s*\{',
+            r'(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\([^)]*\)\s*(?::\s*[^{]+?)?\s*\{',
             # arrow functions assigned to const/let/var
-            r'(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*(?::\s*\w+(?:<[^>]+>)?)?\s*=>\s*[{\(]',
+            r'(?:export\s+)?(?:const|let|var)\s+(\w+)(?:\s*:\s*[^=]+?)?\s*=\s*(?:async\s+)?\([^)]*\)\s*(?::\s*[^=]+?)?\s*=>\s*[{\(]',
             # method definitions in objects/classes
-            r'^\s*(?:async\s+)?(\w+)\s*\([^)]*\)\s*(?::\s*\w+(?:<[^>]+>)?)?\s*\{',
+            r'^\s*(?:async\s+)?(\w+)\s*\([^)]*\)\s*(?::\s*[^{]+?)?\s*\{',
         ]
 
         # Pattern for classes
@@ -69,9 +83,19 @@ class JSParser:
         self.jsdoc_pattern = r'/\*\*\s*([\s\S]*?)\s*\*/'
 
         # Pattern for React components (function components)
-        self.component_pattern = r'(?:export\s+)?(?:const|function)\s+(\w+)\s*(?::\s*(?:React\.)?FC(?:<[^>]+>)?)?\s*=?\s*\([^)]*\)\s*(?::\s*\w+(?:<[^>]+>)?)?\s*(?:=>)?\s*[{\(]'
+        self.component_pattern = r'(?:export\s+)?(?:const|function)\s+(\w+)\s*(?::\s*(?:React\.)?FC(?:<[^>]+>)?)?\s*=?\s*\([^)]*\)\s*(?::\s*[^{=]+?)?\s*(?:=>)?\s*[{\(]'
 
         logger.info("JSParser initialized")
+
+    def _build_parser(self, language_factory, language_name: str) -> Optional[Parser]:
+        try:
+            language = Language(language_factory(), language_name)
+            parser = Parser()
+            parser.set_language(language)
+            return parser
+        except Exception as exc:
+            logger.warning(f"Tree-sitter {language_name} parser unavailable; using regex fallback: {exc}")
+            return None
 
     def parse_file(self, file_path: str) -> Optional[ParsedJSFile]:
         """
@@ -84,14 +108,16 @@ class JSParser:
             ParsedJSFile object or None on error
         """
         try:
-            with open(file_path, 'r', encoding='utf-8-sig') as f:
-                source_code = f.read()
+            with open(file_path, 'rb') as f:
+                source_bytes = f.read()
+            if source_bytes.startswith(b'\xef\xbb\xbf'):
+                source_bytes = source_bytes[3:]
+            source_code = source_bytes.decode('utf-8')
 
             lines = source_code.split('\n')
             total_lines = len(lines)
 
-            functions = []
-            classes = []
+            functions, classes, parse_errors = self._parse_with_tree_sitter(source_bytes, source_code, file_path)
 
             # Extract functions
             for pattern in self.function_patterns:
@@ -159,7 +185,7 @@ class JSParser:
                 # Extract methods from class
                 methods = self._extract_methods(code, start_line, file_path)
 
-                classes.append(ParsedJSClass(
+                self._append_class(classes, ParsedJSClass(
                     name=name,
                     code=code,
                     start_line=start_line,
@@ -173,12 +199,233 @@ class JSParser:
                 file_path=file_path,
                 functions=functions,
                 classes=classes,
-                total_lines=total_lines
+                total_lines=total_lines,
+                parse_errors=parse_errors,
             )
 
         except Exception as e:
             logger.error(f"Error parsing {file_path}: {e}")
             return None
+
+    def _parse_with_tree_sitter(
+        self,
+        source_bytes: bytes,
+        source_code: str,
+        file_path: str,
+    ) -> tuple[List[ParsedJSFunction], List[ParsedJSClass], List[str]]:
+        """Extract declarations from the JavaScript grammar before regex fallback."""
+        parser = self._parser_for_file(file_path)
+        if parser is None:
+            return [], [], []
+
+        functions: List[ParsedJSFunction] = []
+        classes: List[ParsedJSClass] = []
+        parse_errors: List[str] = []
+
+        try:
+            tree = parser.parse(source_bytes)
+        except Exception as exc:
+            logger.debug(f"Tree-sitter JS parse failed for {file_path}: {exc}")
+            return [], [], ["Tree-sitter JavaScript parse failed; regex fallback applied"]
+
+        if tree.root_node.has_error:
+            parse_errors.append("Tree-sitter JavaScript parse errors detected; regex fallback applied")
+
+        def visit(node: Node):
+            if node.type in {"function_declaration", "generator_function_declaration"}:
+                func = self._parse_tree_sitter_function(node, source_bytes, source_code, file_path)
+                if func:
+                    self._append_function(functions, func)
+            elif node.type == "variable_declarator":
+                func = self._parse_tree_sitter_variable_function(node, source_bytes, source_code, file_path)
+                if func:
+                    self._append_function(functions, func)
+            elif node.type == "class_declaration":
+                cls = self._parse_tree_sitter_class(node, source_bytes, source_code, file_path)
+                if cls:
+                    self._append_class(classes, cls)
+            elif node.type in {"interface_declaration", "type_alias_declaration", "enum_declaration"}:
+                cls = self._parse_tree_sitter_type_symbol(node, source_bytes, source_code, file_path)
+                if cls:
+                    self._append_class(classes, cls)
+
+            for child in node.children:
+                visit(child)
+
+        visit(tree.root_node)
+        return functions, classes, parse_errors
+
+    def _parser_for_file(self, file_path: str) -> Optional[Parser]:
+        suffix = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
+        if suffix == "ts":
+            return self.typescript_parser or self.parser
+        if suffix in {"tsx", "jsx"}:
+            return self.tsx_parser or self.parser
+        return self.parser
+
+    def _parse_tree_sitter_function(
+        self,
+        node: Node,
+        source_bytes: bytes,
+        source_code: str,
+        file_path: str,
+    ) -> Optional[ParsedJSFunction]:
+        name_node = node.child_by_field_name("name")
+        if not name_node:
+            return None
+        name = self._node_text(source_bytes, name_node)
+        if not name:
+            return None
+        code_node = self._export_or_self(node)
+        return ParsedJSFunction(
+            name=name,
+            code=self._node_text(source_bytes, code_node),
+            start_line=node.start_point[0] + 1,
+            end_line=node.end_point[0] + 1,
+            docstring=self._find_jsdoc(source_code, self._byte_to_char_offset(source_bytes, code_node.start_byte)),
+            file_path=file_path,
+        )
+
+    def _parse_tree_sitter_variable_function(
+        self,
+        node: Node,
+        source_bytes: bytes,
+        source_code: str,
+        file_path: str,
+    ) -> Optional[ParsedJSFunction]:
+        value_node = node.child_by_field_name("value")
+        if value_node is None or value_node.type not in {"arrow_function", "function_expression", "generator_function"}:
+            return None
+
+        name_node = node.child_by_field_name("name")
+        if not name_node:
+            return None
+        name = self._node_text(source_bytes, name_node)
+        if not name:
+            return None
+
+        code_node = self._declaration_statement_node(node)
+        return ParsedJSFunction(
+            name=name,
+            code=self._node_text(source_bytes, code_node),
+            start_line=code_node.start_point[0] + 1,
+            end_line=code_node.end_point[0] + 1,
+            docstring=self._find_jsdoc(source_code, self._byte_to_char_offset(source_bytes, code_node.start_byte)),
+            file_path=file_path,
+        )
+
+    def _parse_tree_sitter_class(
+        self,
+        node: Node,
+        source_bytes: bytes,
+        source_code: str,
+        file_path: str,
+    ) -> Optional[ParsedJSClass]:
+        name_node = node.child_by_field_name("name")
+        if not name_node:
+            return None
+        name = self._node_text(source_bytes, name_node)
+        if not name:
+            return None
+
+        code_node = self._export_or_self(node)
+        methods = self._extract_tree_sitter_methods(node, source_bytes, source_code, file_path)
+        return ParsedJSClass(
+            name=name,
+            code=self._node_text(source_bytes, code_node),
+            start_line=node.start_point[0] + 1,
+            end_line=node.end_point[0] + 1,
+            docstring=self._find_jsdoc(source_code, self._byte_to_char_offset(source_bytes, code_node.start_byte)),
+            methods=methods,
+            file_path=file_path,
+        )
+
+    def _parse_tree_sitter_type_symbol(
+        self,
+        node: Node,
+        source_bytes: bytes,
+        source_code: str,
+        file_path: str,
+    ) -> Optional[ParsedJSClass]:
+        name_node = node.child_by_field_name("name")
+        if not name_node:
+            return None
+        name = self._node_text(source_bytes, name_node)
+        if not name:
+            return None
+
+        code_node = self._export_or_self(node)
+        return ParsedJSClass(
+            name=name,
+            code=self._node_text(source_bytes, code_node),
+            start_line=node.start_point[0] + 1,
+            end_line=node.end_point[0] + 1,
+            docstring=self._find_jsdoc(source_code, self._byte_to_char_offset(source_bytes, code_node.start_byte)),
+            methods=[],
+            file_path=file_path,
+        )
+
+    def _extract_tree_sitter_methods(
+        self,
+        class_node: Node,
+        source_bytes: bytes,
+        source_code: str,
+        file_path: str,
+    ) -> List[ParsedJSFunction]:
+        methods: List[ParsedJSFunction] = []
+        body = class_node.child_by_field_name("body")
+        if body is None:
+            return methods
+
+        for child in body.children:
+            if child.type != "method_definition":
+                continue
+            name_node = child.child_by_field_name("name")
+            if not name_node:
+                continue
+            name = self._node_text(source_bytes, name_node)
+            if not name:
+                continue
+            self._append_function(methods, ParsedJSFunction(
+                name=name,
+                code=self._node_text(source_bytes, child),
+                start_line=child.start_point[0] + 1,
+                end_line=child.end_point[0] + 1,
+                docstring=self._find_jsdoc(source_code, self._byte_to_char_offset(source_bytes, child.start_byte)),
+                file_path=file_path,
+            ))
+
+        return methods
+
+    def _declaration_statement_node(self, node: Node) -> Node:
+        current = node
+        parent = current.parent
+        while parent is not None and parent.type not in {"program", "statement_block", "class_body"}:
+            current = parent
+            parent = current.parent
+        return self._export_or_self(current)
+
+    def _export_or_self(self, node: Node) -> Node:
+        parent = node.parent
+        if parent is not None and parent.type == "export_statement":
+            return parent
+        return node
+
+    def _node_text(self, source_bytes: bytes, node: Node) -> str:
+        return source_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+
+    def _byte_to_char_offset(self, source_bytes: bytes, byte_offset: int) -> int:
+        return len(source_bytes[:byte_offset].decode("utf-8", errors="replace"))
+
+    def _append_function(self, functions: List[ParsedJSFunction], function: ParsedJSFunction):
+        if any(existing.name == function.name and existing.start_line == function.start_line for existing in functions):
+            return
+        functions.append(function)
+
+    def _append_class(self, classes: List[ParsedJSClass], cls: ParsedJSClass):
+        if any(existing.name == cls.name and existing.start_line == cls.start_line for existing in classes):
+            return
+        classes.append(cls)
 
     def _extract_block(self, source: str, brace_pos: int, start_line: int) -> tuple:
         """Extract a code block starting from opening brace"""
@@ -225,8 +472,9 @@ class JSParser:
         search_start = max(0, pos - 500)
         search_text = source[search_start:pos]
 
-        match = re.search(r'/\*\*\s*([\s\S]*?)\s*\*/\s*$', search_text)
-        if match:
+        matches = list(re.finditer(r'/\*\*\s*([\s\S]*?)\s*\*/', search_text))
+        if matches and not search_text[matches[-1].end():].strip():
+            match = matches[-1]
             # Clean up the docstring
             doc = match.group(1)
             # Remove * at start of lines

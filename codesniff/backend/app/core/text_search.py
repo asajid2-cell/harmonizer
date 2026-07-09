@@ -189,7 +189,13 @@ class TextSearchEngine:
 
         return prev_row[-1]
 
-    def find_fuzzy_matches(self, token: str, max_distance: int = 2) -> List[str]:
+    def find_fuzzy_matches(
+        self,
+        token: str,
+        max_distance: int = 2,
+        max_terms_scanned: int = 5000,
+        max_matches: int = 20
+    ) -> List[str]:
         """
         Find terms in index that are similar to token (fuzzy match)
 
@@ -206,7 +212,12 @@ class TextSearchEngine:
         min_len = max(1, len(token) - max_distance)
         max_len = len(token) + max_distance
 
+        terms_scanned = 0
         for term in self.inverted_index.keys():
+            terms_scanned += 1
+            if terms_scanned > max_terms_scanned or len(matches) >= max_matches:
+                break
+
             # Skip stem entries
             if term.startswith("stem:"):
                 continue
@@ -415,7 +426,7 @@ class TextSearchEngine:
         if not candidates and len(query_tokens) <= 3:
             for token in query_tokens:
                 if len(token) >= 4:  # Only fuzzy match longer tokens
-                    fuzzy_matches = self.find_fuzzy_matches(token, max_distance=1)
+                    fuzzy_matches = self.find_fuzzy_matches(token, max_distance=1, max_matches=5)
                     for fuzzy_term in fuzzy_matches[:5]:  # Limit fuzzy matches
                         fuzzy_tokens.add(fuzzy_term)
                         candidates.update(self.inverted_index.get(fuzzy_term, set()))

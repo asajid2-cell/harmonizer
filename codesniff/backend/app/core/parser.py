@@ -1,6 +1,7 @@
 """Code parser using Tree-sitter for Python syntax analysis"""
 
 import os
+import ast
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 from pathlib import Path
@@ -78,6 +79,16 @@ class CodeParser:
             with open(file_path, 'rb') as f:
                 source_bytes = f.read()
 
+            return self.parse_source_bytes(file_path, source_bytes)
+
+        except Exception as e:
+            logger.error(f"Error parsing file {file_path}: {e}")
+            logger.exception("Full traceback:")
+            return None
+
+    def parse_source_bytes(self, file_path: str, source_bytes: bytes) -> Optional[ParsedFile]:
+        """Parse Python source bytes already read by the caller."""
+        try:
             # Strip BOM if present (BOM is the first 3 bytes: EF BB BF)
             if source_bytes.startswith(b'\xef\xbb\xbf'):
                 source_bytes = source_bytes[3:]
@@ -113,7 +124,7 @@ class CodeParser:
             return parsed_file
 
         except Exception as e:
-            logger.error(f"Error parsing file {file_path}: {e}")
+            logger.error(f"Error parsing source for {file_path}: {e}")
             logger.exception("Full traceback:")
             return None
 
@@ -281,21 +292,31 @@ class CodeParser:
         try:
             # Get the body of the function/class
             body_node = node.child_by_field_name('body')
-            if not body_node or len(body_node.children) < 2:
+            if not body_node:
                 return None
 
-            # Second child is often the first statement (after colon)
-            first_statement = body_node.children[1]
+            first_statement = None
+            for child in body_node.children:
+                if getattr(child, "is_named", True):
+                    first_statement = child
+                    break
+
+            if first_statement is None:
+                return None
 
             # Check if it's an expression statement containing a string
             if first_statement.type == 'expression_statement':
                 if len(first_statement.children) > 0:
                     string_node = first_statement.children[0]
                     if string_node.type == 'string':
-                        docstring = source_code[string_node.start_byte:string_node.end_byte]
-                        # Clean up the docstring (remove quotes)
-                        docstring = docstring.strip('"""').strip("'''").strip('"').strip("'").strip()
-                        return docstring
+                        raw_docstring = source_code[string_node.start_byte:string_node.end_byte]
+                        try:
+                            parsed_docstring = ast.literal_eval(raw_docstring)
+                        except Exception:
+                            parsed_docstring = raw_docstring.strip('"""').strip("'''").strip('"').strip("'")
+
+                        if isinstance(parsed_docstring, str):
+                            return parsed_docstring.strip()
 
             return None
 

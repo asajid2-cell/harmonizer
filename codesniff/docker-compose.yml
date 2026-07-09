@@ -11,10 +11,25 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - CODESCOPE_STORAGE_DIR=/app/storage
+      - CODESNIFF_WEB_RUNNER_ENABLED=${CODESNIFF_WEB_RUNNER_ENABLED:-1}
     volumes:
       - ./backend:/app
       - storage_data:/app/storage
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    profiles:
+      - worker
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - CODESCOPE_STORAGE_DIR=/app/storage
+      - CODESNIFF_MAX_ACTIVE_REPOS=${CODESNIFF_MAX_ACTIVE_REPOS:-1}
+    volumes:
+      - ./backend:/app
+      - storage_data:/app/storage
+    command: python scripts/run_worker.py
 
   frontend:
     build:

@@ -2,10 +2,10 @@
  * Upload Modal for Indexing Code
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, FolderOpen, Github, Loader2, AlertCircle, CheckCircle, Info } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { apiClient, JobResponse } from '../api/client';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -14,6 +14,38 @@ interface UploadModalProps {
 }
 
 type UploadMethod = 'folder' | 'zip' | 'github';
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const describeJob = (job: JobResponse): string => {
+  if (job.status === 'running' && job.cancel_requested) {
+    return `Cancel requested; stopping after the current indexing step... ${job.files_indexed || 0} files, ${job.symbols_indexed || 0} symbols.`;
+  }
+  if (job.status === 'queued') {
+    return 'Queued for fast indexing.';
+  }
+  if (job.status === 'canceled') {
+    return job.files_indexed > 0 || job.files_seen > 0
+      ? 'Canceled. Partial indexing work was discarded.'
+      : 'Canceled before indexing started.';
+  }
+  if (job.status === 'failed') {
+    return job.error ? `Indexing failed: ${job.error}` : 'Indexing failed.';
+  }
+  if (job.status === 'complete') {
+    return `Searchable now: ${job.files_indexed} files and ${job.symbols_indexed} symbols indexed.`;
+  }
+
+  const phaseLabel: Record<string, string> = {
+    cloning: 'Cloning repository',
+    cleaning: 'Removing generated and vendor files',
+    fast_indexing: 'Building lexical symbol index',
+    queued_after_restart: 'Requeued after service restart',
+    lexical_ready: 'Searchable now',
+  };
+
+  return `${phaseLabel[job.phase] || job.phase}... ${job.files_indexed || 0} files, ${job.symbols_indexed || 0} symbols.`;
+};
 
 export default function UploadModal({ isOpen, onClose, onIndexComplete }: UploadModalProps) {
   const [method, setMethod] = useState<UploadMethod>('folder');
@@ -25,6 +57,9 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [showInfoTooltip, setShowInfoTooltip] = useState(false);
+  const [currentJob, setCurrentJob] = useState<JobResponse | null>(null);
+  const [isCancelingJob, setIsCancelingJob] = useState(false);
+  const cancelRequestedRef = useRef(false);
 
   const handleClose = () => {
     // Allow closing even while indexing (background operation)
@@ -35,6 +70,9 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
     setProgress('');
     setError(null);
     setSuccess(false);
+    setCurrentJob(null);
+    setIsCancelingJob(false);
+    cancelRequestedRef.current = false;
     onClose();
   };
 
@@ -55,6 +93,9 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
     setError(null);
     setSuccess(false);
     setIsIndexing(true);
+    setCurrentJob(null);
+    setIsCancelingJob(false);
+    cancelRequestedRef.current = false;
 
     try {
       if (method === 'github') {
@@ -64,33 +105,29 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
           return;
         }
 
-        setProgress('Cloning repository... This may take several minutes for large repos.');
+        setProgress('Queueing repository for fast indexing...');
+        const queued = await apiClient.queueGithubRepo(githubUrl.trim());
+        setCurrentJob(queued.job);
+        setProgress(describeJob(queued.job));
 
-        // Start a progress message updater to show it's still working
-        const progressInterval = setInterval(() => {
-          setProgress((prev) => {
-            if (prev.includes('Cloning')) return 'Processing repository files...';
-            if (prev.includes('Processing')) return 'Analyzing code structure...';
-            if (prev.includes('Analyzing')) return 'Embedding code symbols...';
-            return 'Almost done...';
-          });
-        }, 10000); // Update every 10 seconds
-
-        try {
-          await apiClient.indexGithubRepo(githubUrl.trim());
-          clearInterval(progressInterval);
-
-          setProgress('Indexing complete!');
-          setSuccess(true);
-
-          setTimeout(() => {
-            onIndexComplete();
-            handleClose();
-          }, 2000);
-        } catch (err) {
-          clearInterval(progressInterval);
-          throw err;
+        let job = queued.job;
+        while (job.status === 'queued' || job.status === 'running') {
+          await wait(2000);
+          job = await apiClient.getJob(job.id);
+          setCurrentJob(job);
+          setProgress(describeJob(job));
         }
+
+        if (job.status === 'canceled') {
+          setProgress(describeJob(job));
+          return;
+        }
+        if (job.status === 'failed') {
+          throw new Error(job.error || 'Indexing failed');
+        }
+
+        setSuccess(true);
+        onIndexComplete();
       } else if (method === 'folder' || method === 'zip') {
         if (!selectedFiles || selectedFiles.length === 0) {
           setError('Please select files to upload');
@@ -98,16 +135,33 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
           return;
         }
 
-        setProgress('Uploading files...');
-        await apiClient.uploadAndIndex(selectedFiles, method === 'zip');
+        const uploadName = method === 'zip'
+          ? selectedFiles[0].name.replace(/\.zip$/i, '') || 'upload'
+          : selectedFolder || selectedFiles[0]?.name || 'upload';
 
-        setProgress('Indexing complete!');
+        setProgress('Uploading source into cold repo storage...');
+        const queued = await apiClient.queueUploadedRepo(selectedFiles, method === 'zip', uploadName);
+        setCurrentJob(queued.job);
+        setProgress(describeJob(queued.job));
+
+        let job = queued.job;
+        while (job.status === 'queued' || job.status === 'running') {
+          await wait(2000);
+          job = await apiClient.getJob(job.id);
+          setCurrentJob(job);
+          setProgress(describeJob(job));
+        }
+
+        if (job.status === 'canceled') {
+          setProgress(describeJob(job));
+          return;
+        }
+        if (job.status === 'failed') {
+          throw new Error(job.error || 'Indexing failed');
+        }
+
         setSuccess(true);
-
-        setTimeout(() => {
-          onIndexComplete();
-          handleClose();
-        }, 2000);
+        onIndexComplete();
       }
     } catch (err: any) {
       console.error('Indexing error:', err);
@@ -115,6 +169,56 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
       setSuccess(false);
     } finally {
       setIsIndexing(false);
+    }
+  };
+
+  const handleCancelJob = async () => {
+    if (!currentJob || (currentJob.status !== 'queued' && currentJob.status !== 'running')) {
+      return;
+    }
+
+    setIsCancelingJob(true);
+    setError(null);
+    try {
+      const canceled = await apiClient.cancelJob(currentJob.id);
+      setCurrentJob(canceled);
+      setProgress(describeJob(canceled));
+      cancelRequestedRef.current = canceled.cancel_requested || canceled.status === 'canceled';
+      if (canceled.status === 'canceled') {
+        setSuccess(false);
+        setIsIndexing(false);
+        onIndexComplete();
+        return;
+      }
+      if (canceled.status === 'complete') {
+        setSuccess(true);
+        setIsIndexing(false);
+        onIndexComplete();
+        return;
+      }
+    } catch (err: any) {
+      cancelRequestedRef.current = false;
+      setError(err.response?.data?.detail || err.message || 'Failed to cancel job');
+      try {
+        const refreshed = await apiClient.getJob(currentJob.id);
+        setCurrentJob(refreshed);
+        setProgress(describeJob(refreshed));
+        if (refreshed.status === 'complete') {
+          setSuccess(true);
+          setIsIndexing(false);
+          onIndexComplete();
+        } else if (refreshed.status === 'failed' || refreshed.status === 'canceled') {
+          setSuccess(false);
+          setIsIndexing(false);
+          onIndexComplete();
+        } else {
+          setIsIndexing(true);
+        }
+      } catch {
+        setIsIndexing(true);
+      }
+    } finally {
+      setIsCancelingJob(false);
     }
   };
 
@@ -168,6 +272,7 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
               {/* Method Selection */}
               <div className="grid grid-cols-3 gap-3">
                 <button
+                  data-ui="upload-method-folder"
                   onClick={() => setMethod('folder')}
                   disabled={isIndexing}
                   className={`p-4 rounded-lg border-2 transition-all ${
@@ -182,6 +287,7 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
                 </button>
 
                 <button
+                  data-ui="upload-method-zip"
                   onClick={() => setMethod('zip')}
                   disabled={isIndexing}
                   className={`p-4 rounded-lg border-2 transition-all ${
@@ -196,6 +302,7 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
                 </button>
 
                 <button
+                  data-ui="upload-method-github"
                   onClick={() => setMethod('github')}
                   disabled={isIndexing}
                   className={`p-4 rounded-lg border-2 transition-all ${
@@ -302,6 +409,17 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
                       <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
                     ) : null}
                     <p className="text-sm text-blue-900 dark:text-blue-200 flex-1">{progress}</p>
+                    {isIndexing && currentJob && (currentJob.status === 'queued' || currentJob.status === 'running') && (
+                      <button
+                        data-ui="upload-cancel-job"
+                        type="button"
+                        onClick={handleCancelJob}
+                        disabled={isCancelingJob || currentJob.cancel_requested}
+                        className="rounded-md border border-blue-300/40 px-3 py-2 text-xs font-medium uppercase tracking-[0.16em] text-blue-800 transition-colors hover:border-blue-400 hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:text-blue-100 dark:hover:bg-blue-400/10"
+                      >
+                        {currentJob.cancel_requested ? 'Cancel requested' : isCancelingJob ? 'Canceling' : 'Cancel job'}
+                      </button>
+                    )}
                     {isIndexing && (
                       <div className="relative">
                         <button
@@ -316,11 +434,10 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
                           <div className="absolute right-0 bottom-full mb-2 w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50">
                             <div className="font-semibold mb-1">Indexing Process</div>
                             <div className="space-y-1 text-gray-300">
-                              <p>• CodeBERT runs on CPU (~4 seconds per batch)</p>
-                              <p>• Average 2-3 symbols per file = ~1500-2000 total symbols</p>
-                              <p>• Batch size of 16, ~100-125 batches</p>
-                              <p>• <strong>Total time: 6-10 minutes</strong> for full index</p>
-                              <p className="mt-2 pt-2 border-t border-gray-700">Indexing continues in the background. You can close this modal and check back later.</p>
+                              <p>Fast indexing builds a lexical symbol index first.</p>
+                              <p>Semantic vectors are optional and should not block search.</p>
+                              <p>Status comes from the backend job record.</p>
+                              <p className="mt-2 pt-2 border-t border-gray-700">When the job says searchable, keyword and symbol search can run even if vectors are not ready.</p>
                             </div>
                             <div className="absolute bottom-0 right-4 transform translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
                           </div>
@@ -349,8 +466,8 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
             <div className="p-6 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {isIndexing
-                  ? "Indexing in background - you can close this and continue using the app"
-                  : "Supports Python, JavaScript/TypeScript, Java, Kotlin, HTML, and CSS files"
+                  ? "Fast indexing stores a cold repo artifact and reports real job status"
+                  : "Supports common Python, web, JVM, C-family, Go, Rust, Ruby, PHP, shell, SQL, and shader files"
                 }
               </p>
               <div className="flex gap-3">
@@ -361,6 +478,7 @@ export default function UploadModal({ isOpen, onClose, onIndexComplete }: Upload
                   {isIndexing ? 'Close' : 'Cancel'}
                 </button>
                 <button
+                  data-ui="upload-submit"
                   onClick={handleIndex}
                   disabled={
                     isIndexing ||

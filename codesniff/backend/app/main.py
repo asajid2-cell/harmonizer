@@ -1,6 +1,7 @@
 """CodeScope FastAPI Application"""
 
 import os
+import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,8 +9,8 @@ from loguru import logger
 from dotenv import load_dotenv
 
 from .core.parser import CodeParser
-from .core.embedder import CodeEmbedder
 from .core.indexer import Indexer
+from .core.worker_runtime import initialize_job_runtime
 from .core.search import SearchEngine
 from .core.text_search import TextSearchEngine
 from .storage.vector_store import VectorStore
@@ -21,18 +22,26 @@ from .api import routes
 load_dotenv()
 
 
-# Configure logger
+# Configure logger. Loguru ships with a default DEBUG stderr handler; remove it
+# so hot indexing loops do not flood production stderr.
+logger.remove()
+logger.add(sys.stderr, level=os.environ.get("CODESNIFF_LOG_LEVEL", "INFO"))
 logger.add(
     "codescope.log",
     rotation="10 MB",
     retention="7 days",
-    level="INFO"
+    level=os.environ.get("CODESNIFF_FILE_LOG_LEVEL", os.environ.get("CODESNIFF_LOG_LEVEL", "INFO"))
 )
 
 
 # Global instances
 indexer: Indexer = None
 search_engine: SearchEngine = None
+
+
+def _web_runner_enabled() -> bool:
+    configured = os.environ.get("CODESNIFF_WEB_RUNNER_ENABLED", "1").strip().lower()
+    return configured not in {"0", "false", "no", "off"}
 
 
 @asynccontextmanager
@@ -42,6 +51,7 @@ async def lifespan(app: FastAPI):
     Initialize components on startup, cleanup on shutdown
     """
     global indexer, search_engine
+    job_runtime = None
 
     logger.info("Starting CodeScope API...")
 
@@ -53,10 +63,10 @@ async def lifespan(app: FastAPI):
 
         # Database path
         db_path = os.path.join(storage_dir, "codescope.db")
-
         # Initialize core components
         parser = CodeParser()
-        embedder = CodeEmbedder(cache_dir=os.path.join(storage_dir, "embeddings_cache"))
+        embedder = None
+        embedder_cache_dir = os.path.join(storage_dir, "embeddings_cache")
         vector_store = VectorStore(dimension=768)
         metadata_store = MetadataStore(db_path=db_path)
         text_search = TextSearchEngine()
@@ -65,6 +75,7 @@ async def lifespan(app: FastAPI):
         indexer = Indexer(
             parser=parser,
             embedder=embedder,
+            embedder_cache_dir=embedder_cache_dir,
             vector_store=vector_store,
             metadata_store=metadata_store,
             text_search=text_search
@@ -72,6 +83,7 @@ async def lifespan(app: FastAPI):
 
         search_engine = SearchEngine(
             embedder=embedder,
+            embedder_cache_dir=embedder_cache_dir,
             vector_store=vector_store,
             metadata_store=metadata_store,
             text_search=text_search
@@ -96,6 +108,19 @@ async def lifespan(app: FastAPI):
             routes.set_chatbot(chatbot)
         if rag_system:
             routes.set_rag_system(rag_system)
+
+        start_web_worker = _web_runner_enabled()
+        if not start_web_worker:
+            logger.info("CodeSniff web-process job runner disabled; waiting for external worker")
+
+        job_runtime = initialize_job_runtime(
+            storage_dir=storage_dir,
+            max_active_repos=int(os.environ.get("CODESNIFF_MAX_ACTIVE_REPOS", "3")),
+            poll_interval=float(os.environ.get("CODESNIFF_JOB_POLL_INTERVAL", "1.0")),
+            recover_interrupted=True,
+            run_recovery_scan=True,
+            start_runner=start_web_worker,
+        )
 
         # Try to load existing index
         index_dir = os.path.join(storage_dir, "vector_index")
@@ -122,6 +147,10 @@ async def lifespan(app: FastAPI):
 
     # Save vector index
     try:
+        if job_runtime:
+            job_runtime.runner.stop()
+        if routes.active_repo_manager:
+            routes.active_repo_manager.close_all()
         if vector_store and vector_store.vector_count > 0:
             storage_dir = os.environ.get("CODESCOPE_STORAGE_DIR", "./storage")
             index_dir = os.path.join(storage_dir, "vector_index")
