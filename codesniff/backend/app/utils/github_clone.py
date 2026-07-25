@@ -3,12 +3,53 @@ GitHub repository cloning and cleaning utilities
 """
 
 import os
+import re
 import shutil
 import tempfile
 import subprocess
 from pathlib import Path
 from typing import Optional
 from loguru import logger
+
+
+# --- clone URL allowlist -------------------------------------------------------------
+# `git clone` treats its URL operand as more than a location. Two of its features turn an
+# unvalidated URL into arbitrary command execution as whatever user git runs as:
+#   * the `ext::` transport runs a shell command  ->  git clone 'ext::sh -c <cmd>'
+#   * a URL beginning with `-` is parsed as an option -> '--upload-pack=<cmd>'
+# Neither is reachable if the URL must match a literal https GitHub repo, so match that and
+# reject everything else. Deny-by-default: anything not matched is refused, not sanitised.
+ALLOWED_REPO_RE = re.compile(
+    r'^https://github\.com/'          # scheme + host are fixed, so no ext::/file:///ssh://
+    r'[A-Za-z0-9](?:[A-Za-z0-9._-]{0,38})/'   # owner
+    r'[A-Za-z0-9](?:[A-Za-z0-9._-]{0,99})'    # repo
+    r'(?:\.git)?/?$'
+)
+
+# Branch names land in `--branch <name>`; keep them to git's own ref rules so a crafted
+# branch cannot smuggle an option either.
+ALLOWED_BRANCH_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$')
+
+
+class DisallowedRepoURL(ValueError):
+    """Raised when a clone URL is not a plain https GitHub repository."""
+
+
+def validate_repo_url(repo_url: str) -> str:
+    url = (repo_url or '').strip()
+    if not ALLOWED_REPO_RE.match(url):
+        raise DisallowedRepoURL(
+            'Only public https://github.com/<owner>/<repo> URLs may be indexed.'
+        )
+    return url
+
+
+def validate_branch(branch):
+    if branch is None or branch == '':
+        return None
+    if not ALLOWED_BRANCH_RE.match(branch):
+        raise DisallowedRepoURL('Invalid branch name.')
+    return branch
 
 
 # Extensions to exclude (large files, media, etc.)
@@ -73,6 +114,10 @@ def clone_github_repo(repo_url: str, target_dir: Optional[str] = None) -> str:
         branch = parts[1].split('/')[0] if len(parts) > 1 else None
         logger.info(f"Detected branch '{branch}' from URL")
 
+    # deny-by-default before anything reaches git's argv
+    clean_url = validate_repo_url(clean_url)
+    branch = validate_branch(branch)
+
     logger.info(f"Cloning {clean_url} to {target_dir}")
 
     try:
@@ -83,11 +128,17 @@ def clone_github_repo(repo_url: str, target_dir: Optional[str] = None) -> str:
             # Clone specific branch
             clone_cmd.extend(['--branch', branch])
 
-        clone_cmd.extend([clean_url, target_dir])
+        # `--` ends option parsing, so a URL can never be read as a flag even if the
+        # allowlist above is ever loosened.
+        clone_cmd.extend(['--', clean_url, target_dir])
 
         # Clone repository (shallow clone for speed)
+        env = dict(os.environ,
+                   GIT_TERMINAL_PROMPT='0',      # never block on a credential prompt
+                   GIT_ALLOW_PROTOCOL='https')   # git itself refuses ext::/file:///ssh://
         subprocess.run(
             clone_cmd,
+            env=env,
             check=True,
             capture_output=True,
             text=True

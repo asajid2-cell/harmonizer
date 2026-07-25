@@ -23,7 +23,8 @@ load_dotenv()
 
 # Configure logger
 logger.add(
-    "codescope.log",
+    # writable path: the rootfs is read-only, so the log must live on the tmpfs
+    os.environ.get("CODESCOPE_LOG_FILE", "codescope.log"),
     rotation="10 MB",
     retention="7 days",
     level="INFO"

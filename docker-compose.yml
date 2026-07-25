@@ -41,7 +41,18 @@ services:
       - codesniff_storage:/app/storage
     environment:
       - CODESCOPE_STORAGE_DIR=/app/storage
+      - CODESCOPE_LOG_FILE=/tmp/codescope.log
     restart: unless-stopped
+    # Untrusted input (cloned repos, uploads) must land somewhere it cannot run, as a
+    # user that cannot matter. read_only rootfs + noexec tmpfs + zero caps.
+    user: "1102:1102"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=512m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
@@ -51,15 +62,13 @@ services:
           memory: 768M
           cpus: '0.25'
 
-  watchtower:
-    image: containrrr/watchtower:latest
-    command: --cleanup --rolling-restart harmonizer
-    environment:
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - DOCKER_API_VERSION=1.46
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    restart: unless-stopped
+  # watchtower REMOVED (fleet hardening): it mounted /var/run/docker.sock = full host-root
+  # authority, yet could never do its job -- `harmonizer:prod` is a LOCALLY BUILT image with no
+  # registry repo, so every run logged "pull access denied for harmonizer, repository does not
+  # exist", Updated=0. Worse, it resolved that unqualified name to docker.io/library/harmonizer,
+  # a repo we do not own: if anyone ever published that public name, watchtower would have pulled
+  # a stranger's image and deployed it as the public site, as root. Zero benefit, full authority.
+  # Deploy harmonizer manually instead:  docker compose up -d --build harmonizer
 
 volumes:
   codesniff_storage:
