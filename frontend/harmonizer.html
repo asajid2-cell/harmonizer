@@ -1630,6 +1630,42 @@ jgs   `-=========-`()
             });
         })();
 
+        async function submitProcessRequest(formData, operationLabel) {
+            const response = await fetch(buildApiUrl('api/process'), {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
+
+            if (response.status === 401) {
+                const error = new Error('Your sign-in session has expired. Please sign in again.');
+                error.status = 401;
+                throw error;
+            }
+            if (response.status === 403) {
+                const error = new Error('You are signed in, but your account does not have Harmonizer access.');
+                error.status = 403;
+                throw error;
+            }
+
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.toLowerCase().includes('application/json')) {
+                throw new Error(`${operationLabel} failed: server returned an invalid response.`);
+            }
+
+            let payload;
+            try {
+                payload = await response.json();
+            } catch (error) {
+                throw new Error(`${operationLabel} failed: server returned malformed JSON.`);
+            }
+            if (!response.ok) {
+                throw new Error(payload.error || `${operationLabel} failed (HTTP ${response.status}).`);
+            }
+            return payload;
+        }
+
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             statusPanel.textContent = '';
@@ -1670,25 +1706,8 @@ jgs   `-=========-`()
                 const selectedAlgorithm = (formData.get('algorithm') || 'canon').toString().toLowerCase();
 
                 // Submit the job
-                const response = await fetch(buildApiUrl('api/process'), {
-                    method: 'POST',
-                    body: formData
-                });
+                const payload = await submitProcessRequest(formData, 'Upload');
 
-                // Check if response is JSON or HTML error page
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const textResponse = await response.text();
-                    if (textResponse.includes('<!DOCTYPE') || textResponse.includes('<html')) {
-                        throw new Error('Server error - please try again.');
-                    }
-                    throw new Error('Server returned an invalid response.');
-                }
-
-                const payload = await response.json();
-                if (!response.ok) {
-                    throw new Error(payload.error || 'Something went wrong.');
-                }
 
                 const jobId = payload.jobId;
                 if (!jobId) {
@@ -1714,7 +1733,10 @@ jgs   `-=========-`()
 	                window.location.href = buildFrontendRedirect(result.trackId, finalMode);
 
 	            } catch (err) {
-	                statusPanel.textContent = err.message;
+	                statusPanel.textContent = err && err.message ? err.message : 'Processing failed.';
+	                if (err && (err.status === 401 || err.status === 403)) {
+	                    await handleAuthRequired(err.message);
+	                }
 	            } finally {
                 submitButton.disabled = false;
                 submitButton.textContent = 'Transform Track';
@@ -1727,12 +1749,33 @@ jgs   `-=========-`()
 
 	            while (attempts < maxAttempts) {
 	                try {
-	                    const response = await fetch(buildApiUrl(`api/process/status/${jobId}`));
+	                    const response = await fetch(buildApiUrl(`api/process/status/${jobId}`), {
+	                        credentials: 'same-origin',
+	                        cache: 'no-store'
+	                    });
+	                    if (response.status === 401) {
+	                        const error = new Error('Your sign-in session has expired. Please sign in again.');
+	                        error.status = 401;
+	                        throw error;
+	                    }
+	                    if (response.status === 403) {
+	                        const error = new Error('You are signed in, but your account does not have Harmonizer access.');
+	                        error.status = 403;
+	                        throw error;
+	                    }
 	                    if (!response.ok) {
-	                        throw new Error('Failed to check processing status');
+	                        throw new Error(`Failed to check processing status (HTTP ${response.status}).`);
+	                    }
+	                    if (!(response.headers.get('content-type') || '').toLowerCase().includes('application/json')) {
+	                        throw new Error('Processing status failed: server returned an invalid response.');
 	                    }
 
-	                    const data = await response.json();
+	                    let data;
+	                    try {
+	                        data = await response.json();
+	                    } catch (error) {
+	                        throw new Error('Processing status failed: server returned malformed JSON.');
+	                    }
 
 	                    // Update status message with progress
 	                    if (data.progress) {
@@ -1751,7 +1794,10 @@ jgs   `-=========-`()
 	                    }
 
 	                } catch (err) {
-	                    console.warn('[Upload] Status poll failed, retrying:', err);
+	                    if (err && (err.status === 401 || err.status === 403)) {
+	                        await handleAuthRequired(err.message);
+	                    }
+	                    throw err;
 	                }
 
 	                // Still processing - wait 1 second before next poll
@@ -1779,13 +1825,8 @@ jgs   `-=========-`()
                     formData.append('youtube_url', entries[i].url);
                     formData.append('algorithm', algorithm);
 
-                    const response = await fetch(buildApiUrl('api/process'), {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const payload = await response.json();
-                    if (response.ok && payload.trackId) {
+                    const payload = await submitProcessRequest(formData, `Playlist track ${i + 1}`);
+                    if (payload.trackId) {
                         trackIds.push(payload.trackId);
                         trackInfo.push({
                             id: payload.trackId,
@@ -1793,10 +1834,15 @@ jgs   `-=========-`()
                             artist: 'YouTube'
                         });
                     } else {
-                        console.error(`Failed to process ${entries[i].title}:`, payload.error);
+                        throw new Error(`Playlist track ${i + 1} failed: server returned no track ID.`);
                     }
                 } catch (err) {
                     console.error(`Error processing ${entries[i].title}:`, err);
+                    statusPanel.textContent = err && err.message ? err.message : `Failed to process ${entries[i].title}.`;
+                    if (err && (err.status === 401 || err.status === 403)) {
+                        await handleAuthRequired(err.message);
+                        break;
+                    }
                 }
             }
 
@@ -3597,7 +3643,10 @@ jgs   `-=========-`()
 
         async function checkAuthStatus() {
             try {
-                const response = await fetch('/auth/status');
+                const response = await fetch('/auth/api/me', {
+                    credentials: 'same-origin',
+                    cache: 'no-store'
+                });
                 if (!response.ok) throw new Error('Auth status check failed');
 
                 const data = await response.json();
@@ -3608,7 +3657,7 @@ jgs   `-=========-`()
                         userInfo.style.alignItems = 'center';
                     }
                     if (userEmail) {
-                        userEmail.textContent = data.email || 'Signed in';
+                        userEmail.textContent = (data.user && data.user.username) || 'Signed in';
                     }
                 } else {
                     if (signinButton) signinButton.style.display = 'inline-block';
@@ -3622,12 +3671,27 @@ jgs   `-=========-`()
             }
         }
 
-        function handleGoogleSignIn() {
-            window.location.href = '/auth/google';
+        function handleSignIn() {
+            const next = `${window.location.pathname}${window.location.search}`;
+            window.location.href = `/auth/login?next=${encodeURIComponent(next)}`;
         }
 
         if (signinButton) {
-            signinButton.addEventListener('click', handleGoogleSignIn);
+            signinButton.addEventListener('click', handleSignIn);
+        }
+
+        async function handleAuthRequired(message, modal) {
+            console.warn('[Auth] Protected Harmonizer API rejected the session:', message);
+            const next = `${window.location.pathname}${window.location.search}`;
+            if (window.confirm(`${message}\n\nSign in again now?`)) {
+                window.location.href = `/auth/login?next=${encodeURIComponent(next)}`;
+            } else if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        function showAuthMessage(container, message) {
+            container.innerHTML = `<p style="color: #f88; text-align: center; padding: 2rem;">${message}</p>`;
         }
 
         // View Cached Songs button - shows modal with all uploaded songs
@@ -3909,8 +3973,32 @@ jgs   `-=========-`()
 	                }
 
 	                try {
-                    const res = await fetch('/api/cache/list');
-                    const data = await res.json();
+                    const res = await fetch('/api/cache/list', {
+                        credentials: 'same-origin',
+                        cache: 'no-store'
+                    });
+                    if (res.status === 401) {
+                        await handleAuthRequired('Your sign-in session has expired. Please sign in again.', modal);
+                        showAuthMessage(listContainer, 'Please sign in to view cached songs.');
+                        return;
+                    }
+                    if (res.status === 403) {
+                        await handleAuthRequired('You are signed in, but your account does not have Harmonizer access.', modal);
+                        showAuthMessage(listContainer, 'Your account does not have Harmonizer access.');
+                        return;
+                    }
+                    if (!res.ok) {
+                        throw new Error(`Unable to load songs (HTTP ${res.status}).`);
+                    }
+                    if (!(res.headers.get('content-type') || '').toLowerCase().includes('application/json')) {
+                        throw new Error('Unable to load songs: server returned an invalid response.');
+                    }
+                    let data;
+                    try {
+                        data = await res.json();
+                    } catch (error) {
+                        throw new Error('Unable to load songs: server returned malformed JSON.');
+                    }
 
 	                    if (data.tracks && data.tracks.length > 0) {
 	                        let html =
