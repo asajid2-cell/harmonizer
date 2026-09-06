@@ -15,6 +15,7 @@ process.env.BOOTSTRAP_ADMIN_PASSWORD = "ownerpass12345";
 process.env.MASTER_PASSWORD = "master-key-very-long-123456";
 process.env.SEED_PAGES = "cloud-squeeze:Cloud Squeeze:/cloud-squeeze,main:Main:/";
 process.env.INTERNAL_KEY = "test-key";
+const TEST_ADMIN_PASSWORD = process.env.BOOTSTRAP_ADMIN_PASSWORD;
 process.env.AUTH_RATELIMIT_MAX = "100000"; // don't rate-limit the test suite (one client IP)
 
 const { createApp } = await import("../src/index.js");
@@ -70,10 +71,60 @@ test("internal health", async () => {
   assert.equal((await res.json()).ok, true);
 });
 
+test("internal authed oracle authenticates valid sessions for GET and POST", async () => {
+  const jar = makeJar();
+  const c = await csrf(jar, `${base}/auth/login`);
+  await jar.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
+  assert.equal((await jar.fetch(`${base}/internal/authed`, {
+    headers: { "x-internal-key": "test-key" }
+  })).status, 200);
+  assert.equal((await jar.fetch(`${base}/internal/authed`, {
+    ...form({}),
+    headers: { ...form({}).headers, "x-internal-key": "test-key" }
+  })).status, 200);
+});
+
+test("internal authed oracle rejects missing, invalid, revoked, and expired sessions", async () => {
+  const check = (token, method = "GET") => fetch(`${base}/internal/authed`, {
+    method,
+    headers: { "x-internal-key": "test-key", "x-session-token": token }
+  });
+  assert.equal((await check(null)).status, 401);
+  assert.equal((await check("not-a-session")).status, 401);
+
+  const revoked = makeJar();
+  let c = await csrf(revoked, `${base}/auth/login`);
+  await revoked.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
+  const revokedToken = revoked.get("hl_session");
+  (await import("../src/auth.js")).revokeByToken(revokedToken);
+  assert.equal((await check(revokedToken)).status, 401);
+
+  const expired = makeJar();
+  c = await csrf(expired, `${base}/auth/login`);
+  await expired.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
+  const expiredToken = expired.get("hl_session");
+  getDb().prepare("UPDATE sessions SET expires_at = ? WHERE token_hash = ?")
+    .run(Date.now() - 1, (await import("../src/crypto.js")).sha256(expiredToken));
+  assert.equal((await check(expiredToken)).status, 401);
+});
+
+test("internal authed oracle requires the internal key even for a valid session", async () => {
+  const jar = makeJar();
+  const c = await csrf(jar, `${base}/auth/login`);
+  await jar.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
+  const token = jar.get("hl_session");
+  assert.equal((await fetch(`${base}/internal/authed`, { headers: { "x-session-token": token } })).status, 401);
+  assert.equal((await fetch(`${base}/internal/authed`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded", "x-internal-key": "wrong", "x-session-token": token },
+    body: ""
+  })).status, 401);
+});
+
 test("admin can log in and sees all pages; verify confirms admin", async () => {
   const jar = makeJar();
   const c = await csrf(jar, `${base}/auth/login`);
-  const res = await jar.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: "ownerpass12345" }));
+  const res = await jar.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
   assert.equal(res.status, 302);
   assert.ok(jar.get("hl_session"), "session cookie set");
 
@@ -96,7 +147,7 @@ test("invite -> claim -> member is denied an ungranted page, then granted via ov
   // Admin creates an invite (member role).
   const admin = makeJar();
   let c = await csrf(admin, `${base}/auth/login`);
-  await admin.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: "ownerpass12345" }));
+  await admin.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
   c = await csrf(admin, `${base}/auth/admin`);
   const memberRoleId = getDb().prepare("SELECT id FROM roles WHERE name='member'").get().id;
   const invRes = await admin.fetch(`${base}/auth/admin/invites`, form({ _csrf: c, role_id: memberRoleId, note: "test" }));
@@ -189,7 +240,7 @@ test("verify rejects a bad internal key", async () => {
 });
 
 test("login POST without CSRF is rejected", async () => {
-  const res = await fetch(`${base}/auth/login`, form({ username: "owner", password: "ownerpass12345" }));
+  const res = await fetch(`${base}/auth/login`, form({ username: "owner", password: TEST_ADMIN_PASSWORD }));
   assert.equal(res.status, 403);
 });
 
@@ -222,7 +273,7 @@ test("owner account is protected — suspend is refused", async () => {
   const ownerId = getDb().prepare("SELECT id FROM users WHERE username='owner'").get().id;
   const jar = makeJar();
   let c = await csrf(jar, `${base}/auth/login`);
-  await jar.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: "ownerpass12345" }));
+  await jar.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
   c = await csrf(jar, `${base}/auth/admin`);
   const res = await jar.fetch(`${base}/auth/admin/users/status`, form({ _csrf: c, user_id: ownerId, op: "suspend" }));
   assert.equal(res.status, 302);
@@ -234,7 +285,7 @@ test("owner account is protected — suspend is refused", async () => {
 test("invite with chosen expiry: claim page validates it, then claim works", async () => {
   const admin = makeJar();
   let c = await csrf(admin, `${base}/auth/login`);
-  await admin.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: "ownerpass12345" }));
+  await admin.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
   c = await csrf(admin, `${base}/auth/admin`);
   const memberRoleId = getDb().prepare("SELECT id FROM roles WHERE name='member'").get().id;
   const invRes = await admin.fetch(`${base}/auth/admin/invites`, form({ _csrf: c, role_id: memberRoleId, expiry: "never", note: "exp-test" }));
@@ -253,7 +304,7 @@ test("invite with chosen expiry: claim page validates it, then claim works", asy
 test("revoked invite cannot be claimed", async () => {
   const admin = makeJar();
   let c = await csrf(admin, `${base}/auth/login`);
-  await admin.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: "ownerpass12345" }));
+  await admin.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
   c = await csrf(admin, `${base}/auth/admin`);
   const invRes = await admin.fetch(`${base}/auth/admin/invites`, form({ _csrf: c, expiry: "7d", note: "to-revoke" }));
   const code = (await invRes.text()).match(/id="code"[^>]*value="([^"]+)"/)[1];
@@ -271,7 +322,7 @@ test("revoked invite cannot be claimed", async () => {
 test("dedicated change-password screen renders for a logged-in user", async () => {
   const jar = makeJar();
   const c = await csrf(jar, `${base}/auth/login`);
-  await jar.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: "ownerpass12345" }));
+  await jar.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
   const page = await (await jar.fetch(`${base}/auth/password`)).text();
   assert.match(page, /Change password/);
   assert.match(page, /current_password/);
@@ -282,14 +333,14 @@ test("JSON API: /api/login requires same-origin, logs in, /api/me reflects it", 
   // no Origin header -> 403
   let res = await fetch(`${base}/auth/api/login`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username: "owner", password: "ownerpass12345" })
+    body: JSON.stringify({ username: "owner", password: TEST_ADMIN_PASSWORD })
   });
   assert.equal(res.status, 403);
   // same-origin + good creds -> 200 + cookie
   const jar = makeJar();
   res = await jar.fetch(`${base}/auth/api/login`, {
     method: "POST", headers: { "content-type": "application/json", origin },
-    body: JSON.stringify({ username: "owner", password: "ownerpass12345" })
+    body: JSON.stringify({ username: "owner", password: TEST_ADMIN_PASSWORD })
   });
   assert.equal(res.status, 200);
   const body = await res.json();
@@ -315,7 +366,7 @@ test("page access modes drive /internal/verify (public/members/restricted)", asy
   const ownerJar = makeJar();
   await ownerJar.fetch(`${base}/auth/api/login`, {
     method: "POST", headers: { "content-type": "application/json", origin: base },
-    body: JSON.stringify({ username: "owner", password: "ownerpass12345" })
+    body: JSON.stringify({ username: "owner", password: TEST_ADMIN_PASSWORD })
   });
   const ownerToken = ownerJar.get("hl_session");
 
@@ -355,7 +406,7 @@ test("owner resets another account's password; a non-owner admin can't reset or 
   // owner session
   const owner = makeJar();
   let c = await csrf(owner, `${base}/auth/login`);
-  await owner.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: "ownerpass12345" }));
+  await owner.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
 
   // a member to reset
   createUser({ username: "resetme", password: "oldpassword1", actor: "test" });
@@ -393,7 +444,7 @@ test("owner resets another account's password; a non-owner admin can't reset or 
 test("rotate-all invalidates existing sessions (run last)", async () => {
   const jar = makeJar();
   let c = await csrf(jar, `${base}/auth/login`);
-  await jar.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: "ownerpass12345" }));
+  await jar.fetch(`${base}/auth/login`, form({ _csrf: c, username: "owner", password: TEST_ADMIN_PASSWORD }));
   const token = jar.get("hl_session");
   c = await csrf(jar, `${base}/auth/admin`);
   await jar.fetch(`${base}/auth/admin/rotate-all`, form({ _csrf: c }));

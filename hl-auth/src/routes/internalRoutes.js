@@ -42,6 +42,15 @@ function pagesFor(v) {
 //   public     -> allowed for everyone (no login)
 //   members    -> allowed for any signed-in account
 //   restricted -> allowed only if the account is granted the page (role/override)
+// Compatibility oracle for nginx's shared auth_request guard. Unlike /verify,
+// this endpoint uses HTTP status to express authentication because auth_request
+// considers only 2xx a successful authorization decision.
+internalRouter.all("/authed", gate, (req, res) => {
+  const v = verifyToken(readToken(req));
+  if (!v || !v.ok) return res.status(401).json({ authenticated: false });
+  return res.status(200).json({ authenticated: true });
+});
+
 internalRouter.all("/verify", gate, (req, res) => {
   const token = readToken(req);
   const page = req.query.page || req.body?.page || null;
