@@ -1,0 +1,6 @@
+# spotdl's public Spotify client id/secret. These are shipped by spotdl itself and
+# are already present in backend/app.py history (38a23f4 "Initial public release")
+# and twice in the current file (lines ~4113/4114 and ~4301/4302). The /api/beatgrid
+# endpoint repeats the same public pair. Pinned to the match fingerprint so this
+# exemption expires if the literal changes. Authorized by repo owner 2026-10-01.
+hardcoded-secret-literal:backend/app.py:d8f68752341d
