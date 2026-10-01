@@ -4739,7 +4739,13 @@ jgs   `-=========-`()
                 await ctx.audioWorklet.addModule('./js/pcm-tap-worklet.js');
                 ctx.__pcmTapLoaded = true;
             }
-            const session = 'live' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+            // The live-cast session id is the ONLY secret protecting /api/canon-stream/<session>,
+            // which is exempt from the edge-key check because LMS pulls it directly off the port.
+            // Mint it from the CSPRNG -- Math.random() is not cryptographic and a timestamp is known.
+            const session = 'live' + ((crypto.randomUUID && crypto.randomUUID().replace(/-/g, ''))
+                || Array.from(crypto.getRandomValues(new Uint8Array(16)), function (b) {
+                    return b.toString(16).padStart(2, '0');
+                }).join(''));
             const sr = Math.round(ctx.sampleRate) || 48000;
             const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host +
                 '/cloud-squeeze/api/cast-ingest/' + session + '?sr=' + sr + '&ch=2';
