@@ -121,6 +121,12 @@ autocrooner v2), the P4 render oracle.
 - Python goldens are byte-identical across runs; the only non-reproducible field in the whole tree
   was the wall-clock `seconds` in `layers_summary.json`, so that file is a timing report and is
   excluded from the manifest.
+- **The corpus is marked `-text` in `tools/ios-parity/.gitattributes`.** Writing LF is only half the
+  property: the repo is checked out with `core.autocrlf=true`, so git would rewrite every LF to CRLF
+  on a Windows checkout and break all 1,350 hashes without a single file being edited. `fixtures/**`
+  is therefore declared no-conversion, and the committed blobs are byte-identical to the files the
+  manifest describes. The same reasoning applies to `HarmonizerMobile/Fixtures/`, which carries its
+  own `.gitattributes`.
 - `trace.mjs` runs each fixture in its own short-lived child process: one JSDOM + full visualizer
   evaluation per trace is not fully reclaimed by V8, and ~800 traces in one process exhaust the heap.
   Children are deterministic, so the resulting tree is the same as a single process would produce.
