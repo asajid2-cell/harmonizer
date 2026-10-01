@@ -1,0 +1,37 @@
+# Oracle environment pins -- the analysis stack the iOS port must match.
+#
+# Source of truth: the LIVE production container `harmonizer:prod` on the home box,
+# read 2026-10-01 via tier-3:
+#   sudo docker exec harmonizer pip freeze
+#   sudo docker exec harmonizer python -V        -> Python 3.11.15 (GCC 14.2.0)
+#   soundfile.__libsndfile_version__             -> 1.2.2  (bundled wheel)
+#
+# The port reproduces prod decisions, so the oracle venv is pinned to prod, NOT to
+# whatever the PC already had. See ORACLE_ENV.md for the gap table.
+#
+# Install:  python -m venv .venv && .venv/Scripts/python -m pip install -r requirements-oracle.txt
+
+# --- direct analysis dependencies ---
+librosa==0.11.0
+soundfile==0.14.0
+numpy==2.4.4
+scipy==1.17.1
+scikit-learn==1.9.0
+
+# --- transitive closure that affects numerical results ---
+numba==0.65.1
+llvmlite==0.47.0
+soxr==1.1.0
+audioread==3.1.0
+joblib==1.5.3
+pooch==1.9.0
+lazy-loader==0.5
+decorator==5.3.1
+msgpack==1.2.0
+platformdirs==4.10.0
+threadpoolctl==3.6.0
+typing_extensions==4.15.0
+importlib_metadata==9.0.0
+packaging==26.2
+
+# --- fixture generation / manifest tooling ---

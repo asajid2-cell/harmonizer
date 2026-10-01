@@ -1,0 +1,3114 @@
+{
+  "fixture": "synth_swing_97",
+  "mode": "canon",
+  "voices": 2,
+  "beats": [
+    {
+      "index": 0,
+      "section": 0,
+      "indexInParent": 0,
+      "start": 0.626938775510204,
+      "duration": 0.626938775510204,
+      "confidence": 0.8288506269454956,
+      "other": 12,
+      "others": [
+        12
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 12,
+          "distance": 72.03361134091392
+        },
+        {
+          "beat": 4,
+          "distance": 98.99019485379517
+        },
+        {
+          "beat": 5,
+          "distance": 230.33017073923241
+        },
+        {
+          "beat": 3,
+          "distance": 238.60575973575365
+        },
+        {
+          "beat": 7,
+          "distance": 239.5574004750716
+        },
+        {
+          "beat": 1,
+          "distance": 240.78228401670918
+        },
+        {
+          "beat": 6,
+          "distance": 242.73320958223255
+        },
+        {
+          "beat": 2,
+          "distance": 248.2665727085358
+        },
+        {
+          "beat": 28,
+          "distance": 529.5359209805085
+        },
+        {
+          "beat": 8,
+          "distance": 541.5426835042317
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 12,
+          "distance": 72.03361134091392
+        },
+        {
+          "beat": 4,
+          "distance": 98.99019485379517
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "section": 0,
+      "indexInParent": 1,
+      "start": 1.253877551020408,
+      "duration": 0.6153287981859412,
+      "confidence": 0.4588533341884613,
+      "other": 13,
+      "others": [
+        13
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 13,
+          "distance": 68.70243233442307
+        },
+        {
+          "beat": 5,
+          "distance": 128.11250985685402
+        },
+        {
+          "beat": 4,
+          "distance": 232.35009308003814
+        },
+        {
+          "beat": 7,
+          "distance": 235.55209316960446
+        },
+        {
+          "beat": 6,
+          "distance": 238.03611819052148
+        },
+        {
+          "beat": 0,
+          "distance": 240.78228401670918
+        },
+        {
+          "beat": 3,
+          "distance": 252.92801642209554
+        },
+        {
+          "beat": 2,
+          "distance": 266.36921852607634
+        },
+        {
+          "beat": 25,
+          "distance": 489.6127458398939
+        },
+        {
+          "beat": 9,
+          "distance": 524.2471313738764
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 13,
+          "distance": 80.15283772349358
+        },
+        {
+          "beat": 5,
+          "distance": 128.11250985685402
+        },
+        {
+          "beat": 4,
+          "distance": 232.35009308003814
+        },
+        {
+          "beat": 7,
+          "distance": 235.55209316960446
+        },
+        {
+          "beat": 6,
+          "distance": 238.03611819052148
+        },
+        {
+          "beat": 0,
+          "distance": 240.78228401670918
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "section": 0,
+      "indexInParent": 2,
+      "start": 1.8692063492063493,
+      "duration": 0.6153287981859408,
+      "confidence": 0.9345971941947937,
+      "other": 14,
+      "others": [
+        14
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 14,
+          "distance": 72.69765295833349
+        },
+        {
+          "beat": 6,
+          "distance": 104.17745161284026
+        },
+        {
+          "beat": 7,
+          "distance": 197.13745032334324
+        },
+        {
+          "beat": 4,
+          "distance": 214.91815424759517
+        },
+        {
+          "beat": 5,
+          "distance": 229.4360197832593
+        },
+        {
+          "beat": 3,
+          "distance": 234.0764907785234
+        },
+        {
+          "beat": 0,
+          "distance": 248.2665727085358
+        },
+        {
+          "beat": 1,
+          "distance": 266.36921852607634
+        },
+        {
+          "beat": 10,
+          "distance": 485.606958175287
+        },
+        {
+          "beat": 26,
+          "distance": 524.432739113166
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 14,
+          "distance": 72.69765295833349
+        },
+        {
+          "beat": 6,
+          "distance": 104.17745161284026
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "section": 0,
+      "indexInParent": 3,
+      "start": 2.48453514739229,
+      "duration": 0.6153287981859412,
+      "confidence": 0.9564725756645203,
+      "other": 15,
+      "others": [
+        15
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 15,
+          "distance": 77.10958045721054
+        },
+        {
+          "beat": 7,
+          "distance": 83.7567824371327
+        },
+        {
+          "beat": 4,
+          "distance": 229.61310755979412
+        },
+        {
+          "beat": 6,
+          "distance": 230.42949955146415
+        },
+        {
+          "beat": 2,
+          "distance": 234.0764907785234
+        },
+        {
+          "beat": 0,
+          "distance": 238.60575973575365
+        },
+        {
+          "beat": 5,
+          "distance": 239.42452920637515
+        },
+        {
+          "beat": 1,
+          "distance": 252.92801642209554
+        },
+        {
+          "beat": 11,
+          "distance": 499.08618453342825
+        },
+        {
+          "beat": 35,
+          "distance": 512.1419201292969
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 15,
+          "distance": 77.10958045721054
+        },
+        {
+          "beat": 7,
+          "distance": 83.7567824371327
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "section": 0,
+      "indexInParent": 0,
+      "start": 3.0998639455782313,
+      "duration": 0.626938775510204,
+      "confidence": 0.6371617913246155,
+      "other": 16,
+      "others": [
+        16
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 16,
+          "distance": 77.92305913567543
+        },
+        {
+          "beat": 0,
+          "distance": 98.99019485379517
+        },
+        {
+          "beat": 2,
+          "distance": 214.91815424759517
+        },
+        {
+          "beat": 7,
+          "distance": 224.6320104491783
+        },
+        {
+          "beat": 3,
+          "distance": 229.61310755979412
+        },
+        {
+          "beat": 1,
+          "distance": 232.35009308003814
+        },
+        {
+          "beat": 6,
+          "distance": 250.41090870310674
+        },
+        {
+          "beat": 5,
+          "distance": 258.0066410539734
+        },
+        {
+          "beat": 28,
+          "distance": 499.59065481255533
+        },
+        {
+          "beat": 8,
+          "distance": 504.55567257663813
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 16,
+          "distance": 77.92305913567543
+        },
+        {
+          "beat": 0,
+          "distance": 98.99019485379517
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "section": 0,
+      "indexInParent": 1,
+      "start": 3.7268027210884354,
+      "duration": 0.6153287981859412,
+      "confidence": 0.5845509171485901,
+      "other": 17,
+      "others": [
+        17
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 17,
+          "distance": 82.6497386097908
+        },
+        {
+          "beat": 1,
+          "distance": 128.11250985685402
+        },
+        {
+          "beat": 7,
+          "distance": 210.59096076057568
+        },
+        {
+          "beat": 2,
+          "distance": 229.4360197832593
+        },
+        {
+          "beat": 0,
+          "distance": 230.33017073923241
+        },
+        {
+          "beat": 6,
+          "distance": 237.83137725232535
+        },
+        {
+          "beat": 3,
+          "distance": 239.42452920637515
+        },
+        {
+          "beat": 4,
+          "distance": 258.0066410539734
+        },
+        {
+          "beat": 9,
+          "distance": 481.4442617580081
+        },
+        {
+          "beat": 33,
+          "distance": 510.7341437580252
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 17,
+          "distance": 96.42469504475594
+        },
+        {
+          "beat": 1,
+          "distance": 128.11250985685402
+        },
+        {
+          "beat": 7,
+          "distance": 210.59096076057568
+        },
+        {
+          "beat": 2,
+          "distance": 229.4360197832593
+        },
+        {
+          "beat": 0,
+          "distance": 230.33017073923241
+        },
+        {
+          "beat": 6,
+          "distance": 237.83137725232535
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "section": 0,
+      "indexInParent": 2,
+      "start": 4.342131519274377,
+      "duration": 0.6153287981859412,
+      "confidence": 1,
+      "other": 18,
+      "others": [
+        18
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 18,
+          "distance": 87.64816474914551
+        },
+        {
+          "beat": 2,
+          "distance": 104.17745161284026
+        },
+        {
+          "beat": 7,
+          "distance": 222.28000145537632
+        },
+        {
+          "beat": 3,
+          "distance": 230.42949955146415
+        },
+        {
+          "beat": 5,
+          "distance": 237.83137725232535
+        },
+        {
+          "beat": 1,
+          "distance": 238.03611819052148
+        },
+        {
+          "beat": 0,
+          "distance": 242.73320958223255
+        },
+        {
+          "beat": 4,
+          "distance": 250.41090870310674
+        },
+        {
+          "beat": 10,
+          "distance": 490.92886793690894
+        },
+        {
+          "beat": 34,
+          "distance": 554.252796628586
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 18,
+          "distance": 87.64816474914551
+        },
+        {
+          "beat": 2,
+          "distance": 104.17745161284026
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "section": 0,
+      "indexInParent": 3,
+      "start": 4.957460317460318,
+      "duration": 0.6153287981859403,
+      "confidence": 0.6916201114654541,
+      "other": 19,
+      "others": [
+        19
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 19,
+          "distance": 80.74466478824615
+        },
+        {
+          "beat": 3,
+          "distance": 83.7567824371327
+        },
+        {
+          "beat": 2,
+          "distance": 197.13745032334324
+        },
+        {
+          "beat": 5,
+          "distance": 210.59096076057568
+        },
+        {
+          "beat": 6,
+          "distance": 222.28000145537632
+        },
+        {
+          "beat": 4,
+          "distance": 224.6320104491783
+        },
+        {
+          "beat": 1,
+          "distance": 235.55209316960446
+        },
+        {
+          "beat": 0,
+          "distance": 239.5574004750716
+        },
+        {
+          "beat": 31,
+          "distance": 499.9563614363779
+        },
+        {
+          "beat": 35,
+          "distance": 514.9455240762485
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 19,
+          "distance": 80.74466478824615
+        },
+        {
+          "beat": 3,
+          "distance": 83.7567824371327
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "section": 1,
+      "indexInParent": 0,
+      "start": 5.572789115646258,
+      "duration": 0.6269387755102045,
+      "confidence": 0.42584192752838135,
+      "other": 20,
+      "others": [
+        20
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 20,
+          "distance": 80.70828241109848
+        },
+        {
+          "beat": 12,
+          "distance": 192.61460998231874
+        },
+        {
+          "beat": 10,
+          "distance": 224.6501992408977
+        },
+        {
+          "beat": 11,
+          "distance": 244.57649811577446
+        },
+        {
+          "beat": 9,
+          "distance": 253.5986318164853
+        },
+        {
+          "beat": 15,
+          "distance": 273.07303134172565
+        },
+        {
+          "beat": 14,
+          "distance": 286.7907822658207
+        },
+        {
+          "beat": 13,
+          "distance": 294.7155283828343
+        },
+        {
+          "beat": 32,
+          "distance": 500.44459130027053
+        },
+        {
+          "beat": 4,
+          "distance": 504.55567257663813
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 20,
+          "distance": 94.15966281294823
+        },
+        {
+          "beat": 12,
+          "distance": 192.61460998231874
+        },
+        {
+          "beat": 10,
+          "distance": 224.6501992408977
+        },
+        {
+          "beat": 11,
+          "distance": 244.57649811577446
+        },
+        {
+          "beat": 9,
+          "distance": 253.5986318164853
+        },
+        {
+          "beat": 15,
+          "distance": 273.07303134172565
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "section": 1,
+      "indexInParent": 1,
+      "start": 6.199727891156463,
+      "duration": 0.6153287981859412,
+      "confidence": 0.7552827596664429,
+      "other": 21,
+      "others": [
+        21
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 21,
+          "distance": 85.23414891958237
+        },
+        {
+          "beat": 13,
+          "distance": 183.6452694378273
+        },
+        {
+          "beat": 10,
+          "distance": 237.89116845451332
+        },
+        {
+          "beat": 8,
+          "distance": 253.5986318164853
+        },
+        {
+          "beat": 11,
+          "distance": 255.0939878459104
+        },
+        {
+          "beat": 15,
+          "distance": 261.87054398575117
+        },
+        {
+          "beat": 14,
+          "distance": 275.4309445338993
+        },
+        {
+          "beat": 12,
+          "distance": 321.4824189716344
+        },
+        {
+          "beat": 5,
+          "distance": 481.4442617580081
+        },
+        {
+          "beat": 33,
+          "distance": 518.1589478159731
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 21,
+          "distance": 99.43984040617943
+        },
+        {
+          "beat": 13,
+          "distance": 183.6452694378273
+        },
+        {
+          "beat": 10,
+          "distance": 237.89116845451332
+        },
+        {
+          "beat": 8,
+          "distance": 253.5986318164853
+        },
+        {
+          "beat": 11,
+          "distance": 255.0939878459104
+        },
+        {
+          "beat": 15,
+          "distance": 261.87054398575117
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "section": 1,
+      "indexInParent": 2,
+      "start": 6.815056689342404,
+      "duration": 0.6153287981859412,
+      "confidence": 0.8850651979446411,
+      "other": 22,
+      "others": [
+        22
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 22,
+          "distance": 84.11851805448532
+        },
+        {
+          "beat": 14,
+          "distance": 182.46258496779436
+        },
+        {
+          "beat": 8,
+          "distance": 224.6501992408977
+        },
+        {
+          "beat": 9,
+          "distance": 237.89116845451332
+        },
+        {
+          "beat": 15,
+          "distance": 267.528856271807
+        },
+        {
+          "beat": 11,
+          "distance": 277.88519820591455
+        },
+        {
+          "beat": 13,
+          "distance": 331.06681443359315
+        },
+        {
+          "beat": 12,
+          "distance": 348.8662688157325
+        },
+        {
+          "beat": 2,
+          "distance": 485.606958175287
+        },
+        {
+          "beat": 6,
+          "distance": 490.92886793690894
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 22,
+          "distance": 98.13827106356621
+        },
+        {
+          "beat": 14,
+          "distance": 182.46258496779436
+        },
+        {
+          "beat": 8,
+          "distance": 224.6501992408977
+        },
+        {
+          "beat": 9,
+          "distance": 237.89116845451332
+        },
+        {
+          "beat": 15,
+          "distance": 267.528856271807
+        },
+        {
+          "beat": 11,
+          "distance": 277.88519820591455
+        }
+      ]
+    },
+    {
+      "index": 11,
+      "section": 1,
+      "indexInParent": 3,
+      "start": 7.430385487528345,
+      "duration": 0.6269387755102036,
+      "confidence": 0.6624689102172852,
+      "other": 23,
+      "others": [
+        23
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 23,
+          "distance": 84.00990915298462
+        },
+        {
+          "beat": 15,
+          "distance": 157.0701392471598
+        },
+        {
+          "beat": 8,
+          "distance": 244.57649811577446
+        },
+        {
+          "beat": 9,
+          "distance": 255.0939878459104
+        },
+        {
+          "beat": 10,
+          "distance": 277.88519820591455
+        },
+        {
+          "beat": 14,
+          "distance": 312.8552092063412
+        },
+        {
+          "beat": 13,
+          "distance": 343.00175681160664
+        },
+        {
+          "beat": 12,
+          "distance": 360.6526935094639
+        },
+        {
+          "beat": 3,
+          "distance": 499.08618453342825
+        },
+        {
+          "beat": 35,
+          "distance": 519.9332621982159
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 23,
+          "distance": 98.01156067848206
+        },
+        {
+          "beat": 15,
+          "distance": 157.0701392471598
+        },
+        {
+          "beat": 8,
+          "distance": 244.57649811577446
+        },
+        {
+          "beat": 9,
+          "distance": 255.0939878459104
+        },
+        {
+          "beat": 10,
+          "distance": 277.88519820591455
+        },
+        {
+          "beat": 14,
+          "distance": 312.8552092063412
+        }
+      ]
+    },
+    {
+      "index": 12,
+      "section": 1,
+      "indexInParent": 0,
+      "start": 8.057324263038549,
+      "duration": 0.6153287981859403,
+      "confidence": 0.24727225303649902,
+      "other": 24,
+      "others": [
+        24
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 24,
+          "distance": 84.70866483449936
+        },
+        {
+          "beat": 8,
+          "distance": 214.22039708400877
+        },
+        {
+          "beat": 14,
+          "distance": 218.5987921553183
+        },
+        {
+          "beat": 13,
+          "distance": 222.49969077455842
+        },
+        {
+          "beat": 15,
+          "distance": 225.66963942893813
+        },
+        {
+          "beat": 9,
+          "distance": 339.19842811738204
+        },
+        {
+          "beat": 10,
+          "distance": 368.85548364143517
+        },
+        {
+          "beat": 11,
+          "distance": 377.71597229833276
+        },
+        {
+          "beat": 16,
+          "distance": 508.46792097935713
+        },
+        {
+          "beat": 20,
+          "distance": 530.033479496853
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 24,
+          "distance": 98.82677564024925
+        },
+        {
+          "beat": 8,
+          "distance": 214.22039708400877
+        },
+        {
+          "beat": 14,
+          "distance": 218.5987921553183
+        },
+        {
+          "beat": 13,
+          "distance": 222.49969077455842
+        },
+        {
+          "beat": 15,
+          "distance": 225.66963942893813
+        },
+        {
+          "beat": 9,
+          "distance": 339.19842811738204
+        }
+      ]
+    },
+    {
+      "index": 13,
+      "section": 1,
+      "indexInParent": 1,
+      "start": 8.672653061224489,
+      "duration": 0.6153287981859421,
+      "confidence": 0.28996923565864563,
+      "other": 25,
+      "others": [
+        25
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 25,
+          "distance": 75.76909554004669
+        },
+        {
+          "beat": 9,
+          "distance": 202.27030634038348
+        },
+        {
+          "beat": 12,
+          "distance": 222.49969077455842
+        },
+        {
+          "beat": 14,
+          "distance": 242.58678535931733
+        },
+        {
+          "beat": 15,
+          "distance": 245.2544824976951
+        },
+        {
+          "beat": 8,
+          "distance": 317.20969921944044
+        },
+        {
+          "beat": 10,
+          "distance": 351.9776220666604
+        },
+        {
+          "beat": 11,
+          "distance": 361.0361343026008
+        },
+        {
+          "beat": 17,
+          "distance": 513.6865371510557
+        },
+        {
+          "beat": 21,
+          "distance": 519.7413640793995
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 25,
+          "distance": 88.39727813005447
+        },
+        {
+          "beat": 9,
+          "distance": 202.27030634038348
+        },
+        {
+          "beat": 12,
+          "distance": 222.49969077455842
+        },
+        {
+          "beat": 14,
+          "distance": 242.58678535931733
+        },
+        {
+          "beat": 15,
+          "distance": 245.2544824976951
+        },
+        {
+          "beat": 8,
+          "distance": 317.20969921944044
+        }
+      ]
+    },
+    {
+      "index": 14,
+      "section": 1,
+      "indexInParent": 2,
+      "start": 9.287981859410431,
+      "duration": 0.6269387755102045,
+      "confidence": 0.13384047150611877,
+      "other": 26,
+      "others": [
+        26
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 26,
+          "distance": 66.84149694442749
+        },
+        {
+          "beat": 10,
+          "distance": 200.6933937136729
+        },
+        {
+          "beat": 12,
+          "distance": 218.5987921553183
+        },
+        {
+          "beat": 13,
+          "distance": 242.58678535931733
+        },
+        {
+          "beat": 15,
+          "distance": 250.22451926337135
+        },
+        {
+          "beat": 9,
+          "distance": 291.5059507365571
+        },
+        {
+          "beat": 8,
+          "distance": 306.1647819981666
+        },
+        {
+          "beat": 11,
+          "distance": 327.69548176365777
+        },
+        {
+          "beat": 22,
+          "distance": 494.1746740616944
+        },
+        {
+          "beat": 18,
+          "distance": 521.2251507733669
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 26,
+          "distance": 77.9817464351654
+        },
+        {
+          "beat": 10,
+          "distance": 200.6933937136729
+        },
+        {
+          "beat": 12,
+          "distance": 218.5987921553183
+        },
+        {
+          "beat": 13,
+          "distance": 242.58678535931733
+        },
+        {
+          "beat": 15,
+          "distance": 250.22451926337135
+        },
+        {
+          "beat": 9,
+          "distance": 291.5059507365571
+        }
+      ]
+    },
+    {
+      "index": 15,
+      "section": 1,
+      "indexInParent": 3,
+      "start": 9.914920634920636,
+      "duration": 0.6153287981859403,
+      "confidence": 0.06841593235731125,
+      "other": 27,
+      "others": [
+        27
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 27,
+          "distance": 63.13716334104538
+        },
+        {
+          "beat": 11,
+          "distance": 166.82776943713017
+        },
+        {
+          "beat": 12,
+          "distance": 225.66963942893813
+        },
+        {
+          "beat": 13,
+          "distance": 245.2544824976951
+        },
+        {
+          "beat": 14,
+          "distance": 250.22451926337135
+        },
+        {
+          "beat": 9,
+          "distance": 272.93779762474054
+        },
+        {
+          "beat": 10,
+          "distance": 280.9608030714041
+        },
+        {
+          "beat": 8,
+          "distance": 287.3868283850874
+        },
+        {
+          "beat": 23,
+          "distance": 466.13900631700966
+        },
+        {
+          "beat": 19,
+          "distance": 503.008600922416
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 27,
+          "distance": 73.66002389788628
+        },
+        {
+          "beat": 11,
+          "distance": 166.82776943713017
+        },
+        {
+          "beat": 12,
+          "distance": 225.66963942893813
+        },
+        {
+          "beat": 13,
+          "distance": 245.2544824976951
+        },
+        {
+          "beat": 14,
+          "distance": 250.22451926337135
+        },
+        {
+          "beat": 9,
+          "distance": 272.93779762474054
+        }
+      ]
+    },
+    {
+      "index": 16,
+      "section": 2,
+      "indexInParent": 0,
+      "start": 10.530249433106576,
+      "duration": 0.6153287981859403,
+      "confidence": 0.2725748121738434,
+      "other": 28,
+      "others": [
+        28
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 28,
+          "distance": 58.846615970134735
+        },
+        {
+          "beat": 20,
+          "distance": 81.66432784155133
+        },
+        {
+          "beat": 22,
+          "distance": 157.65226796101865
+        },
+        {
+          "beat": 23,
+          "distance": 159.60946611778647
+        },
+        {
+          "beat": 21,
+          "distance": 169.92493904188257
+        },
+        {
+          "beat": 19,
+          "distance": 220.84629088639736
+        },
+        {
+          "beat": 17,
+          "distance": 229.8509322013607
+        },
+        {
+          "beat": 18,
+          "distance": 230.47696461726804
+        },
+        {
+          "beat": 24,
+          "distance": 500.31026006267155
+        },
+        {
+          "beat": 12,
+          "distance": 508.46792097935713
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 28,
+          "distance": 58.846615970134735
+        },
+        {
+          "beat": 20,
+          "distance": 81.66432784155133
+        }
+      ]
+    },
+    {
+      "index": 17,
+      "section": 2,
+      "indexInParent": 1,
+      "start": 11.145578231292516,
+      "duration": 0.6153287981859421,
+      "confidence": 0.2098046988248825,
+      "other": 29,
+      "others": [
+        29
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 29,
+          "distance": 54.31862783432007
+        },
+        {
+          "beat": 21,
+          "distance": 71.4634060238873
+        },
+        {
+          "beat": 23,
+          "distance": 154.88271715277543
+        },
+        {
+          "beat": 22,
+          "distance": 159.81684110665324
+        },
+        {
+          "beat": 20,
+          "distance": 213.18385847903286
+        },
+        {
+          "beat": 16,
+          "distance": 229.8509322013607
+        },
+        {
+          "beat": 19,
+          "distance": 233.16906635358254
+        },
+        {
+          "beat": 18,
+          "distance": 246.5824953889806
+        },
+        {
+          "beat": 13,
+          "distance": 513.6865371510557
+        },
+        {
+          "beat": 37,
+          "distance": 521.092155279887
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 29,
+          "distance": 54.31862783432007
+        },
+        {
+          "beat": 21,
+          "distance": 71.4634060238873
+        }
+      ]
+    },
+    {
+      "index": 18,
+      "section": 2,
+      "indexInParent": 2,
+      "start": 11.760907029478458,
+      "duration": 0.6269387755102045,
+      "confidence": 0.03045210987329483,
+      "other": 30,
+      "others": [
+        30
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 22,
+          "distance": 54.985883996124876
+        },
+        {
+          "beat": 30,
+          "distance": 61.715698063373566
+        },
+        {
+          "beat": 23,
+          "distance": 155.31387752718538
+        },
+        {
+          "beat": 21,
+          "distance": 202.74588563774083
+        },
+        {
+          "beat": 20,
+          "distance": 211.71711754968644
+        },
+        {
+          "beat": 19,
+          "distance": 228.40079743891982
+        },
+        {
+          "beat": 16,
+          "distance": 230.47696461726804
+        },
+        {
+          "beat": 17,
+          "distance": 246.5824953889806
+        },
+        {
+          "beat": 14,
+          "distance": 521.2251507733669
+        },
+        {
+          "beat": 34,
+          "distance": 533.3574277172788
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 22,
+          "distance": 54.985883996124876
+        },
+        {
+          "beat": 30,
+          "distance": 61.715698063373566
+        }
+      ]
+    },
+    {
+      "index": 19,
+      "section": 2,
+      "indexInParent": 3,
+      "start": 12.387845804988663,
+      "duration": 0.6153287981859403,
+      "confidence": 0.0946737676858902,
+      "other": 31,
+      "others": [
+        31
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 23,
+          "distance": 63.008644546501
+        },
+        {
+          "beat": 31,
+          "distance": 65.7685976922512
+        },
+        {
+          "beat": 22,
+          "distance": 203.8983569959799
+        },
+        {
+          "beat": 16,
+          "distance": 220.84629088639736
+        },
+        {
+          "beat": 18,
+          "distance": 228.40079743891982
+        },
+        {
+          "beat": 21,
+          "distance": 229.07210320128783
+        },
+        {
+          "beat": 20,
+          "distance": 231.39139541600892
+        },
+        {
+          "beat": 17,
+          "distance": 233.16906635358254
+        },
+        {
+          "beat": 15,
+          "distance": 503.008600922416
+        },
+        {
+          "beat": 35,
+          "distance": 540.7593974088558
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 23,
+          "distance": 63.008644546501
+        },
+        {
+          "beat": 31,
+          "distance": 65.7685976922512
+        }
+      ]
+    },
+    {
+      "index": 20,
+      "section": 2,
+      "indexInParent": 0,
+      "start": 13.003174603174603,
+      "duration": 0.6153287981859403,
+      "confidence": 0.2469879388809204,
+      "other": 32,
+      "others": [
+        32
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 32,
+          "distance": 62.49828261137009
+        },
+        {
+          "beat": 16,
+          "distance": 81.66432784155133
+        },
+        {
+          "beat": 23,
+          "distance": 203.32231184027472
+        },
+        {
+          "beat": 18,
+          "distance": 211.71711754968644
+        },
+        {
+          "beat": 17,
+          "distance": 213.18385847903286
+        },
+        {
+          "beat": 22,
+          "distance": 228.16396206685127
+        },
+        {
+          "beat": 19,
+          "distance": 231.39139541600892
+        },
+        {
+          "beat": 21,
+          "distance": 250.32264578375106
+        },
+        {
+          "beat": 24,
+          "distance": 523.9546453112256
+        },
+        {
+          "beat": 12,
+          "distance": 530.033479496853
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 32,
+          "distance": 62.49828261137009
+        },
+        {
+          "beat": 16,
+          "distance": 81.66432784155133
+        }
+      ]
+    },
+    {
+      "index": 21,
+      "section": 2,
+      "indexInParent": 1,
+      "start": 13.618503401360543,
+      "duration": 0.6269387755102045,
+      "confidence": 0.11150176078081131,
+      "other": 33,
+      "others": [
+        33
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 33,
+          "distance": 63.50625228881836
+        },
+        {
+          "beat": 17,
+          "distance": 71.4634060238873
+        },
+        {
+          "beat": 16,
+          "distance": 169.92493904188257
+        },
+        {
+          "beat": 18,
+          "distance": 202.74588563774083
+        },
+        {
+          "beat": 23,
+          "distance": 216.73401397922578
+        },
+        {
+          "beat": 19,
+          "distance": 229.07210320128783
+        },
+        {
+          "beat": 22,
+          "distance": 236.13204099026123
+        },
+        {
+          "beat": 20,
+          "distance": 250.32264578375106
+        },
+        {
+          "beat": 37,
+          "distance": 515.4961078082342
+        },
+        {
+          "beat": 13,
+          "distance": 519.7413640793995
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 33,
+          "distance": 63.50625228881836
+        },
+        {
+          "beat": 17,
+          "distance": 71.4634060238873
+        }
+      ]
+    },
+    {
+      "index": 22,
+      "section": 2,
+      "indexInParent": 2,
+      "start": 14.245442176870748,
+      "duration": 0.6153287981859421,
+      "confidence": 0,
+      "other": 34,
+      "others": [
+        34
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 18,
+          "distance": 54.985883996124876
+        },
+        {
+          "beat": 34,
+          "distance": 72.02442915632855
+        },
+        {
+          "beat": 16,
+          "distance": 157.65226796101865
+        },
+        {
+          "beat": 17,
+          "distance": 159.81684110665324
+        },
+        {
+          "beat": 19,
+          "distance": 203.8983569959799
+        },
+        {
+          "beat": 23,
+          "distance": 221.34777882087272
+        },
+        {
+          "beat": 20,
+          "distance": 228.16396206685127
+        },
+        {
+          "beat": 21,
+          "distance": 236.13204099026123
+        },
+        {
+          "beat": 14,
+          "distance": 494.1746740616944
+        },
+        {
+          "beat": 30,
+          "distance": 511.90109149539796
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 18,
+          "distance": 54.985883996124876
+        },
+        {
+          "beat": 34,
+          "distance": 72.02442915632855
+        }
+      ]
+    },
+    {
+      "index": 23,
+      "section": 2,
+      "indexInParent": 3,
+      "start": 14.86077097505669,
+      "duration": 0.6153287981859403,
+      "confidence": 0.16121912002563477,
+      "other": 35,
+      "others": [
+        35
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 19,
+          "distance": 63.008644546501
+        },
+        {
+          "beat": 35,
+          "distance": 73.10583085566759
+        },
+        {
+          "beat": 17,
+          "distance": 154.88271715277543
+        },
+        {
+          "beat": 18,
+          "distance": 155.31387752718538
+        },
+        {
+          "beat": 16,
+          "distance": 159.60946611778647
+        },
+        {
+          "beat": 20,
+          "distance": 203.32231184027472
+        },
+        {
+          "beat": 21,
+          "distance": 216.73401397922578
+        },
+        {
+          "beat": 22,
+          "distance": 221.34777882087272
+        },
+        {
+          "beat": 15,
+          "distance": 466.13900631700966
+        },
+        {
+          "beat": 31,
+          "distance": 530.9638370208012
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 19,
+          "distance": 63.008644546501
+        },
+        {
+          "beat": 35,
+          "distance": 73.10583085566759
+        }
+      ]
+    },
+    {
+      "index": 24,
+      "section": 3,
+      "indexInParent": 0,
+      "start": 15.47609977324263,
+      "duration": 0.6153287981859421,
+      "confidence": 0.215608611702919,
+      "other": 36,
+      "others": [
+        36
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 36,
+          "distance": 75.35645109415054
+        },
+        {
+          "beat": 28,
+          "distance": 121.64251897466877
+        },
+        {
+          "beat": 30,
+          "distance": 204.44976792302057
+        },
+        {
+          "beat": 29,
+          "distance": 220.16900630292784
+        },
+        {
+          "beat": 31,
+          "distance": 233.48779774696231
+        },
+        {
+          "beat": 27,
+          "distance": 274.6087317146206
+        },
+        {
+          "beat": 26,
+          "distance": 279.36105651057676
+        },
+        {
+          "beat": 25,
+          "distance": 309.80211210304464
+        },
+        {
+          "beat": 16,
+          "distance": 500.31026006267155
+        },
+        {
+          "beat": 20,
+          "distance": 523.9546453112256
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 36,
+          "distance": 87.9158596098423
+        },
+        {
+          "beat": 28,
+          "distance": 121.64251897466877
+        },
+        {
+          "beat": 30,
+          "distance": 204.44976792302057
+        },
+        {
+          "beat": 29,
+          "distance": 220.16900630292784
+        },
+        {
+          "beat": 31,
+          "distance": 233.48779774696231
+        },
+        {
+          "beat": 27,
+          "distance": 274.6087317146206
+        }
+      ]
+    },
+    {
+      "index": 25,
+      "section": 3,
+      "indexInParent": 1,
+      "start": 16.091428571428573,
+      "duration": 0.6269387755102045,
+      "confidence": 0.4658704400062561,
+      "other": 37,
+      "others": [
+        37
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 37,
+          "distance": 79.83547729253769
+        },
+        {
+          "beat": 29,
+          "distance": 110.55271648275055
+        },
+        {
+          "beat": 27,
+          "distance": 213.3315048850606
+        },
+        {
+          "beat": 26,
+          "distance": 226.88279680994359
+        },
+        {
+          "beat": 28,
+          "distance": 227.16424179744732
+        },
+        {
+          "beat": 30,
+          "distance": 228.4331302216411
+        },
+        {
+          "beat": 31,
+          "distance": 228.72094863085994
+        },
+        {
+          "beat": 24,
+          "distance": 309.7105258762253
+        },
+        {
+          "beat": 1,
+          "distance": 489.6127458398939
+        },
+        {
+          "beat": 13,
+          "distance": 530.0329210025244
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 37,
+          "distance": 79.83547729253769
+        },
+        {
+          "beat": 29,
+          "distance": 110.55271648275055
+        }
+      ]
+    },
+    {
+      "index": 26,
+      "section": 3,
+      "indexInParent": 2,
+      "start": 16.718367346938777,
+      "duration": 0.6153287981859386,
+      "confidence": 0.2946789562702179,
+      "other": 0,
+      "others": [
+        0
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 0,
+          "distance": 55.985636830329895
+        },
+        {
+          "beat": 30,
+          "distance": 120.9755582835773
+        },
+        {
+          "beat": 31,
+          "distance": 223.8451495578425
+        },
+        {
+          "beat": 25,
+          "distance": 226.88279680994359
+        },
+        {
+          "beat": 27,
+          "distance": 242.5949443811714
+        },
+        {
+          "beat": 28,
+          "distance": 245.53519691866853
+        },
+        {
+          "beat": 29,
+          "distance": 246.23381394553832
+        },
+        {
+          "beat": 24,
+          "distance": 281.74544846758863
+        },
+        {
+          "beat": 2,
+          "distance": 524.432739113166
+        },
+        {
+          "beat": 34,
+          "distance": 537.0527356574162
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 0,
+          "distance": 65.31657630205154
+        },
+        {
+          "beat": 30,
+          "distance": 120.9755582835773
+        },
+        {
+          "beat": 31,
+          "distance": 223.8451495578425
+        },
+        {
+          "beat": 25,
+          "distance": 226.88279680994359
+        },
+        {
+          "beat": 27,
+          "distance": 242.5949443811714
+        },
+        {
+          "beat": 28,
+          "distance": 245.53519691866853
+        }
+      ]
+    },
+    {
+      "index": 27,
+      "section": 3,
+      "indexInParent": 3,
+      "start": 17.333696145124716,
+      "duration": 0.6153287981859421,
+      "confidence": 0.6754840612411499,
+      "other": 1,
+      "others": [
+        1
+      ],
+      "otherGain": 0,
+      "neighbors": [
+        {
+          "beat": 1,
+          "distance": 46.88435447216034
+        },
+        {
+          "beat": 31,
+          "distance": 116.29141714478058
+        },
+        {
+          "beat": 25,
+          "distance": 213.3315048850606
+        },
+        {
+          "beat": 26,
+          "distance": 242.5949443811714
+        },
+        {
+          "beat": 28,
+          "distance": 254.54883087312476
+        },
+        {
+          "beat": 29,
+          "distance": 257.9064881578548
+        },
+        {
+          "beat": 30,
+          "distance": 259.020352687285
+        },
+        {
+          "beat": 24,
+          "distance": 273.04014666956334
+        },
+        {
+          "beat": 35,
+          "distance": 510.3143746409549
+        },
+        {
+          "beat": 3,
+          "distance": 535.5116319244472
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 1,
+          "distance": 54.69841355085373
+        },
+        {
+          "beat": 31,
+          "distance": 116.29141714478058
+        },
+        {
+          "beat": 25,
+          "distance": 213.3315048850606
+        },
+        {
+          "beat": 26,
+          "distance": 242.5949443811714
+        },
+        {
+          "beat": 28,
+          "distance": 254.54883087312476
+        },
+        {
+          "beat": 29,
+          "distance": 257.9064881578548
+        }
+      ]
+    },
+    {
+      "index": 28,
+      "section": 3,
+      "indexInParent": 0,
+      "start": 17.949024943310658,
+      "duration": 0.6153287981859421,
+      "confidence": 0.7028335928916931,
+      "other": 2,
+      "others": [
+        2
+      ],
+      "otherGain": 0.6820698001980782,
+      "neighbors": [
+        {
+          "beat": 2,
+          "distance": 40.781386613845825
+        },
+        {
+          "beat": 24,
+          "distance": 123.17442891354126
+        },
+        {
+          "beat": 31,
+          "distance": 224.56886314415968
+        },
+        {
+          "beat": 25,
+          "distance": 227.16424179744732
+        },
+        {
+          "beat": 29,
+          "distance": 244.26081447918887
+        },
+        {
+          "beat": 26,
+          "distance": 245.53519691866853
+        },
+        {
+          "beat": 27,
+          "distance": 254.54883087312476
+        },
+        {
+          "beat": 30,
+          "distance": 260.0827414839629
+        },
+        {
+          "beat": 36,
+          "distance": 488.3411080683857
+        },
+        {
+          "beat": 4,
+          "distance": 499.59065481255533
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 2,
+          "distance": 47.57828438282013
+        },
+        {
+          "beat": 24,
+          "distance": 123.17442891354126
+        },
+        {
+          "beat": 31,
+          "distance": 224.56886314415968
+        },
+        {
+          "beat": 25,
+          "distance": 227.16424179744732
+        },
+        {
+          "beat": 29,
+          "distance": 244.26081447918887
+        },
+        {
+          "beat": 26,
+          "distance": 245.53519691866853
+        }
+      ]
+    },
+    {
+      "index": 29,
+      "section": 3,
+      "indexInParent": 1,
+      "start": 18.5643537414966,
+      "duration": 0.6269387755102045,
+      "confidence": 0.42653247714042664,
+      "other": 3,
+      "others": [
+        3
+      ],
+      "otherGain": 0.7129992642998696,
+      "neighbors": [
+        {
+          "beat": 3,
+          "distance": 32.53352952003479
+        },
+        {
+          "beat": 25,
+          "distance": 110.55271648275055
+        },
+        {
+          "beat": 24,
+          "distance": 221.92823620867736
+        },
+        {
+          "beat": 28,
+          "distance": 244.26081447918887
+        },
+        {
+          "beat": 26,
+          "distance": 246.23381394553832
+        },
+        {
+          "beat": 31,
+          "distance": 247.95902330900347
+        },
+        {
+          "beat": 27,
+          "distance": 257.9064881578548
+        },
+        {
+          "beat": 30,
+          "distance": 277.3393869812978
+        },
+        {
+          "beat": 33,
+          "distance": 505.98834244185434
+        },
+        {
+          "beat": 9,
+          "distance": 525.8205476167318
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 3,
+          "distance": 37.95578444004059
+        },
+        {
+          "beat": 25,
+          "distance": 110.55271648275055
+        },
+        {
+          "beat": 24,
+          "distance": 221.92823620867736
+        },
+        {
+          "beat": 28,
+          "distance": 244.26081447918887
+        },
+        {
+          "beat": 26,
+          "distance": 246.23381394553832
+        },
+        {
+          "beat": 31,
+          "distance": 247.95902330900347
+        }
+      ]
+    },
+    {
+      "index": 30,
+      "section": 3,
+      "indexInParent": 2,
+      "start": 19.191292517006804,
+      "duration": 0.6153287981859386,
+      "confidence": 0.39420461654663086,
+      "other": 4,
+      "others": [
+        4
+      ],
+      "otherGain": 0.7266233304142953,
+      "neighbors": [
+        {
+          "beat": 4,
+          "distance": 28.900445222854614
+        },
+        {
+          "beat": 26,
+          "distance": 118.71069146805016
+        },
+        {
+          "beat": 24,
+          "distance": 204.44976792302057
+        },
+        {
+          "beat": 25,
+          "distance": 228.83316833784951
+        },
+        {
+          "beat": 28,
+          "distance": 250.47744719907573
+        },
+        {
+          "beat": 27,
+          "distance": 255.91567307158292
+        },
+        {
+          "beat": 29,
+          "distance": 266.63156359411136
+        },
+        {
+          "beat": 31,
+          "distance": 274.89231938519896
+        },
+        {
+          "beat": 34,
+          "distance": 491.6303263870093
+        },
+        {
+          "beat": 22,
+          "distance": 511.90109149539796
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 4,
+          "distance": 33.71718609333038
+        },
+        {
+          "beat": 26,
+          "distance": 118.71069146805016
+        },
+        {
+          "beat": 24,
+          "distance": 204.44976792302057
+        },
+        {
+          "beat": 25,
+          "distance": 228.83316833784951
+        },
+        {
+          "beat": 28,
+          "distance": 250.47744719907573
+        },
+        {
+          "beat": 27,
+          "distance": 255.91567307158292
+        }
+      ]
+    },
+    {
+      "index": 31,
+      "section": 3,
+      "indexInParent": 3,
+      "start": 19.806621315192743,
+      "duration": 0.6153287981859421,
+      "confidence": 0.7412665486335754,
+      "other": 5,
+      "others": [
+        5
+      ],
+      "otherGain": 0.7276839026808739,
+      "neighbors": [
+        {
+          "beat": 5,
+          "distance": 28.617625951766968
+        },
+        {
+          "beat": 27,
+          "distance": 116.29141714478058
+        },
+        {
+          "beat": 26,
+          "distance": 223.8451495578425
+        },
+        {
+          "beat": 28,
+          "distance": 224.56886314415968
+        },
+        {
+          "beat": 25,
+          "distance": 228.72094863085994
+        },
+        {
+          "beat": 24,
+          "distance": 232.6419858763593
+        },
+        {
+          "beat": 29,
+          "distance": 247.95902330900347
+        },
+        {
+          "beat": 30,
+          "distance": 283.52818133784103
+        },
+        {
+          "beat": 35,
+          "distance": 473.9335206567544
+        },
+        {
+          "beat": 7,
+          "distance": 499.9563614363779
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 5,
+          "distance": 33.38723027706146
+        },
+        {
+          "beat": 27,
+          "distance": 116.29141714478058
+        },
+        {
+          "beat": 26,
+          "distance": 223.8451495578425
+        },
+        {
+          "beat": 28,
+          "distance": 224.56886314415968
+        },
+        {
+          "beat": 25,
+          "distance": 228.72094863085994
+        },
+        {
+          "beat": 24,
+          "distance": 232.6419858763593
+        }
+      ]
+    },
+    {
+      "index": 32,
+      "section": 4,
+      "indexInParent": 0,
+      "start": 20.421950113378685,
+      "duration": 0.6153287981859421,
+      "confidence": 0.5234401226043701,
+      "other": 6,
+      "others": [
+        6
+      ],
+      "otherGain": 0.7284995087981224,
+      "neighbors": [
+        {
+          "beat": 6,
+          "distance": 28.40013098716736
+        },
+        {
+          "beat": 36,
+          "distance": 80.1803287474302
+        },
+        {
+          "beat": 35,
+          "distance": 203.23267707557878
+        },
+        {
+          "beat": 33,
+          "distance": 239.8236921026214
+        },
+        {
+          "beat": 37,
+          "distance": 265.3138733261283
+        },
+        {
+          "beat": 34,
+          "distance": 267.7318720693038
+        },
+        {
+          "beat": 8,
+          "distance": 500.44459130027053
+        },
+        {
+          "beat": 28,
+          "distance": 514.2550574643951
+        },
+        {
+          "beat": 4,
+          "distance": 523.7684078111185
+        },
+        {
+          "beat": 20,
+          "distance": 540.1943968206323
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 6,
+          "distance": 33.13348615169525
+        },
+        {
+          "beat": 36,
+          "distance": 80.1803287474302
+        },
+        {
+          "beat": 35,
+          "distance": 203.23267707557878
+        },
+        {
+          "beat": 33,
+          "distance": 239.8236921026214
+        },
+        {
+          "beat": 37,
+          "distance": 265.3138733261283
+        },
+        {
+          "beat": 34,
+          "distance": 267.7318720693038
+        }
+      ]
+    },
+    {
+      "index": 33,
+      "section": 4,
+      "indexInParent": 1,
+      "start": 21.037278911564627,
+      "duration": 0.6269387755102045,
+      "confidence": 0.2559138834476471,
+      "other": 7,
+      "others": [
+        7
+      ],
+      "otherGain": 0.7329933622479439,
+      "neighbors": [
+        {
+          "beat": 7,
+          "distance": 27.201770067214966
+        },
+        {
+          "beat": 37,
+          "distance": 167.46663255763931
+        },
+        {
+          "beat": 36,
+          "distance": 205.56530238687634
+        },
+        {
+          "beat": 35,
+          "distance": 238.5402805551267
+        },
+        {
+          "beat": 32,
+          "distance": 239.8236921026214
+        },
+        {
+          "beat": 34,
+          "distance": 282.0011478140588
+        },
+        {
+          "beat": 29,
+          "distance": 505.98834244185434
+        },
+        {
+          "beat": 5,
+          "distance": 510.7341437580252
+        },
+        {
+          "beat": 9,
+          "distance": 518.1589478159731
+        },
+        {
+          "beat": 21,
+          "distance": 547.8020318183059
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 7,
+          "distance": 31.735398411750793
+        },
+        {
+          "beat": 37,
+          "distance": 167.46663255763931
+        },
+        {
+          "beat": 36,
+          "distance": 205.56530238687634
+        },
+        {
+          "beat": 35,
+          "distance": 238.5402805551267
+        },
+        {
+          "beat": 32,
+          "distance": 239.8236921026214
+        },
+        {
+          "beat": 34,
+          "distance": 282.0011478140588
+        }
+      ]
+    },
+    {
+      "index": 34,
+      "section": 4,
+      "indexInParent": 2,
+      "start": 21.66421768707483,
+      "duration": 0.6153287981859386,
+      "confidence": 0.4943913221359253,
+      "other": 8,
+      "others": [
+        8
+      ],
+      "otherGain": 0.7413367757201195,
+      "neighbors": [
+        {
+          "beat": 8,
+          "distance": 24.97685980796814
+        },
+        {
+          "beat": 36,
+          "distance": 247.44167115643086
+        },
+        {
+          "beat": 32,
+          "distance": 260.67628797953023
+        },
+        {
+          "beat": 37,
+          "distance": 262.24450392430253
+        },
+        {
+          "beat": 35,
+          "distance": 266.87975219751866
+        },
+        {
+          "beat": 33,
+          "distance": 272.8472447044594
+        },
+        {
+          "beat": 30,
+          "distance": 491.6303263870093
+        },
+        {
+          "beat": 22,
+          "distance": 524.905336609781
+        },
+        {
+          "beat": 10,
+          "distance": 527.6733539187637
+        },
+        {
+          "beat": 18,
+          "distance": 533.3574277172788
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 8,
+          "distance": 29.13966977596283
+        },
+        {
+          "beat": 36,
+          "distance": 247.44167115643086
+        },
+        {
+          "beat": 32,
+          "distance": 260.67628797953023
+        },
+        {
+          "beat": 37,
+          "distance": 262.24450392430253
+        },
+        {
+          "beat": 35,
+          "distance": 266.87975219751866
+        },
+        {
+          "beat": 33,
+          "distance": 272.8472447044594
+        }
+      ]
+    },
+    {
+      "index": 35,
+      "section": 4,
+      "indexInParent": 3,
+      "start": 22.27954648526077,
+      "duration": 0.6153287981859421,
+      "confidence": 0.6842333674430847,
+      "other": 9,
+      "others": [
+        9
+      ],
+      "otherGain": 0.750034790635109,
+      "neighbors": [
+        {
+          "beat": 9,
+          "distance": 22.657389163970947
+        },
+        {
+          "beat": 32,
+          "distance": 203.23267707557878
+        },
+        {
+          "beat": 33,
+          "distance": 238.5402805551267
+        },
+        {
+          "beat": 36,
+          "distance": 244.23671395352832
+        },
+        {
+          "beat": 34,
+          "distance": 277.51875594708076
+        },
+        {
+          "beat": 37,
+          "distance": 312.038571995713
+        },
+        {
+          "beat": 31,
+          "distance": 473.9335206567544
+        },
+        {
+          "beat": 27,
+          "distance": 510.3143746409549
+        },
+        {
+          "beat": 3,
+          "distance": 512.1419201292969
+        },
+        {
+          "beat": 7,
+          "distance": 514.9455240762485
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 9,
+          "distance": 26.43362069129944
+        },
+        {
+          "beat": 32,
+          "distance": 203.23267707557878
+        },
+        {
+          "beat": 33,
+          "distance": 238.5402805551267
+        },
+        {
+          "beat": 36,
+          "distance": 244.23671395352832
+        },
+        {
+          "beat": 34,
+          "distance": 277.51875594708076
+        },
+        {
+          "beat": 37,
+          "distance": 312.038571995713
+        }
+      ]
+    },
+    {
+      "index": 36,
+      "section": 4,
+      "indexInParent": 0,
+      "start": 22.894875283446712,
+      "duration": 0.6269387755102045,
+      "confidence": 0.3970053195953369,
+      "other": 10,
+      "others": [
+        10
+      ],
+      "otherGain": 0.7521976435184479,
+      "neighbors": [
+        {
+          "beat": 10,
+          "distance": 22.080628395080566
+        },
+        {
+          "beat": 32,
+          "distance": 80.1803287474302
+        },
+        {
+          "beat": 33,
+          "distance": 205.56530238687634
+        },
+        {
+          "beat": 35,
+          "distance": 244.23671395352832
+        },
+        {
+          "beat": 34,
+          "distance": 257.79913696520674
+        },
+        {
+          "beat": 37,
+          "distance": 336.74471972821294
+        },
+        {
+          "beat": 28,
+          "distance": 488.3411080683857
+        },
+        {
+          "beat": 4,
+          "distance": 524.6427811473113
+        },
+        {
+          "beat": 8,
+          "distance": 524.661985566051
+        },
+        {
+          "beat": 24,
+          "distance": 542.0583079238472
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 10,
+          "distance": 25.760733127593994
+        },
+        {
+          "beat": 32,
+          "distance": 80.1803287474302
+        },
+        {
+          "beat": 33,
+          "distance": 205.56530238687634
+        },
+        {
+          "beat": 35,
+          "distance": 244.23671395352832
+        },
+        {
+          "beat": 34,
+          "distance": 257.79913696520674
+        },
+        {
+          "beat": 37,
+          "distance": 336.74471972821294
+        }
+      ]
+    },
+    {
+      "index": 37,
+      "section": 4,
+      "indexInParent": 1,
+      "start": 23.521814058956917,
+      "duration": 1.0031020408163271,
+      "confidence": 0.3182099461555481,
+      "other": 11,
+      "others": [
+        11
+      ],
+      "otherGain": 0.7009787300229073,
+      "neighbors": [
+        {
+          "beat": 9,
+          "distance": 14.648579597473145
+        },
+        {
+          "beat": 5,
+          "distance": 15.105232238769531
+        },
+        {
+          "beat": 11,
+          "distance": 35.73900532722473
+        },
+        {
+          "beat": 33,
+          "distance": 135.35332179732308
+        },
+        {
+          "beat": 32,
+          "distance": 234.48651253075158
+        },
+        {
+          "beat": 34,
+          "distance": 267.46440759009306
+        },
+        {
+          "beat": 35,
+          "distance": 293.306233416165
+        },
+        {
+          "beat": 36,
+          "distance": 314.65940239721067
+        },
+        {
+          "beat": 29,
+          "distance": 534.9766448755237
+        },
+        {
+          "beat": 21,
+          "distance": 539.1632081449405
+        }
+      ],
+      "goodNeighbors": [
+        {
+          "beat": 9,
+          "distance": 14.648579597473145
+        },
+        {
+          "beat": 5,
+          "distance": 15.105232238769531
+        },
+        {
+          "beat": 11,
+          "distance": 41.69550621509552
+        },
+        {
+          "beat": 33,
+          "distance": 135.35332179732308
+        },
+        {
+          "beat": 32,
+          "distance": 234.48651253075158
+        },
+        {
+          "beat": 34,
+          "distance": 267.46440759009306
+        }
+      ]
+    }
+  ],
+  "loopGraph": {},
+  "voiceGains": [
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0,
+      "others": [
+        0
+      ]
+    },
+    {
+      "otherGain": 0.6820698001980782,
+      "others": [
+        0.6820698001980782
+      ]
+    },
+    {
+      "otherGain": 0.7129992642998696,
+      "others": [
+        0.7129992642998696
+      ]
+    },
+    {
+      "otherGain": 0.7266233304142953,
+      "others": [
+        0.7266233304142953
+      ]
+    },
+    {
+      "otherGain": 0.7276839026808739,
+      "others": [
+        0.7276839026808739
+      ]
+    },
+    {
+      "otherGain": 0.7284995087981224,
+      "others": [
+        0.7284995087981224
+      ]
+    },
+    {
+      "otherGain": 0.7329933622479439,
+      "others": [
+        0.7329933622479439
+      ]
+    },
+    {
+      "otherGain": 0.7413367757201195,
+      "others": [
+        0.7413367757201195
+      ]
+    },
+    {
+      "otherGain": 0.750034790635109,
+      "others": [
+        0.750034790635109
+      ]
+    },
+    {
+      "otherGain": 0.7521976435184479,
+      "others": [
+        0.7521976435184479
+      ]
+    },
+    {
+      "otherGain": 0.7009787300229073,
+      "others": [
+        0.7009787300229073
+      ]
+    }
+  ],
+  "voiceOffsets": [
+    6,
+    4,
+    -4,
+    2,
+    8,
+    -8
+  ],
+  "effectiveSettings": {
+    "musicality": 55,
+    "minLoopBeats": 12,
+    "maxSequentialBeats": 36,
+    "loopThreshold": 0.55,
+    "sectionBias": 0.6,
+    "jumpVariance": 0.4,
+    "routeLength": 8,
+    "jumpTemperature": 0.25,
+    "modeName": "canon"
+  },
+  "keys": {
+    "beat": [
+      "index",
+      "section",
+      "indexInParent",
+      "start",
+      "duration",
+      "confidence",
+      "other",
+      "others",
+      "otherGain",
+      "neighbors",
+      "goodNeighbors"
+    ],
+    "loopGraph": "window._jukeboxLoopGraph",
+    "voiceGains": "masterQs[].otherGain/masterQs[].others",
+    "voiceOffsets": "canonVoiceOffsetsForDriver",
+    "effectiveSettings": "getLoopSettingsForMode(mode)"
+  }
+}

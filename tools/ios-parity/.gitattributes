@@ -1,0 +1,11 @@
+# The oracle corpus is byte-addressed, so it must never be line-ending converted.
+#
+# fixtures/MANIFEST.sha256 records the sha256 of every file under fixtures/, and the Swift
+# FixturesManifestTests in HarmonizerMobile recomputes all of them. The repo is checked out with
+# core.autocrlf=true, which rewrites LF to CRLF on a Windows checkout - that would silently break
+# every one of the 1,350 hashes, and the .jsonl traces and .f32 payloads are compared by hash too.
+#
+# `-text` means "do no end-of-line conversion": the bytes in the blob are the bytes on disk, on
+# every platform. This is what makes the corpus portable, and it is why the goldens are written
+# with an explicit newline="\n" by the Python tooling.
+fixtures/** -text
