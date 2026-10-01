@@ -4739,6 +4739,163 @@ def api_cloud_search():
         return jsonify({"error": str(exc), "results": []}), 502
 
 
+# ---- Analyzed-song archive (deduped, on the H drive) ----
+# Every song we download to analyze is KEPT (not deleted) under the archive's
+# "analyzed" folder, deduped against the whole archive: if the song already exists
+# anywhere under the archive, we drop a small pointer placeholder naming the real
+# file instead of storing a duplicate. Records + real audio, no dupes.
+ANALYZED_ARCHIVE_ROOT = Path(os.environ.get("ANALYZED_ARCHIVE_ROOT", "/archive"))
+ANALYZED_DIR = ANALYZED_ARCHIVE_ROOT / "analyzed"
+_AUDIO_EXTS = {".flac", ".mp3", ".m4a", ".opus", ".ogg", ".wav", ".aac"}
+_archive_index_cache = {"at": 0.0, "map": {}}
+
+
+def _norm_song_key(s):
+    return re.sub(r"[^a-z0-9]+", " ", str(s or "").lower()).strip()
+
+
+def _archive_index():
+    """Map normalized 'artist - title' -> real audio path, for every audio file
+    anywhere under the archive. Cached 60s so repeat analyses are cheap."""
+    import time
+    now = time.time()
+    if now - _archive_index_cache["at"] < 60 and _archive_index_cache["map"]:
+        return _archive_index_cache["map"]
+    idx = {}
+    try:
+        for p in ANALYZED_ARCHIVE_ROOT.rglob("*"):
+            if p.is_file() and p.suffix.lower() in _AUDIO_EXTS:
+                idx.setdefault(_norm_song_key(p.stem), str(p))
+    except Exception:
+        pass
+    _archive_index_cache["at"] = now
+    _archive_index_cache["map"] = idx
+    return idx
+
+
+def _archive_analyzed_audio(audio_path, title, artist):
+    """Dedupe + keep the analyzed audio on the H-drive archive. If the song already
+    exists anywhere in the archive, write a pointer placeholder instead of a copy."""
+    try:
+        audio_path = Path(audio_path)
+        if not audio_path.exists():
+            return {"archived": False, "error": "no audio"}
+        ANALYZED_DIR.mkdir(parents=True, exist_ok=True)
+        base = f"{artist} - {title}" if (artist and artist != "(unknown artist)") else (title or audio_path.stem)
+        name = base.strip(" -")
+        safe = re.sub(r'[\\/:*?"<>|]+', "_", name)[:180] or "track"
+        key = _norm_song_key(name)
+        ext = audio_path.suffix.lower() or ".mp3"
+        dest = ANALYZED_DIR / f"{safe}{ext}"
+        existing = _archive_index().get(key)
+        if existing and Path(existing).exists() and Path(existing).resolve() != dest.resolve():
+            ptr = ANALYZED_DIR / f"{safe}.pointer.txt"
+            ptr.write_text(
+                f"song: {name}\nkey: {key}\nreal_audio: {existing}\n"
+                f"note: deduped - the real audio lives elsewhere in the archive\n",
+                encoding="utf-8",
+            )
+            try:
+                audio_path.unlink()
+            except Exception:
+                pass
+            return {"archived": True, "deduped": True, "pointer": str(ptr), "real": existing}
+        shutil.move(str(audio_path), str(dest))
+        _archive_index_cache["map"][key] = str(dest)
+        return {"archived": True, "deduped": False, "path": str(dest)}
+    except Exception as e:
+        return {"archived": False, "error": str(e)}
+
+
+# One spotdl instance per worker for beatgrid downloads. spotdl SpotifyClient + its
+# rich progress are process-global singletons, so init once with simple_tui (no rich
+# Live display) and reuse for every analysis.
+_BEATGRID_SPOTDL = None
+
+
+def _beatgrid_spotdl():
+    global _BEATGRID_SPOTDL
+    if _BEATGRID_SPOTDL is not None:
+        return _BEATGRID_SPOTDL
+    from spotdl import Spotdl
+    try:
+        from spotdl.utils.spotify import SpotifyClient
+        SpotifyClient._instance = None
+    except Exception:
+        pass
+    _BEATGRID_SPOTDL = Spotdl(
+        client_id="5f573c9620494bae87890c0f08a60293",
+        client_secret="212476d9b0f3472eaa762d90b19b0ba8",
+        user_auth=False,
+        headless=True,
+        downloader_settings={"simple_tui": True, "output": str(UPLOAD_FOLDER / "{artist} - {title}.{output-ext}")},
+    )
+    return _BEATGRID_SPOTDL
+
+
+def _beatgrid_download(spotify_url, track_id):
+    from spotdl.types.song import Song
+    sp = _beatgrid_spotdl()
+    song = Song.from_url(spotify_url)
+    _, path = sp.download(song)
+    if not path:
+        raise RuntimeError("spotdl returned no file")
+    return Path(path), {"title": getattr(song, "name", None), "artist": getattr(song, "artist", None)}
+
+
+@app.route("/api/beatgrid", methods=["POST", "OPTIONS"])
+def api_beatgrid():
+    """Light beat grid for Squeezebox Tap lighting beat-sync. Downloads via spotdl +
+    analyzes with librosa (reusing build_profile), caches the profile on disk keyed by
+    the Spotify track id, archives the audio (deduped) onto the H drive, and returns
+    {tempo,duration,beats[ms],sections[ms]}."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    payload = request.get_json(silent=True) or {}
+    raw = str(payload.get("spotifyUrl") or payload.get("spotify_url") or payload.get("uri") or "").strip()
+    title = payload.get("title") or None
+    artist = payload.get("artist") or "(unknown artist)"
+    m = re.search(r"track[:/]([A-Za-z0-9]+)", raw)
+    if not m:
+        return jsonify({"error": "spotifyUrl with a track id required"}), 400
+    sp_id = m.group(1)
+    spotify_url = "https://open.spotify.com/track/" + sp_id
+    track_id = "sp_" + sp_id
+    profile_path = DATA_FOLDER / (track_id + ".json")
+    was_cached = profile_path.exists()
+    archive_result = None
+    try:
+        try:
+            from .analysis.analyze_track import build_profile
+        except ImportError:
+            from analysis.analyze_track import build_profile
+        if was_cached:
+            with profile_path.open(encoding="utf-8") as fh:
+                profile = json.load(fh)
+        else:
+            audio_path, info = _beatgrid_download(spotify_url, track_id)
+            if not title and info:
+                title = info.get("title")
+            profile = build_profile(audio_path, track_id, title or sp_id, artist, spotify_url, profile_path)
+            archive_result = _archive_analyzed_audio(audio_path, title or sp_id, artist)
+        track = profile["response"]["track"]
+        an = track.get("analysis", {})
+        summ = track.get("audio_summary", {})
+        return jsonify({
+            "ok": True,
+            "trackId": track_id,
+            "cached": was_cached,
+            "archive": archive_result,
+            "tempo": float(summ.get("tempo") or 0.0),
+            "duration": float(summ.get("duration") or 0.0),
+            "beats": [int(round(float(b.get("start", 0)) * 1000)) for b in an.get("beats", [])],
+            "sections": [int(round(float(s.get("start", 0)) * 1000)) for s in an.get("sections", [])],
+        })
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
 @app.route("/api/process", methods=["POST", "OPTIONS"])
 def api_process():
     if request.method == "OPTIONS":
