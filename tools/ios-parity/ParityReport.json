@@ -1,0 +1,1414 @@
+{
+  "schema": "harmonizer.ios-parity/ParityReport@1",
+  "generated": "2026-10-02T16:15:15Z",
+  "oracle": {
+    "analyze_track_revision": "6d67eb4",
+    "fixtures": "Z:\\328\\CMPUT328-A2\\codexworks\\301\\harmonizer\\tools\\ios-parity\\fixtures",
+    "port_layers": "C:\\Users\\Ahmed\\hmobile\\evidence\\parity\\port-layers.jsonl"
+  },
+  "coverage": {
+    "layers_emitted_by": "the Swift parity suite (PARITY_LAYER lines), ingested via --port",
+    "margins_defined": [
+      "canon.offset_selection",
+      "canon.loop_edges"
+    ],
+    "margins_not_yet_defined": {
+      "eternal.loop_edges": "the candidate tiers are generation cut-offs, not accept/reject; the operative gate is the \u00a72.2 top-k edge Jaccard, which needs the chain comparison, not a golden-side margin",
+      "canon.candidates / global_voice_offsets": "greedy per-beat score selection; the margin is the gap to the runner-up, which needs the full score list, not the truncated golden",
+      "tempo / beats / segments / sections": "decision-as-classification stages gated by their own exactness clauses (\u00a72.1), where 'distance from a threshold' is not defined"
+    },
+    "excused": "populated from chain-parity mismatches when supplied; empty means none were reported"
+  },
+  "fixtures": {
+    "real_acoustic": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 4,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.39279186725616455,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 305,
+          "decision_gap_to_runner_up": 0.18767249882221224,
+          "candidate_count": 8,
+          "tightest_margin": 0.18767249882221224,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 721,
+          "tightest_margin": 0.000851011276245095,
+          "loosest_margin": 0.5648746252059936,
+          "knife_edge": true
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 2.4795208126704438e-06,
+          "p99": 3.2175631606290445e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 2.9802322387695312e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 2.384185791015625e-07,
+          "p99": 1.1920928955078125e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999998263274277,
+          "p99": 0.9999999999270576,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 5.912780764560921e-06,
+          "p99": 2.543131571997037e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 1.52587890625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 2.0792432885145515e-07,
+          "p99": 5.198108221286379e-08,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.3258913398317418e-06,
+          "p99": 9.971460706026392e-07,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.2237726859560416e-07,
+          "p99": 1.1867610632239835e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "real_electronic": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 324,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.21096181869506836,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 6,
+          "decision_gap_to_runner_up": 0.03926729112863539,
+          "candidate_count": 8,
+          "tightest_margin": 0.03926729112863539,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 976,
+          "tightest_margin": 7.159113883969948e-05,
+          "loosest_margin": 0.40367857217788694,
+          "knife_edge": true
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 2.8179638533742946e-06,
+          "p99": 6.550318771836317e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 2.9802322387695312e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 2.980232238769531e-07,
+          "p99": 1.1920928955078125e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999999011592471,
+          "p99": 0.9999999769705122,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 2.2228558847814384e-05,
+          "p99": 6.993611663119736e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 3.706011496541798e-07,
+          "p99": 1.2353371655139325e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.3273127699164888e-06,
+          "p99": 1.004990437536435e-06,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.3564881069223486e-07,
+          "p99": 1.185178302371933e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "real_pop": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 288,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.8379856944084167,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 64,
+          "decision_gap_to_runner_up": 0.006374937295913763,
+          "candidate_count": 8,
+          "tightest_margin": 0.006374937295913763,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 2757,
+          "tightest_margin": 0.00033876895904538795,
+          "loosest_margin": 0.5980366230010986,
+          "knife_edge": true
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 1.6310393031737647e-06,
+          "p99": 4.358480782395979e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 5.960464477539063e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 3.5762786865234375e-07,
+          "p99": 1.7881393432617188e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999998233729656,
+          "p99": 0.9999999801689099,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 3.3060709654364473e-06,
+          "p99": 4.4504801799405413e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 3.525684390429001e-07,
+          "p99": 1.1017763720090628e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.4484598942487992e-06,
+          "p99": 1.0134896619717892e-06,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.3464630061921986e-07,
+          "p99": 1.1855552892008006e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "synth_click_chord_120": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 32,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.7593546509742737,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 9,
+          "decision_gap_to_runner_up": 0.21169949173927305,
+          "candidate_count": 8,
+          "tightest_margin": 0.21169949173927305,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 82,
+          "tightest_margin": 0.0010502099990844505,
+          "loosest_margin": 0.5015380144119262,
+          "knife_edge": false
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 3.7381727020502353e-06,
+          "p99": 7.99102893411785e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 3.725290298461914e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 2.384185791015625e-07,
+          "p99": 1.1920928955078125e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999998904668662,
+          "p99": 0.9999999799945269,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 1.0681152346592171e-05,
+          "p99": 3.8146972514141453e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 9.1552734375e-05,
+          "p99": 6.103515625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 9.1552734375e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 2.8576531523486333e-07,
+          "p99": 9.525510507828779e-08,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.0185610221924435e-06,
+          "p99": 9.609866289395086e-07,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.2687530876311552e-07,
+          "p99": 1.1848023974713473e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "synth_mono_44100": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 32,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.7593546509742737,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 9,
+          "decision_gap_to_runner_up": 0.21169949173927305,
+          "candidate_count": 8,
+          "tightest_margin": 0.21169949173927305,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 82,
+          "tightest_margin": 0.0010502099990844505,
+          "loosest_margin": 0.5015380144119262,
+          "knife_edge": false
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 3.7381727020502353e-06,
+          "p99": 7.99102893411785e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 3.725290298461914e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 2.384185791015625e-07,
+          "p99": 1.1920928955078125e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999998904668662,
+          "p99": 0.9999999799945269,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 1.0681152346592171e-05,
+          "p99": 3.8146972514141453e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 9.1552734375e-05,
+          "p99": 6.103515625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 9.1552734375e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 2.8576531523486333e-07,
+          "p99": 9.525510507828779e-08,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.0185610221924435e-06,
+          "p99": 9.609866289395086e-07,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.2687530876311552e-07,
+          "p99": 1.1848023974713473e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "synth_ramp_100_130": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 32,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.2753218412399292,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 12,
+          "decision_gap_to_runner_up": 0.05253340005874635,
+          "candidate_count": 8,
+          "tightest_margin": 0.05253340005874635,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 28,
+          "tightest_margin": 0.0020394682884216087,
+          "loosest_margin": 0.2300094127655029,
+          "knife_edge": false
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 3.991553660598335e-06,
+          "p99": 8.755355103140516e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 3.3527612686157227e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 2.384185791015625e-07,
+          "p99": 1.7881393432617188e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999998790959651,
+          "p99": 0.9999999796444261,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 1.665751138801852e-05,
+          "p99": 3.8146972514141453e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 6.103515625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 2.147205540820954e-07,
+          "p99": 6.441616622462862e-08,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.0351377071060597e-06,
+          "p99": 1.0169394286663191e-06,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.336398922359361e-07,
+          "p99": 1.1887565974505213e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "synth_silence_intro_outro": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 16,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.4481474757194519,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 14,
+          "decision_gap_to_runner_up": 0.30107464790344235,
+          "candidate_count": 7,
+          "tightest_margin": 0.30000000000000004,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 38,
+          "tightest_margin": 0.002673959732055642,
+          "loosest_margin": 0.2169670224189758,
+          "knife_edge": false
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 1.0749360757511539e-05,
+          "p99": 1.437313306595911e-06,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 8.940696716308594e-08,
+          "p99": 5.960464477539063e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 1.7881393432617188e-07,
+          "p99": 1.1920928955078125e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999998810371953,
+          "p99": 0.9999999968204913,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 2.4737300925892214e-05,
+          "p99": 2.384185791015625e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 9.1552734375e-05,
+          "p99": 6.103515625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 9.1552734375e-05,
+          "p99": 6.103515625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 2.3961716844232306e-07,
+          "p99": 5.990429211058077e-08,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.0345924827959152e-06,
+          "p99": 9.248672725448159e-07,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.3770429941708963e-07,
+          "p99": 1.1832955585947844e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "synth_sr_22050": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 32,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.7691239714622498,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 9,
+          "decision_gap_to_runner_up": 0.21329156160354612,
+          "candidate_count": 8,
+          "tightest_margin": 0.21329156160354612,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 88,
+          "tightest_margin": 0.011091744899749734,
+          "loosest_margin": 0.5099385142326355,
+          "knife_edge": false
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 2.0220300771534028e-06,
+          "p99": 7.57631304360018e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 3.725290298461914e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 2.384185791015625e-07,
+          "p99": 1.7881393432617188e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.999999883151817,
+          "p99": 0.9999999710259074,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 5.2611033103389104e-06,
+          "p99": 5.801518767611924e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 0.0001220703125,
+          "p99": 6.103515625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 0.0001220703125,
+          "p99": 6.103515625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 3.419826443807977e-07,
+          "p99": 1.7099132219039885e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.0176886462431867e-06,
+          "p99": 9.631935995457752e-07,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.3586173973506123e-07,
+          "p99": 1.1827203609094836e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "synth_sr_44100": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 32,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.7593546509742737,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 9,
+          "decision_gap_to_runner_up": 0.21169949173927305,
+          "candidate_count": 8,
+          "tightest_margin": 0.21169949173927305,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 82,
+          "tightest_margin": 0.0010502099990844505,
+          "loosest_margin": 0.5015380144119262,
+          "knife_edge": false
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 3.7381727020502353e-06,
+          "p99": 7.99102893411785e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 3.725290298461914e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 2.384185791015625e-07,
+          "p99": 1.1920928955078125e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999998904668662,
+          "p99": 0.9999999799945269,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 1.0681152346592171e-05,
+          "p99": 3.8146972514141453e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 9.1552734375e-05,
+          "p99": 6.103515625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 9.1552734375e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 2.8576531523486333e-07,
+          "p99": 9.525510507828779e-08,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.0185610221924435e-06,
+          "p99": 9.609866289395086e-07,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.2687530876311552e-07,
+          "p99": 1.1848023974713473e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "synth_sr_48000": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 32,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.7594665288925171,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 10,
+          "decision_gap_to_runner_up": 0.24115758538246151,
+          "candidate_count": 8,
+          "tightest_margin": 0.24115758538246151,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 90,
+          "tightest_margin": 0.0009968638420104758,
+          "loosest_margin": 0.5298455119132995,
+          "knife_edge": true
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 2.458909518665564e-06,
+          "p99": 9.346482897631958e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 4.470348358154297e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 2.384185791015625e-07,
+          "p99": 1.7881393432617188e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999999096640201,
+          "p99": 0.9999999808818572,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 1.3605753586887204e-05,
+          "p99": 3.8146972158870085e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 2.47009537861622e-07,
+          "p99": 4.116825631027033e-08,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.0345186680638108e-06,
+          "p99": 9.685198207876056e-07,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.196723389359665e-07,
+          "p99": 1.1920025213237331e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "synth_stereo_44100": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 32,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.7595469355583191,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 9,
+          "decision_gap_to_runner_up": 0.21188352108001707,
+          "candidate_count": 8,
+          "tightest_margin": 0.21188352108001707,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 82,
+          "tightest_margin": 0.0015964269638061301,
+          "loosest_margin": 0.5012913107872009,
+          "knife_edge": false
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 3.3010451341297653e-06,
+          "p99": 8.007578917723635e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 3.3527612686157227e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 1.7881393432617188e-07,
+          "p99": 1.1920928955078125e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999998916010333,
+          "p99": 0.9999999802819239,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 7.62939453125e-06,
+          "p99": 3.8146972691777137e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 6.103515625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 5.743752257414298e-07,
+          "p99": 9.572920429023831e-08,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.432354309827133e-06,
+          "p99": 9.324004466293445e-07,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.2055811127266993e-07,
+          "p99": 1.1858354797943714e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "synth_swing_97": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 28,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.04242000728845596,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 4,
+          "decision_gap_to_runner_up": 0.0008877381682395949,
+          "candidate_count": 8,
+          "tightest_margin": 0.0008877381682395949,
+          "knife_edge": true
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 2.5320424219543725e-06,
+          "p99": 1.0332670382084963e-06,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 5.21540641784668e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 2.384185791015625e-07,
+          "p99": 1.7881393432617188e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999998766761427,
+          "p99": 0.9999999792738281,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 5.944569903881813e-06,
+          "p99": 4.4504801444134046e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 6.103515625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 3.4141712346855215e-07,
+          "p99": 8.535428086713804e-08,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.0314839471448067e-06,
+          "p99": 9.193940861962346e-07,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.2211484203581135e-07,
+          "p99": 1.1861634976924969e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    },
+    "synth_waltz_34": {
+      "margins": {
+        "canon.offset_selection": {
+          "winner_offset": 32,
+          "thresholds": {
+            "similarity": 0.5,
+            "min_phase_alignment": 0.7,
+            "min_pairs": 6
+          },
+          "winner_mean_similarity": 0.6858797073364258,
+          "phase_margin": 0.30000000000000004,
+          "pairs_margin": 9,
+          "decision_gap_to_runner_up": 0.20818266272544866,
+          "candidate_count": 8,
+          "tightest_margin": 0.20818266272544866,
+          "knife_edge": false
+        },
+        "canon.loop_edges": {
+          "threshold": 0.4,
+          "edge_count": 72,
+          "tightest_margin": 0.0043801426887511985,
+          "loosest_margin": 0.43475244045257566,
+          "knife_edge": false
+        }
+      },
+      "layers": {
+        "beat_features_91": {
+          "metric": "max_abs",
+          "worst": 3.2587468029587896e-06,
+          "p99": 7.337318463918052e-07,
+          "gate": 0.001,
+          "pass": true
+        },
+        "canon_ssm": {
+          "metric": "max_abs",
+          "worst": 5.960464477539063e-08,
+          "p99": 3.725290298461914e-08,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "eternal_ssm": {
+          "metric": "max_abs",
+          "worst": 2.384185791015625e-07,
+          "p99": 1.7881393432617188e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "chroma": {
+          "metric": "cosine_p05",
+          "worst": 0.9999998895353512,
+          "p99": 0.9999999796372863,
+          "gate": 0.98,
+          "pass": true
+        },
+        "pcm_mono": {
+          "metric": "max_abs",
+          "worst": 0,
+          "p99": 0,
+          "gate": 1e-07,
+          "pass": true
+        },
+        "delta": {
+          "metric": "max_abs",
+          "worst": 2.8324127200107796e-05,
+          "p99": 3.496805867087005e-07,
+          "gate": 0.0001,
+          "pass": true
+        },
+        "mfcc13": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 6.103515625e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "mfcc20": {
+          "metric": "max_abs",
+          "worst": 6.103515625e-05,
+          "p99": 3.0517578125e-05,
+          "gate": 0.001,
+          "pass": true
+        },
+        "onset_env": {
+          "metric": "normalized_max_abs",
+          "worst": 3.551737358967169e-07,
+          "p99": 8.879343397417923e-08,
+          "gate": 0.001,
+          "pass": true
+        },
+        "rms": {
+          "metric": "max_abs_db",
+          "worst": 1.0178737355204248e-06,
+          "p99": 9.531076479163403e-07,
+          "gate": 0.01,
+          "pass": true
+        },
+        "stft_mag": {
+          "metric": "max_rel",
+          "worst": 2.364096373807136e-07,
+          "p99": 1.181608639638787e-07,
+          "gate": 0.0001,
+          "pass": true
+        }
+      }
+    }
+  },
+  "knife_edge_decisions": [
+    {
+      "fixture": "real_acoustic",
+      "decision": "canon.loop_edges",
+      "margin": 0.000851011276245095,
+      "note": "golden margin < 1e-3; a chain mismatch here is a threshold flip, not a port defect"
+    },
+    {
+      "fixture": "real_electronic",
+      "decision": "canon.loop_edges",
+      "margin": 7.159113883969948e-05,
+      "note": "golden margin < 1e-3; a chain mismatch here is a threshold flip, not a port defect"
+    },
+    {
+      "fixture": "real_pop",
+      "decision": "canon.loop_edges",
+      "margin": 0.00033876895904538795,
+      "note": "golden margin < 1e-3; a chain mismatch here is a threshold flip, not a port defect"
+    },
+    {
+      "fixture": "synth_sr_48000",
+      "decision": "canon.loop_edges",
+      "margin": 0.0009968638420104758,
+      "note": "golden margin < 1e-3; a chain mismatch here is a threshold flip, not a port defect"
+    },
+    {
+      "fixture": "synth_swing_97",
+      "decision": "canon.offset_selection",
+      "margin": 0.0008877381682395949,
+      "note": "golden margin < 1e-3; a chain mismatch here is a threshold flip, not a port defect"
+    }
+  ]
+}
