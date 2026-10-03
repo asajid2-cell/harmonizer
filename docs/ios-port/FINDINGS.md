@@ -364,3 +364,32 @@ Reported for the owning lane, not fixed here.
     materialises a 13-million-entry array. Every frame's transform is independent, so each change is
     bit-identical - the chroma parity numbers and all 13 fixtures' P7k decisions are unchanged - and
     the gate now reads **174.7 MB growth / 265.4 MB peak** at the same 1.5 s (~200x realtime).
+
+## Found from the shipped build (P9, 2026-10-03)
+
+35. **The shipped build could not import any track that had been minted during the container's root
+    era - a legacy file-ownership defect, not an app bug.** Reported from TestFlight build 2:
+    sign-in and search work, but tapping a song returns 500
+    `Unexpected error: [Errno 13] Permission denied: '/app/backend/uploads/cloud<spotifyId>.mp3'`.
+    The destination name is derived from the song, not made unique per request
+    (`track_id = f"cloud{safe_id}"`, `app.py`), and `_download_from_cloudsqueeze` writes it with
+    `open(dest, "wb")` **unconditionally, before the file-hash cache check** - so every import
+    re-downloads and truncate-writes the same path. The `harmonizer` container now runs as uid 1100
+    (`svc-containers`, supplementary group 1000, `CapEff 0`); the `uploads` dir is group-writable so
+    new files are created fine, but **284 of 289** files were `root:root 0644`, carried across from
+    the root-era container in the `harmonizer-bind-old` bind move. `open(dest, "wb")` on an existing
+    root-owned file needs write permission on the *file*, which uid 1100 does not have -> instant
+    `EACCES` -> 500. That is why cached or never-before-minted songs (e.g. "One More Time") import
+    fine while others fail in ~1 s.
+    - **Fixed (data, not code):** `chown -R 1100:1100 /mnt/h/archive/harmonizer-bind-old/uploads`
+      (the `./uploads` bind target) as root via tier 3 - 284 root-owned files -> 0. Control: the
+      exact failing request (`cloud514joG57v4yKTsfQmz7stz`) now returns **HTTP 200 in 0.5 s**,
+      `{"status":"cached"}`. No `app.py`/`frontend`/`backend` edit; the campaign's no-backend-edit
+      rule holds.
+    - **Deferred hardening (possible future item):** the write should be atomic - download to a
+      temp name in the same dir, then `os.replace(tmp, dest)`. A rename replaces the *directory
+      entry* and only needs write permission on the **directory** (which the container has), so it
+      would succeed even against a root-owned target and would remove this whole class of failure;
+      it also fixes a latent bug where `"wb"` truncates the file before the stream finishes,
+      leaving a 0-byte or partial mp3 if the fetch dies mid-download. It is an `app.py` edit, so it
+      is out of campaign scope and is recorded here rather than applied.
