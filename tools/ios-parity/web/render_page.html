@@ -1,0 +1,138 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ios-parity web render</title>
+<pre id="out">pending</pre>
+<!-- The real product player, served unmodified from frontend/jremix.js. -->
+<script src="/jremix.js"></script>
+<script>
+const out = document.getElementById('out');
+const log = (m) => { out.textContent += '\n' + m; };
+
+function b64ToBytes(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+function bytesToB64(bytes) {
+  let s = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(s);
+}
+
+async function main() {
+  const spec = await (await fetch('/case')).json();
+  const sr = spec.sample_rate, frames = spec.frames, outFrames = spec.out_frames;
+  const pcm = b64ToBytes(spec.pcm_b64);
+  const inter = new Float32Array(pcm.buffer, pcm.byteOffset, frames * 2);
+
+  const ctx = new OfflineAudioContext(2, outFrames, sr);
+  const buffer = ctx.createBuffer(2, frames, sr);
+  for (let c = 0; c < 2; c++) {
+    const d = buffer.getChannelData(c);
+    for (let i = 0; i < frames; i++) d[i] = inter[i * 2 + c];
+  }
+
+  // Live-semantics shim.  jremix.js schedules every voice with llPlay's
+  // `audioSource.start(0, offset, duration)`: a live AudioContext clamps a `when` in the
+  // past to "now", but an OfflineAudioContext would read 0 as frame 0 and pile every tick
+  // onto the first frame.  This restores the live meaning, so the offline render reproduces
+  // what the page hears, using the unmodified player.
+  const origCreateBufferSource = ctx.createBufferSource.bind(ctx);
+  ctx.createBufferSource = function () {
+    const node = origCreateBufferSource();
+    const origStart = node.start.bind(node);
+    node.start = function (when, offset, duration) {
+      let w = (when === undefined || when === null) ? ctx.currentTime : when;
+      if (w <= ctx.currentTime) w = ctx.currentTime;
+      if (duration === undefined) return origStart(w, offset);
+      return origStart(w, offset, duration);
+    };
+    return node;
+  };
+
+  window.mode = spec.mode;
+  window.canonVoiceCount = spec.voice_count;
+  window.harmonizerBaseAudioOnly = false;
+  window.masterQs = spec.beats;
+
+  const remixer = createJRemixer(ctx, function () { return { getJSON: function () {} }; });
+  const player = remixer.getPlayer();
+
+  // Determinism: the canon-mode offset-jump decision (maybeJumpVoiceOffset) draws Math.random.
+  // That is a *decision* already fixed by the recorded trace (P3), so the harness freezes the
+  // draw high enough that the jump never fires and the render follows the trace literally.
+  Math.random = function () { return 0.99; };
+
+  const track = { buffer: buffer, audio_summary: { duration: frames / sr } };
+  const beats = spec.beats;
+  const trace = spec.trace;
+
+  const bounds = [0];
+  let acc = 0;
+  for (const row of trace) { acc += row.delay; bounds.push(acc); }
+
+  // Reconstruct the quantum objects playQ consumes, wiring .next so the player's own
+  // continuity test reproduces the trace's restart flags exactly.
+  const work = [];
+  let prevQ = null;
+  for (let k = 0; k < trace.length; k++) {
+    const t = trace[k];
+    const at = bounds[k];
+    if (at >= outFrames / sr) break;
+    work.push(function () {
+      const q = {
+        track: track,
+        start: beats[t.mainBeat].start,
+        duration: beats[t.mainBeat].duration,
+        which: t.mainBeat,
+        bar_length_beats: 4,
+        others: [],
+        next: null,
+        prev: null,
+      };
+      if (prevQ) prevQ.next = t.mainRestart ? { notNext: true } : q;
+      for (let i = 0; i < t.voices.length; i++) {
+        const v = t.voices[i];
+        const other = {
+          track: track,
+          start: beats[v.beat].start,
+          // Duration is used only by the skew accumulator, never by playback; pinning it to
+          // the main beat's duration keeps the skew at zero so playQ follows the trace.
+          duration: beats[t.mainBeat].duration,
+          which: v.beat,
+          next: null,
+          prev: null,
+        };
+        if (prevQ && prevQ.others[i]) prevQ.others[i].next = v.restart ? { notNext: true } : other;
+        q.others.push(other);
+      }
+      player.playQ(q);
+      prevQ = q;
+    });
+  }
+
+  const suspended = work.map(function (fn, k) {
+    return ctx.suspend(bounds[k]).then(function () { fn(); ctx.resume(); });
+  });
+  const rendered = await ctx.startRendering();
+  await Promise.all(suspended);
+
+  const L = rendered.getChannelData(0), R = rendered.getChannelData(1);
+  const flat = new Float32Array(outFrames * 2);
+  let nan = 0;
+  for (let i = 0; i < outFrames; i++) {
+    flat[i * 2] = L[i];
+    flat[i * 2 + 1] = R[i];
+    if (!isFinite(L[i]) || !isFinite(R[i])) nan++;
+  }
+  const bytes = new Uint8Array(flat.buffer);
+  await fetch('/result', { method: 'POST', body: bytesToB64(bytes) });
+  log('rendered ' + outFrames + ' frames, nan=' + nan + ' voices=' + spec.voice_count + ' mode=' + spec.mode);
+}
+
+main().catch(function (e) { log('ERROR ' + (e && e.stack ? e.stack : e)); });
+</script>

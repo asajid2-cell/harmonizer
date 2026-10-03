@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ios-parity filter probe</title>
+<pre id="out">pending</pre>
+<script>
+const out = document.getElementById('out');
+const log = (m) => { out.textContent += '\n' + m; };
+
+// Same 32-bit LCG as the Python side, so both see bit-identical input.
+function lcg(seed) {
+  let s = seed >>> 0;
+  return function () { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s; };
+}
+function bytesToB64(bytes) {
+  let s = ''; const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) s += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  return btoa(s);
+}
+
+const SR = 22050, FRAMES = 22050;
+
+function makeBuffer(ctx) {
+  const buf = ctx.createBuffer(2, FRAMES, SR);
+  const next = lcg(12345);
+  const sig = new Float32Array(FRAMES);
+  for (let i = 0; i < FRAMES; i++) sig[i] = (next() / 4294967296) * 2 - 1;
+  for (let c = 0; c < 2; c++) buf.getChannelData(c).set(sig);
+  return buf;
+}
+
+// Render the signal through one node and return interleaved float32.
+async function renderThrough(build) {
+  const ctx = new OfflineAudioContext(2, FRAMES, SR);
+  const buf = makeBuffer(ctx);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  build(ctx, src);
+  src.start(0);
+  const rendered = await ctx.startRendering();
+  const L = rendered.getChannelData(0), R = rendered.getChannelData(1);
+  const flat = new Float32Array(FRAMES * 2);
+  for (let i = 0; i < FRAMES; i++) { flat[i * 2] = L[i]; flat[i * 2 + 1] = R[i]; }
+  return flat;
+}
+
+async function main() {
+  const hp = await renderThrough(function (ctx, src) {
+    const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 250;
+    src.connect(f); f.connect(ctx.destination);
+  });
+  const pan = await renderThrough(function (ctx, src) {
+    const p = ctx.createStereoPanner(); p.pan.value = 0.7;
+    src.connect(p); p.connect(ctx.destination);
+  });
+  const blob = new Float32Array(hp.length + pan.length);
+  blob.set(hp, 0); blob.set(pan, hp.length);
+  await fetch('/result', { method: 'POST', body: bytesToB64(new Uint8Array(blob.buffer)) });
+  log('probe done frames=' + FRAMES);
+}
+main().catch(function (e) { log('ERROR ' + (e && e.stack ? e.stack : e)); });
+</script>
