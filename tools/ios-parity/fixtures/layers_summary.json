@@ -25,7 +25,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 30.99,
+      "seconds": 9.03,
       "cross_check": "ok"
     },
     {
@@ -53,7 +53,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 6.48,
+      "seconds": 4.82,
       "cross_check": "ok"
     },
     {
@@ -81,7 +81,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 7.39,
+      "seconds": 5.26,
       "cross_check": "ok"
     },
     {
@@ -109,7 +109,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 3.18,
+      "seconds": 4.27,
       "cross_check": "ok"
     },
     {
@@ -137,7 +137,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 3.52,
+      "seconds": 2.07,
       "cross_check": "ok"
     },
     {
@@ -165,7 +165,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 3.47,
+      "seconds": 1.61,
       "cross_check": "ok"
     },
     {
@@ -193,7 +193,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 3.26,
+      "seconds": 1.6,
       "cross_check": "ok"
     },
     {
@@ -221,7 +221,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 3.15,
+      "seconds": 1.01,
       "cross_check": "ok"
     },
     {
@@ -249,7 +249,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 3.48,
+      "seconds": 2.25,
       "cross_check": "ok"
     },
     {
@@ -277,7 +277,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 3.44,
+      "seconds": 2.15,
       "cross_check": "ok"
     },
     {
@@ -305,7 +305,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 3.23,
+      "seconds": 2.27,
       "cross_check": "ok"
     },
     {
@@ -333,7 +333,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 3.3,
+      "seconds": 2.32,
       "cross_check": "ok"
     },
     {
@@ -361,7 +361,7 @@
         "tatums",
         "version"
       ],
-      "seconds": 3.13,
+      "seconds": 2.33,
       "cross_check": "ok"
     }
   ],

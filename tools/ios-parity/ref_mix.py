@@ -150,10 +150,20 @@ def sample_at(source: np.ndarray, position: float) -> np.ndarray:
 
 
 class HighPass250:
-    """Per-channel Web-Audio/RBJ highpass, default BiquadFilter Q = 1."""
+    """Per-channel Web Audio highpass on the overlay voices, at the node's default Q.
+
+    Web Audio's *lowpass* and *highpass* biquads read `Q` as a resonance in **decibels**, not as a
+    linear quality factor: the spec's Filters Characteristics defines
+    ``alpha = sin(w0) / (2 * 10^(Q/20))`` for these two types (all other biquad types keep linear
+    Q), and Blink implements the same conversion - ``Biquad::setHighpassParams`` does
+    ``resonance = pow10(resonance / 20); alpha = sin(theta) / (2 * resonance)``. The overlay voice
+    highpass never sets `Q`, so the node runs at its default `Q = 1` dB and the damping is
+    ``sin(w0) / (2 * 10^(1/20))``. Reading that default linearly instead puts this filter up to
+    1 dB away from the browser between 250 Hz and 400 Hz, so the convention is not a detail.
+    """
     def __init__(self, sr: int) -> None:
         omega = 2.0 * math.pi * 250.0 / sr
-        alpha = math.sin(omega) / (2.0 * 1.0)
+        alpha = math.sin(omega) / (2.0 * 10.0 ** (1.0 / 20.0))
         cosine = math.cos(omega)
         a0 = 1.0 + alpha
         self.b0, self.b1, self.b2 = ((1.0 + cosine) / 2.0 / a0,

@@ -46,6 +46,11 @@ REFMIX_CONFIGS = (
     ("autocrooner", 2),
 )
 
+# Three baseline traces per config - the P4 gate's "3 traces per mode". The seeds move the decision
+# trace, so the sample oracle is exercised on three different jump sequences per mode rather than
+# one. Seed 1 keeps the original, un-suffixed filename so the M0 corpus entries stay stable.
+REFMIX_SEEDS = ("1", "42", "12648430")  # 0xC0FFEE
+
 
 def run(cmd, cwd=None, label=None):
     label = label or " ".join(str(c) for c in cmd[:2])
@@ -134,7 +139,11 @@ def stage_traces(out_dir: Path, ticks: int, seeds: str, gbrt_model: Path | None)
 
 
 def stage_refmix(out_dir: Path):
-    """Pick one trace per mode from the baseline/heuristic policies and render it."""
+    """Render three baseline traces per mode, on the first fixture that has them.
+
+    The fixture is chosen once per config, from seed 1, and the same fixture supplies the other two
+    seeds - so the three renders differ only in the decision trace, not in the audio.
+    """
     trace_root = out_dir / "traces"
     if not trace_root.exists():
         print("[run_oracles] no traces/ yet; skipping refmix", file=sys.stderr)
@@ -146,10 +155,10 @@ def stage_refmix(out_dir: Path):
         picked = None
         for fixture_dir in fixture_dirs:
             for policy in ("baseline", "heuristic"):
-                for seed in ("1", "42", "19220046"):  # 0xC0FFEE
+                for seed in REFMIX_SEEDS:
                     cand = fixture_dir / f"{mode}-v{voices}-{policy}-s{seed}.jsonl"
                     if cand.exists():
-                        picked = (fixture_dir.name, cand)
+                        picked = (fixture_dir.name, policy)
                         break
                 if picked:
                     break
@@ -158,20 +167,27 @@ def stage_refmix(out_dir: Path):
         if not picked:
             print(f"[run_oracles] no trace for {mode}-v{voices}; skipping", file=sys.stderr)
             continue
-        fixture, trace = picked
+        fixture, policy = picked
         audio = out_dir / "audio" / f"{fixture}.flac"
         profile = out_dir / "profiles" / f"{fixture}.json"
         if not audio.exists():
             print(f"[run_oracles] missing audio for {fixture}; skipping refmix", file=sys.stderr)
             continue
-        out_f32 = refmix_dir / f"{mode}-v{voices}.f32"
-        cmd = [PY, str(HERE / "ref_mix.py"),
-               "--trace", str(trace), "--pcm", str(audio),
-               "--out", str(out_f32), "--meta", str(out_f32.with_suffix(".json")),
-               "--seconds", "10"]
-        if profile.exists():
-            cmd += ["--profile", str(profile)]
-        run(cmd, label=f"ref_mix {mode}-v{voices}")
+        for seed in REFMIX_SEEDS:
+            trace = trace_root / fixture / f"{mode}-v{voices}-{policy}-s{seed}.jsonl"
+            if not trace.exists():
+                print(f"[run_oracles] no trace {trace.name}; skipping", file=sys.stderr)
+                continue
+            # Seed 1 keeps the original name so the M0 corpus entries do not move.
+            stem = f"{mode}-v{voices}" if seed == REFMIX_SEEDS[0] else f"{mode}-v{voices}-s{seed}"
+            out_f32 = refmix_dir / f"{stem}.f32"
+            cmd = [PY, str(HERE / "ref_mix.py"),
+                   "--trace", str(trace), "--pcm", str(audio),
+                   "--out", str(out_f32), "--meta", str(out_f32.with_suffix(".json")),
+                   "--seconds", "10"]
+            if profile.exists():
+                cmd += ["--profile", str(profile)]
+            run(cmd, label=f"ref_mix {stem}")
 
 
 def generate(out_dir: Path, ticks: int, seeds: str, gbrt_model: Path | None):
