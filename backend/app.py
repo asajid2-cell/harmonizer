@@ -4770,6 +4770,8 @@ def _download_from_archive(ref: str, track_id: str) -> tuple[Path, Optional[dict
             )
         if resp.status_code == 404:
             raise RuntimeError("The archive has no copy of that song.")
+        if resp.status_code == 400:
+            raise RuntimeError("The archive does not recognise that track id.")
         if resp.status_code != 200:
             raise RuntimeError(f"Archive fetch failed ({resp.status_code}).")
         ext = ".ogg" if "ogg" in (resp.headers.get("Content-Type") or "").lower() else ".mp3"
