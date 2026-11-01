@@ -1581,6 +1581,9 @@ jgs   `-=========-`()
             const titleInput = form.querySelector('input[name="title"]');
             const artistInput = form.querySelector('input[name="artist"]');
             let timer = null;
+            let seq = 0;
+            let controller = null;
+            const cache = new Map();
 
             function pick(item, el) {
                 idInput.value = item.id || item.uri || '';
@@ -1591,39 +1594,53 @@ jgs   `-=========-`()
                 status.textContent = 'Selected: ' + (item.title || '') + (item.artist ? ' — ' + item.artist : '') + '. Hit Transform Track to import.';
             }
 
-            async function search(q) {
-                if (!q.trim()) { results.innerHTML = ''; status.textContent = ''; return; }
-                status.textContent = 'Searching…';
-                try {
-                    const res = await fetch(buildApiUrl('api/harmonizer/cloud/search') + '?q=' + encodeURIComponent(q));
-                    const data = await res.json();
-                    const list = data.results || [];
-                    results.innerHTML = '';
-                    if (!list.length) {
-                        status.textContent = data.error || (data.partial
-                            ? 'No playable matches in this page — the archive answered only partially. Try again.'
-                            : 'No matches.');
-                        return;
+            function render(data) {
+                const list = data.results || [];
+                results.innerHTML = '';
+                if (!list.length) {
+                    status.textContent = data.error || (data.partial
+                        ? 'No playable matches in this page — the archive answered only partially. Try again.'
+                        : 'No matches.');
+                    return;
+                }
+                status.textContent = data.partial
+                    ? 'Showing playable matches from a partial result; more may exist. First import can take up to a minute while the archive fetches the track.'
+                    : 'First import can take up to a minute while the archive fetches the track; after that it’s instant.';
+                list.forEach(item => {
+                    const el = document.createElement('button');
+                    el.type = 'button';
+                    el.className = 'cloud-result';
+                    const t = document.createElement('strong');
+                    t.textContent = item.title || '(untitled)';
+                    el.appendChild(t);
+                    if (item.artist) {
+                        const a = document.createElement('span');
+                        a.textContent = ' · ' + item.artist;
+                        el.appendChild(a);
                     }
-                    status.textContent = data.partial
-                        ? 'Showing playable matches from a partial result; more may exist. First import can take up to a minute while the archive fetches the track.'
-                        : 'First import can take up to a minute while the archive fetches the track; after that it’s instant.';
-                    list.forEach(item => {
-                        const el = document.createElement('button');
-                        el.type = 'button';
-                        el.className = 'cloud-result';
-                        const t = document.createElement('strong');
-                        t.textContent = item.title || '(untitled)';
-                        el.appendChild(t);
-                        if (item.artist) {
-                            const a = document.createElement('span');
-                            a.textContent = ' · ' + item.artist;
-                            el.appendChild(a);
-                        }
-                        el.addEventListener('click', () => pick(item, el));
-                        results.appendChild(el);
-                    });
+                    el.addEventListener('click', () => pick(item, el));
+                    results.appendChild(el);
+                });
+            }
+
+            async function search(q) {
+                const term = q.trim();
+                if (!term) { results.innerHTML = ''; status.textContent = ''; return; }
+                if (cache.has(term)) { render(cache.get(term)); return; }
+                // Archive searches take 10-38 s and are never cached upstream, so a retry pays full
+                // price. One search in flight at a time, and a newer one always wins the panel.
+                const mySeq = ++seq;
+                if (controller) controller.abort();
+                controller = new AbortController();
+                status.textContent = 'Searching the archive… this can take up to half a minute.';
+                try {
+                    const res = await fetch(buildApiUrl('api/harmonizer/cloud/search') + '?q=' + encodeURIComponent(term), { signal: controller.signal });
+                    const data = await res.json();
+                    if (mySeq !== seq) return;
+                    if (!data.error) cache.set(term, data);
+                    render(data);
                 } catch (e) {
+                    if (mySeq !== seq || (e && e.name === 'AbortError')) return;
                     status.textContent = 'Search failed: ' + (e && e.message ? e.message : e);
                 }
             }
@@ -1631,7 +1648,8 @@ jgs   `-=========-`()
             input.addEventListener('input', () => {
                 clearTimeout(timer);
                 idInput.value = '';
-                timer = setTimeout(() => search(input.value), 350);
+                // 1.2 s idle: each keystroke that fires costs a three-provider fan-out upstream.
+                timer = setTimeout(() => search(input.value), 1200);
             });
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') { e.preventDefault(); clearTimeout(timer); search(input.value); }
