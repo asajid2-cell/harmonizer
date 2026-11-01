@@ -1411,6 +1411,11 @@ _EXPENSIVE_POST_LIMITS = {
 _EXPENSIVE_POST_PREFIX_LIMITS = {
     "/api/codesniff/": (int(os.environ.get("HARMONIZER_CODESNIFF_RATE_LIMIT", "20")), 3600),
 }
+# The archive's /corpus/search is ungated upstream and fans out to three providers per call,
+# so the proxy has to own the limit when the page is public.
+_EXPENSIVE_GET_LIMITS = {
+    "/api/harmonizer/cloud/search": (int(os.environ.get("HARMONIZER_CLOUD_SEARCH_RATE_LIMIT", "120")), 3600),
+}
 
 
 def _client_ip() -> str:
@@ -1425,7 +1430,11 @@ def _audit_security_event(event: str):
 
 
 def _rate_limit_error(limit_key: str):
-    max_hits, window_seconds = _EXPENSIVE_POST_LIMITS.get(limit_key) or _EXPENSIVE_POST_PREFIX_LIMITS[limit_key]
+    max_hits, window_seconds = (
+        _EXPENSIVE_POST_LIMITS.get(limit_key)
+        or _EXPENSIVE_POST_PREFIX_LIMITS.get(limit_key)
+        or _EXPENSIVE_GET_LIMITS[limit_key]
+    )
     now = time.time()
     bucket_key = f"{limit_key}:{_client_ip()}"
     with _rate_limit_lock:
@@ -1443,6 +1452,8 @@ def _rate_limit_error(limit_key: str):
 
 
 def _rate_limit_key_for_request() -> Optional[str]:
+    if request.method == "GET" and request.path in _EXPENSIVE_GET_LIMITS:
+        return request.path
     if request.method != "POST":
         return None
     if request.path in _EXPENSIVE_POST_LIMITS:
@@ -4698,66 +4709,90 @@ def _download_youtube(url: str, track_id: str, user_id: Optional[str] = None) ->
     raise RuntimeError(error_msg)
 
 
-def _download_from_cloudsqueeze(cloud_id: str, cloud_uri: str, track_id: str) -> tuple[Path, Optional[dict]]:
-    """Fetch a track via the Cloud Squeeze backend (search -> download -> cache).
-    The first fetch downloads + transcodes (slower); Cloud Squeeze caches it, so repeats are instant."""
+_ARCHIVE_PLAYABLE_REF = re.compile(r"^[A-Za-z0-9]{22}$")
+
+
+def _archive_tap_base() -> str:
+    return (os.environ.get("ARCHIVE_TAP_URL") or "http://host.docker.internal:4261").rstrip("/")
+
+
+def _download_from_archive(ref: str, track_id: str) -> tuple[Path, Optional[dict]]:
+    """Fetch a track from the archive server through its tap.
+
+    The first GET on an unheld ref IS the acquire (no job handle, not cancellable); the cold
+    leg can take up to a minute. A held ref opens in milliseconds. The body is audio/ogg."""
     import requests
-    base = (os.environ.get("CLOUD_SQUEEZE_URL") or "").rstrip("/")
-    key = os.environ.get("CLOUD_SQUEEZE_SERVICE_KEY") or ""
-    if not base:
-        raise RuntimeError("Cloud Squeeze is not configured (set CLOUD_SQUEEZE_URL).")
-    spotify_id = cloud_id.split(":")[-1]
-    url = f"{base}/api/local-stream/{quote(spotify_id)}"
-    headers = {"X-HL-Service-Key": key, "X-Forwarded-Proto": "https"}
-    dest = UPLOAD_FOLDER / f"{track_id}.mp3"
-    print(f"[CloudSqueeze] Fetching {spotify_id} ...", flush=True)
-    with requests.get(url, params={"uri": cloud_uri}, headers=headers, stream=True, timeout=120) as resp:
+    ref = (ref or "").split(":")[-1].strip()
+    if not _ARCHIVE_PLAYABLE_REF.match(ref):
+        raise RuntimeError("That result has no playable archive reference.")
+    base = _archive_tap_base()
+    url = f"{base}/song/{quote(ref)}"
+    print(f"[Archive] Fetching {ref} ...", flush=True)
+    with requests.get(url, stream=True, timeout=(10, 120)) as resp:
+        if resp.status_code == 503:
+            detail = {}
+            try:
+                detail = resp.json() or {}
+            except Exception:
+                pass
+            retry_s = max(1, int(detail.get("retryAfterMs") or 15000) // 1000)
+            raise RuntimeError(f"The archive is busy. Try again in about {retry_s}s.")
+        if resp.status_code == 404:
+            raise RuntimeError("The archive has no copy of that song.")
         if resp.status_code != 200:
-            raise RuntimeError(f"Cloud Squeeze fetch failed ({resp.status_code}).")
+            raise RuntimeError(f"Archive fetch failed ({resp.status_code}).")
+        ext = ".ogg" if "ogg" in (resp.headers.get("Content-Type") or "").lower() else ".mp3"
+        dest = UPLOAD_FOLDER / f"{track_id}{ext}"
         with open(dest, "wb") as fh:
             for chunk in resp.iter_content(chunk_size=65536):
                 if chunk:
                     fh.write(chunk)
     if not dest.exists() or dest.stat().st_size < 2048:
-        raise RuntimeError("Cloud Squeeze returned an empty track.")
-    print(f"[CloudSqueeze] Saved {dest.name} ({dest.stat().st_size} bytes)", flush=True)
+        raise RuntimeError("The archive returned an empty track.")
+    print(f"[Archive] Saved {dest.name} ({dest.stat().st_size} bytes)", flush=True)
     return dest, {"title": None, "uploader": None}
 
 
 @app.route("/api/harmonizer/cloud/search", methods=["GET"])
 def api_cloud_search():
-    """Search the Cloud Squeeze catalogue (proxied, service-key authed) for the import UI."""
+    """Search the archive server's corpus through the tap for the import UI.
+
+    The archive search is ungated upstream and fans out to several providers per call, so this
+    proxy owns the rate limit (see _EXPENSIVE_GET_LIMITS). Only 22-char base62 refs are playable;
+    federated numeric ids (deezer/itunes) are dropped rather than offered with a broken play button."""
     q = (request.args.get("q") or "").strip()
     if not q:
         return jsonify({"results": []})
     import requests
-    base = (os.environ.get("CLOUD_SQUEEZE_URL") or "").rstrip("/")
-    key = os.environ.get("CLOUD_SQUEEZE_SERVICE_KEY") or ""
-    if not base:
-        return jsonify({"error": "Cloud Squeeze search is not configured.", "results": []}), 503
+    base = _archive_tap_base()
     try:
-        resp = requests.get(
-            f"{base}/api/spotify/search",
-            params={"q": q, "limit": 24},
-            headers={"X-HL-Service-Key": key, "X-Forwarded-Proto": "https"},
-            timeout=15,
-        )
-        data = resp.json() if resp.status_code == 200 else {}
-        out = []
-        for t in (data.get("results") or []):
-            tid = t.get("id") or t.get("uri")
-            if not tid:
-                continue
-            out.append({
-                "id": tid,
-                "uri": t.get("uri") or tid,
-                "title": t.get("title") or "(untitled)",
-                "artist": t.get("artist") or "",
-                "art": t.get("art") or t.get("image") or t.get("cover") or t.get("artwork"),
-            })
-        return jsonify({"results": out})
+        resp = requests.post(f"{base}/corpus/search", json={"q": q, "limit": 24}, timeout=60)
     except Exception as exc:
-        return jsonify({"error": str(exc), "results": []}), 502
+        return jsonify({"error": f"Could not reach the archive: {exc}", "results": []}), 502
+    if resp.status_code == 503:
+        return jsonify({"error": "The archive is busy right now. Try again in a moment.", "results": []}), 503
+    if resp.status_code != 200:
+        return jsonify({"error": f"Archive search failed ({resp.status_code}).", "results": []}), 502
+    try:
+        data = resp.json() or {}
+    except ValueError:
+        return jsonify({"error": "The archive returned an unreadable response.", "results": []}), 502
+    out = []
+    for hit in (data.get("hits") or []):
+        ref = (hit.get("ref") or "").strip()
+        if not _ARCHIVE_PLAYABLE_REF.match(ref):
+            continue
+        out.append({
+            "id": ref,
+            "uri": ref,
+            "title": hit.get("title") or "(untitled)",
+            "artist": hit.get("artist") or "",
+            "album": hit.get("album") or "",
+            "art": hit.get("artwork"),
+            "duration": hit.get("durationMs"),
+            "provider": hit.get("provider"),
+        })
+    return jsonify({"results": out, "partial": bool(data.get("partial"))})
 
 
 @app.route("/api/process", methods=["POST", "OPTIONS"])
@@ -4844,12 +4879,11 @@ def api_process():
                 artist = info.get("uploader", artist)
         elif source == "cloudsqueeze":
             cloud_id = request.form.get("cloud_id", "").strip()
-            cloud_uri = request.form.get("cloud_uri", "").strip() or cloud_id
             if not cloud_id:
                 return jsonify({"error": "Please choose a track to import."}), 400
             safe_id = re.sub(r"[^A-Za-z0-9]", "", cloud_id.split(":")[-1])[:40]
             track_id = f"cloud{safe_id}"
-            audio_path, info = _download_from_cloudsqueeze(cloud_id, cloud_uri, track_id)
+            audio_path, info = _download_from_archive(cloud_id, track_id)
             if not title:
                 title = info.get("title") if info else None
             if (not request.form.get("artist")) and info and info.get("uploader"):
