@@ -4762,8 +4762,12 @@ def _download_from_archive(ref: str, track_id: str) -> tuple[Path, Optional[dict
                 detail = resp.json() or {}
             except Exception:
                 pass
+            reason = detail.get("reason") or "busy"
             retry_s = max(1, int(detail.get("retryAfterMs") or 15000) // 1000)
-            raise RuntimeError(f"The archive is busy. Try again in about {retry_s}s.")
+            raise RuntimeError(
+                f"The archive could not fetch this track right now ({reason}). "
+                f"Songs it already holds still play; try again in about {retry_s}s."
+            )
         if resp.status_code == 404:
             raise RuntimeError("The archive has no copy of that song.")
         if resp.status_code != 200:
