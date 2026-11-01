@@ -1600,12 +1600,12 @@ jgs   `-=========-`()
                 if (!list.length) {
                     status.textContent = data.error || (data.partial
                         ? 'No playable matches in this page — the archive answered only partially. Try again.'
-                        : 'No matches.');
+                        : 'No playable matches.');
                     return;
                 }
                 status.textContent = data.partial
-                    ? 'Showing playable matches from a partial result; more may exist. First import can take up to a minute while the archive fetches the track.'
-                    : 'First import can take up to a minute while the archive fetches the track; after that it’s instant.';
+                    ? 'Playable matches only, from a partial result — more may exist. First import can take up to a minute while the archive fetches the track.'
+                    : 'Playable matches only. First import can take up to a minute while the archive fetches the track; after that it’s instant.';
                 list.forEach(item => {
                     const el = document.createElement('button');
                     el.type = 'button';
