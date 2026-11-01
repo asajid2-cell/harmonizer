@@ -4799,7 +4799,9 @@ def api_cloud_search():
     import requests
     base = _archive_tap_base()
     try:
-        resp = requests.post(f"{base}/corpus/search", json={"q": q, "limit": 24}, timeout=60)
+        # Ask for more than we show: the page merges non-Spotify rows that are dropped
+        # below (24 of 25 in a measured page), so limit=24 would show fewer than 24.
+        resp = requests.post(f"{base}/corpus/search", json={"q": q, "limit": 50}, timeout=60)
     except Exception as exc:
         return jsonify({"error": f"Could not reach the archive: {exc}", "results": []}), 502
     if resp.status_code == 503:
@@ -4810,11 +4812,11 @@ def api_cloud_search():
         data = resp.json() or {}
     except ValueError:
         return jsonify({"error": "The archive returned an unreadable response.", "results": []}), 502
+    hits = data.get("hits") or []
+    playable = [h for h in hits if _ARCHIVE_PLAYABLE_REF.match((h.get("ref") or "").strip())]
     out = []
-    for hit in (data.get("hits") or []):
+    for hit in playable[:24]:
         ref = (hit.get("ref") or "").strip()
-        if not _ARCHIVE_PLAYABLE_REF.match(ref):
-            continue
         out.append({
             "id": ref,
             "uri": ref,
@@ -4825,7 +4827,8 @@ def api_cloud_search():
             "duration": hit.get("durationMs"),
             "provider": hit.get("provider"),
         })
-    return jsonify({"results": out, "partial": bool(data.get("partial"))})
+    more = bool(data.get("partial")) or len(playable) > 24
+    return jsonify({"results": out, "partial": more})
 
 
 @app.route("/api/process", methods=["POST", "OPTIONS"])
