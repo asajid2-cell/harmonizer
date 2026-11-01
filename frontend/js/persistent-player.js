@@ -121,7 +121,8 @@
 
     const isBlockedGlobalPlayerRoute = () => {
         const pathname = window.location.pathname.replace(/\/+$/, '').toLowerCase();
-        return pathname === '/harmonizer' || pathname === '/harmonizer.html';
+        return pathname === '/musiclab' || pathname === '/musiclab.html'
+            || pathname === '/harmonizer' || pathname === '/harmonizer.html';
     };
 
     const makeInstanceId = () => {

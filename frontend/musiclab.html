@@ -4,13 +4,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Harmonizer Lab</title>
-    <meta name="description" content="Harmonizer Lab slices tracks into beats, loops, and strange old-web audio experiments.">
+    <title>Harmonizer Music Lab</title>
+    <meta name="description" content="Harmonizer Music Lab slices tracks into beats, loops, and strange old-web audio experiments.">
     <link rel="icon" href="./assets/harmonizer/favicon.ico?v=chicken-big-20260530" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/harmonizer/harmonizer-icon-32.png?v=chicken-big-20260530">
     <link rel="icon" type="image/png" sizes="192x192" href="./assets/harmonizer/harmonizer-icon-192.png?v=chicken-big-20260530">
     <link rel="apple-touch-icon" sizes="180x180" href="./assets/harmonizer/harmonizer-icon-180.png?v=chicken-big-20260530">
-    <meta property="og:title" content="Harmonizer Lab">
+    <meta property="og:title" content="Harmonizer Music Lab">
     <meta property="og:description" content="Infinite loops and seamless harmony from the Internet Discotheque.">
     <meta property="og:image" content="/assets/harmonizer/harmonizer-browser-banner.png">
     <meta name="twitter:card" content="summary_large_image">
@@ -54,7 +54,7 @@
 
         <header class="hero">
             <div class="hero-meta">
-                <p class="hero-eyebrow">*** WELCOME TO THE HARMONIZER LAB ***</p>
+                <p class="hero-eyebrow">*** WELCOME TO THE HARMONIZER MUSIC LAB ***</p>
                 <h1>HASHTAG INFINITE LOOPS</h1>
                 <p class="hero-lede">
                     UPLOAD YOUR TRACK. WE SLICE IT INTO BEATS, FIND THE PERFECT MATCHES,
@@ -646,7 +646,7 @@ jgs   `-=========-`()
             </section>
             </main>
 
-        <!-- Harmonizer Lab badge + rotating footer -->
+        <!-- Harmonizer Music Lab badge + rotating footer -->
         <div class="corner-cluster">
             <span class="ascii-corner-art">♫ o2</span>
             <span class="cluster-separator">|</span>
@@ -1438,6 +1438,10 @@ jgs   `-=========-`()
             const hasFileExtension = /\.[^/]+$/.test(basePath);
             if (!hasFileExtension && !basePath.endsWith('/')) {
                 basePath += '/';
+            }
+            // The canonical extensionless page is /musiclab, not /musiclab/.
+            if (basePath === '/musiclab/') {
+                basePath = '/musiclab';
             }
             const suffix = params.toString();
             return suffix ? `${basePath}?${suffix}` : basePath;
@@ -3482,6 +3486,10 @@ jgs   `-=========-`()
             if (!hasFileExtension && !basePath.endsWith('/')) {
                 basePath += '/';
             }
+            // The canonical extensionless page is /musiclab, not /musiclab/.
+            if (basePath === '/musiclab/') {
+                basePath = '/musiclab';
+            }
             const suffix = params.toString();
             return suffix ? `${basePath}?${suffix}` : basePath;
         }
@@ -4105,7 +4113,7 @@ jgs   `-=========-`()
                     // Add metadata
                     settings.exportDate = new Date().toISOString();
                     settings.version = '1.0';
-                    settings.appName = 'Harmonizer Lab';
+                    settings.appName = 'Harmonizer Music Lab';
 
                     // Create JSON file
                     const dataStr = JSON.stringify(settings, null, 2);

@@ -2546,7 +2546,7 @@ function bindUI() {
   if (dom.backBtn) {
     dom.backBtn.addEventListener('click', () => {
       if (history.length > 1) history.back();
-      else location.href = resolveApiUrl('harmonizer.html', false);
+      else location.href = resolveApiUrl('musiclab', false);
     });
   }
 

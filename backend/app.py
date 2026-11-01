@@ -3088,6 +3088,27 @@ def night_library_redirect():
     return redirect("/night-library.html")
 
 
+@app.route("/musiclab")
+def musiclab_entry():
+    return send_from_directory(FRONTEND_DIR, "musiclab.html")
+
+
+@app.route("/musiclab/")
+def musiclab_slash_redirect():
+    return redirect("/musiclab", code=301)
+
+
+@app.route("/musiclab.html")
+def musiclab_html_redirect():
+    return redirect("/musiclab", code=301)
+
+
+@app.route("/harmonizer")
+@app.route("/harmonizer.html")
+def harmonizer_redirect():
+    return redirect("/musiclab", code=301)
+
+
 def _night_library_root() -> Path:
     return NIGHT_LIBRARY_DIR.resolve()
 

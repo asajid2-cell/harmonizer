@@ -29,7 +29,7 @@
   </style>
 </head>
 <body class="page">
-  <div class="site-landing-banner"><a href="/harmonizer.html">&#8592; Back to Harmonizer</a></div>
+  <div class="site-landing-banner"><a href="/musiclab">&#8592; Back to Music Lab</a></div>
   <div class="trainer-shell">
     <h1 style="margin:8px 0 14px;">Autocrooner Trainer</h1>
     <p class="muted" style="margin:0 0 18px;">
@@ -199,7 +199,7 @@
       });
 
       openHarmonizerBtn.addEventListener('click', () => {
-        window.location.href = '/harmonizer.html?mode=autocrooner';
+        window.location.href = '/musiclab?mode=autocrooner';
       });
 
       stylesRoot.addEventListener('click', (e) => {
@@ -214,7 +214,7 @@
           setStatus(`Active style set: ${id}`);
         } else if (action === 'open') {
           setActiveStyleId(id);
-          window.location.href = '/harmonizer.html?mode=autocrooner';
+          window.location.href = '/musiclab?mode=autocrooner';
         }
       });
 

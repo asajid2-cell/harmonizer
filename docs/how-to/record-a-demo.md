@@ -14,7 +14,7 @@ Use this guide to capture public screenshots or a short demo video without leaki
 | Asset | Page | State | Privacy check |
 | --- | --- | --- | --- |
 | Homepage screenshot | `/` | Internet Discotheque launcher loaded | no local path or account name visible |
-| Harmonizer screenshot | `/harmonizer.html` | visualizer loaded with demo audio | audio metadata is approved for public view |
+| Harmonizer screenshot | `/musiclab` | visualizer loaded with demo audio | audio metadata is approved for public view |
 | OurSpace screenshot | `/ourspace.html` | sample profile only | no real user data or private media |
 | CodeSniff screenshot | CodeSniff UI | sample indexed repository | no private repository paths or tokens |
 
