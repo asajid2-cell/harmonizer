@@ -4713,7 +4713,24 @@ _ARCHIVE_PLAYABLE_REF = re.compile(r"^[A-Za-z0-9]{22}$")
 
 
 def _archive_tap_base() -> str:
-    return (os.environ.get("ARCHIVE_TAP_URL") or "http://host.docker.internal:4261").rstrip("/")
+    # Literal bridge gateway, not host.docker.internal: that name resolves to 172.17.0.1
+    # (docker0), while the tap binds the harmonizer compose gateway 172.24.0.1.
+    return (os.environ.get("ARCHIVE_TAP_URL") or "http://172.24.0.1:4261").rstrip("/")
+
+
+def _archive_resolve(ref: str) -> dict:
+    """Ask the archive for its verdict on a ref. A failed resolve is not a verdict, so it
+    returns {} and the caller falls through to the fetch, which reports its own error."""
+    import requests
+    try:
+        resp = requests.post(f"{_archive_tap_base()}/corpus/resolve", json={"ref": ref}, timeout=20)
+    except Exception as exc:
+        print(f"[Archive] resolve failed for {ref}: {exc}", flush=True)
+        return {}
+    try:
+        return resp.json() or {}
+    except ValueError:
+        return {}
 
 
 def _download_from_archive(ref: str, track_id: str) -> tuple[Path, Optional[dict]]:
@@ -4725,6 +4742,16 @@ def _download_from_archive(ref: str, track_id: str) -> tuple[Path, Optional[dict
     ref = (ref or "").split(":")[-1].strip()
     if not _ARCHIVE_PLAYABLE_REF.match(ref):
         raise RuntimeError("That result has no playable archive reference.")
+    # Search-time availability is only a hint; resolve is the verdict. "unavailable" is durable
+    # (no_source) and must not be fetched. "unknown" is NOT "absent" - the first GET on such a
+    # ref is the acquire, so it falls through rather than being refused.
+    verdict = _archive_resolve(ref)
+    state = (verdict.get("state") or "").lower()
+    if state == "unavailable":
+        reason = verdict.get("reason") or ""
+        raise RuntimeError(f"The archive has no source for that song{f' ({reason})' if reason else ''}.")
+    if state not in ("available", "unknown"):
+        print(f"[Archive] resolve state={state or 'none'} for {ref}; attempting fetch", flush=True)
     base = _archive_tap_base()
     url = f"{base}/song/{quote(ref)}"
     print(f"[Archive] Fetching {ref} ...", flush=True)
