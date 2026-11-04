@@ -6890,12 +6890,16 @@ def serve_study_asset(study_path: str):
 
 # Pages retired from the site on the neo branch. The files may still exist in the
 # image; the site must not serve or link them.
-RETIRED_SITE_PREFIXES = frozenset({
+RETIRED_SITE_HEADS = frozenset({
     "cameraroom",
     "night-library",
+    "night-library.html",
     "eldrichify.html",  # eldrichify.css is still used by talk-to-disco-teque.html
     "codesniff",
+    "codesniff.html",
+    "codesniff-app",
     "notebook",
+    "notebook.html",
     "cheatsheets",
 })
 
@@ -6904,7 +6908,7 @@ RETIRED_SITE_PREFIXES = frozenset({
 def serve_frontend_asset(asset_path: str):
     if asset_path.startswith(("api/", "media/", "data/")):
         abort(404)
-    if asset_path.split("/", 1)[0].lower() in RETIRED_SITE_PREFIXES:
+    if asset_path.split("/", 1)[0].lower() in RETIRED_SITE_HEADS:
         abort(404)
     target = (FRONTEND_DIR / asset_path).resolve()
     try:
