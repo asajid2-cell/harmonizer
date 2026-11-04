@@ -30,8 +30,8 @@ part is wiring all of that into one coherent, deployable monorepo.
 
 | Tool | What it does | Entry point |
 |---|---|---|
-| **Internet Discotheque** | Draggable retro-desktop launcher; every live app, one screen | `frontend/index.html` |
-| **Collections** | The catalogue behind the launcher, grouped by Sound / Rooms / Tools / Things | `frontend/collections.html` |
+| **Internet Discotheque** | Full-bleed landing: wordmark, light floor, and a six-item floor index | `frontend/index.html` |
+| **Collections** | The catalogue behind the landing, grouped by Sound / Rooms / Tools / Things | `frontend/collections.html` |
 | **Harmonizer Music Lab** | Beat-sliced audio re-looping — canon / jukebox / eternal / phase-shift | `frontend/musiclab.html`, `backend/app.py` |
 | **hl-auth** | Single sign-on + per-page / per-icon access control for the whole host | `hl-auth/` |
 | **OurSpace** | A MySpace-style profile builder | `frontend/ourspace.html` |
@@ -55,7 +55,7 @@ docker compose up --build     # → http://localhost:5000
 
 | Area | Path |
 |---|---|
-| Retro desktop launcher | `frontend/index.html` |
+| Landing page | `frontend/index.html` |
 | Collections index + item manifest | `frontend/collections.html`, `frontend/js/collections-data.js` |
 | Audio analysis + looping | `backend/app.py`, `frontend/musiclab.html`, `frontend/js/` |
 | Semantic code search | `codesniff/backend` (FastAPI), `codesniff/frontend` (React) |

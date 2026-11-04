@@ -4,497 +4,354 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Collections — Harmonizer Labs</title>
-  <meta name="description" content="Every live thing in Harmonizer Labs, in one window.">
-  <link rel="stylesheet" href="https://unpkg.com/pixelarticons@1.8.1/fonts/pixelart-icons-font.css">
+  <meta name="description" content="Every live thing in Harmonizer Labs, in one index.">
   <script>
     (function () {
       try {
-        var saved = localStorage.getItem('hl-theme');
-        document.documentElement.dataset.theme = saved === 'light' ? 'day' : 'night';
+        document.documentElement.dataset.theme = localStorage.getItem('hl-theme') === 'light' ? 'day' : 'night';
       } catch (e) {}
     })();
   </script>
+  <link rel="stylesheet" href="https://unpkg.com/pixelarticons@1.8.1/fonts/pixelart-icons-font.css">
   <style>
     :root{
-      --display:"Times New Roman",Times,serif;
-      --ui:"MS Sans Serif",Tahoma,Verdana,sans-serif;
+      --serif:"Times New Roman",Times,"Liberation Serif",serif;
+      --sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
       --mono:"Courier New",ui-monospace,Consolas,monospace;
-      --page:#04050a;
-      --shell:#0b101a;
-      --shell-2:#0e1522;
-      --chrome:#131c2d;
-      --chrome-hi:#1c283f;
-      --bevel-hi:rgba(255,255,255,.13);
-      --bevel-lo:rgba(0,0,0,.55);
-      --ink:#e9f1ff;
-      --ink-dim:#9cb0d3;
-      --mute:#6f82a6;
-      --rule:#1b2740;
-      --rule-soft:#131c2d;
-      --accent:#3d80ff;
-      --accent-2:#7bd7ff;
-      --glow:rgba(61,128,255,.35);
-      --dot:rgba(255,255,255,.10);
-      --cover-opacity:.16;
-      --chip:rgba(61,128,255,.12);
-      --row-hover:rgba(61,128,255,.10);
-      --shadow:0 24px 70px rgba(0,0,0,.65);
+      --bg:#07080c;
+      --ink:#f2efe6;
+      --dim:#9a9daa;
+      --line:rgba(242,239,230,.16);
+      --accent:#7ea2ff;
+      --tint:rgba(126,162,255,.055);
       color-scheme:dark;
     }
     :root[data-theme="day"]{
-      --page:#0a7373;
-      --shell:#ece6d8;
-      --shell-2:#e4ddcc;
-      --chrome:#c9c1ae;
-      --chrome-hi:#ddd6c6;
-      --bevel-hi:rgba(255,255,255,.85);
-      --bevel-lo:rgba(0,0,0,.32);
-      --ink:#171a21;
-      --ink-dim:#4c5568;
-      --mute:#6b7180;
-      --rule:#c4bba6;
-      --rule-soft:#d7cfbd;
-      --accent:#1f3fb0;
-      --accent-2:#0a6f6f;
-      --glow:rgba(31,63,176,.22);
-      --dot:rgba(0,0,0,.09);
-      --cover-opacity:.10;
-      --chip:rgba(31,63,176,.10);
-      --row-hover:rgba(31,63,176,.08);
-      --shadow:0 22px 60px rgba(0,0,0,.28);
+      --bg:#ece6d8;
+      --ink:#141519;
+      --dim:#5f5d56;
+      --line:rgba(20,21,25,.18);
+      --accent:#1d3ecf;
+      --tint:rgba(29,62,207,.05);
       color-scheme:light;
     }
     *{box-sizing:border-box}
-    html,body{min-height:100%}
+    html,body{margin:0}
     body{
-      margin:0;
       min-height:100dvh;
-      padding:14px;
-      background-color:var(--page);
-      background-image:
-        radial-gradient(circle,var(--dot) 1px,transparent 1px),
-        radial-gradient(circle,var(--dot) 1px,transparent 1px);
-      background-size:52px 52px,86px 86px;
-      background-position:0 0,40px 40px;
+      background:var(--bg);
       color:var(--ink);
-      font-family:var(--ui);
-      font-size:13px;
-      line-height:1.45;
+      font-family:var(--sans);
       -webkit-font-smoothing:antialiased;
     }
-    a{color:var(--accent-2);text-decoration:none}
-    a:hover{text-decoration:underline;text-underline-offset:3px}
+    a{color:inherit;text-decoration:none}
     button,input{font:inherit;color:inherit}
     .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
-    .skip{position:absolute;left:12px;top:-44px;z-index:20;padding:8px 12px;background:var(--shell);border:1px solid var(--ink);color:var(--ink)}
-    .skip:focus{top:12px}
+    .skip{position:fixed;left:16px;top:-48px;z-index:20;padding:8px 12px;background:var(--bg);border:1px solid var(--ink);color:var(--ink)}
+    .skip:focus{top:16px}
+    :focus-visible{outline:1px solid var(--accent);outline-offset:4px}
 
-    .frame{
-      view-transition-name:lab-window;
-      max-width:1180px;
-      margin:0 auto;
-      min-height:calc(100dvh - 28px);
+    .page{
+      min-height:100dvh;
       display:flex;
       flex-direction:column;
-      background:var(--shell);
-      border:1px solid var(--rule);
-      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo),var(--shadow);
-      animation:boot 420ms ease both;
+      padding:0 clamp(20px,4vw,56px);
     }
-    @keyframes boot{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-    .titlebar{
+    .meta{
       display:flex;
       align-items:center;
-      gap:10px;
-      min-height:36px;
-      padding:0 8px 0 10px;
-      background:linear-gradient(90deg,#1b2d52,#111a2c 70%);
-      color:#e7eeff;
-      border-bottom:1px solid var(--rule);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
-      user-select:none;
-    }
-    :root[data-theme="day"] .titlebar{
-      background:linear-gradient(90deg,#000b5c,#0a7373 78%);
-      color:#f4f1e8;
-    }
-    .tb-brand{
+      justify-content:space-between;
+      gap:20px;
+      padding:18px 0 16px;
+      border-bottom:1px solid var(--line);
+      font-family:var(--mono);
       font-size:10px;
-      letter-spacing:.22em;
+      letter-spacing:.2em;
       text-transform:uppercase;
-      color:rgba(233,241,255,.62);
-      white-space:nowrap;
+      color:var(--dim);
     }
-    :root[data-theme="day"] .tb-brand{color:rgba(244,241,232,.72)}
-    .tb-title{
-      flex:1;
-      text-align:center;
-      font-size:11px;
-      font-weight:700;
-      letter-spacing:.16em;
-      text-transform:uppercase;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+    .meta-left,.meta-right{display:flex;align-items:center;gap:12px;min-width:0}
+    .meta .mark{
+      display:inline-flex;align-items:center;justify-content:center;
+      width:22px;height:22px;border:1px solid var(--line);color:var(--ink);
+      font-size:9px;letter-spacing:.04em;
     }
-    .tb-controls{display:flex;align-items:center;gap:6px}
-    .tb-back,.power{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      height:24px;
-      padding:0 9px;
-      background:var(--chrome);
-      color:var(--ink);
-      border:1px solid var(--rule);
-      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo);
-      font-size:10px;
-      letter-spacing:.14em;
-      text-transform:uppercase;
-      cursor:pointer;
+    .meta .sep{opacity:.45}
+    .meta b{font-weight:400;color:var(--ink)}
+    .meta a:hover{color:var(--accent)}
+    .power{
+      display:inline-flex;align-items:center;gap:8px;
+      margin-left:10px;padding:4px 0;background:none;border:0;color:var(--dim);
+      font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;
     }
-    .tb-back:hover,.power:hover{border-color:var(--accent)}
-    .tb-back:focus-visible,.power:focus-visible,.rail-tab:focus-visible,.row:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
-    .tb-back{color:var(--ink)}
-    .power i{font-size:14px;line-height:1}
-    .power .led{
-      width:6px;height:6px;border-radius:50%;
-      background:var(--accent-2);
-      box-shadow:0 0 8px var(--accent-2);
+    .power:hover{color:var(--ink)}
+    .power .dot{position:relative;width:16px;height:16px;border:1px solid var(--line);border-radius:50%;overflow:hidden}
+    .power .dot::after{
+      content:"";position:absolute;inset:0;background:var(--accent);
+      clip-path:inset(0 0 50% 0);transition:clip-path .45s cubic-bezier(.2,.8,.2,1);
     }
+    :root[data-theme="day"] .power .dot::after{clip-path:inset(50% 0 0 0)}
 
-    main{
-      flex:1;
-      padding:clamp(18px,3.2vw,38px) clamp(16px,3vw,40px) clamp(24px,3vw,40px);
-      position:relative;
-      isolation:isolate;
+    main{flex:1;padding:clamp(32px,6vh,64px) 0 clamp(40px,6vh,72px)}
+    .title{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:32px;
+      padding-bottom:clamp(24px,4vh,40px);
+      border-bottom:1px solid var(--line);
     }
-    .hero{max-width:760px;min-height:214px;position:relative;z-index:0}
-    .hero::before{
-      content:"";
-      position:absolute;
-      right:0;
-      top:0;
-      width:min(320px,30vw);
-      height:180px;
-      background:url("./assets/cover.jpg") no-repeat right top/contain;
-      opacity:var(--cover-opacity);
-      filter:saturate(.85) contrast(1.02);
-      pointer-events:none;
-      z-index:-1;
-    }
-    :root[data-theme="day"] .hero::before{opacity:.18}
+    .title-main{min-width:0}
     .kicker{
-      margin:0 0 10px;
+      margin:0 0 clamp(14px,2.4vh,24px);
       font-family:var(--mono);
       font-size:10px;
       letter-spacing:.3em;
       text-transform:uppercase;
-      color:var(--mute);
+      color:var(--dim);
     }
     h1{
-      view-transition-name:collections-mark;
+      view-transition-name:masthead;
       margin:0;
-      font-family:var(--display);
-      font-size:clamp(38px,7vw,76px);
-      line-height:.94;
-      letter-spacing:.02em;
+      font-family:var(--serif);
       font-weight:700;
-      color:var(--ink);
-      text-shadow:0 0 28px var(--glow);
+      font-size:clamp(46px,10vw,132px);
+      line-height:.82;
+      letter-spacing:-.04em;
+      text-transform:uppercase;
     }
-    .lede{
-      margin:14px 0 0;
-      max-width:58ch;
-      color:var(--ink-dim);
-      font-size:13.5px;
+    .sub{
+      margin:18px 0 0;
+      max-width:46ch;
+      font-size:14px;
+      line-height:1.5;
+      color:var(--dim);
     }
-    .lede strong{color:var(--ink);font-weight:600}
-
-    .filter{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      margin:22px 0 0;
-      max-width:640px;
-    }
-    .filter input{
-      flex:1;
-      min-width:0;
-      height:34px;
-      padding:0 10px;
-      background:var(--shell-2);
-      border:1px solid var(--rule);
-      box-shadow:inset 1px 1px 0 var(--bevel-lo),inset -1px -1px 0 var(--bevel-hi);
+    .sub b{font-weight:400;color:var(--ink)}
+    .search{align-self:flex-end;min-width:200px;max-width:280px}
+    .search input{
+      width:100%;
+      padding:7px 0;
+      background:none;
+      border:0;
+      border-bottom:1px solid var(--line);
       color:var(--ink);
       font-family:var(--mono);
-      font-size:12px;
-      letter-spacing:.04em;
+      font-size:11px;
+      letter-spacing:.05em;
     }
-    .filter input::placeholder{color:var(--mute)}
-    .filter input:focus{outline:2px solid var(--accent);outline-offset:-1px}
-    .filter-hint{
+    .search input::placeholder{color:var(--dim)}
+    .search input:focus{outline:none;border-color:var(--accent)}
+    .search .hint{
+      display:block;
+      margin-top:6px;
       font-family:var(--mono);
-      font-size:10px;
-      letter-spacing:.08em;
-      color:var(--mute);
-      white-space:nowrap;
+      font-size:8.5px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:var(--dim);
     }
 
-    .catalog{
+    .layout{
       display:grid;
-      grid-template-columns:186px minmax(0,1fr);
-      gap:clamp(18px,3vw,36px);
-      margin-top:clamp(24px,3.4vw,40px);
+      grid-template-columns:190px minmax(0,1fr);
+      gap:clamp(28px,5vw,72px);
+      padding-top:clamp(24px,4vh,40px);
       align-items:start;
     }
 
-    .rail{
-      position:sticky;
-      top:16px;
-      display:grid;
-      gap:4px;
-      padding:8px;
-      background:var(--shell-2);
-      border:1px solid var(--rule);
-      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo);
-    }
-    .rail-tab{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:8px;
-      width:100%;
-      padding:8px 9px;
-      background:transparent;
-      border:1px solid transparent;
-      color:var(--ink-dim);
-      text-align:left;
-      font-size:11px;
-      letter-spacing:.14em;
+    .rail{position:sticky;top:24px}
+    .rail-label{
+      margin:0 0 12px;
+      font-family:var(--mono);
+      font-size:9px;
+      letter-spacing:.28em;
       text-transform:uppercase;
+      color:var(--dim);
+    }
+    .rail-list{display:flex;flex-direction:column;gap:2px}
+    .rail button{
+      display:flex;
+      align-items:baseline;
+      justify-content:space-between;
+      gap:10px;
+      width:100%;
+      padding:7px 0;
+      background:none;
+      border:0;
+      border-bottom:1px solid transparent;
+      color:var(--dim);
+      text-align:left;
+      font-size:12.5px;
       cursor:pointer;
     }
-    .rail-tab:hover{color:var(--ink);background:var(--row-hover)}
-    .rail-tab[aria-pressed="true"]{
-      background:var(--accent);
-      border-color:var(--accent);
-      color:#fff;
-      box-shadow:inset 1px 1px 0 rgba(255,255,255,.28),inset -1px -1px 0 rgba(0,0,0,.35);
-    }
-    :root[data-theme="day"] .rail-tab[aria-pressed="true"]{color:#fff}
-    .rail-tab .n{
-      font-family:var(--mono);
-      font-size:10px;
-      opacity:.72;
-    }
+    .rail button:hover{color:var(--ink)}
+    .rail button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+    .rail button[aria-pressed="true"] .n{color:var(--accent)}
+    .rail .n{font-family:var(--mono);font-size:9.5px;color:var(--dim)}
     .rail-note{
-      margin:10px 2px 0;
-      padding-top:10px;
-      border-top:1px solid var(--rule-soft);
-      font-size:10.5px;
-      line-height:1.5;
-      color:var(--mute);
+      margin:22px 0 0;
+      padding-top:14px;
+      border-top:1px solid var(--line);
+      font-family:var(--mono);
+      font-size:9px;
+      line-height:1.7;
+      letter-spacing:.02em;
+      color:var(--dim);
     }
 
-    .list{min-width:0;display:grid;gap:8px}
-    .group{margin:0 0 10px}
+    .index{min-width:0}
+    .group{margin:0 0 clamp(28px,4vh,44px)}
     .group-head{
       display:flex;
       align-items:baseline;
-      gap:10px;
-      margin:0 0 8px;
-      padding:0 2px;
-    }
-    .group-head h2{
-      margin:0;
-      font-size:11px;
+      gap:12px;
+      margin:0 0 4px;
+      padding-bottom:8px;
+      font-family:var(--mono);
+      font-size:9px;
       letter-spacing:.26em;
       text-transform:uppercase;
-      color:var(--ink);
+      color:var(--dim);
     }
-    .group-head .group-note{
-      font-family:var(--mono);
-      font-size:10px;
-      color:var(--mute);
-    }
+    .group-head h2{margin:0;font:inherit;color:var(--accent)}
+    .group-head .count{margin-left:auto}
 
-    .row{
+    .item{
       position:relative;
       display:grid;
-      grid-template-columns:44px minmax(0,1fr) auto 18px;
+      grid-template-columns:30px minmax(120px,210px) minmax(0,1fr) auto 26px;
+      grid-template-areas:"no name note end ico";
       align-items:center;
-      gap:12px;
-      padding:9px 10px;
-      background:var(--shell-2);
-      border:1px solid var(--rule-soft);
-      color:var(--ink);
-      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo);
-      transition:background 120ms ease,border-color 120ms ease,transform 120ms ease;
+      gap:14px;
+      padding:11px 8px 11px 0;
+      border-bottom:1px solid var(--line);
+      transition:background .16s;
     }
-    .row-link{position:absolute;inset:0;z-index:1;border-radius:2px}
-    .row:has(.row-link:focus-visible){outline:2px solid var(--accent-2);outline-offset:2px}
-    .row:hover,.row:focus-within{
-      background:var(--row-hover);
-      border-color:var(--accent);
-      transform:translateX(2px);
-      text-decoration:none;
-    }
-    .row-side{display:grid;justify-items:end;gap:2px;position:relative;z-index:2}
-    .row-more{
+    .item:hover,.item:focus-within{background:var(--tint)}
+    .item .hit{position:absolute;inset:0;z-index:1}
+    .item .hit:focus-visible{outline:1px solid var(--accent);outline-offset:-1px}
+    .item .no{grid-area:no;font-family:var(--mono);font-size:9px;color:var(--dim)}
+    .item .name{grid-area:name;font-size:14.5px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .16s,transform .16s}
+    .item .note{grid-area:note;font-size:12px;line-height:1.4;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .item .end{grid-area:end;display:flex;flex-direction:column;align-items:flex-end;gap:3px;position:relative;z-index:2}
+    .item .gate{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+    .item .more{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);white-space:nowrap}
+    .item .more:hover{text-decoration:underline;text-underline-offset:2px}
+    .item .ico{grid-area:ico;display:flex;align-items:center;justify-content:center;width:26px;height:26px;filter:none;opacity:.9;background:color-mix(in srgb,var(--ink) 5%,transparent);border-radius:2px;transition:filter .18s,opacity .18s}
+    .item .ico img{width:24px;height:24px;object-fit:contain;display:block}
+    .item .ico i{font-size:17px;line-height:1;color:var(--ink)}
+    .item:hover .name,.item:focus-within .name{color:var(--accent);transform:translateX(3px)}
+    .item:hover .ico,.item:focus-within .ico{filter:none;opacity:1}
+
+    .empty{
+      padding:28px 0;
+      border-bottom:1px solid var(--line);
       font-family:var(--mono);
-      font-size:9.5px;
-      letter-spacing:.06em;
-      color:var(--accent-2);
-      white-space:nowrap;
+      font-size:11px;
+      color:var(--dim);
     }
-    .row-more:hover{text-decoration:underline;text-underline-offset:2px}
-    .row-icon{
+
+    .foot{
       display:flex;
       align-items:center;
-      justify-content:center;
-      width:44px;height:44px;
-      background:#0b0b0b;
-      border:1px solid var(--rule);
-      box-shadow:inset 1px 1px 0 rgba(255,255,255,.10),inset -1px -1px 0 rgba(0,0,0,.6);
-      color:var(--accent-row,#9fd3ff);
-    }
-    :root[data-theme="day"] .row-icon{background:#f7f3e8;box-shadow:inset 1px 1px 0 rgba(255,255,255,.9),inset -1px -1px 0 rgba(0,0,0,.18)}
-    .row-icon img{width:34px;height:34px;object-fit:contain;pointer-events:none}
-    .row-icon i{font-size:24px;line-height:1;color:var(--accent-row,#9fd3ff);filter:drop-shadow(0 0 6px color-mix(in srgb,var(--accent-row,#9fd3ff) 45%,transparent))}
-    .row-main{min-width:0;display:grid;gap:2px}
-    .row-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-    .row-name{font-size:13.5px;font-weight:700;letter-spacing:.02em}
-    .row-note{color:var(--ink-dim);font-size:12px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .chip{
-      padding:1px 6px;
-      border:1px solid var(--rule);
-      background:var(--chip);
-      color:var(--ink-dim);
+      justify-content:space-between;
+      gap:20px;
+      padding:16px 0 22px;
+      border-top:1px solid var(--line);
       font-family:var(--mono);
       font-size:9px;
       letter-spacing:.14em;
       text-transform:uppercase;
-      white-space:nowrap;
+      color:var(--dim);
     }
-    .chip--open{color:var(--accent-2);border-color:color-mix(in srgb,var(--accent-2) 45%,transparent)}
-    .chip--signin,.chip--keyed,.chip--passkey{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
-    .chip--external,.chip--ios{color:var(--mute)}
-    .row-route{
-      font-family:var(--mono);
-      font-size:10.5px;
-      color:var(--mute);
-      letter-spacing:.02em;
-      white-space:nowrap;
-    }
-    .row-go{color:var(--mute);font-size:14px;transition:transform 120ms ease,color 120ms ease}
-    .row:hover .row-go,.row:focus-visible .row-go{color:var(--accent-2);transform:translateX(2px)}
-
-    .empty{
-      padding:26px 18px;
-      border:1px dashed var(--rule);
-      color:var(--mute);
-      font-family:var(--mono);
-      font-size:12px;
-    }
-
-    .statusbar{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      min-height:30px;
-      padding:0 10px;
-      border-top:1px solid var(--rule);
-      background:var(--chrome);
-      color:var(--ink-dim);
-      font-family:var(--mono);
-      font-size:10.5px;
-      letter-spacing:.05em;
-      box-shadow:inset 0 1px 0 var(--bevel-hi);
-    }
-    .sb-right{white-space:nowrap;color:var(--mute)}
 
     @media (max-width:820px){
-      .catalog{grid-template-columns:1fr}
-      .rail{position:static;display:flex;flex-wrap:wrap;gap:4px;padding:6px}
-      .rail-tab{width:auto;padding:6px 10px}
-      .rail-note{width:100%;border-top:0;padding-top:4px;margin-top:2px}
-      .row-route{display:none}
-      .row{grid-template-columns:40px minmax(0,1fr) auto 14px}
+      .layout{grid-template-columns:1fr;gap:26px}
+      .rail{position:static}
+      .rail-list{flex-direction:row;flex-wrap:wrap;gap:6px 16px}
+      .rail button{width:auto;padding:4px 0}
+      .rail-note{margin-top:16px}
+      .title{flex-direction:column;align-items:flex-start;gap:20px}
+      .search{align-self:stretch;max-width:none;width:100%}
+      .item{
+        grid-template-columns:24px minmax(0,1fr) 26px;
+        grid-template-areas:"no name ico" ". note note" ". end end";
+        row-gap:2px;
+        padding:10px 4px 10px 0;
+      }
+      .item .end{flex-direction:row;align-items:center;gap:10px}
+      .item .note{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
     }
-    @media (max-width:560px){
-      body{padding:0}
-      .frame{min-height:100dvh;border:0;box-shadow:none}
-      .tb-brand{display:none}
-      .tb-title{text-align:left;letter-spacing:.1em;font-size:10px}
-      .power .power-label{display:none}
-      .power{padding:0 8px}
-      main{padding:22px 14px 28px}
-      .hero::before{display:none}
-      h1{font-size:clamp(34px,13vw,52px)}
-      .lede{font-size:12.5px}
-      .filter{flex-wrap:wrap;margin-top:16px}
-      .filter-hint{display:none}
-      .row{grid-template-columns:38px minmax(0,1fr) 12px;gap:10px;padding:8px}
-      .row-icon{width:38px;height:38px}
-      .row-icon img{width:29px;height:29px}
-      .row-icon i{font-size:21px}
-      .row-note{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-      .row-go{display:none}
-      .statusbar{font-size:10px}
-      .sb-right{display:none}
+    @media (max-width:620px){
+      .meta{font-size:9px;letter-spacing:.14em;gap:12px}
+      .meta .room,.meta .sep,#live-count{display:none}
+      .power{margin-left:2px}
+      h1{font-size:clamp(34px,12.2vw,76px)}
+      .sub{font-size:13px}
+      .foot{align-items:flex-start;flex-direction:column;gap:8px}
+      .item .name{font-size:13.5px}
+      .group-head span:not(.count){display:none}
     }
     @media (prefers-reduced-motion:reduce){
       *{animation:none!important;transition:none!important}
-      .frame{animation:none}
     }
-    @supports (view-transition-name: none){
+    @supports (view-transition-name:none){
       @view-transition{navigation:auto}
     }
   </style>
 </head>
 <body>
   <a class="skip" href="#main">Skip to collections</a>
-  <div class="frame">
-    <header class="titlebar">
-      <span class="tb-brand">Business Casual presents</span>
-      <span class="tb-title">Collections — Harmonizer Labs</span>
-      <div class="tb-controls">
+  <div class="page">
+    <header class="meta">
+      <div class="meta-left">
+        <span class="mark" aria-hidden="true">HL</span>
+        <span><b>Harmonizer Labs</b></span>
+        <span class="sep" aria-hidden="true">/</span>
+        <span class="room">Collections</span>
+      </div>
+      <div class="meta-right">
+        <span id="live-count"></span>
+        <span class="sep" aria-hidden="true">/</span>
+        <a href="/">Desktop</a>
         <button class="power" id="theme" type="button" aria-label="Switch to daylight">
-          <span class="led" aria-hidden="true"></span>
-          <i class="pixelart-icons-font-sun" aria-hidden="true"></i>
-          <span class="power-label">Daylight</span>
+          <span class="dot" aria-hidden="true"></span>
+          <span class="label">Night</span>
         </button>
-        <a class="tb-back" href="/">Desktop</a>
       </div>
     </header>
 
     <main id="main">
-      <section class="hero">
-        <p class="kicker">Harmonizer Labs / 2026</p>
-        <h1>Collections</h1>
-        <p class="lede">Every live thing in the lab, in one window. <strong id="count"></strong></p>
-        <div class="filter">
-          <label class="sr-only" for="q">Filter collections</label>
-          <input id="q" type="search" placeholder="Filter by name, collection, or route" autocomplete="off" spellcheck="false">
-          <span class="filter-hint">/ to focus · esc to clear</span>
+      <section class="title">
+        <div class="title-main">
+          <p class="kicker">Harmonizer Labs / Catalogue</p>
+          <h1>Collections</h1>
+          <p class="sub"><b id="count"></b> Four collections. Six retired from the site.</p>
+        </div>
+        <div class="search">
+          <label class="sr-only" for="q">Filter the collections</label>
+          <input id="q" type="search" placeholder="Filter name or route" autocomplete="off" spellcheck="false">
+          <span class="hint">/ to focus · esc to clear</span>
         </div>
       </section>
 
-      <div class="catalog">
-        <nav class="rail" id="rail" aria-label="Collections">
-          <button class="rail-tab" type="button" data-filter="all" aria-pressed="true">All <span class="n"></span></button>
-          <div class="rail-note">Six retired: CameraRoom, Night Library, Eldrichify, CodeSniff, Notebook, Quick Reference.</div>
-        </nav>
-        <section class="list" id="list" aria-live="polite"></section>
+      <div class="layout">
+        <aside class="rail">
+          <p class="rail-label">Filter</p>
+          <div class="rail-list" id="rail">
+            <button type="button" data-filter="all" aria-pressed="true">All <span class="n"></span></button>
+          </div>
+          <p class="rail-note">Retired: CameraRoom, Night Library, Eldrichify, CodeSniff, Notebook, Quick Reference.</p>
+        </aside>
+        <section class="index" id="list" aria-live="polite"></section>
       </div>
     </main>
 
-    <footer class="statusbar">
-      <span id="status">Loading…</span>
-      <span class="sb-right">harmonizerlabs.cc</span>
+    <footer class="foot">
+      <span id="status">—</span>
+      <span>harmonizerlabs.cc</span>
     </footer>
   </div>
 
@@ -510,42 +367,33 @@
       const countEl = document.getElementById('count');
       const statusEl = document.getElementById('status');
       const q = document.getElementById('q');
+      const liveCount = document.getElementById('live-count');
       let active = 'all';
 
       const byCollection = new Map(collections.map((c) => [c.id, c]));
       const esc = (s) => String(s).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-
       const iconMarkup = (item) => item.icon.type === 'img'
         ? `<img src="${esc(item.icon.value)}" alt="" loading="lazy" draggable="false">`
         : `<i class="${esc(item.icon.value)}" aria-hidden="true"></i>`;
-
       const routeLabel = (item) => {
-        if (item.external) {
-          try { return new URL(item.href).host; } catch (e) { return item.href; }
-        }
+        if (item.external) { try { return new URL(item.href).host; } catch (e) { return item.href; } }
         return item.href;
       };
 
-      const rowMarkup = (item) => {
+      let num = 0;
+      const itemMarkup = (item) => {
+        num += 1;
         const external = item.external ? ' target="_blank" rel="noopener"' : '';
         const more = item.more
-          ? `<a class="row-more" href="${esc(item.more.href)}" target="_blank" rel="noopener">${esc(item.more.label)} &nearr;</a>`
+          ? `<a class="more" href="${esc(item.more.href)}" target="_blank" rel="noopener">${esc(item.more.label)} &nearr;</a>`
           : '';
-        return `<div class="row" style="--accent-row:${esc(item.accent)}">
-          <a class="row-link" href="${esc(item.href)}"${external} aria-label="Open ${esc(item.name)} — ${esc(gates[item.gate] || item.gate)}"></a>
-          <span class="row-icon" aria-hidden="true">${iconMarkup(item)}</span>
-          <span class="row-main">
-            <span class="row-top">
-              <span class="row-name">${esc(item.name)}</span>
-              <span class="chip chip--${esc(item.gate)}">${esc(gates[item.gate] || item.gate)}</span>
-            </span>
-            <span class="row-note">${esc(item.note)}</span>
-          </span>
-          <span class="row-side">
-            ${more}
-            <span class="row-route" aria-hidden="true">${esc(routeLabel(item))}</span>
-          </span>
-          <span class="row-go" aria-hidden="true">&rarr;</span>
+        return `<div class="item">
+          <a class="hit" href="${esc(item.href)}"${external} aria-label="Open ${esc(item.name)} (${esc(routeLabel(item))})"></a>
+          <span class="no">${String(num).padStart(2, '0')}</span>
+          <span class="name">${esc(item.name)}</span>
+          <span class="note">${esc(item.note)}</span>
+          <span class="end">${more}<span class="gate">${esc(gates[item.gate] || item.gate)}</span></span>
+          <span class="ico" aria-hidden="true">${iconMarkup(item)}</span>
         </div>`;
       };
 
@@ -553,85 +401,73 @@
         if (active !== 'all' && item.collection !== active) return false;
         const term = q.value.trim().toLowerCase();
         if (!term) return true;
-        const hay = `${item.name} ${item.note} ${item.href} ${byCollection.get(item.collection).name}`.toLowerCase();
-        return hay.includes(term);
+        return `${item.name} ${item.note} ${item.href} ${byCollection.get(item.collection).name}`.toLowerCase().includes(term);
       };
 
       const render = () => {
+        num = 0;
         const shown = items.filter(matches);
-        const groups = active === 'all' && !q.value.trim()
+        const grouped = active === 'all' && !q.value.trim();
+        const blocks = grouped
           ? collections.map((c) => ({ c, rows: shown.filter((i) => i.collection === c.id) })).filter((g) => g.rows.length)
           : [{ c: null, rows: shown }];
 
-        list.innerHTML = groups.length
-          ? groups.map(({ c, rows }) => {
+        list.innerHTML = blocks.length
+          ? blocks.map(({ c, rows }) => {
               const head = c
-                ? `<div class="group-head"><h2>${esc(c.name)}</h2><span class="group-note">${esc(c.note)}</span></div>`
+                ? `<div class="group-head"><h2>${esc(c.name)}</h2><span>${esc(c.note)}</span><span class="count">${rows.length}</span></div>`
                 : '';
-              return `<section class="group">${head}${rows.map(rowMarkup).join('')}</section>`;
+              return `<section class="group">${head}${rows.map(itemMarkup).join('')}</section>`;
             }).join('')
           : '<p class="empty">Nothing matches that. Esc to clear.</p>';
 
-        countEl.textContent = `${items.length} entries across ${collections.length} collections.`;
-        statusEl.textContent = `${shown.length} of ${items.length} shown${active === 'all' ? '' : ` · ${byCollection.get(active).name}`}${q.value.trim() ? ` · “${q.value.trim()}”` : ''}`;
+        countEl.textContent = `${items.length} live things.`;
+        liveCount.textContent = `${items.length} live`;
+        statusEl.textContent = `${shown.length} of ${items.length}${active === 'all' ? '' : ` · ${byCollection.get(active).name}`}${q.value.trim() ? ` · “${q.value.trim()}”` : ''}`;
 
         rail.querySelectorAll('[data-filter]').forEach((tab) => {
           tab.setAttribute('aria-pressed', String(tab.dataset.filter === active));
           const n = tab.querySelector('.n');
-          if (n) {
-            const id = tab.dataset.filter;
-            n.textContent = String(id === 'all' ? items.length : items.filter((i) => i.collection === id).length);
-          }
+          if (n) n.textContent = String(tab.dataset.filter === 'all' ? items.length : items.filter((i) => i.collection === tab.dataset.filter).length);
         });
       };
 
       collections.forEach((c) => {
         const tab = document.createElement('button');
         tab.type = 'button';
-        tab.className = 'rail-tab';
         tab.dataset.filter = c.id;
         tab.setAttribute('aria-pressed', 'false');
         tab.innerHTML = `${esc(c.name)} <span class="n"></span>`;
-        rail.insertBefore(tab, rail.querySelector('.rail-note'));
+        rail.appendChild(tab);
       });
 
-      rail.addEventListener('click', (event) => {
-        const tab = event.target.closest('[data-filter]');
+      rail.addEventListener('click', (e) => {
+        const tab = e.target.closest('[data-filter]');
         if (!tab) return;
         active = tab.dataset.filter;
         render();
       });
-
       q.addEventListener('input', render);
-      q.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-          q.value = '';
-          render();
-          q.blur();
-        }
+      q.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { q.value = ''; render(); q.blur(); }
       });
-      document.addEventListener('keydown', (event) => {
-        if (event.key === '/' && document.activeElement !== q) {
-          event.preventDefault();
-          q.focus();
-        }
+      document.addEventListener('keydown', (e) => {
+        if (e.key === '/' && document.activeElement !== q) { e.preventDefault(); q.focus(); }
       });
 
       const root = document.documentElement;
-      const themeBtn = document.getElementById('theme');
-      const paintTheme = () => {
+      const btn = document.getElementById('theme');
+      const paint = () => {
         const day = root.dataset.theme === 'day';
-        themeBtn.setAttribute('aria-label', day ? 'Switch to after hours' : 'Switch to daylight');
-        themeBtn.querySelector('.power-label').textContent = day ? 'After hours' : 'Daylight';
-        themeBtn.querySelector('i').className = day ? 'pixelart-icons-font-moon' : 'pixelart-icons-font-sun';
+        btn.querySelector('.label').textContent = day ? 'Day' : 'Night';
+        btn.setAttribute('aria-label', day ? 'Switch to night' : 'Switch to daylight');
       };
-      themeBtn.addEventListener('click', () => {
-        const next = root.dataset.theme === 'day' ? 'night' : 'day';
-        root.dataset.theme = next;
-        try { localStorage.setItem('hl-theme', next === 'day' ? 'light' : 'dark'); } catch (e) {}
-        paintTheme();
+      btn.addEventListener('click', () => {
+        root.dataset.theme = root.dataset.theme === 'day' ? 'night' : 'day';
+        try { localStorage.setItem('hl-theme', root.dataset.theme === 'day' ? 'light' : 'dark'); } catch (e) {}
+        paint();
       });
-      paintTheme();
+      paint();
       render();
     })();
   </script>
