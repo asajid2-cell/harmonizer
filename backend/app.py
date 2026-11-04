@@ -3089,16 +3089,6 @@ def ourspace_redirect():
     return redirect("/ourspace.html")
 
 
-@app.route("/night-library.html")
-def night_library_entry():
-    return send_from_directory(FRONTEND_DIR, "night-library.html")
-
-
-@app.route("/night-library")
-def night_library_redirect():
-    return redirect("/night-library.html")
-
-
 @app.route("/musiclab")
 def musiclab_entry():
     return send_from_directory(FRONTEND_DIR, "musiclab.html")
@@ -3441,35 +3431,14 @@ def visualizer():
     return redirect(redirect_url)
 
 
-@app.route("/cheatsheets/")
-def cheatsheets_page():
-    """Serve the cheatsheets landing page."""
-    cheatsheets_index = FRONTEND_DIR / "cheatsheets" / "index.html"
-    if cheatsheets_index.is_file():
-        return _send_cached_file(cheatsheets_index, treat_as_html=True)
+@app.route("/collections")
+@app.route("/collections/")
+def collections_page():
+    """Serve the live collections index."""
+    collections_index = FRONTEND_DIR / "collections.html"
+    if collections_index.is_file():
+        return _send_cached_file(collections_index, treat_as_html=True)
     abort(404)
-
-
-@app.route("/cheatsheets/<path:resource>")
-def cheatsheets_asset(resource: str):
-    """Serve nested cheatsheets pages (startup*, commands*, data files, etc.)."""
-    cheatsheets_root = (FRONTEND_DIR / "cheatsheets").resolve()
-    target = (cheatsheets_root / Path(resource)).resolve()
-
-    # Ensure the resolved path stays inside the cheatsheets directory
-    if cheatsheets_root not in target.parents and target != cheatsheets_root:
-        abort(404)
-
-    if target.is_file():
-        return _send_cached_file(target)
-
-    abort(404)
-
-
-@app.route("/cheatsheets")
-def cheatsheets_redirect():
-    """Redirect bare /cheatsheets to the trailing-slash variant for relative links."""
-    return redirect("/cheatsheets/", code=301)
 
 
 @app.route("/projects")
@@ -3507,24 +3476,8 @@ def venpod_files(filename: str = "venpod.js"):
     return send_from_directory(VENPOD_DIR, filename, mimetype=mimetype)
 
 
-# ===== CodeSniff Routes =====
-CODESNIFF_APP_DIR = FRONTEND_DIR / "codesniff-app"
+# ===== CodeSniff API =====
 CODESNIFF_BACKEND_URL = os.environ.get("CODESNIFF_BACKEND_URL", "http://localhost:8000")
-
-
-@app.route("/codesniff-app/")
-@app.route("/codesniff-app/<path:filename>")
-def codesniff_app(filename: str = "index.html"):
-    """Serve the built CodeSniff React app."""
-    if not CODESNIFF_APP_DIR.exists():
-        abort(404, "CodeSniff app not built. Run 'npm run build' in codesniff/frontend")
-
-    # Handle SPA routing - serve index.html for non-file routes
-    target = CODESNIFF_APP_DIR / filename
-    if not target.exists() or target.is_dir():
-        return send_from_directory(CODESNIFF_APP_DIR, "index.html")
-
-    return send_from_directory(CODESNIFF_APP_DIR, filename)
 
 
 @app.route("/api/codesniff/<path:endpoint>", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
@@ -6935,9 +6888,23 @@ def serve_study_asset(study_path: str):
     abort(404)
 
 
+# Pages retired from the site on the neo branch. The files may still exist in the
+# image; the site must not serve or link them.
+RETIRED_SITE_PREFIXES = frozenset({
+    "cameraroom",
+    "night-library",
+    "eldrichify.html",  # eldrichify.css is still used by talk-to-disco-teque.html
+    "codesniff",
+    "notebook",
+    "cheatsheets",
+})
+
+
 @app.route("/<path:asset_path>")
 def serve_frontend_asset(asset_path: str):
     if asset_path.startswith(("api/", "media/", "data/")):
+        abort(404)
+    if asset_path.split("/", 1)[0].lower() in RETIRED_SITE_PREFIXES:
         abort(404)
     target = (FRONTEND_DIR / asset_path).resolve()
     try:

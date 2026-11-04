@@ -30,14 +30,15 @@ part is wiring all of that into one coherent, deployable monorepo.
 
 | Tool | What it does | Entry point |
 |---|---|---|
-| **Internet Discotheque** | Draggable retro-desktop launcher for everything below | `frontend/index.html` |
+| **Internet Discotheque** | Draggable retro-desktop launcher; every live app, one screen | `frontend/index.html` |
+| **Collections** | The catalogue behind the launcher, grouped by Sound / Rooms / Tools / Things | `frontend/collections.html` |
 | **Harmonizer Music Lab** | Beat-sliced audio re-looping — canon / jukebox / eternal / phase-shift | `frontend/musiclab.html`, `backend/app.py` |
-| **CodeSniff** | Semantic ("what it does") code search — FastAPI + React | `codesniff/` |
 | **hl-auth** | Single sign-on + per-page / per-icon access control for the whole host | `hl-auth/` |
-| **Night Library** | Local audiobook browser and player | `frontend/night-library.html` |
-| **Eldrichify** | Upload-based image transformation | `frontend/eldrichify.html`, `backend/eldrichify.py` |
 | **OurSpace** | A MySpace-style profile builder | `frontend/ourspace.html` |
 | **VENPOD** | Early voxel / WebGPU experiment | `venpod/` |
+
+Retired from the site (code and services remain): CameraRoom, Night Library, CodeSniff, Eldrichify,
+Notebook, Quick Reference. Their routes are not served on this branch and nothing links them.
 
 ## Run it
 
@@ -55,6 +56,7 @@ docker compose up --build     # → http://localhost:5000
 | Area | Path |
 |---|---|
 | Retro desktop launcher | `frontend/index.html` |
+| Collections index + item manifest | `frontend/collections.html`, `frontend/js/collections-data.js` |
 | Audio analysis + looping | `backend/app.py`, `frontend/musiclab.html`, `frontend/js/` |
 | Semantic code search | `codesniff/backend` (FastAPI), `codesniff/frontend` (React) |
 | Single sign-on / access control | `hl-auth/src` (Express + better-sqlite3 + scrypt) |

@@ -2031,9 +2031,11 @@
 
             const prefersDesktop = window.matchMedia('(min-width: 521px)').matches;
             const desktop = document.querySelector('.desktop');
-            const mobileCredits = document.querySelector('.mobile-landing .retro-credits');
+            const desktopVisible = !!(desktop && desktop.offsetParent !== null);
+            const useDesktop = prefersDesktop && desktopVisible;
+            const mobileCredits = document.querySelector('.mobile-landing .retro-credits, .mobile .retro-credits');
             const creditsSection = document.querySelector('.retro-credits');
-            const host = (prefersDesktop && desktop) ? desktop : (mobileCredits || creditsSection);
+            const host = useDesktop ? desktop : (mobileCredits || creditsSection);
             if (!host) return;
 
             // Create an autoplay trigger button
@@ -2043,7 +2045,7 @@
             autoplayTrigger.textContent = 'PLAY';
             autoplayTrigger.setAttribute('aria-label', 'Start playing music');
             autoplayTrigger.draggable = false;
-            if (prefersDesktop && desktop) {
+            if (useDesktop) {
                 autoplayTrigger.dataset.floating = 'true';
             }
 
@@ -2109,7 +2111,7 @@
 
             host.appendChild(autoplayTrigger);
 
-            if (prefersDesktop && desktop) {
+            if (useDesktop) {
                 const bucket = window.matchMedia('(max-width: 1024px)').matches ? 'tablet' : 'desktop';
                 const storageKey = `idcDesktopPlayButton:${bucket}`;
                 const loadPosition = () => {
@@ -2130,8 +2132,8 @@
                 const placeDefault = () => {
                     const desktopRect = desktop.getBoundingClientRect();
                     const buttonRect = autoplayTrigger.getBoundingClientRect();
-                    const defaultX = clamp((desktopRect.width - buttonRect.width) / 2, 0, desktopRect.width - buttonRect.width);
-                    const defaultY = clamp(desktopRect.height - buttonRect.height - 140, 0, desktopRect.height - buttonRect.height);
+                    const defaultX = clamp(desktopRect.width - buttonRect.width - 16, 0, desktopRect.width - buttonRect.width);
+                    const defaultY = clamp(desktopRect.height - buttonRect.height - 56, 0, desktopRect.height - buttonRect.height);
                     autoplayTrigger.style.left = `${defaultX}px`;
                     autoplayTrigger.style.top = `${defaultY}px`;
                 };
