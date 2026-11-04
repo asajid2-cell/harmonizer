@@ -30,12 +30,15 @@ part is wiring all of that into one coherent, deployable monorepo.
 
 | Tool | What it does | Entry point |
 |---|---|---|
-| **Internet Discotheque** | Full-bleed landing: wordmark, light floor, and a six-item floor index | `frontend/index.html` |
-| **Collections** | The catalogue behind the landing, grouped by Sound / Rooms / Tools / Things | `frontend/collections.html` |
+| **Internet Discotheque** | Run 02 of the landing: six acts through one room, every live thing on the floor | `frontend/index.html` |
+| **Collections** | Index of every landing run — run 02 current, run 01 archived | `frontend/collections.html` |
 | **Harmonizer Music Lab** | Beat-sliced audio re-looping — canon / jukebox / eternal / phase-shift | `frontend/musiclab.html`, `backend/app.py` |
 | **hl-auth** | Single sign-on + per-page / per-icon access control for the whole host | `hl-auth/` |
 | **OurSpace** | A MySpace-style profile builder | `frontend/ourspace.html` |
 | **VENPOD** | Early voxel / WebGPU experiment | `venpod/` |
+
+Landing runs: 02 Night Shift (current, `frontend/index.html`), 01 Desktop OS (archived,
+`frontend/runs/01-desktop/`).
 
 Retired from the site (code and services remain): CameraRoom, Night Library, CodeSniff, Eldrichify,
 Notebook, Quick Reference. Their routes are not served on this branch and nothing links them.
@@ -55,8 +58,9 @@ docker compose up --build     # → http://localhost:5000
 
 | Area | Path |
 |---|---|
-| Landing page | `frontend/index.html` |
-| Collections index + item manifest | `frontend/collections.html`, `frontend/js/collections-data.js` |
+| Landing page (run 02) | `frontend/index.html` |
+| Run 01 archive | `frontend/runs/01-desktop/index.html` |
+| Runs index + item manifest | `frontend/collections.html`, `frontend/js/collections-data.js` |
 | Audio analysis + looping | `backend/app.py`, `frontend/musiclab.html`, `frontend/js/` |
 | Semantic code search | `codesniff/backend` (FastAPI), `codesniff/frontend` (React) |
 | Single sign-on / access control | `hl-auth/src` (Express + better-sqlite3 + scrypt) |

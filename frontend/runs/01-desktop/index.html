@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="night">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Internet Discotheque — Harmonizer Labs</title>
+  <meta name="description" content="Harmonizer Labs: the desktop, and every live thing behind it.">
+  <link rel="stylesheet" href="https://unpkg.com/pixelarticons@1.8.1/fonts/pixelart-icons-font.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('hl-theme');
+        document.documentElement.dataset.theme = saved === 'light' ? 'day' : 'night';
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root{
+      --display:"Times New Roman",Times,serif;
+      --ui:"MS Sans Serif",Tahoma,Verdana,sans-serif;
+      --mono:"Courier New",ui-monospace,Consolas,monospace;
+      --page:#04050a;
+      --shell:#0a0f18;
+      --shell-2:#0e1522;
+      --chrome:#131c2d;
+      --chrome-hi:#1c283f;
+      --bevel-hi:rgba(255,255,255,.13);
+      --bevel-lo:rgba(0,0,0,.55);
+      --ink:#e9f1ff;
+      --ink-dim:#9cb0d3;
+      --mute:#6f82a6;
+      --rule:#1b2740;
+      --rule-soft:#131c2d;
+      --accent:#3d80ff;
+      --accent-2:#7bd7ff;
+      --glow:rgba(61,128,255,.42);
+      --dot:rgba(255,255,255,.10);
+      --cover-opacity:.82;
+      --tile:#0d0d0d;
+      --tile-hi:rgba(255,255,255,.08);
+      --tile-lo:rgba(0,0,0,.7);
+      --shadow:0 26px 80px rgba(0,0,0,.66);
+      --scan:rgba(255,255,255,.028);
+      color-scheme:dark;
+    }
+    :root[data-theme="day"]{
+      --page:#0a7373;
+      --shell:#ece6d8;
+      --shell-2:#e4ddcc;
+      --chrome:#c9c1ae;
+      --chrome-hi:#ddd6c6;
+      --bevel-hi:rgba(255,255,255,.9);
+      --bevel-lo:rgba(0,0,0,.3);
+      --ink:#171a21;
+      --ink-dim:#4c5568;
+      --mute:#6b7180;
+      --rule:#c4bba6;
+      --rule-soft:#d7cfbd;
+      --accent:#1f3fb0;
+      --accent-2:#0a6f6f;
+      --glow:rgba(31,63,176,.25);
+      --dot:rgba(255,255,255,.12);
+      --cover-opacity:.5;
+      --tile:#f7f3e8;
+      --tile-hi:rgba(255,255,255,.9);
+      --tile-lo:rgba(0,0,0,.16);
+      --shadow:0 22px 60px rgba(0,0,0,.3);
+      --scan:rgba(0,0,0,.03);
+      color-scheme:light;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--page);
+      color:var(--ink);
+      font-family:var(--ui);
+      font-size:13px;
+      line-height:1.45;
+      overflow:hidden;
+      -webkit-font-smoothing:antialiased;
+    }
+    a{color:var(--accent-2);text-decoration:none}
+    button{font:inherit;color:inherit}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    .skip{position:absolute;left:12px;top:-44px;z-index:40;padding:8px 12px;background:var(--shell);border:1px solid var(--ink);color:var(--ink)}
+    .skip:focus{top:12px}
+    :focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+
+    .frame{
+      view-transition-name:lab-window;
+      height:100dvh;
+      display:flex;
+      flex-direction:column;
+      background:var(--shell);
+      animation:boot 460ms ease both;
+    }
+    @keyframes boot{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    .titlebar{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-height:36px;
+      padding:0 8px 0 10px;
+      background:linear-gradient(90deg,#1b2d52,#111a2c 70%);
+      color:#e7eeff;
+      border-bottom:1px solid var(--rule);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
+      user-select:none;
+      z-index:6;
+    }
+    :root[data-theme="day"] .titlebar{background:linear-gradient(90deg,#000b5c,#0a7373 78%);color:#f4f1e8}
+    .tb-brand{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(233,241,255,.62);white-space:nowrap}
+    :root[data-theme="day"] .tb-brand{color:rgba(244,241,232,.72)}
+    .tb-title{
+      flex:1;text-align:center;font-size:11px;font-weight:700;letter-spacing:.16em;
+      text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+    .tb-controls{display:flex;align-items:center;gap:6px}
+    .tb-btn{
+      display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;
+      background:var(--chrome);color:var(--ink);border:1px solid var(--rule);
+      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo);
+      font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
+    }
+    .tb-btn:hover{border-color:var(--accent)}
+    .tb-btn i{font-size:13px;line-height:1}
+
+    main{flex:1;min-height:0;position:relative;display:flex}
+
+    /* ---------- desktop ---------- */
+    .desktop{
+      position:relative;
+      flex:1;
+      min-height:0;
+      overflow:hidden;
+      isolation:isolate;
+      background-color:var(--page);
+      background-image:
+        radial-gradient(circle,var(--dot) 1px,transparent 1px),
+        radial-gradient(circle,var(--dot) 1px,transparent 1px);
+      background-size:52px 52px,86px 86px;
+      background-position:0 0,40px 40px;
+    }
+    .desktop::after{
+      content:"";
+      position:absolute;inset:0;z-index:1;pointer-events:none;
+      background-image:repeating-linear-gradient(0deg,var(--scan),var(--scan) 1px,transparent 1px,transparent 3px);
+    }
+    .album{
+      position:absolute;
+      inset:88px 0 74px;
+      background-image:url("/assets/cover.jpg");
+      background-repeat:no-repeat;
+      background-position:right 4% center;
+      background-size:min(560px,42vw);
+      opacity:var(--cover-opacity);
+      filter:drop-shadow(0 0 22px rgba(0,0,0,.65));
+      pointer-events:none;
+      z-index:0;
+    }
+    @media (max-width:1100px){
+      .album{background-size:min(440px,38vw)}
+    }
+    @media (max-width:900px){
+      .album{background-size:min(360px,30vw);background-position:right 2% center}
+    }
+    :root[data-theme="day"] .album{filter:drop-shadow(0 0 18px rgba(0,0,0,.28)) saturate(.9)}
+
+    .desktop-head{
+      position:relative;
+      z-index:3;
+      display:flex;
+      align-items:baseline;
+      justify-content:space-between;
+      gap:16px;
+      padding:18px 22px 0;
+    }
+    .desktop-kicker{
+      font-family:var(--mono);
+      font-size:10px;
+      letter-spacing:.26em;
+      text-transform:uppercase;
+      color:var(--ink-dim);
+    }
+    .desktop-kicker b{color:var(--ink);font-weight:700}
+    .desktop-ode{
+      font-family:var(--display);
+      font-style:italic;
+      font-size:13px;
+      color:var(--mute);
+      letter-spacing:.04em;
+    }
+
+    .desktop-icons{
+      position:absolute;
+      inset:90px 22px 62px 22px;
+      display:grid;
+      grid-auto-flow:column;
+      grid-auto-columns:96px;
+      grid-template-rows:repeat(5,96px);
+      gap:14px 22px;
+      align-content:start;
+      z-index:3;
+    }
+    .desktop-icons.is-freeform{display:block}
+    .desktop-icon{
+      position:relative;
+      width:96px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:6px;
+      color:var(--ink);
+      font-size:10px;
+      line-height:1.2;
+      text-align:center;
+      user-select:none;
+      cursor:grab;
+      touch-action:none;
+      opacity:0;
+      transform:translateY(8px);
+      animation:iconRise 520ms ease forwards;
+      animation-delay:var(--icon-delay,0ms);
+    }
+    .desktop-icons.is-freeform .desktop-icon{position:absolute}
+    .desktop-icon:active{cursor:grabbing}
+    .desktop-icon.is-dragging{opacity:.85;transform:scale(1.04);z-index:5}
+    .icon-frame{
+      position:relative;
+      width:64px;height:64px;
+      display:flex;align-items:center;justify-content:center;
+      background:var(--tile);
+      border:1px solid var(--rule);
+      border-radius:6px;
+      box-shadow:inset 1px 1px 0 var(--tile-hi),inset -1px -1px 0 var(--tile-lo),0 6px 16px rgba(0,0,0,.35);
+      color:var(--icon-primary,#9fd3ff);
+      transition:border-color 130ms ease,box-shadow 130ms ease,transform 130ms ease;
+    }
+    .icon-frame img{width:44px;height:44px;object-fit:contain;pointer-events:none;-webkit-user-drag:none}
+    .icon-frame i{font-size:32px;line-height:1;color:var(--icon-primary,#9fd3ff)}
+    .desktop-icon:hover .icon-frame,.desktop-icon:focus-visible .icon-frame{
+      border-color:var(--icon-primary,#9fd3ff);
+      box-shadow:inset 1px 1px 0 var(--tile-hi),inset -1px -1px 0 var(--tile-lo),0 0 18px color-mix(in srgb,var(--icon-primary,#9fd3ff) 38%,transparent);
+      transform:translateY(-2px);
+    }
+    .icon-label{
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      padding:1px 3px;
+      min-height:2.2em;
+      font-size:10px;
+      line-height:1.1;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color:var(--ink);
+      text-shadow:0 1px 6px rgba(0,0,0,.75);
+      max-width:96px;
+      overflow:hidden;
+      overflow-wrap:anywhere;
+    }
+    :root[data-theme="day"] .icon-label{text-shadow:none;background:transparent}
+    .icon-pip{
+      position:absolute;top:4px;right:4px;
+      width:7px;height:7px;border-radius:50%;
+      background:var(--pip,#9cb0d3);
+      box-shadow:0 0 7px var(--pip,#9cb0d3);
+    }
+    .icon-pip--open{--pip:#5cff8a}
+    .icon-pip--signin{--pip:#ffcf5a}
+    .icon-pip--passkey,.icon-pip--keyed{--pip:#7bd7ff}
+    .icon-pip--external{--pip:#9cb0d3}
+    .icon-pip--ios{--pip:#f0567f}
+    .desktop-icon--collections .icon-frame{border-radius:5px}
+    .desktop-icon--collections .icon-frame{view-transition-name:collections-mark}
+
+    .desktop-hint{
+      position:absolute;
+      left:22px;bottom:52px;
+      z-index:2;
+      font-family:var(--mono);
+      font-size:9.5px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:var(--mute);
+      pointer-events:none;
+    }
+
+    /* ---------- taskbar ---------- */
+    .taskbar{
+      position:absolute;
+      left:0;right:0;bottom:0;
+      height:44px;
+      z-index:7;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:6px 10px;
+      background:var(--chrome);
+      border-top:1px solid var(--rule);
+      box-shadow:inset 0 1px 0 var(--bevel-hi);
+    }
+    .taskbar-start{
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      height:30px;
+      padding:0 14px;
+      background:var(--shell-2);
+      border:1px solid var(--rule);
+      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo);
+      color:var(--ink);
+      text-transform:uppercase;
+      letter-spacing:.14em;
+      font-size:10px;
+      cursor:pointer;
+    }
+    .taskbar-start:hover{border-color:var(--accent)}
+    .taskbar-start i{font-size:13px;line-height:1}
+    .taskbar-status{
+      flex:1;
+      min-width:0;
+      font-family:var(--mono);
+      font-size:10.5px;
+      color:var(--ink-dim);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .taskbar-tray{display:flex;align-items:center;gap:8px}
+    .tray-count{
+      font-family:var(--mono);
+      font-size:10px;
+      letter-spacing:.06em;
+      color:var(--mute);
+      white-space:nowrap;
+    }
+    .power-rocker{
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      height:28px;
+      padding:0 9px;
+      background:var(--shell-2);
+      border:1px solid var(--rule);
+      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo);
+      cursor:pointer;
+      font-size:9.5px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:var(--ink-dim);
+    }
+    .power-rocker:hover{border-color:var(--accent);color:var(--ink)}
+    .power-rocker .led{
+      width:7px;height:7px;border-radius:50%;
+      background:var(--accent-2);
+      box-shadow:0 0 8px var(--accent-2);
+    }
+    .taskbar .player-dock-button{
+      height:26px;
+      max-width:170px;
+      padding:0 10px;
+      background:var(--shell-2);
+      border:1px solid var(--rule);
+      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo);
+      color:var(--ink);
+      font-family:var(--mono);
+      font-size:9.5px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      cursor:pointer;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .taskbar .player-dock-button:hover{border-color:var(--accent)}
+    .taskbar-clock{
+      min-width:74px;
+      padding:4px 7px;
+      text-align:center;
+      font-family:var(--mono);
+      font-size:11px;
+      color:var(--ink);
+      border:1px solid var(--rule);
+      background:var(--shell);
+      box-shadow:inset 1px 1px 0 var(--bevel-lo),inset -1px -1px 0 var(--bevel-hi);
+    }
+
+    /* ---------- start menu ---------- */
+    .start-menu{
+      position:absolute;
+      left:12px;bottom:52px;
+      z-index:8;
+      width:min(320px,86vw);
+      max-height:min(62vh,520px);
+      overflow:auto;
+      padding:9px;
+      background:var(--shell);
+      border:1px solid var(--rule);
+      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo),0 18px 44px rgba(0,0,0,.55);
+      display:none;
+    }
+    .start-menu.is-open{display:block;animation:menuRise 160ms ease}
+    .start-menu__title{
+      margin:0 0 8px;
+      font-family:var(--mono);
+      font-size:9.5px;
+      letter-spacing:.24em;
+      text-transform:uppercase;
+      color:var(--mute);
+    }
+    .start-group{margin:0 0 10px}
+    .start-group h3{
+      margin:0 0 5px;
+      font-size:10px;
+      letter-spacing:.2em;
+      text-transform:uppercase;
+      color:var(--accent-2);
+    }
+    .start-app{
+      display:flex;
+      align-items:center;
+      gap:9px;
+      padding:6px 7px;
+      border:1px solid transparent;
+      color:var(--ink);
+      font-size:11.5px;
+    }
+    .start-app:hover,.start-app:focus-visible{background:var(--accent);border-color:var(--accent);color:#fff;text-decoration:none}
+    .start-app .sa-icon{display:flex;width:20px;height:20px;align-items:center;justify-content:center;flex:none}
+    .start-app .sa-icon img{width:20px;height:20px;object-fit:contain}
+    .start-app .sa-icon i{font-size:16px;line-height:1;color:var(--icon-primary,#9fd3ff)}
+    .start-app:hover .sa-icon i,.start-app:focus-visible .sa-icon i{color:#fff}
+    .start-app .sa-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .start-app .sa-gate{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+    .start-app:hover .sa-gate,.start-app:focus-visible .sa-gate{color:rgba(255,255,255,.8)}
+    .start-menu__reset{
+      width:100%;
+      margin-top:2px;
+      padding:7px;
+      background:var(--shell-2);
+      border:1px solid var(--rule);
+      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo);
+      color:var(--ink-dim);
+      font-size:9.5px;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      cursor:pointer;
+    }
+    .start-menu__reset:hover{border-color:var(--accent);color:var(--ink)}
+
+    /* ---------- crt flick ---------- */
+    /* player trigger, docked like a media key */
+    html body #autoplay-trigger{
+      margin:0;
+      padding:7px 14px;
+      background:var(--shell-2);
+      color:var(--ink);
+      border:1px solid var(--rule);
+      font-family:var(--mono);
+      font-size:10.5px;
+      letter-spacing:.2em;
+      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo),0 0 14px var(--glow);
+      animation:none;
+      text-shadow:none;
+    }
+    html body #autoplay-trigger[data-floating="true"]{
+      position:absolute;
+      right:16px;
+      bottom:56px;
+      z-index:6;
+    }
+    html body #autoplay-trigger:hover{
+      color:var(--ink);
+      border-color:var(--accent);
+      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo),0 0 20px var(--glow);
+      text-shadow:none;
+    }
+
+    .crt{
+      position:fixed;inset:0;z-index:60;pointer-events:none;opacity:0;
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(0,0,0,.28));
+    }
+    .crt.is-flicking{animation:flick 220ms steps(2,end) 1}
+    @keyframes flick{0%{opacity:0}35%{opacity:.55}60%{opacity:.12}100%{opacity:0}}
+
+    @keyframes iconRise{to{opacity:1;transform:none}}
+    @keyframes menuRise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    /* ---------- mobile ---------- */
+    .mobile{display:none}
+    .mobile .m-head{
+      padding:20px 16px 0;
+      display:flex;flex-direction:column;gap:10px;
+    }
+    .mobile .m-kicker{
+      font-family:var(--mono);font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--mute);
+    }
+    .mobile h1{
+      margin:0;
+      font-family:var(--display);
+      font-size:clamp(30px,10.5vw,46px);
+      line-height:.95;
+      letter-spacing:.02em;
+      color:var(--ink);
+      text-shadow:0 0 22px var(--glow);
+    }
+    .mobile .m-lede{margin:0;color:var(--ink-dim);font-size:12.5px;max-width:36ch}
+    .mobile .m-cta{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      margin:14px 16px 0;
+      padding:12px 12px;
+      background:var(--shell-2);
+      border:1px solid var(--rule);
+      box-shadow:inset 1px 1px 0 var(--bevel-hi),inset -1px -1px 0 var(--bevel-lo);
+      color:var(--ink);
+    }
+    .mobile .m-cta:hover{border-color:var(--accent);text-decoration:none}
+    .mobile .m-cta b{font-size:12px;letter-spacing:.16em;text-transform:uppercase}
+    .mobile .m-cta span{font-family:var(--mono);font-size:9.5px;color:var(--mute);letter-spacing:.08em}
+    .mobile .m-grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:16px 8px;
+      padding:20px 16px 10px;
+    }
+    .mobile .m-app{
+      display:flex;flex-direction:column;align-items:center;gap:6px;
+      color:var(--ink);text-align:center;font-size:9.5px;line-height:1.2;
+      letter-spacing:.06em;text-transform:uppercase;
+    }
+    .mobile .m-app .icon-frame{width:52px;height:52px;border-radius:7px}
+    .mobile .m-app .icon-frame img{width:36px;height:36px}
+    .mobile .m-app .icon-frame i{font-size:26px}
+    .mobile .m-app > span:last-child{
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      max-width:96px;
+      overflow:hidden;
+      overflow-wrap:anywhere;
+    }
+    .mobile .m-foot{
+      margin:8px 16px 0;
+      padding:14px 0 24px;
+      border-top:1px solid var(--rule-soft);
+      font-family:var(--mono);
+      font-size:9px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:var(--mute);
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    @media (max-width:1024px){
+      .desktop-icons{grid-auto-columns:84px;grid-template-rows:repeat(5,88px);gap:12px 16px}
+      .desktop-icon{width:84px}
+      .icon-frame{width:56px;height:56px}
+      .icon-frame img{width:38px;height:38px}
+      .icon-frame i{font-size:28px}
+      .icon-label{max-width:84px}
+      .desktop-kicker{font-size:9px}
+    }
+    @media (max-width:900px){
+      .desktop-ode{display:none}
+    }
+    @media (max-width:760px){
+      body{overflow:auto}
+      .desktop{display:none}
+      .mobile{display:flex;flex-direction:column;flex:1;min-height:0}
+      .tb-brand{display:none}
+      .tb-title{text-align:left;letter-spacing:.1em;font-size:10px}
+      .tb-btn span{display:none}
+      .tb-btn{padding:0 7px}
+      .power-rocker{padding:0 8px}
+      .power-rocker .power-label{display:none}
+      .album{display:none}
+      .m-foot{align-items:center}
+      html body #autoplay-trigger{padding:4px 10px;font-size:9px}
+    }
+    @media (max-height:720px) and (min-width:761px){
+      .desktop-icons{grid-template-rows:repeat(5,80px);grid-auto-columns:80px;inset:78px 18px 58px 18px;gap:8px 14px}
+      .desktop-icon{width:80px}
+      .icon-frame{width:50px;height:50px}
+      .icon-frame img{width:34px;height:34px}
+      .icon-frame i{font-size:25px}
+      .icon-label{font-size:9px;max-width:80px}
+      .album{background-size:min(420px,44vw)}
+    }
+    @media (prefers-reduced-motion:reduce){
+      *{animation:none!important;transition:none!important}
+      .crt{display:none}
+    }
+    @supports (view-transition-name:none){
+      @view-transition{navigation:auto}
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="frame">
+    <header class="titlebar">
+      <span class="tb-brand">Business Casual presents</span>
+      <span class="tb-title">Internet Discotheque</span>
+      <div class="tb-controls">
+        <a class="tb-btn" href="/collections" title="Open collections">
+          <i class="pixelart-icons-font-folder" aria-hidden="true"></i><span>Collections</span>
+        </a>
+        <button class="power-rocker" id="theme" type="button" aria-label="Switch to daylight">
+          <span class="led" aria-hidden="true"></span>
+          <span class="power-label">Daylight</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="desktop" aria-label="Desktop">
+        <div class="desktop-head">
+          <p class="desktop-kicker">Room 301 · <b>Harmonizer Labs</b> · <span id="live-count"></span></p>
+          <p class="desktop-ode">An Ode to You</p>
+        </div>
+        <div class="album" aria-hidden="true"></div>
+
+        <div class="desktop-icons" id="desktop-icons" role="list"></div>
+        <p class="desktop-hint">Drag any icon · layout is kept</p>
+
+        <div class="taskbar desktop-taskbar">
+          <button class="taskbar-start" type="button" data-start-toggle aria-expanded="false" aria-controls="start-menu">
+            <i class="pixelart-icons-font-grid" aria-hidden="true"></i> Start
+          </button>
+          <div class="taskbar-status" id="status-line">Hover an icon.</div>
+          <div class="taskbar-tray">
+            <span class="tray-count" id="tray-count"></span>
+            <span class="taskbar-clock" id="taskbar-clock">--:--</span>
+          </div>
+        </div>
+
+        <div class="start-menu" id="start-menu" aria-hidden="true">
+          <p class="start-menu__title">Programs</p>
+          <div id="start-apps"></div>
+          <button class="start-menu__reset" type="button" id="reset-layout">Reset icon layout</button>
+        </div>
+      </section>
+
+      <section class="mobile" aria-label="Harmonizer Labs">
+        <div class="m-head">
+          <p class="m-kicker">Room 301 · Harmonizer Labs</p>
+          <h1>Internet Discotheque</h1>
+          <p class="m-lede" id="m-lede"></p>
+        </div>
+        <a class="m-cta" href="/collections">
+          <b>Collections</b>
+          <span id="m-cta-note"></span>
+        </a>
+        <div class="m-grid" id="mobile-grid"></div>
+        <div class="m-foot">
+          <span>An Ode to You</span>
+          <span class="retro-credits" id="player-slot"></span>
+          <span id="m-clock">--:--</span>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div class="crt" id="crt" aria-hidden="true"></div>
+
+  <script src="/js/collections-data.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      const data = window.HL_COLLECTIONS;
+      if (!data) return;
+      const { collections, items, gates } = data;
+
+      const desktopLayer = document.getElementById('desktop-icons');
+      const mobileGrid = document.getElementById('mobile-grid');
+      const startApps = document.getElementById('start-apps');
+      const statusLine = document.getElementById('status-line');
+      const liveCount = document.getElementById('live-count');
+      const trayCount = document.getElementById('tray-count');
+      const mCtaNote = document.getElementById('m-cta-note');
+      const mLede = document.getElementById('m-lede');
+
+      const byCollection = new Map(collections.map((c) => [c.id, c]));
+      const esc = (s) => String(s).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+
+      const iconMarkup = (item, size) => item.icon.type === 'img'
+        ? `<img src="${esc(item.icon.value)}" alt="" draggable="false">`
+        : `<i class="${esc(item.icon.value)}" aria-hidden="true"></i>`;
+
+      const counts = collections.map((c) => `${c.name} ${items.filter((i) => i.collection === c.id).length}`);
+      liveCount.textContent = `${items.length} live`;
+      trayCount.textContent = `${items.length} apps`;
+      mCtaNote.textContent = `${items.length} entries · ${collections.length} collections`;
+      mLede.textContent = `The desktop, and every live thing behind it. ${counts.join(' · ')}.`;
+
+      /* desktop icons */
+      const collectionsIcon = `
+        <a class="desktop-icon desktop-icon--collections" href="/collections" data-id="collections" style="--icon-delay:0ms;--icon-primary:#7bd7ff" role="listitem"
+           aria-label="Collections — every live thing in the lab">
+          <span class="icon-frame"><i class="pixelart-icons-font-folder" aria-hidden="true"></i></span>
+          <span class="icon-label">Collections</span>
+        </a>`;
+
+      const iconHtml = items.map((item, index) => {
+        const external = item.external ? ' target="_blank" rel="noopener"' : '';
+        return `<a class="desktop-icon" href="${esc(item.href)}"${external} data-id="${esc(item.id)}"
+          style="--icon-delay:${Math.min(60 + index * 35, 700)}ms;--icon-primary:${esc(item.accent)}" role="listitem"
+          aria-label="${esc(item.name)} — ${esc(gates[item.gate] || item.gate)}"
+          data-note="${esc(item.note)}" data-gate="${esc(gates[item.gate] || item.gate)}">
+          <span class="icon-frame">${iconMarkup(item)}
+            <span class="icon-pip icon-pip--${esc(item.gate)}" aria-hidden="true"></span>
+          </span>
+          <span class="icon-label">${esc(item.name)}</span>
+        </a>`;
+      }).join('');
+
+      desktopLayer.innerHTML = collectionsIcon + iconHtml;
+
+      /* mobile */
+      const mobileCollection = `
+        <a class="m-app" href="/collections" style="--icon-primary:#7bd7ff">
+          <span class="icon-frame"><i class="pixelart-icons-font-folder" aria-hidden="true"></i></span>
+          <span>Collections</span>
+        </a>`;
+      mobileGrid.innerHTML = mobileCollection + items.map((item) => {
+        const external = item.external ? ' target="_blank" rel="noopener"' : '';
+        return `<a class="m-app" href="${esc(item.href)}"${external} style="--icon-primary:${esc(item.accent)}">
+          <span class="icon-frame">${iconMarkup(item)}
+            <span class="icon-pip icon-pip--${esc(item.gate)}" aria-hidden="true"></span>
+          </span>
+          <span>${esc(item.name)}</span>
+        </a>`;
+      }).join('');
+
+      /* start menu, grouped */
+      startApps.innerHTML = collections.map((c) => {
+        const rows = items.filter((i) => i.collection === c.id).map((item) => {
+          const external = item.external ? ' target="_blank" rel="noopener"' : '';
+          return `<a class="start-app" href="${esc(item.href)}"${external} style="--icon-primary:${esc(item.accent)}">
+            <span class="sa-icon">${iconMarkup(item)}</span>
+            <span class="sa-name">${esc(item.name)}</span>
+            <span class="sa-gate">${esc(gates[item.gate] || item.gate)}</span>
+          </a>`;
+        }).join('');
+        return `<div class="start-group"><h3>${esc(c.name)}</h3>${rows}</div>`;
+      }).join('') + `<a class="start-app" href="/collections" style="--icon-primary:#7bd7ff">
+          <span class="sa-icon"><i class="pixelart-icons-font-folder" aria-hidden="true"></i></span>
+          <span class="sa-name">All collections</span>
+          <span class="sa-gate">${items.length}</span>
+        </a>`;
+
+      /* hover status */
+      desktopLayer.addEventListener('mouseover', (event) => {
+        const icon = event.target.closest('.desktop-icon');
+        if (!icon || !icon.dataset.note) return;
+        statusLine.textContent = `${icon.dataset.note} · ${icon.dataset.gate}`;
+      });
+      desktopLayer.addEventListener('focusin', (event) => {
+        const icon = event.target.closest('.desktop-icon');
+        if (!icon || !icon.dataset.note) return;
+        statusLine.textContent = `${icon.dataset.note} · ${icon.dataset.gate}`;
+      });
+      desktopLayer.addEventListener('mouseleave', () => {
+        statusLine.textContent = `${items.length} live · hover an icon for details.`;
+      });
+      statusLine.textContent = `${items.length} live · hover an icon for details.`;
+
+      /* clock */
+      const clock = document.getElementById('taskbar-clock');
+      const mClock = document.getElementById('m-clock');
+      const tick = () => {
+        const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (clock) clock.textContent = t;
+        if (mClock) mClock.textContent = t;
+      };
+      tick();
+      setInterval(tick, 15000);
+
+      /* theme */
+      const root = document.documentElement;
+      const themeBtn = document.getElementById('theme');
+      const crt = document.getElementById('crt');
+      const paintTheme = () => {
+        const day = root.dataset.theme === 'day';
+        themeBtn.setAttribute('aria-label', day ? 'Switch to after hours' : 'Switch to daylight');
+        themeBtn.querySelector('.power-label').textContent = day ? 'After hours' : 'Daylight';
+      };
+      themeBtn.addEventListener('click', () => {
+        const next = root.dataset.theme === 'day' ? 'night' : 'day';
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          crt.classList.remove('is-flicking');
+          void crt.offsetWidth;
+          crt.classList.add('is-flicking');
+        }
+        root.dataset.theme = next;
+        try { localStorage.setItem('hl-theme', next === 'day' ? 'light' : 'dark'); } catch (e) {}
+        paintTheme();
+      });
+      paintTheme();
+
+      /* start menu */
+      const startButton = document.querySelector('[data-start-toggle]');
+      const startMenu = document.getElementById('start-menu');
+      const closeMenu = () => {
+        startMenu.classList.remove('is-open');
+        startMenu.setAttribute('aria-hidden', 'true');
+        startButton.setAttribute('aria-expanded', 'false');
+      };
+      const toggleMenu = () => {
+        const open = !startMenu.classList.contains('is-open');
+        startMenu.classList.toggle('is-open', open);
+        startMenu.setAttribute('aria-hidden', open ? 'false' : 'true');
+        startButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+      startButton.addEventListener('click', (event) => { event.stopPropagation(); toggleMenu(); });
+      startMenu.addEventListener('click', (event) => event.stopPropagation());
+      document.addEventListener('click', closeMenu);
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeMenu();
+        if (event.key === 'c' && !event.metaKey && !event.ctrlKey && !event.altKey && document.activeElement === document.body) {
+          window.location.href = '/collections';
+        }
+      });
+
+      /* drag layout, server-persisted */
+      const iconLayer = desktopLayer;
+      const icons = Array.from(iconLayer.querySelectorAll('.desktop-icon'));
+      if (window.matchMedia('(max-width: 760px)').matches) return;
+
+      const bucket = window.matchMedia('(max-width: 1024px)').matches ? 'tablet' : 'desktop';
+      const storageKey = 'idcDesktopLayout:neo';
+      const layoutEndpoint = `/api/desktop-layout?bucket=${encodeURIComponent(bucket)}`;
+      let positions = {};
+
+      const readLocalLayoutCandidate = () => {
+        try {
+          const raw = window.localStorage.getItem(storageKey);
+          if (!raw) return {};
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (err) {
+          return {};
+        }
+      };
+
+      const clearLocalLayoutCache = () => {
+        try {
+          window.localStorage.removeItem(storageKey);
+          window.localStorage.removeItem('idcDesktopLayout:desktop');
+          window.localStorage.removeItem('idcDesktopLayout:tablet');
+        } catch (err) {}
+      };
+
+      let saveTimer = 0;
+      const saveLayout = (next) => {
+        clearTimeout(saveTimer);
+        saveTimer = window.setTimeout(() => {
+          fetch('/api/desktop-layout', {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bucket, positions: next }),
+          }).catch(() => {});
+        }, 180);
+      };
+
+      const loadLayout = async () => {
+        const localCandidate = readLocalLayoutCandidate();
+        try {
+          const response = await fetch(`${layoutEndpoint}&_=${Date.now()}`, {
+            cache: 'no-store',
+            credentials: 'same-origin',
+          });
+          if (!response.ok) { clearLocalLayoutCache(); return {}; }
+          const payload = await response.json();
+          const serverPositions = payload && payload.positions && typeof payload.positions === 'object' ? payload.positions : {};
+          if (Object.keys(serverPositions).length > 0) {
+            clearLocalLayoutCache();
+            return serverPositions;
+          }
+          if (Object.keys(localCandidate).length > 0) {
+            clearLocalLayoutCache();
+            saveLayout(localCandidate);
+            return localCandidate;
+          }
+          clearLocalLayoutCache();
+          return {};
+        } catch (err) {
+          clearLocalLayoutCache();
+          return {};
+        }
+      };
+
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+      const applyGridPositions = (saved) => {
+        const layerRect = iconLayer.getBoundingClientRect();
+        icons.forEach((icon) => {
+          const id = icon.dataset.id;
+          if (saved[id]) {
+            icon.style.left = `${saved[id].x}px`;
+            icon.style.top = `${saved[id].y}px`;
+            return;
+          }
+          const rect = icon.getBoundingClientRect();
+          icon.style.left = `${rect.left - layerRect.left}px`;
+          icon.style.top = `${rect.top - layerRect.top}px`;
+        });
+      };
+
+      const enableFreeform = async () => {
+        const saved = await loadLayout();
+        applyGridPositions(saved);
+        iconLayer.classList.add('is-freeform');
+        positions = { ...saved };
+
+        icons.forEach((icon) => {
+          icon.addEventListener('pointerdown', (event) => {
+            if (event.button !== 0) return;
+            const iconRect = icon.getBoundingClientRect();
+            const layerRect = iconLayer.getBoundingClientRect();
+            const offsetX = event.clientX - iconRect.left;
+            const offsetY = event.clientY - iconRect.top;
+            const width = iconRect.width;
+            const height = iconRect.height;
+            const startX = event.clientX;
+            const startY = event.clientY;
+            let moved = false;
+
+            icon.classList.add('is-dragging');
+            icon.setPointerCapture(event.pointerId);
+
+            const move = (moveEvent) => {
+              if (Math.abs(moveEvent.clientX - startX) > 4 || Math.abs(moveEvent.clientY - startY) > 4) moved = true;
+              const nextX = clamp(moveEvent.clientX - layerRect.left - offsetX, 0, layerRect.width - width);
+              const nextY = clamp(moveEvent.clientY - layerRect.top - offsetY, 0, layerRect.height - height);
+              icon.style.left = `${nextX}px`;
+              icon.style.top = `${nextY}px`;
+            };
+
+            const end = () => {
+              icon.classList.remove('is-dragging');
+              icon.releasePointerCapture(event.pointerId);
+              icon.removeEventListener('pointermove', move);
+              icon.removeEventListener('pointerup', end);
+              icon.removeEventListener('pointercancel', end);
+              if (moved) {
+                icon.dataset.dragged = 'true';
+                const id = icon.dataset.id;
+                if (id) {
+                  positions[id] = { x: parseFloat(icon.style.left) || 0, y: parseFloat(icon.style.top) || 0 };
+                  saveLayout(positions);
+                }
+              }
+            };
+
+            icon.addEventListener('pointermove', move);
+            icon.addEventListener('pointerup', end);
+            icon.addEventListener('pointercancel', end);
+          });
+
+          icon.addEventListener('click', (event) => {
+            if (icon.dataset.dragged === 'true') {
+              event.preventDefault();
+              icon.dataset.dragged = 'false';
+            }
+          });
+        });
+      };
+
+      const resetLayout = () => {
+        try {
+          clearLocalLayoutCache();
+          window.localStorage.removeItem('idcDesktopPlayButton');
+          window.localStorage.removeItem('idcPersistentPlayerState');
+        } catch (err) {}
+        iconLayer.classList.remove('is-freeform');
+        positions = {};
+        icons.forEach((icon) => { icon.style.left = ''; icon.style.top = ''; });
+        requestAnimationFrame(() => {
+          applyGridPositions({});
+          iconLayer.classList.add('is-freeform');
+          saveLayout({});
+        });
+      };
+      document.getElementById('reset-layout').addEventListener('click', resetLayout);
+
+      requestAnimationFrame(() => enableFreeform());
+    })();
+  </script>
+  <script src="/js/persistent-player.js" defer></script>
+</body>
+</html>
