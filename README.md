@@ -30,17 +30,17 @@ part is wiring all of that into one coherent, deployable monorepo.
 
 | Tool | What it does | Entry point |
 |---|---|---|
-| **Internet Discotheque** | Run 06 of the landing: nineteen records in a spinning crate under the mirror ball | `frontend/index.html` |
-| **Collections** | Index of every landing run — run 03 current, runs 02 and 01 archived | `frontend/collections.html` |
+| **Internet Discotheque** | Run 07 of the landing: a WebGL field of nineteen bodies with bloom and four colour schemes | `frontend/index.html` |
+| **Collections** | Index of every landing run — run 07 current, six archived | `frontend/collections.html` |
 | **Harmonizer Music Lab** | Beat-sliced audio re-looping — canon / jukebox / eternal / phase-shift | `frontend/musiclab.html`, `backend/app.py` |
 | **hl-auth** | Single sign-on + per-page / per-icon access control for the whole host | `hl-auth/` |
 | **OurSpace** | A MySpace-style profile builder | `frontend/ourspace.html` |
 | **VENPOD** | Early voxel / WebGPU experiment | `venpod/` |
 
-Landing runs: 06 The Crate (current, `frontend/index.html`), 05 The Daily Discotheque
-(`frontend/runs/05-daily/`), 04 Console (`frontend/runs/04-console/`), 03 Night Shift
-(`frontend/runs/03-nightshift/`), 02 Sleeve (`frontend/runs/02-sleeve/`),
-01 Desktop OS (`frontend/runs/01-desktop/`).
+Landing runs: 07 The Signal (current, `frontend/index.html`), 06 The Crate
+(`frontend/runs/06-crate/`), 05 The Daily Discotheque (`frontend/runs/05-daily/`),
+04 Console (`frontend/runs/04-console/`), 03 Night Shift (`frontend/runs/03-nightshift/`),
+02 Sleeve (`frontend/runs/02-sleeve/`), 01 Desktop OS (`frontend/runs/01-desktop/`).
 
 Retired from the site (code and services remain): CameraRoom, Night Library, CodeSniff, Eldrichify,
 Notebook, Quick Reference. Their routes are not served on this branch and nothing links them.
@@ -60,7 +60,8 @@ docker compose up --build     # → http://localhost:5000
 
 | Area | Path |
 |---|---|
-| Landing page (run 06) | `frontend/index.html` |
+| Landing page (run 07) | `frontend/index.html` |
+| Run 06 archive | `frontend/runs/06-crate/index.html` |
 | Run 05 archive | `frontend/runs/05-daily/index.html` |
 | Run 04 archive | `frontend/runs/04-console/index.html` |
 | Run 03 archive | `frontend/runs/03-nightshift/index.html` |
