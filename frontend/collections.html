@@ -102,7 +102,7 @@
     .runs{padding-top:clamp(26px,4vh,44px);display:grid;gap:clamp(34px,6vh,72px)}
     .run{
       display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);
-      gap:clamp(24px,5vw,70px);align-items:stretch;
+      gap:clamp(24px,5vw,70px);align-items:start;
       padding-top:clamp(24px,4vh,44px);border-top:1px solid var(--line);
     }
     .run:first-child{border-top:0;padding-top:0}
@@ -122,7 +122,7 @@
     }
     .run p{margin:16px 0 0;max-width:38ch;font-size:13.5px;line-height:1.6;color:var(--dim)}
     .run-open{
-      display:inline-flex;align-items:center;gap:12px;margin-top:auto;padding-top:clamp(22px,4vh,40px);
+      display:inline-flex;align-items:center;gap:12px;margin-top:0;padding-top:24px;
       font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);
     }
     .run-open .label{display:inline-block;padding-bottom:4px;border-bottom:1px solid var(--line);transition:color .2s,border-color .2s}
@@ -195,21 +195,35 @@
           <p class="sub"><b>Every landing run, newest first.</b> Each one is a whole pass at the front door,
             kept so the next pass can be compared against it.</p>
         </div>
-        <p class="title-note">Current · <b>Run 02</b><br>Archived · Run 01</p>
+        <p class="title-note">Current · <b>Run 03</b><br>Archived · Run 02, Run 01</p>
       </section>
 
       <div class="runs">
         <article class="run">
           <div class="run-meta">
-            <div class="run-top"><span class="run-no">Run 02</span><span class="run-state">Current</span></div>
+            <div class="run-top"><span class="run-no">Run 03</span><span class="run-state">Current</span></div>
             <h2>Night Shift</h2>
             <p>Six acts through one room: doors, the floor, the booth, the back room, the office, the roof.
               A fixed scene moves as you scroll; every live thing is on the floor.</p>
-            <a class="run-open" href="/"><span class="label">Open run 02</span> <span aria-hidden="true">&rarr;</span></a>
+            <a class="run-open" href="/"><span class="label">Open run 03</span> <span aria-hidden="true">&rarr;</span></a>
           </div>
-          <a class="run-shot" href="/" aria-label="Open run 02, Night Shift">
-            <img src="/assets/runs/run-02-nightshift.jpg" alt="Run 02 landing: Internet Discotheque in a serif masthead over a lit floor" width="1200" height="750" loading="lazy">
+          <a class="run-shot" href="/" aria-label="Open run 03, Night Shift">
+            <img src="/assets/runs/run-03-nightshift.jpg" alt="Run 03 landing: Internet Discotheque in a serif masthead over a lit floor" width="1200" height="750" loading="lazy">
             <span class="shot-tag">Live · 1440 × 900</span>
+          </a>
+        </article>
+
+        <article class="run">
+          <div class="run-meta">
+            <div class="run-top"><span class="run-no">Run 02</span><span class="run-state run-state--archived">Archived</span></div>
+            <h2>Sleeve</h2>
+            <p>One screen: the masthead, a light floor, six featured things and one way into the full index.
+              Kept as the second pass.</p>
+            <a class="run-open" href="/runs/02-sleeve/"><span class="label">Open run 02</span> <span aria-hidden="true">&rarr;</span></a>
+          </div>
+          <a class="run-shot" href="/runs/02-sleeve/" aria-label="Open run 02, Sleeve">
+            <img src="/assets/runs/run-02-sleeve.jpg" alt="Run 02 landing: a full-width serif masthead with a featured list" width="1200" height="750" loading="lazy">
+            <span class="shot-tag">Archived · 1440 × 900</span>
           </a>
         </article>
 
