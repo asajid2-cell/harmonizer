@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="day">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Daily Discotheque — Harmonizer Labs</title>
+  <meta name="description" content="Run 05 of the Harmonizer Labs landing: the whole lab printed as a newspaper — nineteen live things, four departments, one front page.">
+  <script>
+    (function () {
+      try {
+        document.documentElement.dataset.theme =
+          localStorage.getItem('hl-theme') === 'dark' ? 'night' : 'day';
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root{
+      --serif:"Times New Roman",Times,"Liberation Serif",serif;
+      --sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
+      --mono:"Courier New",ui-monospace,Consolas,monospace;
+
+      --paper:#f2ecdf;
+      --ink:#17120c;
+      --muted:#5f5446;
+      --rule:#1a1510;
+      --hair:rgba(23,18,12,.26);
+      --red:#a3121f;
+      --tint:rgba(23,18,12,.05);
+      color-scheme:light;
+    }
+    :root[data-theme="night"]{
+      --paper:#121009;
+      --ink:#f0e7d4;
+      --muted:#a4967f;
+      --rule:#d9cdb6;
+      --hair:rgba(240,231,212,.24);
+      --red:#ff615a;
+      --tint:rgba(240,231,212,.05);
+      color-scheme:dark;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0}
+    body{
+      background:var(--paper);
+      color:var(--ink);
+      font-family:var(--serif);
+      font-size:15px;
+      line-height:1.5;
+      -webkit-font-smoothing:antialiased;
+      background-image:
+        radial-gradient(rgba(0,0,0,.035) .5px, transparent .6px);
+      background-size:4px 4px;
+    }
+    :root[data-theme="night"] body{background-image:radial-gradient(rgba(255,255,255,.035) .5px, transparent .6px)}
+    a{color:inherit;text-decoration:none}
+    button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    .skip{position:fixed;left:14px;top:-60px;z-index:20;padding:7px 11px;background:var(--paper);border:1px solid var(--ink);color:var(--ink)}
+    .skip:focus{top:14px}
+    :focus-visible{outline:2px solid var(--red);outline-offset:3px}
+
+    .sheet{
+      max-width:1440px;margin:0 auto;
+      padding:0 clamp(16px,3.4vw,48px) 0;
+    }
+
+    /* ---------- top strip ---------- */
+    .strip{
+      display:flex;align-items:center;justify-content:space-between;gap:16px;
+      padding:9px 0;font-family:var(--sans);font-size:9.5px;letter-spacing:.19em;
+      text-transform:uppercase;color:var(--muted);white-space:nowrap;
+    }
+    .strip b{color:var(--ink);font-weight:500}
+    .strip-mid{display:flex;align-items:center;gap:10px}
+    .strip-r{display:flex;align-items:center;gap:12px;min-width:0}
+    .strip a:hover{color:var(--red)}
+    .ed{
+      display:inline-flex;align-items:center;gap:7px;color:var(--muted);
+      font-family:var(--sans);font-size:9.5px;letter-spacing:.19em;text-transform:uppercase;
+    }
+    .ed:hover{color:var(--ink)}
+    .ed .chip{
+      position:relative;width:11px;height:11px;border:1px solid currentColor;
+      border-radius:50%;overflow:hidden;flex:none;
+    }
+    .ed .chip::after{
+      content:"";position:absolute;inset:0;background:var(--red);
+      clip-path:inset(0 0 50% 0);transition:clip-path .4s cubic-bezier(.2,.8,.2,1);
+    }
+    :root[data-theme="night"] .ed .chip::after{clip-path:inset(50% 0 0 0)}
+
+    /* ---------- masthead ---------- */
+    .mast{padding-top:2px}
+    .top-rule{border:0;border-top:3px solid var(--rule);margin:0}
+    .masthead{
+      margin:0;
+      font-family:var(--serif);
+      font-weight:700;
+      font-size:clamp(34px,7.32vw,114px);
+      line-height:.94;
+      letter-spacing:-.028em;
+      text-align:center;
+      text-transform:uppercase;
+      padding:clamp(10px,1.6vh,20px) 0 clamp(8px,1.4vh,16px);
+      white-space:nowrap;
+      animation:rise .5s cubic-bezier(.2,.7,.2,1) both;
+    }
+    @keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+    .thin-rule{border:0;border-top:1px solid var(--rule);margin:0}
+    .double-rule{border:0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);height:3px;margin:2px 0 0}
+
+    .dateline{
+      display:flex;align-items:center;justify-content:space-between;gap:18px;
+      padding:7px 0;
+      font-family:var(--sans);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+      white-space:nowrap;overflow:hidden;
+    }
+    .dateline .mid{
+      display:inline-flex;align-items:center;gap:8px;color:var(--red);
+      letter-spacing:.24em;
+    }
+    .dateline .mid::before,.dateline .mid::after{content:"";width:26px;height:1px;background:currentColor;opacity:.6}
+
+    /* ---------- lead ---------- */
+    .lead{
+      display:grid;
+      grid-template-columns:minmax(0,7fr) minmax(0,4.4fr);
+      gap:clamp(22px,3.4vw,46px);
+      padding:clamp(16px,2.4vh,26px) 0 clamp(22px,3vh,34px);
+    }
+    .kicker{
+      display:flex;align-items:center;gap:10px;
+      margin:0 0 8px;font-family:var(--sans);font-size:9.5px;letter-spacing:.22em;
+      text-transform:uppercase;color:var(--red);
+    }
+    .kicker::before{content:"";width:22px;height:2px;background:currentColor}
+    .story h2{
+      margin:0;
+      font-size:clamp(36px,4.1vw,62px);
+      line-height:.96;letter-spacing:-.022em;
+      font-weight:700;
+    }
+    .dek{
+      margin:12px 0 0;max-width:52ch;
+      font-size:clamp(15px,1.35vw,18px);line-height:1.42;font-style:italic;color:var(--muted);
+    }
+    .story-body{
+      margin-top:clamp(14px,2vh,20px);
+      columns:2;column-gap:clamp(18px,2.2vw,30px);column-rule:1px solid var(--hair);
+      font-size:14.2px;line-height:1.52;
+      text-align:justify;hyphens:auto;
+    }
+    .story-body p{margin:0 0 10px}
+    .story-body p:last-child{margin-bottom:0}
+    .story-body p:first-child::first-letter{
+      float:left;font-size:3.35em;line-height:.78;font-weight:700;
+      padding:5px 7px 0 0;
+    }
+    .story-body b{font-weight:700}
+    .story-body a{border-bottom:1px solid var(--hair)}
+    .story-body a:hover{color:var(--red);border-color:currentColor}
+
+    .stats{
+      display:grid;grid-template-columns:repeat(3,1fr);
+      margin-top:clamp(16px,2.4vh,24px);
+      border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+    }
+    .stat{padding:10px 0 9px;border-left:1px solid var(--hair)}
+    .stat:first-child{border-left:0;padding-left:0}
+    .stat .n{
+      display:block;font-size:clamp(30px,3.1vw,44px);line-height:.9;font-weight:700;letter-spacing:-.03em;
+      font-variant-numeric:lining-nums;
+    }
+    .stat .l{
+      display:block;margin-top:5px;font-family:var(--sans);font-size:8.5px;letter-spacing:.2em;
+      text-transform:uppercase;color:var(--muted);
+    }
+    .stat + .stat{padding-left:clamp(10px,1.4vw,18px)}
+
+    .briefs{margin-top:clamp(16px,2.4vh,24px);border-top:1px solid var(--rule);padding-top:9px}
+    .briefs h3{
+      margin:0 0 8px;font-family:var(--sans);font-size:8.5px;letter-spacing:.22em;
+      text-transform:uppercase;color:var(--red);font-weight:500;
+    }
+    .brief-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0}
+    .brief{display:block;padding:0 clamp(10px,1.2vw,16px);border-left:1px solid var(--hair);min-width:0}
+    .brief:first-child{border-left:0;padding-left:0}
+    .brief:last-child{padding-right:0}
+    .brief .b-k{
+      display:block;font-family:var(--sans);font-size:7.5px;letter-spacing:.18em;
+      text-transform:uppercase;color:var(--muted);
+    }
+    .brief b{display:block;margin-top:3px;font-size:15px;line-height:1.15}
+    .brief span.txt{display:block;margin-top:3px;font-size:11.5px;line-height:1.4;color:var(--muted)}
+    .brief:hover b{color:var(--red)}
+
+    /* ---------- rail ---------- */
+    .rail{display:flex;flex-direction:column;gap:clamp(16px,2.4vh,24px);min-width:0}
+    .photo{margin:0}
+    .photo-frame{
+      position:relative;display:block;overflow:hidden;
+      border:1px solid var(--rule);background:#0a0908;
+    }
+    .photo-frame img{
+      display:block;width:100%;height:auto;
+      filter:grayscale(1) contrast(1.12) brightness(1.3);
+      transition:transform .8s cubic-bezier(.2,.7,.2,1);
+    }
+    .photo-frame:hover img{transform:scale(1.02)}
+    .photo-frame::after{
+      content:"";position:absolute;inset:0;pointer-events:none;
+      background-image:radial-gradient(rgba(0,0,0,.6) .55px,transparent .65px);
+      background-size:3px 3px;opacity:.35;mix-blend-mode:multiply;
+    }
+    :root[data-theme="night"] .photo-frame::after{
+      background-image:radial-gradient(rgba(255,255,255,.5) .55px,transparent .65px);
+      opacity:.22;mix-blend-mode:screen;
+    }
+    .photo figcaption{
+      margin-top:7px;font-size:11.5px;line-height:1.42;color:var(--muted);
+      border-top:1px solid var(--hair);padding-top:6px;
+    }
+    .photo figcaption b{
+      font-family:var(--sans);font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;
+      color:var(--red);font-weight:500;margin-right:6px;
+    }
+
+    .box{border:1px solid var(--rule);padding:11px 14px 13px}
+    .box h3{
+      display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+      margin:0 0 8px;font-family:var(--sans);font-size:9px;letter-spacing:.22em;
+      text-transform:uppercase;font-weight:500;color:var(--red);
+    }
+    .box h3 span{color:var(--muted);letter-spacing:.12em}
+    .inside-list{list-style:none;margin:0;padding:0}
+    .inside-list li + li{border-top:1px solid var(--hair)}
+    .inside-list a{
+      display:flex;align-items:baseline;gap:10px;padding:6px 0;
+    }
+    .inside-list a:hover .nm{color:var(--red)}
+    .inside-list .nm{font-size:15px;font-weight:700}
+    .inside-list .dots{flex:1;height:1px;border-bottom:1px dotted var(--hair);transform:translateY(-3px)}
+    .inside-list .ct{font-family:var(--sans);font-size:9px;letter-spacing:.14em;color:var(--muted)}
+
+    .runs-list{list-style:none;margin:0;padding:0}
+    .runs-list li + li{border-top:1px solid var(--hair)}
+    .runs-list a,.runs-list span.row{display:flex;align-items:baseline;gap:9px;padding:5px 0}
+    .runs-list .no{font-family:var(--sans);font-size:9px;letter-spacing:.1em;color:var(--muted);min-width:2.2em}
+    .runs-list .nm{font-size:13.5px}
+    .runs-list a:hover .nm{color:var(--red)}
+    .runs-list .st{
+      margin-left:auto;font-family:var(--sans);font-size:8px;letter-spacing:.16em;
+      text-transform:uppercase;color:var(--muted);
+    }
+    .runs-list .st.now{color:var(--red)}
+
+    /* ---------- classifieds ---------- */
+    .sec{padding:0 0 clamp(24px,4vh,40px)}
+    .sec-head{
+      display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+      border-top:3px solid var(--rule);padding-top:10px;margin-bottom:clamp(14px,2vh,20px);
+    }
+    .sec-head h2{
+      margin:0;font-size:clamp(28px,3.2vw,44px);line-height:.9;
+      letter-spacing:-.02em;text-transform:uppercase;
+    }
+    .sec-head p{
+      margin:0;max-width:44ch;text-align:right;
+      font-size:12px;line-height:1.45;color:var(--muted);font-style:italic;
+    }
+
+    .ads{
+      display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:0;
+    }
+    .dept{
+      padding:0 clamp(12px,1.5vw,20px);border-left:1px solid var(--hair);min-width:0;
+    }
+    .dept:first-child{border-left:0;padding-left:0}
+    .dept:last-child{padding-right:0}
+    .dept h3{
+      display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+      margin:0;padding:0 0 7px;border-bottom:1px solid var(--rule);
+      font-family:var(--sans);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;
+      font-weight:500;color:var(--red);
+    }
+    .dept h3 span{color:var(--muted);letter-spacing:.1em}
+    .ad{
+      display:block;padding:9px 0 10px;border-bottom:1px solid var(--hair);
+    }
+    .ad:last-child{border-bottom:0}
+    .ad-main{display:block}
+    .ad-top{display:flex;align-items:baseline;gap:8px}
+    .ad .no{
+      font-family:var(--sans);font-size:8.5px;letter-spacing:.08em;color:var(--muted);
+      min-width:1.9em;font-variant-numeric:tabular-nums;
+    }
+    .ad .nm{font-size:14.5px;font-weight:700;line-height:1.15}
+    .ad .gt{
+      margin-left:auto;font-family:var(--sans);font-size:7.5px;letter-spacing:.16em;
+      text-transform:uppercase;color:var(--muted);white-space:nowrap;
+    }
+    .ad .note{margin:3px 0 0 2.6em;font-size:11.8px;line-height:1.38;color:var(--muted)}
+    .ad .more{
+      display:inline-block;margin-left:2.6em;margin-top:3px;
+      font-family:var(--sans);font-size:8px;letter-spacing:.16em;text-transform:uppercase;
+      color:var(--red);border-bottom:1px solid currentColor;line-height:1.18;
+    }
+    .ad:hover .nm{color:var(--red)}
+    .ad:hover .gt{color:var(--ink)}
+
+    /* ---------- footer ---------- */
+    .imprint{
+      display:flex;align-items:flex-start;justify-content:space-between;gap:28px;
+      border-top:3px solid var(--rule);padding:12px 0 clamp(20px,3vh,32px);
+      font-size:11.5px;line-height:1.5;color:var(--muted);
+    }
+    .imprint p{margin:0;max-width:70ch}
+    .imprint .right{
+      text-align:right;font-family:var(--sans);font-size:8.5px;letter-spacing:.18em;
+      text-transform:uppercase;white-space:nowrap;color:var(--muted);
+    }
+    .imprint a{border-bottom:1px solid var(--hair)}
+    .imprint a:hover{color:var(--red);border-color:currentColor}
+
+    /* ---------- responsive ---------- */
+    @media (max-width:1060px){
+      .lead{grid-template-columns:1fr}
+      .rail{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);align-items:start}
+      .ads{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:22px}
+      .dept{padding:0 14px}
+      .dept:first-child{padding-left:0}
+      .dept:nth-child(3){border-left:0;padding-left:0}
+    }
+    @media (max-width:760px){
+      .sheet{padding:0 16px}
+      .strip{font-size:8.5px;letter-spacing:.12em;flex-wrap:wrap;gap:6px 12px;white-space:normal}
+      .strip-mid,.strip-l{display:none}
+      .strip-r{width:100%;justify-content:space-between;gap:8px}
+      .ed{white-space:nowrap}
+      .masthead{white-space:normal;font-size:clamp(38px,12.4vw,74px);line-height:.92}
+      .dateline{flex-wrap:wrap;gap:4px 12px;font-size:8.5px;letter-spacing:.13em}
+      .dateline .mid::before,.dateline .mid::after{display:none}
+      .dateline .mid{order:3;width:100%}
+      .story h2{font-size:clamp(34px,10.5vw,52px)}
+      .story-body{columns:1;text-align:left}
+      .rail{grid-template-columns:1fr}
+      .ads{grid-template-columns:1fr;row-gap:0}
+      .dept{border-left:0;padding:0}
+      .dept + .dept{border-top:3px solid var(--rule);margin-top:18px}
+      .brief-grid{grid-template-columns:1fr}
+      .brief{border-left:0;padding:0}
+      .brief + .brief{border-top:1px solid var(--hair);margin-top:8px;padding-top:8px}
+      .sec-head{flex-direction:column;align-items:flex-start;gap:8px}
+      .sec-head p{text-align:left}
+      .imprint{flex-direction:column;gap:10px}
+      .imprint .right{text-align:left}
+    }
+    @media (prefers-reduced-motion:reduce){
+      *{animation:none!important;transition:none!important}
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#classifieds">Skip to the index</a>
+
+  <div class="sheet">
+    <header class="mast">
+      <div class="strip">
+        <span class="strip-l"><b>Vol. I</b> · No. 05</span>
+        <span class="strip-mid">Harmonizer Labs <span aria-hidden="true">·</span> Room 301</span>
+        <span class="strip-r">
+          <span><time id="today">Tuesday, November 4, 2026</time></span>
+          <span aria-hidden="true">·</span>
+          <span id="clock">--:--</span>
+          <span aria-hidden="true">·</span>
+          <a href="/collections">Runs</a>
+          <button class="ed" id="theme" type="button" aria-label="Switch to the night edition">
+            <span class="chip" aria-hidden="true"></span>
+            <span>Edition: <b id="edition">Day</b></span>
+          </button>
+        </span>
+      </div>
+
+      <hr class="top-rule">
+      <h1 class="masthead">Internet Discotheque</h1>
+      <hr class="thin-rule">
+
+      <div class="dateline">
+        <span>Harmonizer Labs · Room 301 · Edmonton, Alberta</span>
+        <span class="mid">Run 05 · current</span>
+        <span><b id="live-count">19</b> live things · <b id="col-count">4</b> collections</span>
+      </div>
+      <hr class="double-rule">
+    </header>
+
+    <main>
+      <section class="lead">
+        <article class="story">
+          <p class="kicker">The front door</p>
+          <h2>Nineteen live things,<br>one front page.</h2>
+          <p class="dek">The lab stopped hiding its inventory behind a menu. This pass prints
+            the whole shelf — every tool, every room, every small utility — with its address.</p>
+
+          <div class="story-body">
+            <p>Everything in this paper is running. The audio lab slices an uploaded track into
+              beats and rebuilds it as a loop, a canon, or a phase-shifted layer. The rooms hold a
+              streaming client, a terminal relay, and a profile builder that never grew up. The
+              tool shelf is a row of small services that each do one job. The back page keeps the
+              voxel engine, the sandbox, a map of Edmonton, and a phone app for keeping the
+              internet out.</p>
+            <p>None of it is a mock-up and none of it says <b>coming soon</b>. Nineteen entries,
+              four departments, and one sign-in in front of the parts that need it. Five landing
+              runs have been made for this address; the ones that came before are kept whole at
+              <a href="/collections"><b>the archive</b></a>, screenshots and all.</p>
+            <p>The paper itself is the front door this time. Read the leads, then use the
+              classifieds at the bottom of the page — every line is a working link.</p>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><span class="n" id="stat-things">19</span><span class="l">Live things</span></div>
+            <div class="stat"><span class="n">04</span><span class="l">Collections</span></div>
+            <div class="stat"><span class="n">05</span><span class="l">Landing runs</span></div>
+          </div>
+
+          <div class="briefs">
+            <h3>In brief</h3>
+            <div class="brief-grid">
+              <a class="brief" href="/terrapin/">
+                <span class="b-k">On the phone</span>
+                <b>Terrapin</b>
+                <span class="txt">A private blocker for iOS, shipping from the App Store.</span>
+              </a>
+              <a class="brief" href="/optio">
+                <span class="b-k">On the map</span>
+                <b>Optio</b>
+                <span class="txt">Plans Edmonton around the people and routines that matter.</span>
+              </a>
+              <a class="brief" href="/htv/">
+                <span class="b-k">On the air</span>
+                <b>Harmonizer TV</b>
+                <span class="txt">The lab's own television, streaming behind a sign-in.</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <aside class="rail">
+          <figure class="photo">
+            <a class="photo-frame" href="/runs/03-nightshift/" aria-label="Open run 03, Night Shift">
+              <img src="/assets/runs/run-03-nightshift.jpg" alt="The Night Shift landing: a serif masthead over a lit dance floor" width="1200" height="750">
+            </a>
+            <figcaption><b>Last edition</b> Run 03, <i>Night Shift</i> — six acts through one room.
+              Closed and kept whole in the archive.</figcaption>
+          </figure>
+
+          <div class="box">
+            <h3>Inside <span>by department</span></h3>
+            <ul class="inside-list" id="inside"></ul>
+          </div>
+
+          <div class="box">
+            <h3>The runs <span>all kept</span></h3>
+            <ul class="runs-list">
+              <li><span class="row"><span class="no">05</span><span class="nm">This paper</span><span class="st now">Current</span></span></li>
+              <li><a href="/runs/04-console/"><span class="no">04</span><span class="nm">Console</span><span class="st">Archived</span></a></li>
+              <li><a href="/runs/03-nightshift/"><span class="no">03</span><span class="nm">Night Shift</span><span class="st">Archived</span></a></li>
+              <li><a href="/runs/02-sleeve/"><span class="no">02</span><span class="nm">Sleeve</span><span class="st">Archived</span></a></li>
+              <li><a href="/runs/01-desktop/"><span class="no">01</span><span class="nm">Desktop OS</span><span class="st">Archived</span></a></li>
+            </ul>
+          </div>
+        </aside>
+      </section>
+
+      <section class="sec" id="classifieds">
+        <div class="sec-head">
+          <h2>The Classifieds</h2>
+          <p>Every live thing in the lab, filed by department. Numbers are the house index;
+            the gate is what stands at the door.</p>
+        </div>
+        <div class="ads" id="ads"></div>
+      </section>
+    </main>
+
+    <footer class="imprint">
+      <p><b>The Daily Discotheque</b> is printed by Harmonizer Labs, Room 301, Edmonton, Alberta.
+        This is run 05 of the landing. Earlier runs are kept whole —
+        <a href="/collections">see the archive</a>.</p>
+      <p class="right">harmonizerlabs.cc<br>All things live</p>
+    </footer>
+  </div>
+
+  <script src="/js/collections-data.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      const { collections = [], items = [], gates = {} } = window.HL_COLLECTIONS || {};
+      const root = document.documentElement;
+      const pad = (n) => String(n).padStart(2, '0');
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+      /* ---------- masthead counts ---------- */
+      document.getElementById('live-count').textContent = String(items.length);
+      document.getElementById('col-count').textContent = String(collections.length);
+      document.getElementById('stat-things').textContent = pad(items.length);
+
+      /* ---------- inside index ---------- */
+      const inside = document.getElementById('inside');
+      collections.forEach((col) => {
+        const count = items.filter((i) => i.collection === col.id).length;
+        if (!count) return;
+        const li = document.createElement('li');
+        li.innerHTML =
+          '<a href="#dept-' + esc(col.id) + '">' +
+            '<span class="nm">' + esc(col.name) + '</span>' +
+            '<span class="dots" aria-hidden="true"></span>' +
+            '<span class="ct">' + pad(count) + '</span>' +
+          '</a>';
+        inside.appendChild(li);
+      });
+
+      /* ---------- classifieds ---------- */
+      const ads = document.getElementById('ads');
+      let n = 0;
+      collections.forEach((col) => {
+        const list = items.filter((i) => i.collection === col.id);
+        if (!list.length) return;
+        const dept = document.createElement('section');
+        dept.className = 'dept';
+        dept.id = 'dept-' + col.id;
+        dept.innerHTML = '<h3>' + esc(col.name) + ' <span>' + pad(list.length) + '</span></h3>';
+
+        list.forEach((it) => {
+          n += 1;
+          const ad = document.createElement('div');
+          ad.className = 'ad';
+          ad.innerHTML =
+            '<a class="ad-main" href="' + esc(it.href) + '">' +
+              '<span class="ad-top">' +
+                '<span class="no">' + pad(n) + '</span>' +
+                '<span class="nm">' + esc(it.name) + '</span>' +
+                '<span class="gt">' + esc(gates[it.gate] || it.gate) + '</span>' +
+              '</span>' +
+              '<span class="note">' + esc(it.note || '') + '</span>' +
+            '</a>';
+          if (it.more) {
+            ad.insertAdjacentHTML('beforeend',
+              '<a class="more" href="' + esc(it.more.href) + '" target="_blank" rel="noopener">' +
+                esc(it.more.label) + ' &nearr;</a>');
+          }
+          dept.appendChild(ad);
+        });
+        ads.appendChild(dept);
+      });
+
+      /* ---------- clock + dateline ---------- */
+      const narrow = window.matchMedia('(max-width: 760px)');
+      function tick() {
+        const d = new Date();
+        const el = document.getElementById('today');
+        el.textContent = d.toLocaleDateString('en-US', narrow.matches
+          ? { month: 'short', day: 'numeric' }
+          : { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        el.dateTime = d.toISOString().slice(0, 10);
+        document.getElementById('clock').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
+      }
+      tick();
+      setInterval(tick, 15000);
+      if (narrow.addEventListener) narrow.addEventListener('change', tick);
+
+      /* ---------- edition ---------- */
+      function paintEdition() {
+        const night = root.dataset.theme === 'night';
+        document.getElementById('edition').textContent = night ? 'Night' : 'Day';
+        document.getElementById('theme').setAttribute('aria-label',
+          night ? 'Switch to the day edition' : 'Switch to the night edition');
+      }
+      document.getElementById('theme').addEventListener('click', () => {
+        const next = root.dataset.theme === 'night' ? 'day' : 'night';
+        root.dataset.theme = next;
+        try { localStorage.setItem('hl-theme', next === 'night' ? 'dark' : 'light'); } catch (e) {}
+        paintEdition();
+      });
+      paintEdition();
+    })();
+  </script>
+</body>
+</html>
